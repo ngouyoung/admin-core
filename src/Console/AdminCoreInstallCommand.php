@@ -82,20 +82,17 @@ class AdminCoreInstallCommand extends Command
 
         $block = <<<PHP
 
-        /*
-        |--------------------------------------------------------------------------
-        | admin-core:routes — backend resource routes (php artisan admin-core:make)
-        |--------------------------------------------------------------------------
-        */
-        Route::group([{$middleware}'prefix' => 'admin', 'as' => 'admin.'], function () {
-            Route::view('/', 'backend.dashboard')->name('dashboard');
+// >>> admin-core:routes (managed by admin-core:install — do not edit the markers)
+Route::group([{$middleware}'prefix' => 'admin', 'as' => 'admin.'], function () {
+    Route::view('/', 'backend.dashboard')->name('dashboard');
 
-            foreach (glob(base_path('routes/Web/Backend/Modules/*.php')) ?: [] as \$module) {
-                require \$module;
-            }
-        });
+    foreach (glob(base_path('routes/Web/Backend/Modules/*.php')) ?: [] as \$module) {
+        require \$module;
+    }
+});
+// <<< admin-core:routes
 
-        PHP;
+PHP;
 
         File::append($web, $block);
         $this->line('  <info>updated</info> routes/web.php (added admin-core route group)');
@@ -118,12 +115,13 @@ class AdminCoreInstallCommand extends Command
 
         $injection = <<<'PHP'
 {
-        // admin-core:middleware — spatie role/permission aliases
+        // >>> admin-core:middleware
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
+        // <<< admin-core:middleware
 PHP;
 
         $patched = preg_replace(
@@ -211,7 +209,8 @@ PHP;
             $this->line('  <comment>exists</comment>  auth routes already in routes/web.php');
             return;
         }
-        File::append($web, "\n" . File::get($stub));
+        $block = "\n// >>> admin-core:auth\n" . trim(File::get($stub)) . "\n// <<< admin-core:auth\n";
+        File::append($web, $block);
         $this->line('  <info>updated</info> routes/web.php (added login/logout routes)');
     }
 

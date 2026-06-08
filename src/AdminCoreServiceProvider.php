@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Ngos\AdminCore\Console\AdminCoreInstallCommand;
 use Ngos\AdminCore\Console\AdminCoreMakeCommand;
+use Ngos\AdminCore\Console\AdminCoreReinstallCommand;
+use Ngos\AdminCore\Console\AdminCoreUninstallCommand;
+use Ngos\AdminCore\Console\AdminCoreVersionCommand;
 
 class AdminCoreServiceProvider extends ServiceProvider
 {
@@ -24,6 +27,9 @@ class AdminCoreServiceProvider extends ServiceProvider
             $this->commands([
                 AdminCoreInstallCommand::class,
                 AdminCoreMakeCommand::class,
+                AdminCoreReinstallCommand::class,
+                AdminCoreUninstallCommand::class,
+                AdminCoreVersionCommand::class,
             ]);
 
             $this->publishes([

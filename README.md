@@ -107,6 +107,20 @@ must already exist — generate the parent resource first.
 > role and wrap the `admin-core:routes` group in `['auth', ...]`, or set `permission.enabled => false`
 > in `config/admin-core.php` to browse without auth while developing.
 
+## Lifecycle commands
+
+```bash
+php artisan admin-core:version                  # show the installed package version
+php artisan admin-core:uninstall                # un-wire (remove the route/middleware blocks + User trait)
+php artisan admin-core:uninstall --purge        # also delete the files it published
+php artisan admin-core:reinstall [--access]     # purge + reinstall (clean re-scaffold)
+```
+
+Everything `install` injects is wrapped in `// >>> admin-core:* … // <<< admin-core:*` sentinels, so
+`uninstall` removes **exactly** what it added. **Your `admin-core:make`-generated resources are never
+touched** — only package-owned files (config, layout, access module, front-end kit) are purged. Add
+`--force` to skip the confirmation prompt.
+
 ## Customising
 
 - **Stubs:** `php artisan vendor:publish --tag=admin-core-stubs` → `stubs/admin-core/` (yours win over the package's).
