@@ -21,7 +21,6 @@ class RoleService extends CrudService
     {
         $permissions = $data['permissions'] ?? [];
         unset($data['permissions']);
-
         $data['guard_name'] = $data['guard_name'] ?? 'web';
 
         $role = $this->model->create($data);

@@ -1,0 +1,78 @@
+<aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+    <div class="sidebar-brand">
+        <a href="{{ route('admin.dashboard') }}" class="brand-link">
+            <span class="brand-text fw-light">{{ config('app.name') }}</span>
+        </a>
+    </div>
+
+    <div class="sidebar-wrapper">
+        <div class="d-flex align-items-center p-3">
+            <div class="flex-shrink-0">
+                <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary"
+                      style="width:40px;height:40px">
+                    <i class="bi bi-person-fill text-white"></i>
+                </span>
+            </div>
+            <div class="flex-grow-1 ms-2">
+                <span class="d-block text-capitalize">{{ auth()->user()->name }}</span>
+            </div>
+        </div>
+
+        <nav class="mt-2">
+            <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="menu" data-accordion="false">
+                <li class="nav-item">
+                    <a href="{{ route('admin.dashboard') }}"
+                       class="nav-link {{ request()->is('admin') || request()->is('admin/dashboard') ? 'active' : '' }}">
+                        <i class="nav-icon bi bi-speedometer2"></i>
+                        <p>Dashboard</p>
+                    </a>
+                </li>
+
+                <li class="nav-header text-uppercase">Access</li>
+                <li class="nav-item {{ request()->is('admin/assessments/*') ? 'menu-open' : '' }}">
+                    <a href="#" class="nav-link {{ request()->is('admin/assessments/*') ? 'active' : '' }}">
+                        <i class="nav-icon bi bi-card-checklist"></i>
+                        <p>
+                            Assessments
+                            <i class="nav-arrow bi bi-chevron-right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        @can('list-user')
+                            <li class="nav-item">
+                                <a href="{{ route('admin.assessments.users.index') }}"
+                                   class="nav-link {{ request()->is('admin/assessments/users*') ? 'active' : '' }}">
+                                    <i class="nav-icon bi bi-circle"></i><p>Users</p>
+                                </a>
+                            </li>
+                        @endcan
+                        @can('list-role')
+                            <li class="nav-item">
+                                <a href="{{ route('admin.assessments.roles.index') }}"
+                                   class="nav-link {{ request()->is('admin/assessments/roles*') ? 'active' : '' }}">
+                                    <i class="nav-icon bi bi-circle"></i><p>Roles</p>
+                                </a>
+                            </li>
+                        @endcan
+                        @can('list-group-permission')
+                            <li class="nav-item">
+                                <a href="{{ route('admin.assessments.group_permissions.index') }}"
+                                   class="nav-link {{ request()->is('admin/assessments/group_permissions*') ? 'active' : '' }}">
+                                    <i class="nav-icon bi bi-circle"></i><p>Group Permissions</p>
+                                </a>
+                            </li>
+                        @endcan
+                        @can('list-permission')
+                            <li class="nav-item">
+                                <a href="{{ route('admin.assessments.permissions.index') }}"
+                                   class="nav-link {{ request()->is('admin/assessments/permissions*') ? 'active' : '' }}">
+                                    <i class="nav-icon bi bi-circle"></i><p>Permissions</p>
+                                </a>
+                            </li>
+                        @endcan
+                    </ul>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</aside>

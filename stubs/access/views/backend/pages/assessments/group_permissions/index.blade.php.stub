@@ -1,0 +1,111 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Group Permissions')
+
+@section('breadcrumb')
+    <div class="row">
+        <div class="col-sm-6"><h3 class="mb-0">Group Permissions</h3></div>
+        <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-end">
+                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
+                <li class="breadcrumb-item active">Group Permissions</li>
+            </ol>
+        </div>
+    </div>
+@endsection
+
+@section('contents')
+    <div class="card">
+        @can('create-group-permission')
+            <div class="card-header">
+                <a href="{{ route('admin.assessments.group_permissions.create') }}" class="{{ config('class.button.create') }}">
+                    <i class="{{ config('class.icon.create') }}"></i> Add New
+                </a>
+            </div>
+        @endcan
+        <div class="card-body">
+            <div class="row">
+                @if(isset($array) && $array->count() > 0)
+                    <div class="col-md-6">
+                        <div class="card"><div class="card-body">
+                            <div class="cf nestable-lists">
+                                <div class="dd @cannot('sort-group-permission') nestable-disable @endcannot" id="nestable">
+                                    <ol class="dd-list">
+                                        @foreach($array as $group)
+                                            <li class="dd-item" data-id="{{ $group->id }}">
+                                                <div class="dd-handle">
+                                                    {{ $group->name }}
+                                                    <span class="float-end">
+                                                        <span class="badge text-bg-info">{{ $group->permissions->count() }}</span> Permissions
+                                                    </span>
+                                                </div>
+                                                @if(isset($group->child) && $group->child->count())
+                                                    @include('backend.pages.assessments.group_permissions.partials.child', ['items' => $group->child])
+                                                @endif
+                                            </li>
+                                        @endforeach
+                                    </ol>
+                                </div>
+                            </div>
+                        </div></div>
+                    </div>
+                    <div class="col-md-6">
+                        <table class="{{ config('class.table') }}">
+                            <thead>@include('backend.pages.assessments.group_permissions.partials.thead')</thead>
+                            <tbody id="group_table_body">
+                            @include('backend.pages.assessments.group_permissions.partials.childTable', ['items' => $array, 'level' => -1])
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const refreshTable = function () {
+                $.get("{{ route('admin.assessments.group_permissions.table') }}", function (html) {
+                    $('#group_table_body').html(html);
+                    $('#group_table_body [data-bs-toggle="tooltip"]').each(function () {
+                        window.bootstrap.Tooltip.getOrCreateInstance(this);
+                    });
+                });
+            };
+
+            const nestable = $('#nestable');
+            nestable.nestable({group: 1, maxDepth: 10}).on('change', function () {
+                $.ajax({
+                    url: "{{ route('admin.assessments.group_permissions.sort') }}",
+                    type: "post",
+                    data: {data: nestable.nestable('serialize')},
+                    success: function (data) {
+                        if (data.status === "OK") {
+                            refreshTable();
+                            window.toastr.success('Order updated');
+                        } else window.toastr.error('Something went wrong!');
+                    },
+                    error: function (xhr, status, error) { window.toastr.error(error); }
+                });
+            });
+
+            $(document).on('click', '#delete', function (e) {
+                e.preventDefault();
+                const url = $(this).attr('data-remote');
+                Swal.fire({
+                    title: 'Are you sure?', text: 'You will not be able to recover this record!',
+                    icon: 'warning', showCancelButton: true,
+                    confirmButtonText: 'Yes, delete it!', cancelButtonText: 'No, keep it'
+                }).then((result) => {
+                    if (result.value) {
+                        $.ajax({type: "DELETE", url: url, success: function () {
+                            location.reload();
+                        }});
+                    }
+                });
+            });
+        });
+    </script>
+@endpush

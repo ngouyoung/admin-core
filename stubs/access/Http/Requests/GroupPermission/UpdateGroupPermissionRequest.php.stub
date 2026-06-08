@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Http\Requests\GroupPermission;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class UpdateGroupPermissionRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        $id = $this->route('id');
+
+        return [
+            'name' => ['required', 'string', 'max:255', Rule::unique('group_permissions', 'name')->ignore($id)],
+            'parent_id' => ['nullable', 'integer', 'exists:group_permissions,id'],
+        ];
+    }
+}

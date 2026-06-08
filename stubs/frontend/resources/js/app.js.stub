@@ -1,0 +1,44 @@
+// ---------------------------------------------------------------------------
+// admin-core front-end bundle (AdminLTE 4 / Bootstrap 5 / jQuery plugins)
+// Built with Vite — published by `php artisan admin-core:install --access`.
+// ---------------------------------------------------------------------------
+
+// Vendor styles
+import 'admin-lte/dist/css/adminlte.css'; // bundles Bootstrap 5
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
+import 'select2/dist/css/select2.css';
+import 'select2-bootstrap-5-theme/dist/select2-bootstrap-5-theme.css';
+import 'datatables.net-bs5/css/dataTables.bootstrap5.css';
+import 'datatables.net-responsive-bs5/css/responsive.bootstrap5.css';
+import 'sweetalert2/dist/sweetalert2.min.css';
+
+// Custom styles (overrides last)
+import '../sass/app.scss';
+
+// ---------------------------------------------------------------------------
+// Scripts
+// ---------------------------------------------------------------------------
+// jQuery must be global before any jQuery plugin module is evaluated.
+import './jquery-global';
+
+// Bootstrap 5 (exposed for inline use) + AdminLTE 4 (jQuery-free).
+import * as bootstrap from 'bootstrap';
+window.bootstrap = bootstrap;
+import 'admin-lte';
+
+// SweetAlert2 exposed globally (replaces the realrashid/sweet-alert PHP package).
+import Swal from 'sweetalert2';
+window.Swal = Swal;
+
+// jQuery plugins
+import 'datatables.net-bs5';
+import 'datatables.net-responsive-bs5';
+import select2 from 'select2';
+select2(window, window.jQuery); // select2's UMD export is a factory that must be invoked
+import './jquery.nestable';
+
+// App behaviour
+import './checktree';
+import './theme';
+import './notify';

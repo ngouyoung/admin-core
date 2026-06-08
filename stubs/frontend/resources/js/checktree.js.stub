@@ -1,0 +1,33 @@
+import $ from 'jquery';
+
+// Custom permission tree: clicking a checkbox toggles all descendants and
+// reconciles the checked state of ancestors.
+$.fn.checktree = function () {
+    this.find(':checkbox').on('click', function (event) {
+        event.stopPropagation();
+        const clk_checkbox = $(this);
+        const chk_state = clk_checkbox.is(':checked');
+        const parent_li = clk_checkbox.closest('li');
+        const parent_uls = parent_li.parents('ul');
+        parent_li.find(':checkbox').prop('checked', chk_state);
+        parent_uls.each(function () {
+            const parent_ul = $(this);
+            const parent_state = (parent_ul.find(':checkbox').length === parent_ul.find(':checked').length);
+            parent_ul.siblings(':checkbox').prop('checked', parent_state);
+        });
+    });
+
+    // Reconcile ancestor state for already-checked boxes on load.
+    this.find(':checkbox:checked').each(function (key, item) {
+        const parent_li = $(item).closest('li');
+        const parent_uls = parent_li.parents('ul');
+        parent_li.find(':checkbox').prop('checked', true);
+        parent_uls.each(function () {
+            const parent_ul = $(this);
+            const parent_state = (parent_ul.find(':checkbox').length === parent_ul.find(':checked').length);
+            parent_ul.siblings(':checkbox').prop('checked', parent_state);
+        });
+    });
+
+    return this;
+};

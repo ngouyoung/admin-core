@@ -1,0 +1,41 @@
+<?php
+
+use App\Http\Controllers\Backend\Assessments\GroupPermissionsController;
+use App\Http\Controllers\Backend\Assessments\PermissionController;
+use App\Http\Controllers\Backend\Assessments\RoleController;
+use App\Http\Controllers\Backend\Assessments\UserController;
+use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| Assessments — access management (users, roles, group permissions, permissions)
+|--------------------------------------------------------------------------
+| Loaded by the admin-core route loader, inside the `admin` group.
+*/
+
+$gate = fn (string $perm) => config('admin-core.permission.enabled') ? 'permission:' . $perm : [];
+
+Route::group(['prefix' => 'assessments', 'as' => 'assessments.'], function () use ($gate) {
+    Route::group(['prefix' => 'users', 'as' => 'users.'], function () {
+        Route::crud('user', UserController::class);
+    });
+
+    Route::group(['prefix' => 'roles', 'as' => 'roles.'], function () {
+        Route::crud('role', RoleController::class);
+    });
+
+    Route::group(['prefix' => 'group_permissions', 'as' => 'group_permissions.'], function () use ($gate) {
+        Route::crud('group-permission', GroupPermissionsController::class);
+        Route::controller(GroupPermissionsController::class)->group(function () use ($gate) {
+            Route::get('table', 'table')->name('table')->middleware($gate('list-group-permission'));
+            Route::post('sort', 'sort')->name('sort')->middleware($gate('sort-group-permission'));
+        });
+    });
+
+    Route::group(['prefix' => 'permissions', 'as' => 'permissions.'], function () use ($gate) {
+        Route::controller(PermissionController::class)->middleware($gate('list-permission'))->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('getData', 'getData')->name('getData');
+        });
+    });
+});

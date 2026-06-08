@@ -1,0 +1,4 @@
+<footer class="app-footer">
+    <div class="float-end d-none d-sm-inline">Version 4.0</div>
+    <strong>Copyright &copy; {{ date('Y') }} {{ config('app.name') }}.</strong> All rights reserved.
+</footer>

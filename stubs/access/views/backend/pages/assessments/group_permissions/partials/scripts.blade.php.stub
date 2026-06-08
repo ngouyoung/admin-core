@@ -1,0 +1,5 @@
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        $('#parent_id').select2({theme: 'bootstrap-5', placeholder: 'Please choose a parent group', allowClear: true});
+    });
+</script>

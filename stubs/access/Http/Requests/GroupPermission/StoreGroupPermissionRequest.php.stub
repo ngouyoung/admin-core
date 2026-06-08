@@ -1,0 +1,21 @@
+<?php
+
+namespace App\Http\Requests\GroupPermission;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreGroupPermissionRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255', 'unique:group_permissions,name'],
+            'parent_id' => ['nullable', 'integer', 'exists:group_permissions,id'],
+        ];
+    }
+}

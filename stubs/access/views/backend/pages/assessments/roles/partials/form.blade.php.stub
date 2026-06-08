@@ -1,0 +1,32 @@
+<div class="row mb-3">
+    <label for="name" class="col-md-2 col-sm-3 col-4 col-form-label text-end">Name:</label>
+    <div class="col-md-8 col-sm-8 col-8">
+        <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" id="name"
+               placeholder="Name" value="{{ $object->name ?? old('name') }}">
+        @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+    </div>
+</div>
+
+@if(isset($group_permissions) && count($group_permissions) > 0)
+    <div class="row mb-3">
+        <label class="col-md-2 col-sm-3 col-4 col-form-label text-end">Permissions:</label>
+        <div class="col-md-8 col-sm-8 col-8">
+            <ul class="checktree">
+                @foreach($group_permissions as $group_permission)
+                    <li>
+                        <input id="grp-{{ $group_permission->id }}" class="form-check-input me-1" type="checkbox"/>
+                        <label for="grp-{{ $group_permission->id }}" class="text-capitalize">{{ $group_permission->name }}</label>
+                        <ul>
+                            @if(count($group_permission->child) > 0)
+                                @include('backend.pages.assessments.roles.partials.child', ['items' => $group_permission->child])
+                            @endif
+                            @if(count($group_permission->permissions) > 0)
+                                @include('backend.pages.assessments.roles.partials.permission', ['items' => $group_permission->permissions])
+                            @endif
+                        </ul>
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    </div>
+@endif

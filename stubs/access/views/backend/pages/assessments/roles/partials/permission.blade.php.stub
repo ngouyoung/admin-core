@@ -1,0 +1,11 @@
+@if(isset($items) && count($items) > 0)
+    @php($checkedIds = isset($object) ? $object->permissions->pluck('id')->all() : [])
+    @foreach($items as $item)
+        <li>
+            <input id="perm-{{ $item->id }}" class="form-check-input me-1" type="checkbox"
+                   value="{{ $item->id }}" name="permissions[]"
+                   {{ in_array($item->id, $checkedIds) ? 'checked' : '' }}/>
+            <label for="perm-{{ $item->id }}" class="text-capitalize">{{ $item->name }}</label>
+        </li>
+    @endforeach
+@endif

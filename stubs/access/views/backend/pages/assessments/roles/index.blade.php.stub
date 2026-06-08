@@ -1,0 +1,63 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Roles')
+
+@section('breadcrumb')
+    <div class="row">
+        <div class="col-sm-6"><h3 class="mb-0">Roles</h3></div>
+        <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-end">
+                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
+                <li class="breadcrumb-item active">Roles</li>
+            </ol>
+        </div>
+    </div>
+@endsection
+
+@section('contents')
+    <div class="card">
+        <div class="card-header">
+            @can('create-role')
+                <a href="{{ route('admin.assessments.roles.create') }}" class="{{ config('class.button.create') }}">
+                    <i class="{{ config('class.icon.create') }}"></i> Add New
+                </a>
+            @endcan
+        </div>
+        <div class="card-body">
+            <table class="{{ config('class.table') }}" id="roles_table">
+                <thead>@include('backend.pages.assessments.roles.partials.thead')</thead>
+            </table>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const Table = $('#roles_table').DataTable({
+                ajax: {url: '{{ route('admin.assessments.roles.getData') }}', type: 'GET'},
+                columns: [
+                    {data: 'name', name: 'name'},
+                    {data: 'permissions', orderable: false, searchable: false},
+                    {data: 'actions', orderable: false, searchable: false},
+                ],
+            });
+            $(document).on('click', '#delete', function (e) {
+                e.preventDefault();
+                const url = $(this).attr('data-remote');
+                Swal.fire({
+                    title: 'Are you sure?', text: 'You will not be able to recover this record!',
+                    icon: 'warning', showCancelButton: true,
+                    confirmButtonText: 'Yes, delete it!', cancelButtonText: 'No, keep it',
+                }).then((result) => {
+                    if (result.value) {
+                        $.ajax({type: 'DELETE', url: url, success: function () {
+                            Table.ajax.reload(null, false);
+                            window.toastr.success('Deleted');
+                        }});
+                    }
+                });
+            });
+        });
+    </script>
+@endpush

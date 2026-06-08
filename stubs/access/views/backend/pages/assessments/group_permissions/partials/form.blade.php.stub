@@ -1,0 +1,22 @@
+<div class="row mb-3">
+    <label for="name" class="col-md-2 col-sm-3 col-4 col-form-label text-end">Name:</label>
+    <div class="col-md-8 col-sm-8 col-8">
+        <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" id="name"
+               placeholder="Name" value="{{ $object->name ?? old('name') }}">
+        @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+    </div>
+</div>
+<div class="row mb-3">
+    <label for="parent_id" class="col-md-2 col-sm-3 col-4 col-form-label text-end">Parent:</label>
+    <div class="col-md-8 col-sm-8 col-8">
+        <select name="parent_id" id="parent_id" class="form-select @error('parent_id') is-invalid @enderror">
+            <option value="">— none (top level) —</option>
+            @foreach($groups as $group)
+                <option value="{{ $group->id }}" @selected((int) old('parent_id', $object->parent_id ?? null) === $group->id)>
+                    {{ $group->name }}
+                </option>
+            @endforeach
+        </select>
+        @error('parent_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+    </div>
+</div>

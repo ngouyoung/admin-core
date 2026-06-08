@@ -1,0 +1,25 @@
+// Lightweight toast helper backed by SweetAlert2 (loaded globally by realrashid/sweet-alert).
+// Keeps the legacy `toastr.success(...)` API used across the app working.
+function fire(icon, title) {
+    if (window.Swal) {
+        window.Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon,
+            title,
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+        });
+    } else {
+        // eslint-disable-next-line no-console
+        console[icon === 'error' ? 'error' : 'log'](title);
+    }
+}
+
+window.toastr = {
+    success: (message) => fire('success', message),
+    error: (message) => fire('error', message),
+    warning: (message) => fire('warning', message),
+    info: (message) => fire('info', message),
+};

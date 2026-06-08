@@ -22,7 +22,6 @@ class UserService extends CrudService
     {
         $roles = $data['roles'] ?? [];
         unset($data['roles']);
-
         $data['password'] = Hash::make($data['password']);
 
         $user = $this->model->create($data);
@@ -35,7 +34,6 @@ class UserService extends CrudService
     {
         $roles = $data['roles'] ?? [];
         unset($data['roles']);
-
         if (empty($data['password'])) {
             unset($data['password']);
         } else {

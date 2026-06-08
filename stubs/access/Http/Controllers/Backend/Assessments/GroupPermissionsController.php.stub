@@ -1,0 +1,54 @@
+<?php
+
+namespace App\Http\Controllers\Backend\Assessments;
+
+use App\Http\Requests\GroupPermission\StoreGroupPermissionRequest;
+use App\Http\Requests\GroupPermission\UpdateGroupPermissionRequest;
+use App\Services\GroupPermissions\GroupPermissionsService;
+use Illuminate\Http\JsonResponse;
+use Ngos\AdminCore\Http\Controllers\CrudController;
+
+class GroupPermissionsController extends CrudController
+{
+    public function __construct(GroupPermissionsService $groupPermissionsService)
+    {
+        $this->viewPath = 'assessments.group_permissions.';
+        $this->routeBase = 'assessments.group_permissions.';
+        $this->service = $groupPermissionsService;
+        $this->storeRequest = StoreGroupPermissionRequest::class;
+        $this->updateRequest = UpdateGroupPermissionRequest::class;
+    }
+
+    public function index()
+    {
+        return $this->view('index', ['array' => $this->service->getParents()]);
+    }
+
+    public function create()
+    {
+        return $this->view('create', ['groups' => $this->service->query()->orderBy('name')->get()]);
+    }
+
+    public function edit(int $id)
+    {
+        return $this->view('edit', [
+            'object' => $this->service->find($id),
+            'groups' => $this->service->query()->where('id', '!=', $id)->orderBy('name')->get(),
+        ]);
+    }
+
+    public function sort(): JsonResponse
+    {
+        $this->service->updateSort(request()->data);
+
+        return response()->json(['status' => 'OK']);
+    }
+
+    public function table(): string
+    {
+        return view('backend.pages.assessments.group_permissions.partials.childTable', [
+            'items' => $this->service->getParents(),
+            'level' => -1,
+        ])->render();
+    }
+}

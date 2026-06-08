@@ -8,10 +8,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
-/**
- * Minimal session-based login for the admin panel (no public registration).
- * Published by `php artisan admin-core:install --access`.
- */
 class LoginController extends Controller
 {
     public function showLoginForm(): View
@@ -32,9 +28,7 @@ class LoginController extends Controller
             return redirect()->intended(route('admin.dashboard'));
         }
 
-        return back()
-            ->withErrors(['email' => 'These credentials do not match our records.'])
-            ->onlyInput('email');
+        return back()->withErrors(['email' => 'These credentials do not match our records.'])->onlyInput('email');
     }
 
     public function logout(Request $request): RedirectResponse

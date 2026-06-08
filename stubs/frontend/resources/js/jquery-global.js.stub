@@ -1,0 +1,6 @@
+import jquery from 'jquery';
+
+// jQuery must be available globally before any jQuery plugin module is imported.
+window.$ = window.jQuery = jquery;
+
+export default jquery;

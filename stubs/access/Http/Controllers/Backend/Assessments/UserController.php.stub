@@ -1,0 +1,52 @@
+<?php
+
+namespace App\Http\Controllers\Backend\Assessments;
+
+use App\Http\Requests\User\StoreUserRequest;
+use App\Http\Requests\User\UpdateUserRequest;
+use App\Services\Roles\RoleService;
+use App\Services\Users\UserService;
+use Ngos\AdminCore\Http\Controllers\CrudController;
+
+class UserController extends CrudController
+{
+    private RoleService $roleService;
+
+    public function __construct(UserService $userService, RoleService $roleService)
+    {
+        $this->viewPath = 'assessments.users.';
+        $this->routeBase = 'assessments.users.';
+        $this->service = $userService;
+        $this->roleService = $roleService;
+        $this->storeRequest = StoreUserRequest::class;
+        $this->updateRequest = UpdateUserRequest::class;
+    }
+
+    public function create()
+    {
+        return $this->view('create', ['roles' => $this->rolesList()]);
+    }
+
+    public function edit(int $id)
+    {
+        return $this->view('edit', [
+            'object' => $this->service->find($id),
+            'roles' => $this->rolesList(),
+        ]);
+    }
+
+    public function getData($relation = null)
+    {
+        return parent::getData(['roles', 'permissions'])
+            ->addColumn('roles', fn ($user) => $this->badges($user->roles))
+            ->addColumn('permissions', fn ($user) => $this->badges($user->permissions, 'secondary'))
+            ->addColumn('actions', fn ($user) => $this->actions($user, 'user'))
+            ->rawColumns(['roles', 'permissions', 'actions'])
+            ->make(true);
+    }
+
+    private function rolesList()
+    {
+        return $this->roleService->query()->orderBy('name')->get();
+    }
+}

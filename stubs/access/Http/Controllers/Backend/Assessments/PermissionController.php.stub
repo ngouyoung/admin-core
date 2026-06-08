@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Http\Controllers\Backend\Assessments;
+
+use App\Services\Permissions\PermissionService;
+use Ngos\AdminCore\Http\Controllers\CrudController;
+
+class PermissionController extends CrudController
+{
+    public function __construct(PermissionService $permissionService)
+    {
+        $this->viewPath = 'assessments.permissions.';
+        $this->routeBase = 'assessments.permissions.';
+        $this->service = $permissionService;
+    }
+
+    public function getData($relation = null)
+    {
+        return parent::getData(['roles', 'group'])
+            ->addColumn('group', fn ($permission) => $permission->group?->name ?? '—')
+            ->addColumn('roles', fn ($permission) => $this->badges($permission->roles, 'secondary'))
+            ->rawColumns(['roles'])
+            ->make(true);
+    }
+}

@@ -1,0 +1,16 @@
+@if(isset($items) && count($items) > 0)
+    @foreach($items as $item)
+        <li>
+            <input id="grp-{{ $item->id }}" class="form-check-input me-1" type="checkbox"/>
+            <label for="grp-{{ $item->id }}" class="text-capitalize">{{ $item->name }}</label>
+            <ul>
+                @if(isset($item->child) && count($item->child) > 0)
+                    @include('backend.pages.assessments.roles.partials.child', ['items' => $item->child])
+                @endif
+                @if(isset($item->permissions) && count($item->permissions) > 0)
+                    @include('backend.pages.assessments.roles.partials.permission', ['items' => $item->permissions])
+                @endif
+            </ul>
+        </li>
+    @endforeach
+@endif

@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Services\GroupPermissions;
+
+use App\Models\GroupPermission;
+use Illuminate\Database\Eloquent\Model;
+use Ngos\AdminCore\Services\CrudService;
+
+class GroupPermissionsService extends CrudService
+{
+    public function __construct(GroupPermission $groupPermission)
+    {
+        $this->model = $groupPermission;
+    }
+
+    public function getParents()
+    {
+        return $this->model->parents()->get();
+    }
+
+    public function create(array $data): Model
+    {
+        $parentId = $data['parent_id'] ?? null;
+        $data['sort'] = (int) $this->model->where('parent_id', $parentId)->max('sort') + 1;
+
+        return $this->model->create($data);
+    }
+
+    public function sortChild($parentId, $childData): void
+    {
+        $childSort = 1;
+        foreach ($childData as $child) {
+            $this->model->find((int) $child['id'])->update([
+                'parent_id' => (int) $parentId,
+                'sort' => $childSort,
+            ]);
+            if (isset($child['children']) && count($child['children'])) {
+                $this->sortChild($child['id'], $child['children']);
+            }
+            $childSort++;
+        }
+    }
+
+    public function updateSort($hierarchy): bool
+    {
+        foreach ($hierarchy as $key => $group) {
+            $this->model->find((int) $group['id'])->update([
+                'parent_id' => null,
+                'sort' => $key + 1,
+            ]);
+            if (isset($group['children']) && count($group['children'])) {
+                $this->sortChild($group['id'], $group['children']);
+            }
+        }
+
+        return true;
+    }
+}

@@ -1,0 +1,52 @@
+// Nestable plugin styles
+@import '../css/jquery.nestable.css';
+
+// ---------------------------------------------------------------------------
+// Permission check-tree
+// ---------------------------------------------------------------------------
+ul.checktree {
+    list-style-type: none;
+    padding-inline-start: 0;
+
+    ul {
+        list-style-type: none;
+    }
+
+    li {
+        border-left: 1px dashed;
+
+        &::before {
+            height: 1em;
+            width: 12px;
+            border-bottom: 1px dashed;
+            content: '';
+            display: inline-block;
+            top: -0.3em;
+        }
+
+        &:last-child {
+            border-left: none;
+
+            &::before {
+                border-left: 1px dashed;
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Misc tweaks
+// ---------------------------------------------------------------------------
+table thead th {
+    white-space: nowrap;
+}
+
+// Keep Select2 single-select aligned with Bootstrap 5 invalid state.
+.is-invalid .select2-container--bootstrap-5 .select2-selection {
+    border-color: var(--bs-danger);
+}
+
+// DataTables responsive child rows should span the full width.
+.dtr-details {
+    width: 100% !important;
+}
