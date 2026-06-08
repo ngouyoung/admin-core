@@ -1,0 +1,14 @@
+<?php
+
+namespace App\Services\DummyClasses;
+
+use Ngos\AdminCore\Services\CrudService;
+use App\Models\DummyClass;
+
+class DummyClassService extends CrudService
+{
+    public function __construct(DummyClass $dummyModel)
+    {
+        $this->model = $dummyModel;
+    }
+}

@@ -1,0 +1,10 @@
+<div class="row mb-3">
+    <label for="name" class="col-md-2 col-sm-3 col-4 col-form-label text-end">Name:</label>
+    <div class="col-md-8 col-sm-8 col-8">
+        <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" id="name"
+               placeholder="Name" value="{{ $object->name ?? old('name') }}">
+        @error('name')
+        <div class="invalid-feedback">{{ $message }}</div>
+        @enderror
+    </div>
+</div>

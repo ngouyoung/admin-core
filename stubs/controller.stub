@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Http\Controllers\Backend;
+
+use Ngos\AdminCore\Http\Controllers\CrudController;
+use App\Http\Requests\DummyClass\StoreDummyClassRequest;
+use App\Http\Requests\DummyClass\UpdateDummyClassRequest;
+use App\Services\DummyClasses\DummyClassService;
+
+class DummyClassController extends CrudController
+{
+    public function __construct(DummyClassService $service)
+    {
+        $this->viewPath = 'dummyModels.';
+        $this->routeBase = 'dummyModels.';
+        $this->service = $service;
+        $this->storeRequest = StoreDummyClassRequest::class;
+        $this->updateRequest = UpdateDummyClassRequest::class;
+    }
+
+    public function getData($relation = null)
+    {
+        return parent::getData($relation)
+            ->editColumn('name', fn ($row) => '<span class="text-capitalize">' . $row->name . '</span>')
+            ->addColumn('actions', fn ($row) => $this->actions($row, 'dummy-model'))
+            ->rawColumns(['name', 'actions'])
+            ->make(true);
+    }
+}

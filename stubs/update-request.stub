@@ -1,0 +1,20 @@
+<?php
+
+namespace App\Http\Requests\DummyClass;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class UpdateDummyClassRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return $this->user()->can('edit-dummy-model');
+    }
+
+    public function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+        ];
+    }
+}

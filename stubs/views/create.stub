@@ -1,0 +1,20 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Create DummyClass')
+
+@section('contents')
+    <div class="card">
+        <div class="card-body">
+            <form action="{{ route('admin.dummyModels.store') }}" method="POST">
+                @csrf
+                @include('backend.pages.dummyModels.partials.form', ['object' => null])
+                <div class="row">
+                    <div class="col-md-8 offset-md-2">
+                        <button type="submit" class="{{ config('class.button.create') }}">Create</button>
+                        <a href="{{ route('admin.dummyModels.index') }}" class="{{ config('class.button.cancel') }}">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+@endsection

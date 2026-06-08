@@ -1,0 +1,38 @@
+@extends('backend.layouts.app')
+
+@section('title', 'DummyClasses')
+
+@section('breadcrumb')
+    <div class="row">
+        <div class="col-sm-6"><h3 class="mb-0">DummyClasses</h3></div>
+        <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-end">
+                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
+                <li class="breadcrumb-item active">DummyClasses</li>
+            </ol>
+        </div>
+    </div>
+@endsection
+
+@section('contents')
+    <div class="card">
+        <div class="card-header">
+            @can('create-dummy-model')
+                <a href="{{ route('admin.dummyModels.create') }}" class="{{ config('class.button.create') }}">
+                    <i class="{{ config('class.icon.create') }}"></i> Add New
+                </a>
+            @endcan
+        </div>
+        <div class="card-body">
+            <table class="{{ config('class.table') }}" id="dummyModels_table">
+                <thead>
+                @include('backend.pages.dummyModels.partials.thead')
+                </thead>
+            </table>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    @include('backend.pages.dummyModels.partials.scripts')
+@endpush

@@ -1,0 +1,21 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Edit DummyClass')
+
+@section('contents')
+    <div class="card">
+        <div class="card-body">
+            <form action="{{ route('admin.dummyModels.update', $object->id) }}" method="POST">
+                @csrf
+                @method('PUT')
+                @include('backend.pages.dummyModels.partials.form')
+                <div class="row">
+                    <div class="col-md-8 offset-md-2">
+                        <button type="submit" class="{{ config('class.button.update') }}">Update</button>
+                        <a href="{{ route('admin.dummyModels.index') }}" class="{{ config('class.button.cancel') }}">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+@endsection
