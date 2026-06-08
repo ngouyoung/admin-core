@@ -46,4 +46,16 @@ return [
     */
     'pagination' => 50,
 
+    /*
+    |--------------------------------------------------------------------------
+    | Generator
+    |--------------------------------------------------------------------------
+    | uuid: when true, `admin-core:make` gives every generated resource a UUID
+    | primary key (and UUID foreign keys). Override per-resource with the
+    | --uuid / --no-uuid flags.
+    */
+    'generator' => [
+        'uuid' => false,
+    ],
+
 ];

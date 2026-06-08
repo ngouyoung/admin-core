@@ -93,6 +93,15 @@ php artisan admin-core:make Product --migration --fields="\
 | `email` | `string` | email | `email` |
 | `enum:a\|b\|c` | `string` | `<select>` | `in:a,b,c` |
 | `foreign` (`x_id`) | `foreignId()->constrained()` | Select2 of related rows | `exists:xs,id` |
+| `image` | `string` (path) | file input + preview | `image,max:2048` |
+| `file` | `string` (path) | file input | `file,max:10240` |
+| `belongsToMany` (`m2m`) | pivot table | multi-Select2 | `array` + `exists` |
+
+`image`/`file` also generate **upload handling in the service** (store on the `public` disk, delete the
+old file on update, clean up on delete) and add `enctype="multipart/form-data"` to the form — run
+`php artisan storage:link` once. `belongsToMany` generates the pivot migration, a `belongsToMany`
+relation, a multi-select, and `sync()` in the service. Both infer the related model/table from the
+field name, so generate the related resource first.
 
 **Modifiers** (suffix, any order): `?` = nullable, `^` = unique.
 E.g. `slug:string^`, `published_at:date?`.
@@ -101,6 +110,19 @@ E.g. `slug:string^`, `published_at:date?`.
 the related rows in the form (labelled by the related row's `name`, falling back to `id`), and a
 related-name column in the table. The related table is inferred (`category_id` → `categories`), so it
 must already exist — generate the parent resource first.
+
+### UUID primary keys
+
+Give a resource a UUID key (and UUID foreign/pivot keys) with `--uuid`:
+
+```bash
+php artisan admin-core:make Product --uuid --migration --fields="name:string, category_id:foreign"
+```
+
+It generates `$table->uuid('id')->primary()`, `foreignUuid(...)`, and a `HasUuids` model. To make
+**every** generated resource use UUIDs, set `'generator' => ['uuid' => true]` in `config/admin-core.php`
+(override per-resource with `--no-uuid`). The core controller/service accept `int|string` keys, so
+integer and UUID resources coexist.
 
 > Omitting `--fields` gives the default single `name` column (backward-compatible).
 > The generated routes are gated by `permission:*` middleware. Either assign the new permissions to a

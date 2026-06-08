@@ -9,10 +9,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('dummyModels', function (Blueprint $table) {
-            $table->id();
+            __AC_PK__
 __AC_COLUMNS__
             $table->timestamps();
         });
+__AC_EXTRA_SCHEMA__
     }
 
     public function down(): void

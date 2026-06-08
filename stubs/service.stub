@@ -4,11 +4,12 @@ namespace App\Services\DummyClasses;
 
 use Ngos\AdminCore\Services\CrudService;
 use App\Models\DummyClass;
-
+__AC_SERVICE_USES__
 class DummyClassService extends CrudService
 {
     public function __construct(DummyClass $dummyModel)
     {
         $this->model = $dummyModel;
     }
+__AC_SERVICE_BODY__
 }

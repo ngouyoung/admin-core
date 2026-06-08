@@ -29,7 +29,7 @@ class GroupPermissionsController extends CrudController
         return $this->view('create', ['groups' => $this->service->query()->orderBy('name')->get()]);
     }
 
-    public function edit(int $id)
+    public function edit(int|string $id)
     {
         return $this->view('edit', [
             'object' => $this->service->find($id),

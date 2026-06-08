@@ -7,10 +7,14 @@ use Illuminate\Support\Str;
 /**
  * Parses the `--fields` DSL and builds every code snippet the generator needs.
  *
- * DSL:  "name:string, price:decimal?, status:enum:draft|published, category_id:foreign"
- *   - type      one of: string text integer decimal boolean date datetime email enum foreign
- *   - enum      values piped:  status:enum:draft|published|archived
- *   - foreign   column ending in _id:  category_id:foreign  (-> belongsTo Category)
+ * DSL:  "name:string, price:decimal?, status:enum:draft|published,
+ *        category_id:foreign, avatar:image?, brochure:file?, tags:belongsToMany"
+ *   - scalar   string text integer decimal boolean date datetime email
+ *   - enum     values piped:  status:enum:draft|published|archived
+ *   - foreign  column ending in _id:  category_id:foreign  (-> belongsTo)
+ *   - image    file upload, stored on the public disk, thumbnailed in the table
+ *   - file     any file upload
+ *   - belongsToMany (aliases manyToMany, m2m)  ->  pivot table + multi-select + sync
  *   - modifiers trailing  ?  = nullable,  ^  = unique   (e.g. slug:string^?)
  */
 class FieldSet
@@ -18,16 +22,46 @@ class FieldSet
     /** @var array<int, array<string, mixed>> */
     private array $fields;
 
+    private string $table = 'dummyModels';
+
+    private bool $uuid = false;
+
     public function __construct(?string $raw)
     {
         $this->fields = $this->parse($raw);
+    }
+
+    public function setTable(string $table): self
+    {
+        $this->table = $table;
+
+        return $this;
+    }
+
+    public function setUuid(bool $uuid): self
+    {
+        $this->uuid = $uuid;
+
+        return $this;
+    }
+
+    /** The primary-key line for the migration. */
+    public function primaryKey(): string
+    {
+        return $this->uuid ? "\$table->uuid('id')->primary();" : '$table->id();';
+    }
+
+    /** The model's trait list (after `use `). */
+    public function modelTraits(): string
+    {
+        return $this->uuid ? 'HasFactory, HasUuids' : 'HasFactory';
     }
 
     private function parse(?string $raw): array
     {
         $raw = trim((string) $raw);
         if ($raw === '') {
-            return [['name' => 'name', 'type' => 'string', 'nullable' => false, 'unique' => false]];
+            return [$this->field('name', 'string')];
         }
 
         $fields = [];
@@ -49,39 +83,75 @@ class FieldSet
 
             $enum = [];
             if (str_starts_with($spec, 'enum:')) {
-                $enum = array_filter(array_map('trim', explode('|', substr($spec, 5))));
+                $enum = array_values(array_filter(array_map('trim', explode('|', substr($spec, 5)))));
                 $spec = 'enum';
             }
 
-            $field = [
-                'name' => $name,
-                'type' => $spec ?: 'string',
-                'nullable' => $nullable,
-                'unique' => $unique,
-                'enum' => $enum,
-            ];
-
-            if ($field['type'] === 'foreign') {
-                $base = Str::beforeLast($name, '_id');
-                $field['relation'] = Str::camel($base);
-                $field['relModel'] = Str::studly(Str::singular($base));
-                $field['relTable'] = Str::snake(Str::pluralStudly($base));
+            if (in_array($spec, ['manytomany', 'm2m'], true)) {
+                $spec = 'belongsToMany';
             }
 
-            $fields[] = $field;
+            $fields[] = $this->field($name, $spec ?: 'string', $nullable, $unique, $enum);
         }
 
-        return $fields ?: [['name' => 'name', 'type' => 'string', 'nullable' => false, 'unique' => false]];
+        return $fields ?: [$this->field('name', 'string')];
     }
 
-    public function hasForeign(): bool
+    private function field(string $name, string $type, bool $nullable = false, bool $unique = false, array $enum = []): array
     {
-        return collect($this->fields)->contains(fn ($f) => $f['type'] === 'foreign');
+        $f = compact('name', 'type', 'nullable', 'unique', 'enum');
+
+        if ($type === 'foreign') {
+            $base = Str::beforeLast($name, '_id');
+            $f['relation'] = Str::camel($base);
+            $f['relModel'] = Str::studly(Str::singular($base));
+            $f['relTable'] = Str::snake(Str::pluralStudly($base));
+        }
+
+        if ($type === 'belongsToMany') {
+            $f['relation'] = Str::camel($name);
+            $f['relModel'] = Str::studly(Str::singular($name));
+            $f['relTable'] = Str::snake(Str::pluralStudly($name));
+        }
+
+        return $f;
+    }
+
+    // ---- predicates --------------------------------------------------
+
+    private function isColumn(array $f): bool
+    {
+        return $f['type'] !== 'belongsToMany';
+    }
+
+    private function isFile(array $f): bool
+    {
+        return in_array($f['type'], ['image', 'file'], true);
     }
 
     private function hasName(): bool
     {
         return collect($this->fields)->contains(fn ($f) => $f['name'] === 'name');
+    }
+
+    private function hasFiles(): bool
+    {
+        return collect($this->fields)->contains(fn ($f) => $this->isFile($f));
+    }
+
+    private function hasManyToMany(): bool
+    {
+        return collect($this->fields)->contains(fn ($f) => $f['type'] === 'belongsToMany');
+    }
+
+    private function hasForeign(): bool
+    {
+        return collect($this->fields)->contains(fn ($f) => $f['type'] === 'foreign');
+    }
+
+    private function needsServiceBody(): bool
+    {
+        return $this->hasFiles() || $this->hasManyToMany();
     }
 
     private function label(string $name): string
@@ -95,9 +165,11 @@ class FieldSet
     {
         $lines = [];
         foreach ($this->fields as $f) {
+            if (! $this->isColumn($f)) {
+                continue;
+            }
             $col = $f['name'];
             $n = $f['nullable'];
-            $u = $f['unique'];
             $line = match ($f['type']) {
                 'text' => "\$table->text('{$col}')",
                 'integer' => "\$table->integer('{$col}')",
@@ -105,14 +177,16 @@ class FieldSet
                 'boolean' => "\$table->boolean('{$col}')" . ($n ? '' : '->default(false)'),
                 'date' => "\$table->date('{$col}')",
                 'datetime' => "\$table->dateTime('{$col}')",
-                'foreign' => "\$table->foreignId('{$col}')" . ($n ? '->nullable()' : '') . '->constrained()' . ($n ? '->nullOnDelete()' : '->cascadeOnDelete()'),
-                default => "\$table->string('{$col}')", // string, email, enum
+                'image', 'file' => "\$table->string('{$col}')",
+                'foreign' => "\$table->" . ($this->uuid ? 'foreignUuid' : 'foreignId') . "('{$col}')" . ($n ? '->nullable()' : '') . '->constrained()' . ($n ? '->nullOnDelete()' : '->cascadeOnDelete()'),
+                default => "\$table->string('{$col}')",
             };
             if ($f['type'] !== 'foreign') {
-                if ($n) {
+                // uploads are stored as a nullable path string regardless.
+                if ($n || $this->isFile($f)) {
                     $line .= '->nullable()';
                 }
-                if ($u) {
+                if ($f['unique']) {
                     $line .= '->unique()';
                 }
             }
@@ -122,34 +196,79 @@ class FieldSet
         return implode("\n", $lines);
     }
 
+    public function extraSchema(): string
+    {
+        $blocks = [];
+        $self = Str::singular($this->table);
+        foreach ($this->fields as $f) {
+            if ($f['type'] !== 'belongsToMany') {
+                continue;
+            }
+            $other = Str::singular($f['relTable']);
+            $pair = [$self, $other];
+            sort($pair);
+            $pivot = implode('_', $pair);
+            $fk = $this->uuid ? 'foreignUuid' : 'foreignId';
+            $blocks[] = <<<PHP
+
+        Schema::create('{$pivot}', function (Blueprint \$table) {
+            \$table->{$fk}('{$self}_id')->constrained()->cascadeOnDelete();
+            \$table->{$fk}('{$other}_id')->constrained()->cascadeOnDelete();
+        });
+PHP;
+        }
+
+        return implode("\n", $blocks);
+    }
+
     // ---- Model -------------------------------------------------------
 
     public function fillable(): string
     {
-        return collect($this->fields)->map(fn ($f) => "'{$f['name']}'")->implode(', ');
+        return collect($this->fields)
+            ->filter(fn ($f) => $this->isColumn($f))
+            ->map(fn ($f) => "'{$f['name']}'")
+            ->implode(', ');
     }
 
     public function modelUses(): string
     {
-        return $this->hasForeign()
-            ? "use Illuminate\\Database\\Eloquent\\Relations\\BelongsTo;\n"
-            : '';
+        $uses = [];
+        if ($this->uuid) {
+            $uses[] = 'use Illuminate\Database\Eloquent\Concerns\HasUuids;';
+        }
+        if ($this->hasForeign()) {
+            $uses[] = 'use Illuminate\Database\Eloquent\Relations\BelongsTo;';
+        }
+        if ($this->hasManyToMany()) {
+            $uses[] = 'use Illuminate\Database\Eloquent\Relations\BelongsToMany;';
+        }
+
+        return $uses ? implode("\n", $uses) . "\n" : '';
     }
 
     public function relations(): string
     {
         $methods = [];
         foreach ($this->fields as $f) {
-            if ($f['type'] !== 'foreign') {
-                continue;
-            }
-            $methods[] = <<<PHP
+            if ($f['type'] === 'foreign') {
+                $methods[] = <<<PHP
 
     public function {$f['relation']}(): BelongsTo
     {
         return \$this->belongsTo(\\App\\Models\\{$f['relModel']}::class);
     }
 PHP;
+            }
+            if ($f['type'] === 'belongsToMany') {
+                $methods[] = <<<PHP
+
+    public function {$f['relation']}(): BelongsToMany
+    {
+        return \$this->belongsToMany(\\App\\Models\\{$f['relModel']}::class);
+    }
+PHP;
+            }
         }
 
         return implode("\n", $methods);
@@ -178,46 +297,51 @@ PHP;
     {
         $lines = [];
         foreach ($this->fields as $f) {
-            $rules = [$f['nullable'] ? "'nullable'" : "'required'"];
+            $required = $f['nullable'] ? "'nullable'" : "'required'";
             switch ($f['type']) {
                 case 'text':
-                    $rules[] = "'string'";
+                    $rules = [$required, "'string'"];
                     break;
                 case 'integer':
-                    $rules[] = "'integer'";
+                    $rules = [$required, "'integer'"];
                     break;
                 case 'decimal':
-                    $rules[] = "'numeric'";
+                    $rules = [$required, "'numeric'"];
                     break;
                 case 'boolean':
                     $rules = ["'nullable'", "'boolean'"];
                     break;
                 case 'date':
                 case 'datetime':
-                    $rules[] = "'date'";
+                    $rules = [$required, "'date'"];
                     break;
                 case 'email':
-                    $rules[] = "'email'";
-                    $rules[] = "'max:255'";
+                    $rules = [$required, "'email'", "'max:255'"];
                     break;
                 case 'enum':
-                    $rules[] = "'in:" . implode(',', $f['enum']) . "'";
+                    $rules = [$required, "'in:" . implode(',', $f['enum']) . "'"];
+                    break;
+                case 'image':
+                    $rules = [$update ? "'nullable'" : $required, "'image'", "'max:2048'"];
+                    break;
+                case 'file':
+                    $rules = [$update ? "'nullable'" : $required, "'file'", "'max:10240'"];
                     break;
                 case 'foreign':
-                    $rules[] = "'integer'";
-                    $rules[] = "'exists:{$f['relTable']},id'";
+                    $rules = [$required, "'integer'", "'exists:{$f['relTable']},id'"];
                     break;
+                case 'belongsToMany':
+                    $lines[] = "            '{$f['name']}' => ['array'],";
+                    $lines[] = "            '{$f['name']}.*' => ['integer', 'exists:{$f['relTable']},id'],";
+                    continue 2;
                 default: // string
-                    $rules[] = "'string'";
-                    $rules[] = "'max:255'";
+                    $rules = [$required, "'string'", "'max:255'"];
             }
 
             if ($f['unique']) {
-                if ($update) {
-                    $rules[] = "Rule::unique('{$this->table()}', '{$f['name']}')->ignore(\$this->route('id'))";
-                } else {
-                    $rules[] = "'unique:{$this->table()},{$f['name']}'";
-                }
+                $rules[] = $update
+                    ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'))"
+                    : "'unique:{$this->table},{$f['name']}'";
             }
 
             $lines[] = "            '{$f['name']}' => [" . implode(', ', $rules) . '],';
@@ -226,34 +350,25 @@ PHP;
         return implode("\n", $lines);
     }
 
-    /** Resolved from the resource name by the command via setTable(). */
-    private string $table = 'dummyModels';
-
-    public function setTable(string $table): self
-    {
-        $this->table = $table;
-
-        return $this;
-    }
-
-    private function table(): string
-    {
-        return $this->table;
-    }
-
     // ---- Form --------------------------------------------------------
+
+    public function enctype(): string
+    {
+        return $this->hasFiles() ? ' enctype="multipart/form-data"' : '';
+    }
 
     public function formFields(): string
     {
         $out = [];
-
         foreach ($this->fields as $f) {
             if ($f['type'] === 'foreign') {
-                $var = $f['relation'] . 'Options';
-                $out[] = "@php(\${$var} = \\App\\Models\\{$f['relModel']}::orderBy('id')->get())";
+                $out[] = "@php(\${$f['relation']}Options = \\App\\Models\\{$f['relModel']}::orderBy('id')->get())";
+            }
+            if ($f['type'] === 'belongsToMany') {
+                $out[] = "@php(\${$f['relation']}Options = \\App\\Models\\{$f['relModel']}::orderBy('id')->get())";
+                $out[] = "@php(\${$f['relation']}Selected = isset(\$object) ? \$object->{$f['relation']}->pluck('id')->all() : [])";
             }
         }
-
         foreach ($this->fields as $f) {
             $out[] = $this->formField($f);
         }
@@ -264,7 +379,7 @@ PHP;
     private function formField(array $f): string
     {
         $col = $f['name'];
-        $label = $this->label($f['type'] === 'foreign' ? $f['relation'] : $col);
+        $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $col);
         $err = "@error('{$col}') is-invalid @enderror";
         $old = "old('{$col}', \$object?->{$col})";
 
@@ -277,7 +392,10 @@ PHP;
             'datetime' => "<input type=\"datetime-local\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\">",
             'email' => "<input type=\"email\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\">",
             'enum' => $this->enumSelect($f, $err, $old),
+            'image' => $this->fileInput($f, $err, true),
+            'file' => $this->fileInput($f, $err, false),
             'foreign' => $this->foreignSelect($f, $err, $old),
+            'belongsToMany' => $this->manySelect($f, $err),
             default => "<input type=\"text\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\">",
         };
 
@@ -302,6 +420,19 @@ BLADE;
         return "<select name=\"{$f['name']}\" id=\"{$f['name']}\" class=\"form-select {$err}\">{$options}\n        </select>";
     }
 
+    private function fileInput(array $f, string $err, bool $image): string
+    {
+        $col = $f['name'];
+        $input = "<input type=\"file\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\"" . ($image ? ' accept="image/*"' : '') . '>';
+        if ($image) {
+            $input .= "\n        @if(isset(\$object) && \$object->{$col})<img src=\"{{ asset('storage/' . \$object->{$col}) }}\" class=\"mt-2 rounded\" style=\"height:60px\">@endif";
+        } elseif (true) {
+            $input .= "\n        @if(isset(\$object) && \$object->{$col})<a href=\"{{ asset('storage/' . \$object->{$col}) }}\" target=\"_blank\" class=\"d-block mt-1 small\">current file</a>@endif";
+        }
+
+        return $input;
+    }
+
     private function foreignSelect(array $f, string $err, string $old): string
     {
         $var = $f['relation'] . 'Options';
@@ -314,9 +445,21 @@ BLADE;
             . '        </select>';
     }
 
+    private function manySelect(array $f, string $err): string
+    {
+        $var = $f['relation'] . 'Options';
+        $sel = $f['relation'] . 'Selected';
+
+        return "<select name=\"{$f['name']}[]\" id=\"{$f['name']}\" multiple class=\"form-select admin-core-select {$err}\">\n"
+            . "            @foreach(\${$var} as \$opt)\n"
+            . "                <option value=\"{{ \$opt->id }}\" @selected(in_array(\$opt->id, old('{$f['name']}', \${$sel})))>{{ \$opt->name ?? \$opt->id }}</option>\n"
+            . "            @endforeach\n"
+            . '        </select>';
+    }
+
     public function formScripts(): string
     {
-        if (! $this->hasForeign()) {
+        if (! $this->hasForeign() && ! $this->hasManyToMany()) {
             return '';
         }
 
@@ -340,7 +483,7 @@ BLADE;
     {
         $cells = [];
         foreach ($this->fields as $f) {
-            $cells[] = '    <th>' . $this->label($f['type'] === 'foreign' ? $f['relation'] : $f['name']) . '</th>';
+            $cells[] = '    <th>' . $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']) . '</th>';
         }
         $cells[] = '    <th>Actions</th>';
 
@@ -351,8 +494,9 @@ BLADE;
     {
         $cols = [];
         foreach ($this->fields as $f) {
-            if ($f['type'] === 'foreign') {
-                $cols[] = "                {data: '{$f['relation']}', name: '{$f['relation']}', orderable: false, searchable: false},";
+            if (in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file'], true)) {
+                $key = in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name'];
+                $cols[] = "                {data: '{$key}', orderable: false, searchable: false},";
             } else {
                 $cols[] = "                {data: '{$f['name']}', name: '{$f['name']}'},";
             }
@@ -367,7 +511,7 @@ BLADE;
     public function eager(): string
     {
         $relations = collect($this->fields)
-            ->where('type', 'foreign')
+            ->whereIn('type', ['foreign', 'belongsToMany'])
             ->map(fn ($f) => "'{$f['relation']}'")
             ->implode(', ');
 
@@ -384,6 +528,15 @@ BLADE;
             if ($f['type'] === 'foreign') {
                 $lines[] = "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}?->name)";
             }
+            if ($f['type'] === 'belongsToMany') {
+                $lines[] = "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(\$i->name ?? \$i->id) . '</span>')->implode(' '))";
+            }
+            if ($f['type'] === 'image') {
+                $lines[] = "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . asset('storage/' . \$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')";
+            }
+            if ($f['type'] === 'file') {
+                $lines[] = "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<a href=\"' . asset('storage/' . \$row->{$f['name']}) . '\" target=\"_blank\">file</a>' : '')";
+            }
         }
 
         return implode("\n", $lines);
@@ -391,11 +544,96 @@ BLADE;
 
     public function rawColumns(): string
     {
-        $raw = ["'actions'"];
+        $raw = [];
         if ($this->hasName()) {
-            array_unshift($raw, "'name'");
+            $raw[] = "'name'";
         }
+        foreach ($this->fields as $f) {
+            if (in_array($f['type'], ['belongsToMany', 'image', 'file'], true)) {
+                $raw[] = "'{$f['name']}'";
+            }
+        }
+        $raw[] = "'actions'";
 
         return implode(', ', $raw);
+    }
+
+    // ---- Service (uploads + m2m sync) --------------------------------
+
+    public function serviceUses(): string
+    {
+        if (! $this->needsServiceBody()) {
+            return '';
+        }
+        $uses = ['use Illuminate\Database\Eloquent\Model;'];
+        if ($this->hasFiles()) {
+            $uses[] = 'use Illuminate\Http\UploadedFile;';
+            $uses[] = 'use Illuminate\Support\Facades\Storage;';
+        }
+
+        return implode("\n", $uses) . "\n";
+    }
+
+    public function serviceBody(): string
+    {
+        if (! $this->needsServiceBody()) {
+            return '';
+        }
+
+        $extract = '';
+        $sync = '';
+        foreach ($this->fields as $f) {
+            if ($f['type'] === 'belongsToMany') {
+                $extract .= "        \${$f['relation']} = \$data['{$f['name']}'] ?? [];\n        unset(\$data['{$f['name']}']);\n";
+                $sync .= "\n        \$model->{$f['relation']}()->sync(\${$f['relation']});";
+            }
+        }
+
+        $storeCreate = '';
+        $storeUpdate = '';
+        foreach ($this->fields as $f) {
+            if (! $this->isFile($f)) {
+                continue;
+            }
+            $c = $f['name'];
+            $storeCreate .= "\n        if ((\$data['{$c}'] ?? null) instanceof UploadedFile) {\n            \$data['{$c}'] = \$data['{$c}']->store('{$this->table}', 'public');\n        } else {\n            unset(\$data['{$c}']);\n        }";
+            $storeUpdate .= "\n        if ((\$data['{$c}'] ?? null) instanceof UploadedFile) {\n            if (\$model->{$c}) {\n                Storage::disk('public')->delete(\$model->{$c});\n            }\n            \$data['{$c}'] = \$data['{$c}']->store('{$this->table}', 'public');\n        } else {\n            unset(\$data['{$c}']);\n        }";
+        }
+
+        $deleteBody = '';
+        foreach ($this->fields as $f) {
+            if ($this->isFile($f)) {
+                $deleteBody .= "\n        if (\$model->{$f['name']}) {\n            Storage::disk('public')->delete(\$model->{$f['name']});\n        }";
+            }
+        }
+        $delete = $deleteBody === '' ? '' : <<<PHP
+
+
+    public function delete(int|string \$id): void
+    {
+        \$model = \$this->find(\$id);{$deleteBody}
+        \$model->delete();
+    }
+PHP;
+
+        return <<<PHP
+
+
+    public function create(array \$data): Model
+    {
+{$extract}{$storeCreate}
+        \$model = \$this->model->create(\$data);{$sync}
+
+        return \$model;
+    }
+
+    public function update(int|string \$id, array \$data): Model
+    {
+{$extract}        \$model = \$this->find(\$id);{$storeUpdate}
+        \$model->update(\$data);{$sync}
+
+        return \$model;
+    }{$delete}
+PHP;
     }
 }

@@ -12,6 +12,8 @@ class AdminCoreMakeCommand extends Command
 {
     protected $signature = 'admin-core:make {name : The resource name, e.g. Product}
                             {--fields= : Field DSL, e.g. "name:string, price:decimal?, category_id:foreign"}
+                            {--uuid : Use a UUID primary key (and UUID foreign keys)}
+                            {--no-uuid : Force an auto-increment key even if config enables uuid}
                             {--migration : Also generate a create migration}
                             {--force : Overwrite existing files}';
 
@@ -25,7 +27,11 @@ class AdminCoreMakeCommand extends Command
         $snakePlural = Str::snake(Str::pluralStudly($class));
         $kebab = Str::kebab($class);
 
-        $fields = (new FieldSet($this->option('fields')))->setTable($snakePlural);
+        $uuid = $this->option('no-uuid')
+            ? false
+            : ($this->option('uuid') || (bool) config('admin-core.generator.uuid', false));
+
+        $fields = (new FieldSet($this->option('fields')))->setTable($snakePlural)->setUuid($uuid);
 
         $replace = [
             'DummyClasses' => $plural,
@@ -34,9 +40,15 @@ class AdminCoreMakeCommand extends Command
             'dummyModel' => $camel,
             'dummy-model' => $kebab,
             '__AC_FILLABLE__' => $fields->fillable(),
+            '__AC_PK__' => $fields->primaryKey(),
+            '__AC_MODEL_TRAITS__' => $fields->modelTraits(),
             '__AC_MODEL_USES__' => $fields->modelUses(),
             '__AC_RELATIONS__' => $fields->relations(),
             '__AC_COLUMNS__' => $fields->migrationColumns(),
+            '__AC_EXTRA_SCHEMA__' => $fields->extraSchema(),
+            '__AC_ENCTYPE__' => $fields->enctype(),
+            '__AC_SERVICE_USES__' => $fields->serviceUses(),
+            '__AC_SERVICE_BODY__' => $fields->serviceBody(),
             '__AC_STORE_RULES__' => $fields->storeRules(),
             '__AC_UPDATE_RULES__' => $fields->updateRules(),
             '__AC_UPDATE_USES__' => $fields->updateUses(),

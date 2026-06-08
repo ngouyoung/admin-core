@@ -29,7 +29,7 @@ class RoleService extends CrudService
         return $role;
     }
 
-    public function update(int $id, array $data): Model
+    public function update(int|string $id, array $data): Model
     {
         $permissions = $data['permissions'] ?? [];
         unset($data['permissions']);

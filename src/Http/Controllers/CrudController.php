@@ -66,12 +66,12 @@ abstract class CrudController extends Controller
         return $this->toIndex();
     }
 
-    public function edit(int $id)
+    public function edit(int|string $id)
     {
         return $this->view('edit', ['object' => $this->service->find($id)]);
     }
 
-    public function update(int $id): RedirectResponse
+    public function update(int|string $id): RedirectResponse
     {
         $data = app($this->updateRequest)->validated();
         DB::transaction(fn () => $this->service->update($id, $data));
@@ -79,14 +79,14 @@ abstract class CrudController extends Controller
         return $this->toIndex();
     }
 
-    public function delete(int $id): RedirectResponse
+    public function delete(int|string $id): RedirectResponse
     {
         $this->service->delete($id);
 
         return $this->toIndex();
     }
 
-    public function ajaxDelete(int $id): JsonResponse
+    public function ajaxDelete(int|string $id): JsonResponse
     {
         $this->service->delete($id);
 

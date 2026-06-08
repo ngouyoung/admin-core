@@ -30,7 +30,7 @@ class UserService extends CrudService
         return $user;
     }
 
-    public function update(int $id, array $data): Model
+    public function update(int|string $id, array $data): Model
     {
         $roles = $data['roles'] ?? [];
         unset($data['roles']);

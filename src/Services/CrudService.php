@@ -19,7 +19,7 @@ abstract class CrudService
         return $relation ? $this->model->with($relation) : $this->model->query();
     }
 
-    public function find(int $id): Model
+    public function find(int|string $id): Model
     {
         return $this->model->findOrFail($id);
     }
@@ -29,7 +29,7 @@ abstract class CrudService
         return $this->model->create($data);
     }
 
-    public function update(int $id, array $data): Model
+    public function update(int|string $id, array $data): Model
     {
         $model = $this->find($id);
         $model->update($data);
@@ -37,7 +37,7 @@ abstract class CrudService
         return $model;
     }
 
-    public function delete(int $id): void
+    public function delete(int|string $id): void
     {
         $this->find($id)->delete();
     }
