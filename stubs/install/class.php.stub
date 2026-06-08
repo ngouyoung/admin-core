@@ -1,0 +1,31 @@
+<?php
+
+/*
+|--------------------------------------------------------------------------
+| CSS class map used by admin-core views & generated CRUD pages
+|--------------------------------------------------------------------------
+| Published by `php artisan admin-core:install`. Tweak these to restyle
+| every generated table / button / icon in one place.
+*/
+
+return [
+    'table' => 'table table-sm table-striped table-bordered table-hover dt-responsive w-100',
+    'button' => [
+        'view' => '',
+        'create' => 'btn btn-sm btn-primary',
+        'edit' => 'btn btn-sm btn-success',
+        'delete' => 'btn btn-sm btn-danger',
+        'change-password' => 'btn btn-sm btn-warning',
+        'update' => 'btn btn-sm btn-primary',
+        'cancel' => 'btn btn-sm btn-warning',
+        'back' => 'btn btn-sm btn-info',
+    ],
+    'icon' => [
+        'view' => '',
+        'create' => 'fas fa-plus-circle',
+        'edit' => 'fas fa-pencil-alt',
+        'delete' => 'fas fa-trash-alt',
+        'change-password' => 'fas fa-sync',
+        'back' => 'fas fa-arrow-alt-circle-left',
+    ],
+];

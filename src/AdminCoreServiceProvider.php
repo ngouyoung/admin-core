@@ -5,6 +5,7 @@ namespace Ngos\AdminCore;
 use Closure;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Ngos\AdminCore\Console\AdminCoreInstallCommand;
 use Ngos\AdminCore\Console\AdminCoreMakeCommand;
 
 class AdminCoreServiceProvider extends ServiceProvider
@@ -20,7 +21,10 @@ class AdminCoreServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'admin-core');
 
         if ($this->app->runningInConsole()) {
-            $this->commands([AdminCoreMakeCommand::class]);
+            $this->commands([
+                AdminCoreInstallCommand::class,
+                AdminCoreMakeCommand::class,
+            ]);
 
             $this->publishes([
                 __DIR__ . '/../config/admin-core.php' => config_path('admin-core.php'),
