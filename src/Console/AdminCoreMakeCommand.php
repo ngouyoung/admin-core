@@ -82,6 +82,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_FORM__' => $fields->formFields(),
             '__AC_FORM_SCRIPTS__' => $fields->formScripts(),
             '__AC_THEAD__' => $fields->thead(),
+            '__AC_TFOOT__' => $fields->tfoot(),
             '__AC_COLS__' => $fields->columnsJs(),
             '__AC_EAGER__' => $fields->eager(),
             '__AC_GETDATA__' => $fields->getDataColumns(),

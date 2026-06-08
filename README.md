@@ -111,6 +111,17 @@ the related rows in the form (labelled by the related row's `name`, falling back
 related-name column in the table. The related table is inferred (`category_id` → `categories`), so it
 must already exist — generate the parent resource first.
 
+### Every list comes with export, bulk delete & column filters
+
+Generated index screens ship three things out of the box:
+
+- **Export** — an `Export` button streams the table to CSV (`export` route, gated by `list-*`).
+- **Bulk delete** — a select-all checkbox column + a "Delete selected" button that soft/hard-deletes the
+  chosen rows in one request (`bulkDelete` route, gated by `delete-*`).
+- **Per-column filters** — a search input under each text/number/enum/date column (server-side via yajra).
+
+These live on the base `CrudController` (`export()` / `bulkDelete()`), so they apply to every resource.
+
 ### Soft deletes & extras
 
 Every `admin-core:make` also generates a **Factory** (field-aware fake data), a **Seeder**, and a

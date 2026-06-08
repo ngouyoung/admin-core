@@ -4,9 +4,11 @@ namespace Ngos\AdminCore\Http\Controllers;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Ngos\AdminCore\Services\CrudService;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\DataTables;
 
 /**
@@ -96,6 +98,36 @@ abstract class CrudController extends Controller
     public function getData($relation = null)
     {
         return DataTables::of($this->service->query($relation));
+    }
+
+    /** Stream every row to a CSV download (all table columns). */
+    public function export(): StreamedResponse
+    {
+        $rows = $this->service->query()->get();
+        $columns = $rows->isEmpty() ? [] : array_keys($rows->first()->getAttributes());
+        $name = trim(str_replace('.', '-', $this->routeBase), '-') . '-' . now()->format('Ymd-His') . '.csv';
+
+        return response()->streamDownload(function () use ($rows, $columns) {
+            $out = fopen('php://output', 'w');
+            fputcsv($out, $columns);
+            foreach ($rows as $row) {
+                fputcsv($out, array_map(fn ($c) => $row->getAttribute($c), $columns));
+            }
+            fclose($out);
+        }, $name, ['Content-Type' => 'text/csv']);
+    }
+
+    /** Delete every selected row (soft delete if the model uses SoftDeletes). */
+    public function bulkDelete(Request $request): JsonResponse
+    {
+        $ids = array_filter((array) $request->input('ids', []));
+        DB::transaction(function () use ($ids) {
+            foreach ($ids as $id) {
+                $this->service->delete($id);
+            }
+        });
+
+        return response()->json(['code' => 200, 'deleted' => count($ids)]);
     }
 
     // -- Soft deletes (routed only for resources generated with --soft-deletes) --
