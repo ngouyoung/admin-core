@@ -11,6 +11,7 @@ use Spatie\Permission\PermissionRegistrar;
 class AdminCoreMakeCommand extends Command
 {
     protected $signature = 'admin-core:make {name : The resource name, e.g. Product}
+                            {--fields= : Field DSL, e.g. "name:string, price:decimal?, category_id:foreign"}
                             {--migration : Also generate a create migration}
                             {--force : Overwrite existing files}';
 
@@ -24,12 +25,28 @@ class AdminCoreMakeCommand extends Command
         $snakePlural = Str::snake(Str::pluralStudly($class));
         $kebab = Str::kebab($class);
 
+        $fields = (new FieldSet($this->option('fields')))->setTable($snakePlural);
+
         $replace = [
             'DummyClasses' => $plural,
             'DummyClass' => $class,
             'dummyModels' => $snakePlural,
             'dummyModel' => $camel,
             'dummy-model' => $kebab,
+            '__AC_FILLABLE__' => $fields->fillable(),
+            '__AC_MODEL_USES__' => $fields->modelUses(),
+            '__AC_RELATIONS__' => $fields->relations(),
+            '__AC_COLUMNS__' => $fields->migrationColumns(),
+            '__AC_STORE_RULES__' => $fields->storeRules(),
+            '__AC_UPDATE_RULES__' => $fields->updateRules(),
+            '__AC_UPDATE_USES__' => $fields->updateUses(),
+            '__AC_FORM__' => $fields->formFields(),
+            '__AC_FORM_SCRIPTS__' => $fields->formScripts(),
+            '__AC_THEAD__' => $fields->thead(),
+            '__AC_COLS__' => $fields->columnsJs(),
+            '__AC_EAGER__' => $fields->eager(),
+            '__AC_GETDATA__' => $fields->getDataColumns(),
+            '__AC_RAW__' => $fields->rawColumns(),
         ];
 
         $files = [

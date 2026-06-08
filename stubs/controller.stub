@@ -20,10 +20,10 @@ class DummyClassController extends CrudController
 
     public function getData($relation = null)
     {
-        return parent::getData($relation)
-            ->editColumn('name', fn ($row) => '<span class="text-capitalize">' . $row->name . '</span>')
+        return parent::getData(__AC_EAGER__)
+__AC_GETDATA__
             ->addColumn('actions', fn ($row) => $this->actions($row, 'dummy-model'))
-            ->rawColumns(['name', 'actions'])
+            ->rawColumns([__AC_RAW__])
             ->make(true);
     }
 }

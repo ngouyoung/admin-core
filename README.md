@@ -69,6 +69,40 @@ php artisan admin-core:make Product --migration
 Generates the model, service, controller, form requests, a route module, the Blade views, and the
 `list/create/edit/delete-product` permissions. Visit `/admin/products`.
 
+### Generating fields too (`--fields`)
+
+Pass a field list and the generator fills in the **migration columns, `$fillable`, validation rules,
+form inputs, table headers, and DataTable columns** — a ready-to-use CRUD, no manual edits:
+
+```bash
+php artisan admin-core:make Product --migration --fields="\
+  name:string, price:decimal?, description:text?, is_active:boolean, \
+  status:enum:draft|published, published_at:date?, category_id:foreign"
+```
+
+**Field DSL** — `name:type`, comma-separated:
+
+| Type | Migration | Form control | Rule |
+|---|---|---|---|
+| `string` (default) | `string` | text | `string,max:255` |
+| `text` | `text` | textarea | `string` |
+| `integer` | `integer` | number | `integer` |
+| `decimal` | `decimal(10,2)` | number (step) | `numeric` |
+| `boolean` | `boolean` default 0 | checkbox | `boolean` |
+| `date` / `datetime` | `date` / `dateTime` | date / datetime-local | `date` |
+| `email` | `string` | email | `email` |
+| `enum:a\|b\|c` | `string` | `<select>` | `in:a,b,c` |
+| `foreign` (`x_id`) | `foreignId()->constrained()` | Select2 of related rows | `exists:xs,id` |
+
+**Modifiers** (suffix, any order): `?` = nullable, `^` = unique.
+E.g. `slug:string^`, `published_at:date?`.
+
+**Foreign keys**: `category_id:foreign` adds a `belongsTo` relation on the model, a Select2 dropdown of
+the related rows in the form (labelled by the related row's `name`, falling back to `id`), and a
+related-name column in the table. The related table is inferred (`category_id` → `categories`), so it
+must already exist — generate the parent resource first.
+
+> Omitting `--fields` gives the default single `name` column (backward-compatible).
 > The generated routes are gated by `permission:*` middleware. Either assign the new permissions to a
 > role and wrap the `admin-core:routes` group in `['auth', ...]`, or set `permission.enabled => false`
 > in `config/admin-core.php` to browse without auth while developing.

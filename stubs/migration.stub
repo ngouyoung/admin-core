@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('dummyModels', function (Blueprint $table) {
             $table->id();
-            $table->string('name');
+__AC_COLUMNS__
             $table->timestamps();
         });
     }

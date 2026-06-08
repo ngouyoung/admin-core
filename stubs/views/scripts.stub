@@ -3,8 +3,7 @@
         const Table = $('#dummyModels_table').DataTable({
             ajax: {url: '{{ route('admin.dummyModels.getData') }}', type: 'GET'},
             columns: [
-                {data: 'name', name: 'name'},
-                {data: 'actions', orderable: false, searchable: false},
+__AC_COLS__
             ],
         });
 

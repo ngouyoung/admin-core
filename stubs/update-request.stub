@@ -3,7 +3,7 @@
 namespace App\Http\Requests\DummyClass;
 
 use Illuminate\Foundation\Http\FormRequest;
-
+__AC_UPDATE_USES__
 class UpdateDummyClassRequest extends FormRequest
 {
     public function authorize(): bool
@@ -14,7 +14,7 @@ class UpdateDummyClassRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+__AC_UPDATE_RULES__
         ];
     }
 }

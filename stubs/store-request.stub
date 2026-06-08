@@ -14,7 +14,7 @@ class StoreDummyClassRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+__AC_STORE_RULES__
         ];
     }
 }

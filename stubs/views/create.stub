@@ -18,3 +18,5 @@
         </div>
     </div>
 @endsection
+
+__AC_FORM_SCRIPTS__

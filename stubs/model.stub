@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+__AC_MODEL_USES__
 class DummyClass extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name'];
+    protected $fillable = [__AC_FILLABLE__];
+__AC_RELATIONS__
 }
