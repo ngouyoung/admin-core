@@ -111,6 +111,19 @@ the related rows in the form (labelled by the related row's `name`, falling back
 related-name column in the table. The related table is inferred (`category_id` → `categories`), so it
 must already exist — generate the parent resource first.
 
+### Soft deletes & extras
+
+Every `admin-core:make` also generates a **Factory** (field-aware fake data), a **Seeder**, and a
+permission-mapped **Policy**. Add `--soft-deletes` for a trash workflow:
+
+```bash
+php artisan admin-core:make Product --soft-deletes --migration --fields="name:string, price:decimal?"
+```
+
+It adds the `SoftDeletes` trait + `deleted_at` column, a **Trash** button on the index, and a
+trash screen with **Restore** / **Delete permanently** (routes `trash` / `restore` / `forceDelete`,
+backed by `trashedQuery()` / `restore()` / `forceDelete()` on the base service).
+
 ### UUID primary keys
 
 Give a resource a UUID key (and UUID foreign/pivot keys) with `--uuid`:

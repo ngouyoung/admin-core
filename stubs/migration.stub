@@ -12,6 +12,7 @@ return new class extends Migration
             __AC_PK__
 __AC_COLUMNS__
             $table->timestamps();
+__AC_SOFT_DELETES__
         });
 __AC_EXTRA_SCHEMA__
     }

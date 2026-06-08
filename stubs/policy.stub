@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Policies;
+
+use App\Models\DummyClass;
+use App\Models\User;
+
+class DummyClassPolicy
+{
+    public function viewAny(User $user): bool
+    {
+        return $user->can('list-dummy-model');
+    }
+
+    public function view(User $user, DummyClass $dummyModel): bool
+    {
+        return $user->can('list-dummy-model');
+    }
+
+    public function create(User $user): bool
+    {
+        return $user->can('create-dummy-model');
+    }
+
+    public function update(User $user, DummyClass $dummyModel): bool
+    {
+        return $user->can('edit-dummy-model');
+    }
+
+    public function delete(User $user, DummyClass $dummyModel): bool
+    {
+        return $user->can('delete-dummy-model');
+    }
+
+    public function restore(User $user, DummyClass $dummyModel): bool
+    {
+        return $user->can('delete-dummy-model');
+    }
+
+    public function forceDelete(User $user, DummyClass $dummyModel): bool
+    {
+        return $user->can('delete-dummy-model');
+    }
+}

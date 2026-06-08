@@ -41,4 +41,23 @@ abstract class CrudService
     {
         $this->find($id)->delete();
     }
+
+    // -- Soft deletes (only meaningful when the model uses SoftDeletes) --
+
+    public function trashedQuery(array|string|null $relation = null): Builder
+    {
+        $query = $relation ? $this->model->with($relation) : $this->model->newQuery();
+
+        return $query->onlyTrashed();
+    }
+
+    public function restore(int|string $id): void
+    {
+        $this->model->onlyTrashed()->findOrFail($id)->restore();
+    }
+
+    public function forceDelete(int|string $id): void
+    {
+        $this->model->onlyTrashed()->findOrFail($id)->forceDelete();
+    }
 }

@@ -5,4 +5,5 @@ use Illuminate\Support\Facades\Route;
 
 Route::group(['prefix' => 'dummyModels', 'as' => 'dummyModels.'], function () {
     Route::crud('dummy-model', DummyClassController::class);
+__AC_SOFT_ROUTES__
 });

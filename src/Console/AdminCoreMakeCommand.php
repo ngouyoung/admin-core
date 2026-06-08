@@ -14,6 +14,7 @@ class AdminCoreMakeCommand extends Command
                             {--fields= : Field DSL, e.g. "name:string, price:decimal?, category_id:foreign"}
                             {--uuid : Use a UUID primary key (and UUID foreign keys)}
                             {--no-uuid : Force an auto-increment key even if config enables uuid}
+                            {--soft-deletes : Add soft deletes + a trash/restore screen}
                             {--migration : Also generate a create migration}
                             {--force : Overwrite existing files}';
 
@@ -31,7 +32,33 @@ class AdminCoreMakeCommand extends Command
             ? false
             : ($this->option('uuid') || (bool) config('admin-core.generator.uuid', false));
 
-        $fields = (new FieldSet($this->option('fields')))->setTable($snakePlural)->setUuid($uuid);
+        $soft = (bool) $this->option('soft-deletes');
+
+        $fields = (new FieldSet($this->option('fields')))
+            ->setTable($snakePlural)
+            ->setUuid($uuid)
+            ->setSoftDeletes($soft);
+
+        // Soft-delete snippets are built with the real class/route names (NOT Dummy
+        // tokens) because strtr does not re-scan replaced text.
+        $softRoutes = $soft ? sprintf(
+            "\n    Route::controller(%sController::class)\n"
+            . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:delete-%s' : [])\n"
+            . "        ->group(function () {\n"
+            . "            Route::get('trash', 'trash')->name('trash');\n"
+            . "            Route::put('restore/{id}', 'restore')->name('restore');\n"
+            . "            Route::delete('forceDelete/{id}', 'forceDelete')->name('forceDelete');\n"
+            . "        });",
+            $class,
+            $kebab,
+        ) : '';
+
+        $trashLink = $soft ? sprintf(
+            "\n            <a href=\"{{ route('admin.%s.trash') }}\" class=\"btn btn-sm btn-secondary\">\n"
+            . "                <i class=\"fas fa-trash\"></i> Trash\n"
+            . '            </a>',
+            $snakePlural,
+        ) : '';
 
         $replace = [
             'DummyClasses' => $plural,
@@ -59,6 +86,10 @@ class AdminCoreMakeCommand extends Command
             '__AC_EAGER__' => $fields->eager(),
             '__AC_GETDATA__' => $fields->getDataColumns(),
             '__AC_RAW__' => $fields->rawColumns(),
+            '__AC_FACTORY__' => $fields->factoryDefinition(),
+            '__AC_SOFT_DELETES__' => $fields->softDeletesColumn(),
+            '__AC_SOFT_ROUTES__' => $softRoutes,
+            '__AC_TRASH_LINK__' => $trashLink,
         ];
 
         $files = [
@@ -74,7 +105,14 @@ class AdminCoreMakeCommand extends Command
             'views/form.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"),
             'views/thead.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"),
             'views/scripts.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/scripts.blade.php"),
+            'factory.stub' => database_path("factories/{$class}Factory.php"),
+            'seeder.stub' => database_path("seeders/{$class}Seeder.php"),
+            'policy.stub' => app_path("Policies/{$class}Policy.php"),
         ];
+
+        if ($soft) {
+            $files['views/trash.stub'] = resource_path("views/backend/pages/{$snakePlural}/trash.blade.php");
+        }
 
         if ($this->option('migration')) {
             $files['migration.stub'] = base_path('database/migrations/' . date('Y_m_d_His') . "_create_{$snakePlural}_table.php");

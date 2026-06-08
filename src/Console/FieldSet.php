@@ -26,9 +26,18 @@ class FieldSet
 
     private bool $uuid = false;
 
+    private bool $softDeletes = false;
+
     public function __construct(?string $raw)
     {
         $this->fields = $this->parse($raw);
+    }
+
+    public function setSoftDeletes(bool $softDeletes): self
+    {
+        $this->softDeletes = $softDeletes;
+
+        return $this;
     }
 
     public function setTable(string $table): self
@@ -54,7 +63,21 @@ class FieldSet
     /** The model's trait list (after `use `). */
     public function modelTraits(): string
     {
-        return $this->uuid ? 'HasFactory, HasUuids' : 'HasFactory';
+        $traits = ['HasFactory'];
+        if ($this->uuid) {
+            $traits[] = 'HasUuids';
+        }
+        if ($this->softDeletes) {
+            $traits[] = 'SoftDeletes';
+        }
+
+        return implode(', ', $traits);
+    }
+
+    /** The `$table->softDeletes();` migration line, or empty. */
+    public function softDeletesColumn(): string
+    {
+        return $this->softDeletes ? '            $table->softDeletes();' : '';
     }
 
     private function parse(?string $raw): array
@@ -243,8 +266,40 @@ PHP;
         if ($this->hasManyToMany()) {
             $uses[] = 'use Illuminate\Database\Eloquent\Relations\BelongsToMany;';
         }
+        if ($this->softDeletes) {
+            $uses[] = 'use Illuminate\Database\Eloquent\SoftDeletes;';
+        }
 
         return $uses ? implode("\n", $uses) . "\n" : '';
+    }
+
+    /** Field-aware factory definition lines. */
+    public function factoryDefinition(): string
+    {
+        $lines = [];
+        foreach ($this->fields as $f) {
+            if (! $this->isColumn($f)) {
+                continue; // belongsToMany handled via relationships, not attributes
+            }
+            $col = $f['name'];
+            $fake = match (true) {
+                $f['name'] === 'name' => 'fake()->name()',
+                $f['name'] === 'email' || $f['type'] === 'email' => 'fake()->safeEmail()',
+                $f['type'] === 'text' => 'fake()->paragraph()',
+                $f['type'] === 'integer' => 'fake()->numberBetween(1, 1000)',
+                $f['type'] === 'decimal' => 'fake()->randomFloat(2, 1, 1000)',
+                $f['type'] === 'boolean' => 'fake()->boolean()',
+                $f['type'] === 'date' => 'fake()->date()',
+                $f['type'] === 'datetime' => 'fake()->dateTime()',
+                $f['type'] === 'enum' => "fake()->randomElement(['" . implode("', '", $f['enum']) . "'])",
+                $f['type'] === 'foreign' => "\\App\\Models\\{$f['relModel']}::factory()",
+                in_array($f['type'], ['image', 'file'], true) => 'null',
+                default => 'fake()->words(3, true)',
+            };
+            $lines[] = "            '{$col}' => {$fake},";
+        }
+
+        return implode("\n", $lines);
     }
 
     public function relations(): string

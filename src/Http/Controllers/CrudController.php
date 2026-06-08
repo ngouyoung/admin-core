@@ -98,6 +98,27 @@ abstract class CrudController extends Controller
         return DataTables::of($this->service->query($relation));
     }
 
+    // -- Soft deletes (routed only for resources generated with --soft-deletes) --
+
+    public function trash()
+    {
+        return $this->view('trash', ['items' => $this->service->trashedQuery()->latest('deleted_at')->get()]);
+    }
+
+    public function restore(int|string $id): RedirectResponse
+    {
+        $this->service->restore($id);
+
+        return redirect()->route($this->routeName('trash'));
+    }
+
+    public function forceDelete(int|string $id): RedirectResponse
+    {
+        $this->service->forceDelete($id);
+
+        return redirect()->route($this->routeName('trash'));
+    }
+
     /** Render a list of Bootstrap-5 badges for a DataTables cell (markup lives in a Blade view). */
     protected function badges(iterable $items, string $variant = 'success'): string
     {

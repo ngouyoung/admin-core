@@ -21,7 +21,7 @@
                 <a href="{{ route('admin.dummyModels.create') }}" class="{{ config('class.button.create') }}">
                     <i class="{{ config('class.icon.create') }}"></i> Add New
                 </a>
-            @endcan
+            @endcan__AC_TRASH_LINK__
         </div>
         <div class="card-body">
             <table class="{{ config('class.table') }}" id="dummyModels_table">
