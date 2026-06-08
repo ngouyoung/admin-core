@@ -1,0 +1,35 @@
+@php($selectedRoles = isset($object) ? $object->roles->pluck('id')->all() : [])
+<div class="mb-3">
+    <label class="form-label">Name</label>
+    <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
+           value="{{ old('name', $object->name ?? '') }}" required>
+    @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Email</label>
+    <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
+           value="{{ old('email', $object->email ?? '') }}" required>
+    @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Password @isset($object)<small class="text-muted">(leave blank to keep current)</small>@endisset</label>
+    <input type="password" name="password" class="form-control @error('password') is-invalid @enderror"
+           {{ isset($object) ? '' : 'required' }}>
+    @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+</div>
+
+<div class="mb-3">
+    <label class="form-label d-block">Roles</label>
+    @forelse ($roles as $role)
+        <div class="form-check form-check-inline">
+            <input type="checkbox" class="form-check-input" name="roles[]" value="{{ $role->id }}"
+                   id="role-{{ $role->id }}"
+                   {{ in_array($role->id, old('roles', $selectedRoles)) ? 'checked' : '' }}>
+            <label class="form-check-label text-capitalize" for="role-{{ $role->id }}">{{ $role->name }}</label>
+        </div>
+    @empty
+        <p class="text-muted mb-0">No roles yet — create one first.</p>
+    @endforelse
+</div>

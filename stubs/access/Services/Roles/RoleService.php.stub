@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Services\Roles;
+
+use App\Models\Role;
+use App\Services\Permissions\PermissionService;
+use Illuminate\Database\Eloquent\Model;
+use Ngos\AdminCore\Services\CrudService;
+
+class RoleService extends CrudService
+{
+    private PermissionService $permissionService;
+
+    public function __construct(Role $role, PermissionService $permissionService)
+    {
+        $this->model = $role;
+        $this->permissionService = $permissionService;
+    }
+
+    public function create(array $data): Model
+    {
+        $permissions = $data['permissions'] ?? [];
+        unset($data['permissions']);
+
+        $data['guard_name'] = $data['guard_name'] ?? 'web';
+
+        $role = $this->model->create($data);
+        $role->syncPermissions($this->permissionService->query()->whereIn('id', $permissions)->get());
+
+        return $role;
+    }
+
+    public function update(int $id, array $data): Model
+    {
+        $permissions = $data['permissions'] ?? [];
+        unset($data['permissions']);
+
+        $role = $this->find($id);
+        $role->update($data);
+        $role->syncPermissions($this->permissionService->query()->whereIn('id', $permissions)->get());
+
+        return $role;
+    }
+}

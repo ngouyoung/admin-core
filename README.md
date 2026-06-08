@@ -41,6 +41,25 @@ php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvid
 php artisan migrate
 ```
 
+### Full access module (login + users/roles/permissions)
+
+Want a working authenticated admin out of the box? Pass `--access`:
+
+```bash
+php artisan admin-core:install --access
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+php artisan migrate
+php artisan db:seed --class=Database\\Seeders\\AccessSeeder
+```
+
+This additionally scaffolds (all in your `App\` namespace, yours to edit):
+
+- **Auth** — a minimal session `LoginController` + login view + `/login` `/logout` routes; the `admin` route group is wrapped in `auth`.
+- **Users / Roles / Permissions** management screens (controllers, services, form requests, Blade views) built on the CRUD core, with role/permission assignment.
+- `App\Models\Role` / `App\Models\Permission` (extending spatie), the `HasRoles` trait added to `App\Models\User`, sidebar links, and an `AccessSeeder` that creates an `admin` role with every permission plus an admin user.
+
+Log in at `/login` with **`admin@example.com` / `password`**. (Re-run the seeder after `admin-core:make` to grant the admin role the newly generated permissions.)
+
 ## Generating a resource
 
 ```bash

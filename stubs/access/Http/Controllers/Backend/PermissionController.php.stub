@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Http\Controllers\Backend;
+
+use App\Services\Permissions\PermissionService;
+use Ngos\AdminCore\Http\Controllers\CrudController;
+
+/**
+ * Permissions are created automatically by `admin-core:make`, so this screen is
+ * read-only — a reference list of every permission known to the app.
+ */
+class PermissionController extends CrudController
+{
+    public function __construct(PermissionService $permissionService)
+    {
+        $this->viewPath = 'permissions.';
+        $this->routeBase = 'permissions.';
+        $this->service = $permissionService;
+    }
+
+    public function getData($relation = null)
+    {
+        return parent::getData(['roles'])
+            ->addColumn('roles', fn ($permission) => $this->badges($permission->roles, 'secondary'))
+            ->rawColumns(['roles'])
+            ->make(true);
+    }
+}

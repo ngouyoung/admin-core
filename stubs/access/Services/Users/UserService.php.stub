@@ -1,0 +1,51 @@
+<?php
+
+namespace App\Services\Users;
+
+use App\Models\User;
+use App\Services\Roles\RoleService;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Hash;
+use Ngos\AdminCore\Services\CrudService;
+
+class UserService extends CrudService
+{
+    private RoleService $roleService;
+
+    public function __construct(User $user, RoleService $roleService)
+    {
+        $this->model = $user;
+        $this->roleService = $roleService;
+    }
+
+    public function create(array $data): Model
+    {
+        $roles = $data['roles'] ?? [];
+        unset($data['roles']);
+
+        $data['password'] = Hash::make($data['password']);
+
+        $user = $this->model->create($data);
+        $user->syncRoles($this->roleService->query()->whereIn('id', $roles)->get());
+
+        return $user;
+    }
+
+    public function update(int $id, array $data): Model
+    {
+        $roles = $data['roles'] ?? [];
+        unset($data['roles']);
+
+        if (empty($data['password'])) {
+            unset($data['password']);
+        } else {
+            $data['password'] = Hash::make($data['password']);
+        }
+
+        $user = $this->find($id);
+        $user->update($data);
+        $user->syncRoles($this->roleService->query()->whereIn('id', $roles)->get());
+
+        return $user;
+    }
+}

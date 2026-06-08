@@ -1,0 +1,48 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Permission;
+use App\Models\Role;
+use App\Models\User;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\PermissionRegistrar;
+
+/**
+ * Seeds a working admin: permissions for the access screens, an `admin` role
+ * holding every permission, and an admin user. Published by
+ * `php artisan admin-core:install --access` — run with:
+ *   php artisan db:seed --class=Database\\Seeders\\AccessSeeder
+ */
+class AccessSeeder extends Seeder
+{
+    public function run(): void
+    {
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+        // Permissions for the built-in access screens.
+        $permissions = [
+            'list-user', 'create-user', 'edit-user', 'delete-user',
+            'list-role', 'create-role', 'edit-role', 'delete-role',
+            'list-permission',
+        ];
+        foreach ($permissions as $name) {
+            Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+        }
+
+        // Admin role gets EVERY permission (including ones added later by admin-core:make
+        // — re-run this seeder, or sync in your own seeder, to pick those up).
+        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $admin->syncPermissions(Permission::all());
+
+        // Admin user.
+        $user = User::firstOrCreate(
+            ['email' => 'admin@example.com'],
+            ['name' => 'Administrator', 'password' => Hash::make('password')],
+        );
+        $user->assignRole($admin);
+
+        $this->command?->info('Seeded admin@example.com / password (role: admin).');
+    }
+}

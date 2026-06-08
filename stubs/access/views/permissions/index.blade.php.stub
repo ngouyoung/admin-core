@@ -1,0 +1,47 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Permissions')
+
+@section('breadcrumb')
+    <div class="row">
+        <div class="col-sm-6"><h3 class="mb-0">Permissions</h3></div>
+        <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-end">
+                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
+                <li class="breadcrumb-item active">Permissions</li>
+            </ol>
+        </div>
+    </div>
+@endsection
+
+@section('contents')
+    <div class="card">
+        <div class="card-body">
+            <p class="text-muted">Permissions are generated automatically by <code>php artisan admin-core:make</code>.</p>
+            <table class="{{ config('class.table') }}" id="permissions_table">
+                <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Guard</th>
+                    <th>Roles</th>
+                </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            $('#permissions_table').DataTable({
+                ajax: {url: '{{ route('admin.permissions.getData') }}', type: 'GET'},
+                columns: [
+                    {data: 'name', name: 'name'},
+                    {data: 'guard_name', name: 'guard_name'},
+                    {data: 'roles', orderable: false, searchable: false},
+                ],
+            });
+        });
+    </script>
+@endpush

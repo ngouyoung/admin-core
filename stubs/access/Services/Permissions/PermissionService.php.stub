@@ -1,0 +1,14 @@
+<?php
+
+namespace App\Services\Permissions;
+
+use App\Models\Permission;
+use Ngos\AdminCore\Services\CrudService;
+
+class PermissionService extends CrudService
+{
+    public function __construct(Permission $permission)
+    {
+        $this->model = $permission;
+    }
+}
