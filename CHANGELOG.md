@@ -2,6 +2,10 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.1.4
+
+- `--sortable` now keeps the full DataTable index and adds a "Sort" toggle button next to Create; clicking it reveals a drag-and-drop reorder panel (instead of replacing the table). Search, filters and pagination are preserved.
+
 ## v1.1.3
 
 - Profile avatar now uses a Croppie crop-and-upload modal (circular viewport, base64 upload) instead of a plain file input — matching the original app. Adds the `croppie` front-end dependency.

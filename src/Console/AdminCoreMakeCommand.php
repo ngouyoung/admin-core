@@ -53,6 +53,62 @@ class AdminCoreMakeCommand extends Command
             $kebab,
         ) : '';
 
+        // --sortable adds a "Sort" toggle button + a drag-and-drop panel to the
+        // normal DataTable index (the table stays; sorting is an opt-in mode).
+        $sortButton = $sortable
+            ? "\n            <button type=\"button\" id=\"toggle-sort\" class=\"btn btn-sm btn-outline-primary\">\n"
+                . "                <i class=\"fas fa-arrows-alt\"></i> Sort\n            </button>"
+            : '';
+
+        $sortPanel = $sortable ? str_replace(
+            ['__CLASS__', '__SNAKE__'],
+            [$class, $snakePlural],
+            <<<'BLADE'
+
+            <div id="sort-panel" class="d-none mt-2">
+                @php($sortItems = \App\Models\__CLASS__::orderBy('sort')->get())
+                <div class="alert alert-info py-2">Drag rows to reorder — changes save automatically.</div>
+                <div class="dd nestable-lists" id="__SNAKE___sortable">
+                    <ol class="dd-list">
+                        @forelse ($sortItems as $sortItem)
+                            <li class="dd-item" data-id="{{ $sortItem->id }}">
+                                <div class="dd-handle">{{ $sortItem->name ?? $sortItem->id }}</div>
+                            </li>
+                        @empty
+                            <li class="dd-item"><div class="dd-handle text-muted">No records yet.</div></li>
+                        @endforelse
+                    </ol>
+                </div>
+            </div>
+            @push('scripts')
+                <script>
+                    document.addEventListener("DOMContentLoaded", function () {
+                        const btn = document.getElementById('toggle-sort');
+                        const panel = document.getElementById('sort-panel');
+                        const list = $('#__SNAKE___sortable');
+                        if (btn) {
+                            btn.addEventListener('click', function () {
+                                const sorting = panel.classList.toggle('d-none') === false;
+                                $('#__SNAKE___table_wrapper').toggle(!sorting);
+                                btn.innerHTML = sorting
+                                    ? '<i class="fas fa-check"></i> Done'
+                                    : '<i class="fas fa-arrows-alt"></i> Sort';
+                            });
+                        }
+                        if (list.nestable) {
+                            list.nestable({maxDepth: 1}).on('change', function () {
+                                const ids = list.nestable('serialize').map((i) => i.id);
+                                $.post('{{ route('admin.__SNAKE__.reorder') }}', {ids: ids}, function () {
+                                    window.toastr && window.toastr.success('Order updated');
+                                });
+                            });
+                        }
+                    });
+                </script>
+            @endpush
+            BLADE
+        ) : '';
+
         // Soft-delete snippets are built with the real class/route names (NOT Dummy
         // tokens) because strtr does not re-scan replaced text.
         $softRoutes = $soft ? sprintf(
@@ -108,6 +164,8 @@ class AdminCoreMakeCommand extends Command
             '__AC_TRASH_LINK__' => $trashLink,
             '__AC_SORT_COLUMN__' => $fields->sortColumn(),
             '__AC_SORT_ROUTES__' => $sortRoutes,
+            '__AC_SORT_BUTTON__' => $sortButton,
+            '__AC_SORT_PANEL__' => $sortPanel,
         ];
 
         $files = [
@@ -128,12 +186,6 @@ class AdminCoreMakeCommand extends Command
             'seeder.stub' => database_path("seeders/{$class}Seeder.php"),
             'policy.stub' => app_path("Policies/{$class}Policy.php"),
         ];
-
-        if ($sortable) {
-            // A drag-to-reorder list replaces the DataTable index.
-            $files['views/sortable-index.stub'] = resource_path("views/backend/pages/{$snakePlural}/index.blade.php");
-            unset($files['views/index.stub'], $files['views/thead.stub'], $files['views/scripts.stub']);
-        }
 
         if ($soft) {
             $files['views/trash.stub'] = resource_path("views/backend/pages/{$snakePlural}/trash.blade.php");
