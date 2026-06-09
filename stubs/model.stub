@@ -10,5 +10,5 @@ class DummyClass extends Model
     use __AC_MODEL_TRAITS__;
 
     protected $fillable = [__AC_FILLABLE__];
-__AC_RELATIONS__
+__AC_RELATIONS____AC_MODEL_BOOT__
 }

@@ -131,6 +131,42 @@ it('uses the hybrid key strategy with --uuid (bigint PK + public uuid + bigint F
         ->toContain('Ngos\AdminCore\Concerns\HasPublicUuid');
 });
 
+it('handles write-once (~) and system (@) field modifiers', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, sku:string^~, secret:string@',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $model = File::get(app_path('Models/Gizmo.php'));
+    $store = File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php'));
+    $update = File::get(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php'));
+    $form = File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php'));
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+
+    // write-once `sku`: fillable + store rule, but NO update rule, and readonly on edit.
+    expect($model)->toContain("'sku'")
+        ->and($store)->toContain("'sku'")
+        ->and($update)->not->toContain("'sku'")
+        ->and($form)->toContain('readonly');
+
+    // system `secret`: NOT fillable, NOT in either request, NOT in the form, but a column +
+    // a booted() hook scaffold; column is nullable so the scaffold runs.
+    expect($model)->not->toContain("'secret'")            // not in $fillable
+        ->and($model)->toContain('protected static function booted')
+        ->and($model)->toContain('$model->secret = null')
+        ->and($store)->not->toContain("'secret'")
+        ->and($update)->not->toContain("'secret'")
+        ->and($migration)->toContain("\$table->string('secret')->nullable();");
+
+    // generated PHP still valid.
+    foreach ([app_path('Models/Gizmo.php'), $store === '' ? null : app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')] as $php) {
+        if ($php) {
+            expect(Process::run('php -l ' . escapeshellarg($php))->successful())->toBeTrue();
+        }
+    }
+});
+
 it('adds a sort toggle and reorder route with --sortable', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

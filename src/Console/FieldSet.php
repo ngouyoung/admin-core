@@ -136,10 +136,15 @@ class FieldSet
             $name = trim($name);
             $spec = trim($spec);
 
-            $nullable = false;
-            $unique = false;
-            while ($spec !== '' && in_array(substr($spec, -1), ['?', '^'], true)) {
-                $spec[-1] === '?' ? $nullable = true : $unique = true;
+            $nullable = $unique = $writeOnce = $system = false;
+            while ($spec !== '' && in_array(substr($spec, -1), ['?', '^', '~', '@'], true)) {
+                match (substr($spec, -1)) {
+                    '?' => $nullable = true,
+                    '^' => $unique = true,
+                    '~' => $writeOnce = true, // settable on create, locked on update
+                    '@' => $system = true,    // set by trusted code only (never user-fillable)
+                    default => null,          // unreachable (guarded by the while), keeps match exhaustive
+                };
                 $spec = substr($spec, 0, -1);
             }
 
@@ -153,15 +158,15 @@ class FieldSet
                 $spec = 'belongsToMany';
             }
 
-            $fields[] = $this->field($name, $spec ?: 'string', $nullable, $unique, $enum);
+            $fields[] = $this->field($name, $spec ?: 'string', $nullable, $unique, $enum, $writeOnce, $system);
         }
 
         return $fields ?: [$this->field('name', 'string')];
     }
 
-    private function field(string $name, string $type, bool $nullable = false, bool $unique = false, array $enum = []): array
+    private function field(string $name, string $type, bool $nullable = false, bool $unique = false, array $enum = [], bool $writeOnce = false, bool $system = false): array
     {
-        $f = compact('name', 'type', 'nullable', 'unique', 'enum');
+        $f = compact('name', 'type', 'nullable', 'unique', 'enum', 'writeOnce', 'system');
 
         if ($type === 'foreign') {
             $base = Str::beforeLast($name, '_id');
@@ -245,7 +250,9 @@ class FieldSet
             };
             if ($f['type'] !== 'foreign') {
                 // uploads are stored as a nullable path string regardless.
-                if ($n || $this->isFile($f)) {
+                // System fields are filled by a hook (scaffolded as a TODO), so keep them
+                // nullable — the generated code runs before you wire the real value up.
+                if ($n || $this->isFile($f) || ! empty($f['system'])) {
                     $line .= '->nullable()';
                 }
                 if ($f['unique']) {
@@ -287,7 +294,7 @@ PHP;
     public function fillable(): string
     {
         return collect($this->fields)
-            ->filter(fn ($f) => $this->isColumn($f))
+            ->filter(fn ($f) => $this->isColumn($f) && empty($f['system'])) // system fields are set by trusted code, never mass-assigned
             ->map(fn ($f) => "'{$f['name']}'")
             ->implode(', ');
     }
@@ -314,13 +321,42 @@ PHP;
         return $uses ? implode("\n", $uses) . "\n" : '';
     }
 
+    /**
+     * A `booted()` hook scaffold for system (`@`) fields — set by trusted code, never
+     * mass-assigned. Each line is a TODO so you fill in the real value (auth id, code…).
+     */
+    public function modelBoot(): string
+    {
+        $system = array_filter($this->fields, fn ($f) => ! empty($f['system']) && $this->isColumn($f));
+        if (! $system) {
+            return '';
+        }
+
+        $assigns = [];
+        foreach ($system as $f) {
+            $assigns[] = "                \$model->{$f['name']} = null; // TODO: set {$f['name']} (e.g. auth()->id(), a generated code)";
+        }
+        $body = implode("\n", $assigns);
+
+        return <<<PHP
+
+
+    protected static function booted(): void
+    {
+        static::creating(function (self \$model) {
+$body
+        });
+    }
+PHP;
+    }
+
     /** Field-aware factory definition lines. */
     public function factoryDefinition(): string
     {
         $lines = [];
         foreach ($this->fields as $f) {
-            if (! $this->isColumn($f)) {
-                continue; // belongsToMany handled via relationships, not attributes
+            if (! $this->isColumn($f) || ! empty($f['system'])) {
+                continue; // belongsToMany via relationships; system fields set by hook
             }
             $col = $f['name'];
             $fake = match (true) {
@@ -393,6 +429,11 @@ PHP;
     {
         $lines = [];
         foreach ($this->fields as $f) {
+            // System fields are never validated (set by trusted code); write-once
+            // fields have no update rule so update() can never change them.
+            if (! empty($f['system']) || ($update && ! empty($f['writeOnce']))) {
+                continue;
+            }
             $required = $f['nullable'] ? "'nullable'" : "'required'";
             switch ($f['type']) {
                 case 'text':
@@ -435,8 +476,11 @@ PHP;
             }
 
             if ($f['unique']) {
+                // Ignore self by the route-key column (uuid under hybrid, else id),
+                // since the {id} route param is whatever the URL exposes.
+                $ignoreColumn = $this->uuid ? 'uuid' : 'id';
                 $rules[] = $update
-                    ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'))"
+                    ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'), '{$ignoreColumn}')"
                     : "'unique:{$this->table},{$f['name']}'";
             }
 
@@ -466,6 +510,9 @@ PHP;
             }
         }
         foreach ($this->fields as $f) {
+            if (! empty($f['system'])) {
+                continue; // system fields are never rendered in the form
+            }
             $out[] = $this->formField($f);
         }
 
@@ -478,21 +525,23 @@ PHP;
         $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $col);
         $err = "@error('{$col}') is-invalid @enderror";
         $old = "old('{$col}', \$object?->{$col})";
+        // Write-once fields lock on edit (UX only — the real guard is the missing UpdateRequest rule).
+        $ro = ! empty($f['writeOnce']) ? " {{ \$object ? 'readonly' : '' }}" : '';
 
         $control = match ($f['type']) {
-            'text' => "<textarea name=\"{$col}\" id=\"{$col}\" rows=\"3\" class=\"form-control {$err}\">{{ {$old} }}</textarea>",
+            'text' => "<textarea name=\"{$col}\" id=\"{$col}\" rows=\"3\" class=\"form-control {$err}\"{$ro}>{{ {$old} }}</textarea>",
             'boolean' => "<div class=\"form-check\">\n            <input type=\"checkbox\" name=\"{$col}\" id=\"{$col}\" value=\"1\" class=\"form-check-input {$err}\" {{ {$old} ? 'checked' : '' }}>\n        </div>",
-            'integer' => "<input type=\"number\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\">",
-            'decimal' => "<input type=\"number\" step=\"0.01\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\">",
-            'date' => "<input type=\"date\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\">",
-            'datetime' => "<input type=\"datetime-local\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\">",
-            'email' => "<input type=\"email\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\">",
+            'integer' => "<input type=\"number\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
+            'decimal' => "<input type=\"number\" step=\"0.01\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
+            'date' => "<input type=\"date\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
+            'datetime' => "<input type=\"datetime-local\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
+            'email' => "<input type=\"email\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
             'enum' => $this->enumSelect($f, $err, $old),
             'image' => $this->fileInput($f, $err, true),
             'file' => $this->fileInput($f, $err, false),
             'foreign' => $this->foreignSelect($f, $err, $old),
             'belongsToMany' => $this->manySelect($f, $err),
-            default => "<input type=\"text\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\">",
+            default => "<input type=\"text\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
         };
 
         return <<<BLADE

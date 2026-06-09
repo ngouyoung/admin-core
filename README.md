@@ -105,8 +105,18 @@ old file on update, clean up on delete) and add `enctype="multipart/form-data"` 
 relation, a multi-select, and `sync()` in the service. Both infer the related model/table from the
 field name, so generate the related resource first.
 
-**Modifiers** (suffix, any order): `?` = nullable, `^` = unique.
-E.g. `slug:string^`, `published_at:date?`.
+**Modifiers** (suffix, any order):
+
+| Modifier | Meaning | What it generates |
+|---|---|---|
+| `?` | nullable | nullable column + `nullable` rule |
+| `^` | unique | unique index + `unique` rule (ignores self by route key on update) |
+| `~` | **write-once** | settable on create, **locked on update** — fillable + StoreRequest rule, *no* UpdateRequest rule, `readonly` input on edit |
+| `@` | **system** | set by trusted code only — **not** fillable, not validated, not in the form; a `booted()` hook scaffold + nullable column (shown read-only) |
+
+E.g. `slug:string^`, `published_at:date?`, `sku:string^~` (unique, locked after create), `created_by:integer@` (set in a hook from `auth()->id()`).
+
+> Security note: `~` and `@` enforce on the **server** (missing update rule / not fillable), not just the readonly input — so a user editing the DOM still can't change them. See "fields users can't edit" below.
 
 **Foreign keys**: `category_id:foreign` adds a `belongsTo` relation on the model, a Select2 dropdown of
 the related rows in the form (labelled by the related row's `name`, falling back to `id`), and a

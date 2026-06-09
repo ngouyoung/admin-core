@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.4.0
+
+- **Write-once (`~`) and system (`@`) field modifiers.** `~` = settable on create, locked on update
+  (fillable + StoreRequest rule, no UpdateRequest rule, readonly input on edit). `@` = set by trusted
+  code only — not fillable, not validated, not in the form; scaffolds a `booted()` creating-hook and a
+  nullable column. Both enforce on the server, so DOM/console tampering cannot bypass them.
+- **Fix (hybrid):** unique-on-update validation now ignores self by the route-key column (uuid), so
+  editing a row without changing its unique field no longer false-fails as "already taken".
+
 ## v1.3.1
 
 - HasPublicUuid now generates UUID v7 (Str::uuid7) for the public key — time-ordered + RFC 9562 standard.
