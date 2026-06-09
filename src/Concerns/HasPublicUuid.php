@@ -21,7 +21,8 @@ trait HasPublicUuid
         static::creating(function ($model): void {
             $key = $model->getPublicKeyName();
             if (empty($model->{$key})) {
-                $model->{$key} = (string) Str::orderedUuid();
+                // UUID v7: time-ordered (index-friendly) + RFC 9562 standard for interop.
+                $model->{$key} = (string) (method_exists(Str::class, 'uuid7') ? Str::uuid7() : Str::orderedUuid());
             }
         });
     }

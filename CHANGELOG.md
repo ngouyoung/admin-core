@@ -2,11 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.3.1
+
+- HasPublicUuid now generates UUID v7 (Str::uuid7) for the public key — time-ordered + RFC 9562 standard.
+
 ## v1.3.0
 
 - **Hybrid key strategy** (replaces uuid primary keys). `--uuid` / `generator.uuid` now generate a fast
   **bigint `id` primary key** (lean foreign keys + joins that never bloat) **plus a unique public `uuid`
-  column** used in URLs/APIs — so ids are non-enumerable without the index/join cost of uuid PKs. New
+  column** used in URLs/APIs â so ids are non-enumerable without the index/join cost of uuid PKs. New
   `HasPublicUuid` trait auto-fills the uuid and sets `getRouteKeyName() => 'uuid'`; `CrudService` now
   resolves every action (edit/show/update/delete/bulk-delete/restore/reorder) by the model's route key,
   so plain `id` models are unchanged and hybrid models resolve by uuid automatically. Foreign/pivot keys
@@ -18,7 +22,7 @@ All notable changes to `ngos/admin-core` are documented here.
 ## v1.2.5
 
 - **Typed settings**: each setting now has a `type` (`text|textarea|number|email|image|file|boolean`)
-  that drives the control rendered on the Settings screen — so **Site Logo is a real image upload**
+  that drives the control rendered on the Settings screen â so **Site Logo is a real image upload**
   (with preview), Items Per Page a number field, Support Email an email field, etc. The controller
   stores uploaded files on the `public` disk (replacing the old file) and keeps the existing value when
   no new file is chosen. Adds a `type` column to the settings migration and seeds the defaults with
@@ -26,14 +30,14 @@ All notable changes to `ngos/admin-core` are documented here.
 
 ## v1.2.4
 
-- **Docs**: corrected README claims that had drifted from the code — `admin-core:make` now auto-grants
+- **Docs**: corrected README claims that had drifted from the code â `admin-core:make` now auto-grants
   permissions (no re-seed), the removed per-column footer search, the `--sortable` toggle panel (the
   DataTable stays), and the expanded test/CI coverage; added the one-command `--build --seed` tip.
 - **Cleanup**: removed the dead `FieldSet::tfoot()` method (orphaned when per-column search was dropped).
 
 ## v1.2.3
 
-- **Generator + installer tests** (44 tests total): `admin-core:make` is now covered end to end —
+- **Generator + installer tests** (44 tests total): `admin-core:make` is now covered end to end â
   it asserts the scaffolded files exist, contain no leftover stub tokens, pass `php -l`, and that
   the generated migration actually migrates; plus `--sortable`, `--soft-deletes`, the
   no-duplicate-migration guard, and `--force` overwrite behaviour. `admin-core:install` covers the
@@ -84,7 +88,7 @@ All notable changes to `ngos/admin-core` are documented here.
 
 ## v1.1.3
 
-- Profile avatar now uses a Croppie crop-and-upload modal (circular viewport, base64 upload) instead of a plain file input — matching the original app. Adds the `croppie` front-end dependency.
+- Profile avatar now uses a Croppie crop-and-upload modal (circular viewport, base64 upload) instead of a plain file input â matching the original app. Adds the `croppie` front-end dependency.
 
 ## v1.1.2
 
