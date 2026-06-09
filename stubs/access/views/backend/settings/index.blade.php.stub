@@ -7,18 +7,54 @@
 @endsection
 
 @section('contents')
-    <form action="{{ route('admin.settings.update') }}" method="POST">
+    <form action="{{ route('admin.settings.update') }}" method="POST" enctype="multipart/form-data">
         @csrf @method('PUT')
         @forelse ($groups as $group => $settings)
             <div class="card mb-3">
                 <div class="card-header text-capitalize"><strong>{{ $group }}</strong></div>
                 <div class="card-body">
                     @foreach ($settings as $setting)
+                        @php($name = 'settings[' . $setting->key . ']')
+                        @php($old = old('settings.' . $setting->key, $setting->value))
                         <div class="row mb-3">
                             <label class="col-sm-3 col-form-label text-capitalize">{{ str_replace('_', ' ', $setting->key) }}</label>
                             <div class="col-sm-9">
-                                <input type="text" name="settings[{{ $setting->key }}]" class="form-control"
-                                       value="{{ old('settings.' . $setting->key, $setting->value) }}">
+                                @switch($setting->type)
+                                    @case('image')
+                                    @case('file')
+                                        @if ($setting->type === 'image' && $setting->value)
+                                            <img src="{{ asset('storage/' . $setting->value) }}" alt="{{ $setting->key }}"
+                                                 class="img-thumbnail mb-2" style="max-height: 64px">
+                                        @endif
+                                        <input type="file" name="{{ $name }}" class="form-control"
+                                               @if ($setting->type === 'image') accept="image/*" @endif>
+                                        @if ($setting->value)
+                                            <small class="text-muted">Current: {{ $setting->value }} — choose a file to replace it.</small>
+                                        @endif
+                                        @break
+
+                                    @case('textarea')
+                                        <textarea name="{{ $name }}" class="form-control" rows="3">{{ $old }}</textarea>
+                                        @break
+
+                                    @case('boolean')
+                                        <input type="hidden" name="{{ $name }}" value="0">
+                                        <div class="form-check form-switch pt-2">
+                                            <input type="checkbox" name="{{ $name }}" value="1" class="form-check-input" @checked($old)>
+                                        </div>
+                                        @break
+
+                                    @case('number')
+                                        <input type="number" name="{{ $name }}" class="form-control" value="{{ $old }}">
+                                        @break
+
+                                    @case('email')
+                                        <input type="email" name="{{ $name }}" class="form-control" value="{{ $old }}">
+                                        @break
+
+                                    @default
+                                        <input type="text" name="{{ $name }}" class="form-control" value="{{ $old }}">
+                                @endswitch
                             </div>
                         </div>
                     @endforeach

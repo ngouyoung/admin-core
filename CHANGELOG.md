@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.2.5
+
+- **Typed settings**: each setting now has a `type` (`text|textarea|number|email|image|file|boolean`)
+  that drives the control rendered on the Settings screen — so **Site Logo is a real image upload**
+  (with preview), Items Per Page a number field, Support Email an email field, etc. The controller
+  stores uploaded files on the `public` disk (replacing the old file) and keeps the existing value when
+  no new file is chosen. Adds a `type` column to the settings migration and seeds the defaults with
+  sensible types. (Run `php artisan storage:link` for image/file settings.)
+
 ## v1.2.4
 
 - **Docs**: corrected README claims that had drifted from the code — `admin-core:make` now auto-grants

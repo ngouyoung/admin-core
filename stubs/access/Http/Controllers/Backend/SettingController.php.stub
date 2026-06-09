@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Setting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class SettingController extends Controller
@@ -19,8 +20,23 @@ class SettingController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        foreach ((array) $request->input('settings', []) as $key => $value) {
-            Setting::set($key, $value);
+        foreach (Setting::all() as $setting) {
+            if (in_array($setting->type, ['image', 'file'], true)) {
+                // Only replace the file when a new one is uploaded; keep the old value otherwise.
+                if ($request->hasFile("settings.{$setting->key}")) {
+                    if ($setting->value) {
+                        Storage::disk('public')->delete($setting->value);
+                    }
+                    Setting::set($setting->key, $request->file("settings.{$setting->key}")->store('settings', 'public'));
+                }
+
+                continue;
+            }
+
+            $value = $request->input("settings.{$setting->key}");
+            if ($value !== null) {
+                Setting::set($setting->key, $value);
+            }
         }
 
         return back()->with('success', 'Settings saved.');

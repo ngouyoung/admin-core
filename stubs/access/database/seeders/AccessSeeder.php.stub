@@ -53,9 +53,15 @@ class AccessSeeder extends Seeder
             }
         }
 
-        // Default application settings.
-        foreach (['app_name' => config('app.name'), 'site_logo' => '', 'support_email' => 'support@example.com', 'items_per_page' => '50'] as $key => $value) {
-            Setting::firstOrCreate(['key' => $key], ['value' => $value, 'group' => 'general']);
+        // Default application settings (type drives the control rendered on the Settings screen).
+        $settings = [
+            'app_name' => ['value' => config('app.name'), 'type' => 'text'],
+            'site_logo' => ['value' => '', 'type' => 'image'],
+            'support_email' => ['value' => 'support@example.com', 'type' => 'email'],
+            'items_per_page' => ['value' => '50', 'type' => 'number'],
+        ];
+        foreach ($settings as $key => $meta) {
+            Setting::firstOrCreate(['key' => $key], ['value' => $meta['value'], 'type' => $meta['type'], 'group' => 'general']);
         }
 
         // 3. Admin role holds every permission.
