@@ -89,3 +89,14 @@ it('adds a sort column when sortable', function () {
     expect($f->isSortable())->toBeTrue();
     expect($f->sortColumn())->toContain("\$table->integer('sort')->default(0);");
 });
+
+it('builds read-only show rows', function () {
+    $f = fs('name:string, category_id:foreign');
+    expect($f->showRows())->toContain('$object->name');
+    expect($f->showRows())->toContain('$object->category?->name');
+});
+
+it('builds a sort column when sortable', function () {
+    expect(fs('name:string')->setSortable(true)->sortColumn())->toContain("\$table->integer('sort')->default(0);");
+    expect(fs('name:string')->setSortable(false)->sortColumn())->toBe('');
+});

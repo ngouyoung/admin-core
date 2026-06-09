@@ -2,6 +2,10 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.2.1
+
+- Expanded the test suite (34 tests): settings get/set/cache (guards the v1.1.9 'incomplete object' regression), soft-delete trash/restore/force, the version command, and more FieldSet cases.
+
 ## v1.2.0
 
 - One-command install: `admin-core:install --access` now offers (or with `--build --seed` runs) `npm install && npm run build` and `migrate` + seed for you.
