@@ -1,10 +1,9 @@
 // ---------------------------------------------------------------------------
-// admin-core front-end bundle (AdminLTE 4 / Bootstrap 5 / jQuery plugins)
+// admin-core front-end bundle (custom theme / Bootstrap 5 / jQuery plugins)
 // Built with Vite — published by `php artisan admin-core:install --access`.
 // ---------------------------------------------------------------------------
 
-// Vendor styles
-import 'admin-lte/dist/css/adminlte.css'; // bundles Bootstrap 5
+// Vendor styles (Bootstrap itself is compiled inside app.scss for theming)
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import 'select2/dist/css/select2.css';
@@ -17,7 +16,7 @@ import '@fontsource/source-sans-3/400.css';
 import '@fontsource/source-sans-3/600.css';
 import '@fontsource/source-sans-3/700.css';
 
-// Custom styles (overrides last)
+// Custom theme (compiles Bootstrap + the app shell)
 import '../sass/app.scss';
 
 // ---------------------------------------------------------------------------
@@ -26,10 +25,9 @@ import '../sass/app.scss';
 // jQuery must be global before any jQuery plugin module is evaluated.
 import './jquery-global';
 
-// Bootstrap 5 (exposed for inline use) + AdminLTE 4 (jQuery-free).
+// Bootstrap 5 JS (dropdowns, modals, tooltips) exposed for inline use.
 import * as bootstrap from 'bootstrap';
 window.bootstrap = bootstrap;
-import 'admin-lte';
 
 // SweetAlert2 exposed globally (replaces the realrashid/sweet-alert PHP package).
 import Swal from 'sweetalert2';
@@ -46,6 +44,7 @@ import ApexCharts from 'apexcharts';
 window.ApexCharts = ApexCharts;
 
 // App behaviour
+import './shell';
 import './checktree';
 import './theme';
 import './notify';

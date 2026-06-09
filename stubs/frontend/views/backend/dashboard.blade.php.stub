@@ -2,60 +2,45 @@
 
 @section('title', 'Dashboard')
 
-@section('breadcrumb')
-    <div class="row">
-        <div class="col-sm-6"><h3 class="mb-0">Dashboard</h3></div>
-        <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-end">
-                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
-                <li class="breadcrumb-item active">Dashboard</li>
-            </ol>
-        </div>
-    </div>
-@endsection
-
 @section('contents')
     @php
         $stats = [
-            ['label' => 'Users', 'count' => \App\Models\User::count(), 'icon' => 'bi-people', 'bg' => 'primary', 'route' => 'admin.assessments.users.index', 'color' => '#0d6efd'],
-            ['label' => 'Roles', 'count' => \App\Models\Role::count(), 'icon' => 'bi-shield-lock', 'bg' => 'success', 'route' => 'admin.assessments.roles.index', 'color' => '#198754'],
-            ['label' => 'Permissions', 'count' => \App\Models\Permission::count(), 'icon' => 'bi-key', 'bg' => 'warning', 'route' => 'admin.assessments.permissions.index', 'color' => '#ffc107'],
-            ['label' => 'Group Permissions', 'count' => \App\Models\GroupPermission::count(), 'icon' => 'bi-collection', 'bg' => 'info', 'route' => 'admin.assessments.group_permissions.index', 'color' => '#0dcaf0'],
+            ['label' => 'Users', 'count' => \App\Models\User::count(), 'icon' => 'bi-people', 'n' => 1, 'route' => 'admin.assessments.users.index', 'color' => '#6366f1'],
+            ['label' => 'Roles', 'count' => \App\Models\Role::count(), 'icon' => 'bi-shield-lock', 'n' => 2, 'route' => 'admin.assessments.roles.index', 'color' => '#2563eb'],
+            ['label' => 'Permissions', 'count' => \App\Models\Permission::count(), 'icon' => 'bi-key', 'n' => 3, 'route' => 'admin.assessments.permissions.index', 'color' => '#10b981'],
+            ['label' => 'Group Permissions', 'count' => \App\Models\GroupPermission::count(), 'icon' => 'bi-collection', 'n' => 4, 'route' => 'admin.assessments.group_permissions.index', 'color' => '#f59e0b'],
         ];
     @endphp
 
-    <div class="row">
+    <div class="row g-3 mb-3">
         @foreach ($stats as $s)
-            <div class="col-lg-3 col-6">
-                <div class="small-box text-bg-{{ $s['bg'] }}">
-                    <div class="inner">
-                        <h3>{{ $s['count'] }}</h3>
-                        <p>{{ $s['label'] }}</p>
+            <div class="col-xl-3 col-md-6">
+                <a href="{{ Route::has($s['route']) ? route($s['route']) : '#' }}" class="d-block text-decoration-none">
+                    <div class="ac-stat ac-stat-{{ $s['n'] }} d-flex align-items-center justify-content-between">
+                        <div>
+                            <div class="ac-stat-value">{{ $s['count'] }}</div>
+                            <div class="ac-stat-label">{{ $s['label'] }}</div>
+                        </div>
+                        <i class="bi {{ $s['icon'] }} ac-stat-icon"></i>
                     </div>
-                    <i class="small-box-icon bi {{ $s['icon'] }}"></i>
-                    @if (Route::has($s['route']))
-                        <a href="{{ route($s['route']) }}" class="small-box-footer link-light">
-                            More info <i class="bi bi-arrow-right-circle"></i>
-                        </a>
-                    @endif
-                </div>
+                </a>
             </div>
         @endforeach
     </div>
 
-    <div class="row">
+    <div class="row g-3">
         <div class="col-lg-5">
-            <div class="card">
-                <div class="card-header"><h3 class="card-title">Overview</h3></div>
+            <div class="card h-100">
+                <div class="card-header">Overview</div>
                 <div class="card-body"><div id="overview-chart"></div></div>
             </div>
         </div>
         <div class="col-lg-7">
             <div class="card h-100">
-                <div class="card-header"><h3 class="card-title">Welcome</h3></div>
+                <div class="card-header">Welcome</div>
                 <div class="card-body">
-                    <p>Welcome back, <strong>{{ auth()->user()->name }}</strong>.</p>
-                    <p class="mb-0 text-muted">
+                    <p>Welcome back, <strong class="text-capitalize">{{ auth()->user()->name }}</strong>.</p>
+                    <p class="mb-0 text-secondary">
                         Scaffold a resource with
                         <code>php artisan admin-core:make Product --migration --fields="name:string"</code> —
                         it auto-adds to the sidebar and grants your role the permissions.

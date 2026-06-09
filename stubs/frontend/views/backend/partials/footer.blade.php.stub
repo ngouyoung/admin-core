@@ -1,4 +1,4 @@
-<footer class="app-footer">
-    <div class="float-end d-none d-sm-inline">Version 4.0</div>
-    <strong>Copyright &copy; {{ date('Y') }} {{ setting('app_name', config('app.name')) }}.</strong> All rights reserved.
+<footer class="ac-footer">
+    <span>&copy; {{ date('Y') }} {{ setting('app_name', config('app.name')) }}. All rights reserved.</span>
+    <span>Built with admin-core</span>
 </footer>

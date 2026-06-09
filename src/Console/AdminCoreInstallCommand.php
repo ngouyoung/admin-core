@@ -8,12 +8,12 @@ use Illuminate\Support\Facades\File;
 class AdminCoreInstallCommand extends Command
 {
     protected $signature = 'admin-core:install
-                            {--access : Also scaffold the full AdminLTE 4 (Vite) front-end + auth + Users/Roles/Permissions/Group-Permissions}
+                            {--access : Also scaffold the full Bootstrap 5 (Vite) admin theme + auth + Users/Roles/Permissions/Group-Permissions}
                             {--build : Run npm install && npm run build after publishing}
                             {--seed : Run migrate + seed the admin user after publishing}
                             {--force : Overwrite files that already exist}';
 
-    protected $description = 'Scaffold the host-side glue admin-core needs. Pass --access for the full AdminLTE 4 front-end + login + access-management module.';
+    protected $description = 'Scaffold the host-side glue admin-core needs. Pass --access for the full Bootstrap 5 admin theme + login + access-management module.';
 
     private string $stubs;
 
@@ -34,7 +34,7 @@ class AdminCoreInstallCommand extends Command
         if ($access) {
             $this->copyStub('dashboard.blade.php.stub', resource_path('views/backend/dashboard.blade.php'));
             $this->newLine();
-            $this->info('Installing AdminLTE 4 front-end + access module…');
+            $this->info('Installing admin theme + access module…');
             $this->newLine();
             $this->installFrontend();
             $this->installAccess();
@@ -177,7 +177,7 @@ PHP;
     }
 
     // ------------------------------------------------------------------
-    // Front-end kit (AdminLTE 4 / Vite)
+    // Front-end kit (Bootstrap 5 / Vite)
     // ------------------------------------------------------------------
 
     private function installFrontend(): void
@@ -191,7 +191,7 @@ PHP;
 
         $this->mergePackageJson("$fe/package.json.stub");
 
-        // AdminLTE layout + nav/sidebar/footer + login.
+        // Layout + nav/sidebar/footer + login.
         $this->copyTree("$fe/views/backend", resource_path('views/backend'), force: true);
         $this->copy("$fe/views/auth/login.blade.php.stub", resource_path('views/auth/login.blade.php'), force: true);
     }
@@ -213,7 +213,7 @@ PHP;
         }
 
         File::put($pkgPath, json_encode($host, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
-        $this->line('  <info>updated</info> package.json (merged AdminLTE / DataTables / select2 deps)');
+        $this->line('  <info>updated</info> package.json (merged theme / DataTables / select2 deps)');
     }
 
     // ------------------------------------------------------------------
@@ -335,7 +335,7 @@ PHP;
         } else {
             $this->line('  1. Spatie tables:        <info>php artisan vendor:publish --provider="Spatie\\Permission\\PermissionServiceProvider" && php artisan migrate</info>');
             $this->line('  2. Scaffold a resource:  <info>php artisan admin-core:make Product --migration && php artisan migrate</info>');
-            $this->line('  3. For the full AdminLTE UI + login + user/role management: <info>php artisan admin-core:install --access</info>');
+            $this->line('  3. For the full admin theme + login + user/role management: <info>php artisan admin-core:install --access</info>');
         }
     }
 }

@@ -7,7 +7,7 @@ use Illuminate\Console\Command;
 class AdminCoreReinstallCommand extends Command
 {
     protected $signature = 'admin-core:reinstall
-                            {--access : Reinstall the full AdminLTE 4 front-end + access module}
+                            {--access : Reinstall the full Bootstrap 5 admin theme + access module}
                             {--force : Skip the confirmation prompt}';
 
     protected $description = 'Purge then reinstall admin-core — a clean re-scaffold. WARNING: overwrites customised package files.';

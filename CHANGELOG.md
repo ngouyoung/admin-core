@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.5.0
+
+- **Custom admin theme (replaces the AdminLTE dependency).** The `--access` front-end is now a bespoke
+  "bold branded" shell built on Bootstrap 5 only — a gradient indigo→violet sidebar with pill navigation,
+  a sticky blurred topbar, rounded-2xl cards, gradient stat tiles, and a branded login. New `ac-*`
+  classes + a small `shell.js` (sidebar collapse w/ persistence, treeview accordion, fullscreen) replace
+  all AdminLTE markup/JS; the `admin-lte` npm package is dropped. Bootstrap is now compiled from SCSS so
+  the accent flows through every component — retune the whole theme from a couple of SCSS variables.
+  Re-theme an existing install with `php artisan admin-core:install --access --force && npm install && npm run build`.
+
 ## v1.4.1
 
 - **Typed system helpers** `:auth` and `:sku` (imply `@`): `created_by:auth` adds a nullable `users`

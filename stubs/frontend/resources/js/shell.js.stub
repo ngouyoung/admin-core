@@ -1,0 +1,45 @@
+// ---------------------------------------------------------------------------
+// App shell behaviour: sidebar toggle, treeview accordion, fullscreen.
+// ---------------------------------------------------------------------------
+document.addEventListener('DOMContentLoaded', () => {
+    const body = document.body;
+    const COLLAPSE_KEY = 'ac-sidebar-collapsed';
+
+    // Restore the desktop collapsed state.
+    if (localStorage.getItem(COLLAPSE_KEY) === '1') {
+        body.classList.add('ac-sidebar-collapsed');
+    }
+
+    // Sidebar toggle (burger + mobile overlay).
+    document.querySelectorAll('[data-ac-toggle="sidebar"]').forEach((el) => {
+        el.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.matchMedia('(max-width: 991.98px)').matches) {
+                body.classList.toggle('ac-sidebar-open');
+            } else {
+                const collapsed = body.classList.toggle('ac-sidebar-collapsed');
+                localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
+            }
+        });
+    });
+
+    // Treeview accordion (expand/collapse submenus).
+    document.querySelectorAll('.ac-nav-toggle').forEach((link) => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            link.closest('.ac-nav-item')?.classList.toggle('open');
+        });
+    });
+
+    // Fullscreen toggle.
+    document.querySelectorAll('[data-ac-toggle="fullscreen"]').forEach((el) => {
+        el.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.documentElement.requestFullscreen?.();
+            }
+        });
+    });
+});

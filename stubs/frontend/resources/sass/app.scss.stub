@@ -1,62 +1,226 @@
-// Nestable plugin styles
+// ===========================================================================
+//  Admin theme — "bold branded"
+//  Bootstrap 5 base + indigo→violet accent + a bespoke "ac-" app shell.
+// ===========================================================================
+
+// 1. Brand / theme variables (override Bootstrap before importing it) ---------
+$primary:       #6366f1;   // indigo
+$accent-2:      #8b5cf6;   // violet (gradient partner)
+$border-radius:        .65rem;
+$border-radius-sm:     .5rem;
+$border-radius-lg:     1rem;
+$border-radius-xl:     1.25rem;   // "rounded-2xl" cards
+$body-bg:              #f5f6fb;
+$body-color:           #1e2230;
+$font-family-sans-serif: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
+$card-border-width:    0;
+$component-active-bg:  $primary;
+$link-decoration:      none;
+
+// 2. Bootstrap (brings grid, utilities, forms, dropdowns, modals, …) ---------
+@import 'bootstrap/scss/bootstrap';
+
+// 3. Plugin styles -----------------------------------------------------------
 @import '../css/jquery.nestable.css';
 
-// ---------------------------------------------------------------------------
-// Permission check-tree
-// ---------------------------------------------------------------------------
-ul.checktree {
-    list-style-type: none;
-    padding-inline-start: 0;
+// 4. Design tokens -----------------------------------------------------------
+:root {
+    --ac-sidebar-w: 264px;
+    --ac-sidebar-w-collapsed: 78px;
+    --ac-header-h: 64px;
+    --ac-sidebar-grad: linear-gradient(180deg, #4f46e5 0%, #6d28d9 55%, #7c3aed 100%);
+    --ac-radius-card: #{$border-radius-xl};
+    --bs-body-font-family: #{$font-family-sans-serif};
+}
+body { font-family: var(--bs-body-font-family); background: $body-bg; }
 
-    ul {
-        list-style-type: none;
+// 5. App shell (CSS grid: sidebar | [header / main / footer]) ----------------
+.ac-shell {
+    display: grid;
+    grid-template-columns: var(--ac-sidebar-w) 1fr;
+    grid-template-rows: var(--ac-header-h) 1fr auto;
+    grid-template-areas:
+        'sidebar header'
+        'sidebar main'
+        'sidebar footer';
+    min-height: 100vh;
+    transition: grid-template-columns .22s ease;
+}
+.ac-sidebar { grid-area: sidebar; }
+.ac-header  { grid-area: header; }
+.ac-main    { grid-area: main; }
+.ac-footer  { grid-area: footer; }
+
+// Collapsed (desktop) — sidebar shrinks to icons.
+body.ac-sidebar-collapsed .ac-shell { grid-template-columns: var(--ac-sidebar-w-collapsed) 1fr; }
+body.ac-sidebar-collapsed {
+    .ac-brand-text, .ac-user-meta, .ac-nav-link span, .ac-nav-header, .ac-nav-caret { display: none; }
+    .ac-nav-link { justify-content: center; }
+    .ac-treeview { display: none !important; }
+}
+
+// 6. Sidebar -----------------------------------------------------------------
+.ac-sidebar {
+    background: var(--ac-sidebar-grad);
+    color: #fff;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: .75rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,.3) transparent;
+    &::-webkit-scrollbar { width: 6px; }
+    &::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 3px; }
+}
+.ac-brand {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .35rem .6rem 1rem;
+    color: #fff; font-weight: 700; font-size: 1.15rem; letter-spacing: .2px; text-decoration: none;
+    .ac-brand-logo {
+        width: 36px; height: 36px; border-radius: .6rem; object-fit: cover;
+        background: rgba(255,255,255,.15); display: grid; place-items: center; flex: 0 0 auto;
     }
+}
+.ac-user {
+    display: flex; align-items: center; gap: .6rem;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: $border-radius-lg;
+    padding: .55rem .65rem; margin-bottom: 1rem; text-decoration: none;
+    img { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
+    .ac-user-meta { line-height: 1.1; min-width: 0; }
+    .ac-user-name { color: #fff; font-weight: 600; text-transform: capitalize; }
+    .ac-user-role { color: rgba(255,255,255,.7); font-size: .75rem; }
+}
+.ac-nav { list-style: none; margin: 0; padding: 0; }
+.ac-nav-header {
+    color: rgba(255,255,255,.55);
+    font-size: .68rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+    padding: 1rem .75rem .35rem;
+}
+.ac-nav-item { margin: 2px 0; }
+.ac-nav-link {
+    display: flex; align-items: center; gap: .7rem;
+    padding: .6rem .75rem;
+    color: rgba(255,255,255,.82);
+    border-radius: 999px;                       // pill nav
+    font-weight: 500;
+    transition: background .15s, color .15s;
+    cursor: pointer; text-decoration: none;
+    i { font-size: 1.05rem; width: 1.2rem; text-align: center; flex: 0 0 auto; }
+    .ac-nav-caret { margin-left: auto; transition: transform .2s; font-size: .8rem; }
+    &:hover { background: rgba(255,255,255,.12); color: #fff; }
+    &.active {
+        background: #fff; color: $primary; font-weight: 600;
+        box-shadow: 0 6px 16px rgba(0,0,0,.18);
+    }
+}
+.ac-nav-item.open > .ac-nav-link .ac-nav-caret { transform: rotate(90deg); }
+.ac-treeview {
+    list-style: none; margin: .15rem 0 .25rem; padding: 0 0 0 1.4rem;
+    display: none;
+    .ac-nav-link { padding: .45rem .7rem; font-size: .92rem; }
+}
+.ac-nav-item.open > .ac-treeview { display: block; }
 
+// 7. Header / topbar ---------------------------------------------------------
+.ac-header {
+    position: sticky; top: 0; z-index: 1020;
+    display: flex; align-items: center; gap: .75rem;
+    padding: 0 1.25rem;
+    background: rgba(255,255,255,.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(16,24,40,.07);
+}
+.ac-burger {
+    border: 0; background: transparent; color: $body-color;
+    width: 40px; height: 40px; border-radius: .6rem; font-size: 1.2rem;
+    display: grid; place-items: center;
+    &:hover { background: rgba($primary, .1); color: $primary; }
+}
+.ac-header-actions { margin-left: auto; display: flex; align-items: center; gap: .25rem; }
+.ac-icon-btn {
+    border: 0; background: transparent; color: #475467;
+    width: 40px; height: 40px; border-radius: .6rem; font-size: 1.15rem;
+    display: grid; place-items: center; text-decoration: none;
+    &:hover { background: rgba($primary, .1); color: $primary; }
+}
+
+// 8. Main content ------------------------------------------------------------
+.ac-main { padding: 1.5rem; }
+.ac-page-title { font-weight: 700; font-size: 1.4rem; margin: 0; }
+.ac-footer {
+    padding: 1rem 1.5rem; color: #667085; font-size: .85rem;
+    border-top: 1px solid rgba(16,24,40,.06);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem;
+}
+
+// 9. Components (rounded-2xl cards, stat cards, buttons, tables) --------------
+.card {
+    border-radius: var(--ac-radius-card);
+    box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.06);
+    .card-header { background: transparent; border-bottom: 1px solid rgba(16,24,40,.06); font-weight: 600; }
+}
+.btn { border-radius: $border-radius; font-weight: 500; }
+.btn-primary { background: linear-gradient(135deg, $primary, $accent-2); border: none; }
+.btn-primary:hover { filter: brightness(1.05); }
+
+.ac-stat {
+    border-radius: var(--ac-radius-card);
+    padding: 1.25rem 1.35rem;
+    color: #fff;
+    box-shadow: 0 10px 24px rgba($primary, .25);
+    .ac-stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
+    .ac-stat-label { opacity: .85; font-weight: 500; }
+    .ac-stat-icon { font-size: 1.8rem; opacity: .85; }
+    &.ac-stat-1 { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+    &.ac-stat-2 { background: linear-gradient(135deg, #0ea5e9, #2563eb); }
+    &.ac-stat-3 { background: linear-gradient(135deg, #10b981, #059669); }
+    &.ac-stat-4 { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+}
+
+.table { --bs-table-bg: transparent; }
+.table > thead th { white-space: nowrap; color: #667085; font-weight: 600; border-bottom: 1px solid rgba(16,24,40,.1); }
+
+// 10. Mobile (off-canvas sidebar) -------------------------------------------
+.ac-overlay { display: none; }
+@media (max-width: 991.98px) {
+    .ac-shell { grid-template-columns: 1fr; grid-template-areas: 'header' 'main' 'footer'; }
+    .ac-sidebar {
+        position: fixed; inset: 0 auto 0 0; z-index: 1045;
+        width: var(--ac-sidebar-w);
+        transform: translateX(-100%); transition: transform .22s ease;
+    }
+    body.ac-sidebar-open .ac-sidebar { transform: translateX(0); }
+    body.ac-sidebar-open .ac-overlay {
+        display: block; position: fixed; inset: 0; z-index: 1040;
+        background: rgba(16,24,40,.45); backdrop-filter: blur(2px);
+    }
+}
+
+// 11. Plugin alignment (kept from the original kit) --------------------------
+ul.checktree {
+    list-style-type: none; padding-inline-start: 0;
+    ul { list-style-type: none; }
     li {
         border-left: 1px dashed;
-
-        &::before {
-            height: 1em;
-            width: 12px;
-            border-bottom: 1px dashed;
-            content: '';
-            display: inline-block;
-            top: -0.3em;
-        }
-
-        &:last-child {
-            border-left: none;
-
-            &::before {
-                border-left: 1px dashed;
-            }
-        }
+        &::before { height: 1em; width: 12px; border-bottom: 1px dashed; content: ''; display: inline-block; top: -.3em; }
+        &:last-child { border-left: none; &::before { border-left: 1px dashed; } }
     }
 }
+.is-invalid .select2-container--bootstrap-5 .select2-selection { border-color: var(--bs-danger); }
+.dtr-details { width: 100% !important; }
 
-// ---------------------------------------------------------------------------
-// Misc tweaks
-// ---------------------------------------------------------------------------
-table thead th {
-    white-space: nowrap;
+// 12. Auth / login -----------------------------------------------------------
+.ac-auth {
+    min-height: 100vh; display: grid; place-items: center; padding: 1.5rem;
+    background: var(--ac-sidebar-grad);
 }
-
-// Keep Select2 single-select aligned with Bootstrap 5 invalid state.
-.is-invalid .select2-container--bootstrap-5 .select2-selection {
-    border-color: var(--bs-danger);
+.ac-auth-card {
+    width: 100%; max-width: 410px;
+    background: #fff; border-radius: var(--ac-radius-card);
+    box-shadow: 0 24px 60px rgba(16,24,40,.28);
+    padding: 2.25rem 2rem;
 }
-
-// DataTables responsive child rows should span the full width.
-.dtr-details {
-    width: 100% !important;
-}
-
-// ---------------------------------------------------------------------------
-// Typography (Source Sans 3 — AdminLTE's font)
-// ---------------------------------------------------------------------------
-:root {
-    --bs-body-font-family: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
-}
-body {
-    font-family: var(--bs-body-font-family);
-}
+.ac-auth-brand { text-align: center; font-weight: 800; font-size: 1.5rem; color: $primary; margin-bottom: .35rem; }

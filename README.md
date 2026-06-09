@@ -1,6 +1,6 @@
 # ngos/admin-core
 
-A reusable, config-driven **admin CRUD core** for Laravel 13 + AdminLTE 4 / Bootstrap 5.
+A reusable, config-driven **admin CRUD core** for Laravel 13 + Bootstrap 5, with a custom branded admin theme.
 
 It gives you a thin, conventional CRUD skeleton — abstract `CrudController` + `CrudService`, a
 `Route::crud()` route macro, and an `admin-core:make` resource generator — so every backend table

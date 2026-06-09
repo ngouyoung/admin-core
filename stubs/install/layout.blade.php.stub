@@ -3,7 +3,8 @@
     Starter backend layout published by `php artisan admin-core:install`.
     It is intentionally self-contained (CDN assets, no build step) so generated
     admin-core CRUD pages render immediately. Replace the CDN links with your
-    own Vite/AdminLTE build when you are ready — the only hard contract this
+    own Vite build (or run `admin-core:install --access` for the full themed
+    front-end) when you are ready — the only hard contract this
     layout must keep is the four hooks the generated views rely on:
       @yield('title')  @yield('breadcrumb')  @yield('contents')  @stack('scripts')
 --}}

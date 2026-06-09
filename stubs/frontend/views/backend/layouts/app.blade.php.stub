@@ -9,31 +9,24 @@
     @vite(['resources/js/app.js'])
     @stack('style')
 </head>
-<body class="layout-fixed sidebar-expand-lg bg-body-tertiary">
-<div class="app-wrapper">
-    @include('backend.partials.nav')
+<body>
+<div class="ac-shell">
     @include('backend.partials.sidebar')
+    @include('backend.partials.nav')
 
-    <main class="app-main">
+    <main class="ac-main">
         @hasSection('breadcrumb')
-            <div class="app-content-header">
-                <div class="container-fluid">
-                    @yield('breadcrumb')
-                </div>
-            </div>
+            <div class="mb-3">@yield('breadcrumb')</div>
         @endif
-        <div class="app-content">
-            <div class="container-fluid">
-                @if (session('success'))
-                    <div class="alert alert-success">{{ session('success') }}</div>
-                @endif
-                @yield('contents')
-            </div>
-        </div>
+        @if (session('success'))
+            <div class="alert alert-success">{{ session('success') }}</div>
+        @endif
+        @yield('contents')
     </main>
 
     @include('backend.partials.footer')
 </div>
+<div class="ac-overlay" data-ac-toggle="sidebar"></div>
 @stack('scripts')
 </body>
 </html>

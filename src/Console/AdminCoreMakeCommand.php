@@ -250,12 +250,12 @@ class AdminCoreMakeCommand extends Command
         }
 
         $label = \Illuminate\Support\Str::headline($plural);
-        $adminlte = str_contains($contents, 'sidebar-menu'); // AdminLTE partial vs minimal layout
+        $themed = str_contains($contents, 'ac-nav'); // custom theme sidebar vs minimal layout
 
-        $link = $adminlte
-            ? "<li class=\"nav-item\">\n"
-                . "                    <a href=\"{{ {$route} }}\" class=\"nav-link {{ request()->is('admin/{$snakePlural}*') ? 'active' : '' }}\">\n"
-                . "                        <i class=\"nav-icon bi bi-circle\"></i><p>{$label}</p>\n"
+        $link = $themed
+            ? "<li class=\"ac-nav-item\">\n"
+                . "                    <a href=\"{{ {$route} }}\" class=\"ac-nav-link {{ request()->is('admin/{$snakePlural}*') ? 'active' : '' }}\">\n"
+                . "                        <i class=\"bi bi-circle\"></i><span>{$label}</span>\n"
                 . "                    </a>\n"
                 . "                </li>\n                {{-- admin-core:menu --}}"
             : "<li class=\"nav-item\">\n"

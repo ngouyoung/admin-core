@@ -1,6 +1,6 @@
 {
     "name": "ngos/admin-core",
-    "description": "Reusable admin CRUD core (config-driven controllers/services, Route::crud macro, resource generator) for Laravel + AdminLTE 4 / Bootstrap 5.",
+    "description": "Reusable admin CRUD core (config-driven controllers/services, Route::crud macro, resource generator) for Laravel + Bootstrap 5, with a custom branded admin theme.",
     "type": "library",
     "license": "MIT",
     "keywords": [
@@ -8,7 +8,7 @@
         "admin",
         "crud",
         "generator",
-        "adminlte",
+        "theme",
         "bootstrap",
         "datatables",
         "scaffold"
