@@ -4,6 +4,13 @@
     "type": "library",
     "license": "MIT",
     "version": "1.0.0",
+    "keywords": ["laravel", "admin", "crud", "generator", "adminlte", "bootstrap", "datatables", "scaffold"],
+    "authors": [
+        {
+            "name": "ngos",
+            "email": "ngouyuong@gmail.com"
+        }
+    ],
     "require": {
         "php": "^8.3",
         "illuminate/console": "^13.0",
