@@ -1,17 +1,17 @@
 // ===========================================================================
-//  Admin theme — "bold branded"
-//  Bootstrap 5 base + indigo→violet accent + a bespoke "ac-" app shell.
+//  Admin theme — professional
+//  Bootstrap 5 base + a single muted accent + a bespoke "ac-" app shell.
 // ===========================================================================
 
 // 1. Brand / theme variables (override Bootstrap before importing it) ---------
-$primary:       #6366f1;   // indigo
-$accent-2:      #8b5cf6;   // violet (gradient partner)
-$border-radius:        .65rem;
-$border-radius-sm:     .5rem;
-$border-radius-lg:     1rem;
-$border-radius-xl:     1.25rem;   // "rounded-2xl" cards
-$body-bg:              #f5f6fb;
-$body-color:           #1e2230;
+$primary:       #4f46e5;   // indigo, used sparingly as the accent
+$accent-2:      #4338ca;   // darker accent (hover)
+$border-radius:        .5rem;
+$border-radius-sm:     .375rem;
+$border-radius-lg:     .625rem;
+$border-radius-xl:     .75rem;    // crisp cards (not "2xl")
+$body-bg:              #f8fafc;   // slate-50
+$body-color:           #1f2937;
 $font-family-sans-serif: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
 $card-border-width:    0;
 $component-active-bg:  $primary;
@@ -28,7 +28,7 @@ $link-decoration:      none;
     --ac-sidebar-w: 264px;
     --ac-sidebar-w-collapsed: 78px;
     --ac-header-h: 64px;
-    --ac-sidebar-grad: linear-gradient(180deg, #4f46e5 0%, #6d28d9 55%, #7c3aed 100%);
+    --ac-sidebar-grad: #111827;   // solid dark slate (clean, professional)
     --ac-radius-card: #{$border-radius-xl};
 }
 // Bootstrap already sets --bs-body-font-family from the (quoted) $font-family-sans-serif
@@ -108,18 +108,18 @@ body.ac-sidebar-collapsed {
 .ac-nav-item { margin: 2px 0; }
 .ac-nav-link {
     display: flex; align-items: center; gap: .7rem;
-    padding: .6rem .75rem;
-    color: rgba(255,255,255,.82);
-    border-radius: 999px;                       // pill nav
-    font-weight: 500;
+    padding: .55rem .7rem;
+    color: #cbd5e1;                             // slate-300, muted
+    border-radius: $border-radius;              // crisp, not a pill
+    font-weight: 500; font-size: .92rem;
     transition: background .15s, color .15s;
     cursor: pointer; text-decoration: none;
-    i { font-size: 1.05rem; width: 1.2rem; text-align: center; flex: 0 0 auto; }
-    .ac-nav-caret { margin-left: auto; transition: transform .2s; font-size: .8rem; }
-    &:hover { background: rgba(255,255,255,.12); color: #fff; }
+    i { font-size: 1rem; width: 1.2rem; text-align: center; flex: 0 0 auto; color: #94a3b8; }
+    .ac-nav-caret { margin-left: auto; transition: transform .2s; font-size: .75rem; }
+    &:hover { background: rgba(255,255,255,.06); color: #fff; i { color: #fff; } }
     &.active {
-        background: #fff; color: $primary; font-weight: 600;
-        box-shadow: 0 6px 16px rgba(0,0,0,.18);
+        background: rgba(99,102,241,.16); color: #fff; font-weight: 600;
+        i { color: #a5b4fc; }
     }
 }
 .ac-nav-item.open > .ac-nav-link .ac-nav-caret { transform: rotate(90deg); }
@@ -171,32 +171,39 @@ body.ac-sidebar-collapsed {
     display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem;
 }
 
-// 9. Components (rounded-2xl cards, stat cards, buttons, tables) --------------
+// 9. Components (clean cards, subtle stat cards, buttons, tables) -------------
 .card {
     border-radius: var(--ac-radius-card);
-    box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 4px 16px rgba(16,24,40,.06);
-    .card-header { background: transparent; border-bottom: 1px solid rgba(16,24,40,.06); font-weight: 600; }
+    border: 1px solid #eef0f4;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+    .card-header { background: transparent; border-bottom: 1px solid #eef0f4; font-weight: 600; }
 }
 .btn { border-radius: $border-radius; font-weight: 500; }
-.btn-primary { background: linear-gradient(135deg, $primary, $accent-2); border: none; }
-.btn-primary:hover { filter: brightness(1.05); }
+.btn-primary { background: $primary; border-color: $primary; }
+.btn-primary:hover, .btn-primary:focus { background: $accent-2; border-color: $accent-2; }
 
+// Clean white stat cards with a soft-tinted icon chip (no rainbow gradients).
 .ac-stat {
     border-radius: var(--ac-radius-card);
-    padding: 1.25rem 1.35rem;
-    color: #fff;
-    box-shadow: 0 10px 24px rgba($primary, .25);
-    .ac-stat-value { font-size: 2rem; font-weight: 800; line-height: 1; }
-    .ac-stat-label { opacity: .85; font-weight: 500; }
-    .ac-stat-icon { font-size: 1.8rem; opacity: .85; }
-    &.ac-stat-1 { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
-    &.ac-stat-2 { background: linear-gradient(135deg, #0ea5e9, #2563eb); }
-    &.ac-stat-3 { background: linear-gradient(135deg, #10b981, #059669); }
-    &.ac-stat-4 { background: linear-gradient(135deg, #f59e0b, #ef4444); }
+    padding: 1.25rem;
+    background: #fff;
+    border: 1px solid #eef0f4;
+    box-shadow: 0 1px 2px rgba(16,24,40,.04);
+    color: $body-color;
+    .ac-stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; color: #111827; }
+    .ac-stat-label { color: #6b7280; font-weight: 500; font-size: .9rem; }
+    .ac-stat-icon {
+        font-size: 1.2rem; width: 44px; height: 44px; border-radius: .6rem;
+        display: grid; place-items: center; opacity: 1;
+    }
+    &.ac-stat-1 .ac-stat-icon { background: #eef2ff; color: #4f46e5; }
+    &.ac-stat-2 .ac-stat-icon { background: #eff6ff; color: #2563eb; }
+    &.ac-stat-3 .ac-stat-icon { background: #ecfdf5; color: #059669; }
+    &.ac-stat-4 .ac-stat-icon { background: #fff7ed; color: #ea580c; }
 }
 
 .table { --bs-table-bg: transparent; }
-.table > thead th { white-space: nowrap; color: #667085; font-weight: 600; border-bottom: 1px solid rgba(16,24,40,.1); }
+.table > thead th { white-space: nowrap; color: #667085; font-weight: 600; border-bottom: 1px solid #eef0f4; }
 
 // 10. Mobile (off-canvas sidebar) -------------------------------------------
 .ac-overlay { display: none; }

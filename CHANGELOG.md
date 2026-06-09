@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.5.9
+
+- Refined the theme to a cleaner, more professional look: solid dark-slate sidebar (was a vibrant
+  purple gradient), a single muted indigo accent used sparingly, crisper corners, solid buttons, and
+  clean white dashboard stat cards with soft-tinted icon chips (instead of the rainbow gradient tiles).
+
 ## v1.5.8
 
 - `--access` views (group-permission table + edit/update forms for users/roles/group-permissions) now
