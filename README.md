@@ -58,7 +58,9 @@ This additionally scaffolds (all in your `App\` namespace, yours to edit):
 - **Users / Roles / Permissions** management screens (controllers, services, form requests, Blade views) built on the CRUD core, with role/permission assignment.
 - `App\Models\Role` / `App\Models\Permission` (extending spatie), the `HasRoles` trait added to `App\Models\User`, sidebar links, and an `AccessSeeder` that creates an `admin` role with every permission plus an admin user.
 
-Log in at `/login` with **`admin@example.com` / `password`**. (Re-run the seeder after `admin-core:make` to grant the admin role the newly generated permissions.)
+Log in at `/login` with **`admin@example.com` / `password`**. (`admin-core:make` auto-grants each new resource's permissions to the `admin` role, so there's nothing to re-seed.)
+
+Prefer a single command? `admin-core:install --access --build --seed` also runs `npm install && npm run build` and migrates + seeds the admin user for you.
 
 ## Generating a resource
 
@@ -123,16 +125,16 @@ The `--access` kit now ships a complete admin shell beyond the access screens:
   so you never hand-edit the sidebar.
 - **Show / detail view** — every resource gets a read-only `show` page + a View button in the table.
 
-### Every list comes with export, bulk delete & column filters
+### Every list comes with export & bulk delete
 
-Generated index screens ship three things out of the box:
+Generated index screens ship two things out of the box:
 
 - **Export** — an `Export` button streams the table to CSV (`export` route, gated by `list-*`).
 - **Bulk delete** — a select-all checkbox column + a "Delete selected" button that soft/hard-deletes the
   chosen rows in one request (`bulkDelete` route, gated by `delete-*`).
-- **Per-column filters** — a search input under each text/number/enum/date column (server-side via yajra).
 
-These live on the base `CrudController` (`export()` / `bulkDelete()`), so they apply to every resource.
+Both live on the base `CrudController` (`export()` / `bulkDelete()`), plus a single DataTables search box
+(server-side via yajra), so they apply to every resource.
 
 ### Drag-to-reorder (`--sortable`)
 
@@ -140,10 +142,10 @@ These live on the base `CrudController` (`export()` / `bulkDelete()`), so they a
 php artisan admin-core:make Category --sortable --migration --fields="name:string"
 ```
 
-Adds a `sort` column and replaces the DataTable index with a **drag-and-drop list** (reusing the
-bundled nestable plugin). Dragging a row posts the new order to a `reorder` route, which persists each
-row's `sort` position via `CrudService::reorder()`. Best paired with the `--access` kit (which bundles
-the nestable JS).
+Adds a `sort` column and a **Sort** toggle button on the index that reveals a **drag-and-drop panel**
+(reusing the bundled nestable plugin) — the DataTable stays put. Dragging a row posts the new order to a
+`reorder` route, which persists each row's `sort` position via `CrudService::reorder()`. Best paired with
+the `--access` kit (which bundles the nestable JS).
 
 ### Audit trail (`--audit`)
 
@@ -230,16 +232,20 @@ class ProductService    extends \Ngos\AdminCore\Services\CrudService          { 
 
 ## Testing
 
-The package ships a Pest + Orchestra Testbench suite:
+The package ships a Pest + Orchestra Testbench suite (in-memory SQLite):
 
 ```bash
 composer install
-composer test
+composer test       # the full suite
+composer analyse    # Larastan / PHPStan level 5
 ```
 
-It covers the `FieldSet` generator (every field type, UUID, soft-deletes, uploads, m2m, factory),
-the `Route::crud` macro (registration + permission gating), and the `CrudController` flow
-(store/validate/update/delete/getData/bulk-delete/export) against an in-memory SQLite database.
+It covers the `FieldSet` generator (every field type, UUID, soft-deletes, uploads, m2m, factory), the
+`Route::crud` macro (registration + permission gating), the `CrudController` flow
+(store/validate/update/delete/getData/bulk-delete/export), settings, soft-delete trash/restore, and the
+two commands end to end: `admin-core:make` (scaffolds valid, token-free, `php -l`-clean files whose
+migration actually runs) and `admin-core:install` (config/view publishing + the `routes/web.php` /
+`bootstrap/app.php` wiring, including idempotency). CI runs both `test` and `analyse` on PHP 8.3 + 8.4.
 
 ## License
 

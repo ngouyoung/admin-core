@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.2.4
+
+- **Docs**: corrected README claims that had drifted from the code — `admin-core:make` now auto-grants
+  permissions (no re-seed), the removed per-column footer search, the `--sortable` toggle panel (the
+  DataTable stays), and the expanded test/CI coverage; added the one-command `--build --seed` tip.
+- **Cleanup**: removed the dead `FieldSet::tfoot()` method (orphaned when per-column search was dropped).
+
 ## v1.2.3
 
 - **Generator + installer tests** (44 tests total): `admin-core:make` is now covered end to end —

@@ -580,22 +580,6 @@ BLADE;
         return implode("\n", $cells);
     }
 
-    /** Per-column search inputs in the table footer (text fields only). */
-    public function tfoot(): string
-    {
-        $cells = ['    <th></th>'];
-        foreach ($this->fields as $f) {
-            if (in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file', 'boolean'], true)) {
-                $cells[] = '    <th></th>';
-            } else {
-                $cells[] = '    <th><input type="text" class="form-control form-control-sm column-search" placeholder="Search ' . $this->label($f['name']) . '"></th>';
-            }
-        }
-        $cells[] = '    <th></th>';
-
-        return implode("\n", $cells);
-    }
-
     public function columnsJs(): string
     {
         $cols = ["                {data: 'id', name: 'id', orderable: false, searchable: false, className: 'text-center', render: (d) => '<input type=\"checkbox\" class=\"row-check\" value=\"' + d + '\">'},"];
