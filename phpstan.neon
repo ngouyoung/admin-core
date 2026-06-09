@@ -1,0 +1,29 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    # Baseline grandfathers 6 framework-dynamic false positives PHPStan can't
+    # resolve in a standalone-package context (not real bugs):
+    #   - view('admin-core::…') uses a runtime-registered package view namespace
+    #   - CrudService::onlyTrashed() is only valid when the concrete model uses
+    #     SoftDeletes (the base is generic over any Model)
+    #   - LogsActivity is a public trait consumed by generated host models
+    # Regenerate with: composer analyse -- --generate-baseline
+    # NOTE: the LSP break that caused the production fatal (method.childParameterType)
+    # is "non-ignorable" — a baseline cannot hide it, so it still fails the build.
+    - phpstan-baseline.neon
+
+parameters:
+    paths:
+        - src
+
+    # Level 5 catches the kind of LSP / signature-compatibility break that
+    # shipped as a runtime fatal (CrudController::edit(int|string) vs int),
+    # plus bad arg types & undefined methods — without the level-6 "specify
+    # array value types / generics" noise that a dynamic-model CRUD core
+    # can't satisfy cleanly.
+    level: 5
+
+    # stubs/ hold *.stub templates with Dummy tokens — not analysable PHP.
+    excludePaths:
+        - stubs/*
+
+    tmpDir: build/phpstan

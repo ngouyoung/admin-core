@@ -1,0 +1,25 @@
+parameters:
+	ignoreErrors:
+		-
+			message: '#^Trait Ngos\\AdminCore\\Concerns\\LogsActivity is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			path: src/Concerns/LogsActivity.php
+
+		-
+			message: '#^Parameter \#1 \$view of function view expects view\-string\|null, string given\.$#'
+			identifier: argument.type
+			count: 2
+			path: src/Http/Controllers/CrudController.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:onlyTrashed\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Services/CrudService.php
+
+		-
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:onlyTrashed\(\)\.$#'
+			identifier: method.notFound
+			count: 2
+			path: src/Services/CrudService.php

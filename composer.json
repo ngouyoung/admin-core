@@ -50,7 +50,8 @@
         }
     },
     "scripts": {
-        "test": "pest"
+        "test": "pest",
+        "analyse": "phpstan analyse --memory-limit=512M"
     },
     "extra": {
         "laravel": {
@@ -69,6 +70,7 @@
     "require-dev": {
         "orchestra/testbench": "*",
         "pestphp/pest": "*",
-        "pestphp/pest-plugin-laravel": "*"
+        "pestphp/pest-plugin-laravel": "*",
+        "larastan/larastan": "^3.0"
     }
 }

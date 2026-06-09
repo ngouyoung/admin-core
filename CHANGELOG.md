@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.2.2
+
+- **Static analysis**: Larastan (PHPStan level 5) via `composer analyse`; a baseline grandfathers
+  framework-dynamic false positives (runtime-registered package views, SoftDeletes scopes on the
+  generic CrudService, the LogsActivity host trait). LSP signature breaks (e.g. narrowing
+  `edit(int|string)` to `int`) are non-ignorable and fail the build.
+
 ## v1.2.1
 
 - Expanded the test suite (34 tests): settings get/set/cache (guards the v1.1.9 'incomplete object' regression), soft-delete trash/restore/force, the version command, and more FieldSet cases.
@@ -50,6 +57,9 @@ All notable changes to `ngos/admin-core` are documented here.
 - Fix: `admin-core:install --access` no longer overwrites the host `vite.config.js`, which had dropped `resources/css/app.css` and broke Laravel's default Tailwind welcome page ("Unable to locate file in Vite manifest"). The host config builds admin-core's `app.js` as-is.
 
 ## Unreleased
+
+- **Static analysis**: Larastan (PHPStan level 5) via `composer analyse`;
+  baseline grandfathers framework-dynamic false positives, LSP signature breaks fail the build.
 
 - **Drag-to-reorder** (`admin-core:make --sortable`): adds a `sort` column, a drag-and-drop list index,
   and a `reorder` endpoint backed by `CrudService::reorder()`.
