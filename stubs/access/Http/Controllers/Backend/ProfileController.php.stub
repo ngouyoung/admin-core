@@ -48,13 +48,22 @@ class ProfileController extends Controller
 
     public function updateAvatar(Request $request): RedirectResponse
     {
-        $request->validate(['avatar' => ['required', 'image', 'max:2048']]);
+        // Croppie posts the cropped image as a base64 data URL.
+        $request->validate(['avatar' => ['required', 'string']]);
+
+        $image = preg_replace('#^data:image/\w+;base64,#i', '', $request->input('avatar'));
+        $image = str_replace(' ', '+', $image);
+        $binary = base64_decode($image, true);
+
+        abort_if($binary === false, 422, 'Invalid image data.');
 
         $user = Auth::user();
         if ($user->avatar) {
             Storage::disk('public')->delete($user->avatar);
         }
-        $user->avatar = $request->file('avatar')->store('avatars', 'public');
+        $path = 'avatars/' . \Illuminate\Support\Str::uuid() . '.jpg';
+        Storage::disk('public')->put($path, $binary);
+        $user->avatar = $path;
         $user->save();
 
         return back()->with('success', 'Avatar updated.');

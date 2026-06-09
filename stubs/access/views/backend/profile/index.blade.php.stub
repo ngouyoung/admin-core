@@ -3,7 +3,15 @@
 @section('title', 'My Profile')
 
 @section('breadcrumb')
-    <div class="row"><div class="col-sm-6"><h3 class="mb-0">My Profile</h3></div></div>
+    <div class="row">
+        <div class="col-sm-6"><h3 class="mb-0">My Profile</h3></div>
+        <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-end">
+                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
+                <li class="breadcrumb-item active">Profile</li>
+            </ol>
+        </div>
+    </div>
 @endsection
 
 @section('contents')
@@ -11,14 +19,19 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body text-center">
-                    <img src="{{ $user->avatar ? asset('storage/' . $user->avatar) : 'https://www.gravatar.com/avatar/?d=mp&s=120' }}"
+                    <img id="current-avatar"
+                         src="{{ $user->avatar ? asset('storage/' . $user->avatar) : 'https://www.gravatar.com/avatar/?d=mp&s=120' }}"
                          class="rounded-circle mb-2" style="width:120px;height:120px;object-fit:cover" alt="avatar">
                     <h5 class="mb-0 text-capitalize">{{ $user->name }}</h5>
                     <p class="text-muted">{{ $user->email }}</p>
-                    <form action="{{ route('admin.profile.avatar') }}" method="POST" enctype="multipart/form-data">
+
+                    <button type="button" class="btn btn-sm btn-primary" id="change-avatar-btn">
+                        <i class="bi bi-camera"></i> Change avatar
+                    </button>
+                    <input type="file" id="avatar-input" accept="image/*" class="d-none">
+                    <form id="avatar-form" action="{{ route('admin.profile.avatar') }}" method="POST" class="d-none">
                         @csrf
-                        <input type="file" name="avatar" accept="image/*" class="form-control form-control-sm mb-2" required>
-                        <button class="btn btn-sm btn-primary w-100">Upload avatar</button>
+                        <input type="hidden" name="avatar" id="avatar-data">
                     </form>
                 </div>
             </div>
@@ -54,4 +67,66 @@
             </div>
         </div>
     </div>
+
+    {{-- Croppie crop modal --}}
+    <div class="modal fade" id="cropModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Crop your avatar</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="croppie-area" style="width:100%;height:300px"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="crop-save">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const modalEl = document.getElementById('cropModal');
+            const modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+            let croppie = null;
+            let rawImg = null;
+
+            document.getElementById('change-avatar-btn').addEventListener('click', function () {
+                document.getElementById('avatar-input').click();
+            });
+
+            document.getElementById('avatar-input').addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = function (ev) { rawImg = ev.target.result; modal.show(); };
+                reader.readAsDataURL(file);
+            });
+
+            modalEl.addEventListener('shown.bs.modal', function () {
+                if (!croppie) {
+                    croppie = $('#croppie-area').croppie({
+                        viewport: { width: 200, height: 200, type: 'circle' },
+                        boundary: { width: 280, height: 280 },
+                        enableExif: true,
+                    });
+                }
+                $('#croppie-area').croppie('bind', { url: rawImg });
+            });
+
+            document.getElementById('crop-save').addEventListener('click', function () {
+                $('#croppie-area').croppie('result', {
+                    type: 'base64', format: 'jpeg', size: { width: 200, height: 200 },
+                }).then(function (base64) {
+                    document.getElementById('avatar-data').value = base64;
+                    document.getElementById('avatar-form').submit();
+                });
+            });
+        });
+    </script>
+@endpush
