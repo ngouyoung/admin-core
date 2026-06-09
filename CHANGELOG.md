@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.6.0
+
+- **Clean / neutral theme.** Retuned the shell to a minimal "shadcn"-style look: a **light sidebar**
+  (`#fafafa`, hairline right border) instead of the dark slate, a **near-black neutral accent** (`#18181b`)
+  for buttons and the active nav state, and **subtle gray (`#f4f4f5`) hover/active fills** in place of the
+  indigo tint. Hairline borders throughout, white topbar, and a lighter login. Color is now reserved for
+  meaning (status badges, stat-card icon chips). Re-skin the whole thing from a few SCSS variables /
+  `--ac-*` tokens at the top of `app.scss` — `--ac-sidebar-bg` (try `#18181b` for a dark sidebar),
+  `$primary` (any accent), `--ac-border`/`--ac-hover`.
+
 ## v1.5.9
 
 - Refined the theme to a cleaner, more professional look: solid dark-slate sidebar (was a vibrant
