@@ -192,7 +192,16 @@ class AdminCoreMakeCommand extends Command
         }
 
         if ($this->option('migration')) {
-            $files['migration.stub'] = base_path('database/migrations/' . date('Y_m_d_His') . "_create_{$snakePlural}_table.php");
+            // Reuse an existing create migration so re-running never makes a duplicate
+            // (timestamps differ, so a plain --force could not overwrite it otherwise).
+            $existing = glob(base_path("database/migrations/*_create_{$snakePlural}_table.php")) ?: [];
+
+            if ($existing && ! $this->option('force')) {
+                $this->warn("Skipped migration: create_{$snakePlural}_table already exists (use --force to overwrite it).");
+            } else {
+                $files['migration.stub'] = $existing[0]
+                    ?? base_path('database/migrations/' . date('Y_m_d_His') . "_create_{$snakePlural}_table.php");
+            }
         }
 
         $stubBase = $this->stubPath();
