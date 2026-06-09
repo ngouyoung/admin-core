@@ -2,6 +2,10 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.5.7
+
+- DataTable row actions (edit/delete/view) now sit in a flex row instead of stacking vertically in a narrow Actions column.
+
 ## v1.5.6
 
 - Hide leftover AdminLTE card toggles (`data-lte-toggle` collapse "−" / remove "✕") — dead controls now
