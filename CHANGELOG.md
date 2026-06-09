@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.2.3
+
+- **Generator + installer tests** (44 tests total): `admin-core:make` is now covered end to end —
+  it asserts the scaffolded files exist, contain no leftover stub tokens, pass `php -l`, and that
+  the generated migration actually migrates; plus `--sortable`, `--soft-deletes`, the
+  no-duplicate-migration guard, and `--force` overwrite behaviour. `admin-core:install` covers the
+  config/migration/view publishing and the bug-prone `routes/web.php` + `bootstrap/app.php`
+  string-edits (including idempotency). This is the surface every past release bug lived in.
+
 ## v1.2.2
 
 - **Static analysis**: Larastan (PHPStan level 5) via `composer analyse`; a baseline grandfathers
