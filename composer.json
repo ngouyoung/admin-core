@@ -3,7 +3,16 @@
     "description": "Reusable admin CRUD core (config-driven controllers/services, Route::crud macro, resource generator) for Laravel + AdminLTE 4 / Bootstrap 5.",
     "type": "library",
     "license": "MIT",
-    "keywords": ["laravel", "admin", "crud", "generator", "adminlte", "bootstrap", "datatables", "scaffold"],
+    "keywords": [
+        "laravel",
+        "admin",
+        "crud",
+        "generator",
+        "adminlte",
+        "bootstrap",
+        "datatables",
+        "scaffold"
+    ],
     "homepage": "https://github.com/ngouyoung/admin-core",
     "authors": [
         {
@@ -30,7 +39,10 @@
     "autoload": {
         "psr-4": {
             "Ngos\\AdminCore\\": "src/"
-        }
+        },
+        "files": [
+            "src/helpers.php"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

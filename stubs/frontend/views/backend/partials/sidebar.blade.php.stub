@@ -1,7 +1,10 @@
 <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
     <div class="sidebar-brand">
         <a href="{{ route('admin.dashboard') }}" class="brand-link">
-            <span class="brand-text fw-light">{{ config('app.name') }}</span>
+            @if (setting('site_logo'))
+                <img src="{{ asset('storage/' . setting('site_logo')) }}" alt="logo" class="brand-image opacity-75 shadow">
+            @endif
+            <span class="brand-text fw-light">{{ setting('app_name', config('app.name')) }}</span>
         </a>
     </div>
 

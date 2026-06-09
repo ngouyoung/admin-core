@@ -54,7 +54,7 @@ class AccessSeeder extends Seeder
         }
 
         // Default application settings.
-        foreach (['app_name' => config('app.name'), 'support_email' => 'support@example.com', 'items_per_page' => '50'] as $key => $value) {
+        foreach (['app_name' => config('app.name'), 'site_logo' => '', 'support_email' => 'support@example.com', 'items_per_page' => '50'] as $key => $value) {
             Setting::firstOrCreate(['key' => $key], ['value' => $value, 'group' => 'general']);
         }
 
