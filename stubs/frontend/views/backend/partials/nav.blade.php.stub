@@ -1,3 +1,4 @@
+@php($avatarFallback = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MCA4MCI+PHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiByeD0iNDAiIGZpbGw9IiNlMmUzZjMiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjMxIiByPSIxMyIgZmlsbD0iIzlhYTBkNCIvPjxwYXRoIGQ9Ik0xOCA2NWMyLTEzIDExLTE5IDIyLTE5czIwIDYgMjIgMTl6IiBmaWxsPSIjOWFhMGQ0Ii8+PC9zdmc+')
 <header class="ac-header">
     <button class="ac-burger" data-ac-toggle="sidebar" type="button" aria-label="Toggle sidebar">
         <i class="bi bi-list"></i>
@@ -15,7 +16,8 @@
 
         <div class="dropdown">
             <a href="#" class="ac-icon-btn" style="width:auto;gap:.5rem;padding:0 .5rem" data-bs-toggle="dropdown" role="button">
-                <img src="{{ auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : 'https://www.gravatar.com/avatar/?d=mp&s=40' }}"
+                <img src="{{ auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : $avatarFallback }}"
+                     onerror="this.onerror=null;this.src='{{ $avatarFallback }}'"
                      class="rounded-circle" width="30" height="30" style="object-fit:cover" alt="avatar">
                 <span class="d-none d-sm-inline text-capitalize fw-medium">{{ auth()->user()->name }}</span>
                 <i class="bi bi-chevron-down" style="font-size:.75rem"></i>

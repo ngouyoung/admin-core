@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.5.3
+
+- Avatars now fall back to a self-contained inline SVG placeholder (no network/file needed) when the
+  user has no avatar or the uploaded file is missing/broken (`onerror` handler on the sidebar + topbar
+  images) — no more broken-image icons.
+
 ## v1.5.2
 
 - The reference `vite.config.js` now sets `css.preprocessorOptions.scss.quietDeps` (+ `silenceDeprecations`)
