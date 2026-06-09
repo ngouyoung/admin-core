@@ -134,6 +134,24 @@ Generated index screens ship three things out of the box:
 
 These live on the base `CrudController` (`export()` / `bulkDelete()`), so they apply to every resource.
 
+### Audit trail (`--audit`)
+
+```bash
+php artisan admin-core:make Product --audit --migration --fields="name:string"
+```
+
+Adds the package's `LogsActivity` trait to the model, recording every create/update/delete in
+`activity_logs` (the actor, the subject, and the changed attributes — sensitive fields like `password`
+are filtered out). The `activity_logs` table migration is published by `admin-core:install`; the
+`--access` kit adds a read-only **Activity Log** viewer (gated by `list-activity`). Set
+`'generator' => ['audit' => true]` to audit every generated resource, or add the trait to any model:
+
+```php
+use Ngos\AdminCore\Concerns\LogsActivity;
+
+class Order extends Model { use LogsActivity; }
+```
+
 ### Soft deletes & extras
 
 Every `admin-core:make` also generates a **Factory** (field-aware fake data), a **Seeder**, and a

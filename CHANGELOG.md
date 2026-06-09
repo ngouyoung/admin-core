@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## Unreleased
+
+- **Audit trail**: a `LogsActivity` trait + `ActivityLog` model (in the package) record
+  create/update/delete with the actor and changed attributes. `admin-core:make --audit`
+  (or `generator.audit` config) adds it to a resource; `--access` ships a read-only Activity Log
+  viewer; `admin-core:install` publishes the `activity_logs` migration.
+
 ## v1.0.0
 
 Initial release.

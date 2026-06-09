@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Backend\ActivityLogController;
 use App\Http\Controllers\Backend\ProfileController;
 use App\Http\Controllers\Backend\SettingController;
 use Illuminate\Support\Facades\Route;
@@ -18,4 +19,13 @@ Route::group([
 ], function () {
     Route::get('/', [SettingController::class, 'index'])->name('index');
     Route::put('/', [SettingController::class, 'update'])->name('update');
+});
+
+Route::group([
+    'prefix' => 'activity-logs',
+    'as' => 'activity-logs.',
+    'middleware' => config('admin-core.permission.enabled') ? 'permission:list-activity' : [],
+], function () {
+    Route::get('/', [ActivityLogController::class, 'index'])->name('index');
+    Route::get('getData', [ActivityLogController::class, 'getData'])->name('getData');
 });

@@ -1,0 +1,41 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Activity Log')
+
+@section('breadcrumb')
+    <div class="row"><div class="col-sm-6"><h3 class="mb-0">Activity Log</h3></div></div>
+@endsection
+
+@section('contents')
+    <div class="card">
+        <div class="card-body">
+            <table class="{{ config('class.table') }}" id="activity_table">
+                <thead>
+                <tr>
+                    <th>When</th>
+                    <th>Who</th>
+                    <th>Action</th>
+                    <th>Subject</th>
+                </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            $('#activity_table').DataTable({
+                ajax: {url: '{{ route('admin.activity-logs.getData') }}', type: 'GET'},
+                order: [[0, 'desc']],
+                columns: [
+                    {data: 'when', name: 'created_at'},
+                    {data: 'causer', orderable: false, searchable: false},
+                    {data: 'description', name: 'description'},
+                    {data: 'subject', name: 'log_name'},
+                ],
+            });
+        });
+    </script>
+@endpush

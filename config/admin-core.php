@@ -56,6 +56,7 @@ return [
     */
     'generator' => [
         'uuid' => false,
+        'audit' => false,
     ],
 
 ];

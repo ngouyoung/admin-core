@@ -1,0 +1,27 @@
+<?php
+
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Controllers\Controller;
+use Illuminate\View\View;
+use Ngos\AdminCore\Models\ActivityLog;
+use Yajra\DataTables\Facades\DataTables;
+
+class ActivityLogController extends Controller
+{
+    public function index(): View
+    {
+        return view('backend.activity_logs.index');
+    }
+
+    public function getData()
+    {
+        return DataTables::of(ActivityLog::query()->with('causer')->latest())
+            ->addColumn('causer', fn ($log) => $log->causer?->name ?? 'system')
+            ->addColumn('subject', fn ($log) => $log->log_name . ' #' . $log->subject_id)
+            ->editColumn('description', fn ($log) => '<span class="badge text-bg-secondary text-capitalize">' . e($log->description) . '</span>')
+            ->addColumn('when', fn ($log) => $log->created_at?->diffForHumans())
+            ->rawColumns(['description'])
+            ->make(true);
+    }
+}

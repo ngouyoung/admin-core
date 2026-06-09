@@ -15,6 +15,7 @@ class AdminCoreMakeCommand extends Command
                             {--uuid : Use a UUID primary key (and UUID foreign keys)}
                             {--no-uuid : Force an auto-increment key even if config enables uuid}
                             {--soft-deletes : Add soft deletes + a trash/restore screen}
+                            {--audit : Log created/updated/deleted activity for this resource}
                             {--migration : Also generate a create migration}
                             {--force : Overwrite existing files}';
 
@@ -34,10 +35,13 @@ class AdminCoreMakeCommand extends Command
 
         $soft = (bool) $this->option('soft-deletes');
 
+        $audit = $this->option('audit') || (bool) config('admin-core.generator.audit', false);
+
         $fields = (new FieldSet($this->option('fields')))
             ->setTable($snakePlural)
             ->setUuid($uuid)
-            ->setSoftDeletes($soft);
+            ->setSoftDeletes($soft)
+            ->setAudit($audit);
 
         // Soft-delete snippets are built with the real class/route names (NOT Dummy
         // tokens) because strtr does not re-scan replaced text.

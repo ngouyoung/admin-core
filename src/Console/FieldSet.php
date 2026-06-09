@@ -28,6 +28,8 @@ class FieldSet
 
     private bool $softDeletes = false;
 
+    private bool $audit = false;
+
     public function __construct(?string $raw)
     {
         $this->fields = $this->parse($raw);
@@ -36,6 +38,13 @@ class FieldSet
     public function setSoftDeletes(bool $softDeletes): self
     {
         $this->softDeletes = $softDeletes;
+
+        return $this;
+    }
+
+    public function setAudit(bool $audit): self
+    {
+        $this->audit = $audit;
 
         return $this;
     }
@@ -69,6 +78,9 @@ class FieldSet
         }
         if ($this->softDeletes) {
             $traits[] = 'SoftDeletes';
+        }
+        if ($this->audit) {
+            $traits[] = 'LogsActivity';
         }
 
         return implode(', ', $traits);
@@ -268,6 +280,9 @@ PHP;
         }
         if ($this->softDeletes) {
             $uses[] = 'use Illuminate\Database\Eloquent\SoftDeletes;';
+        }
+        if ($this->audit) {
+            $uses[] = 'use Ngos\AdminCore\Concerns\LogsActivity;';
         }
 
         return $uses ? implode("\n", $uses) . "\n" : '';

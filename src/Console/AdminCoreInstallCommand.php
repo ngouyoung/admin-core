@@ -24,6 +24,7 @@ class AdminCoreInstallCommand extends Command
         $this->newLine();
 
         $this->publishConfigs();
+        $this->copyStub('activity_logs_table.php.stub', database_path('migrations/0001_01_01_000020_create_activity_logs_table.php'));
         $this->ensureModulesDirectory();
         $this->wireRoutes();
         $this->registerPermissionAlias();

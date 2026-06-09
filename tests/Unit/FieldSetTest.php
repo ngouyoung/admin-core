@@ -77,3 +77,9 @@ it('builds a field-aware factory definition', function () {
     expect($f->factoryDefinition())->toContain("'name' => fake()->name()");
     expect($f->factoryDefinition())->toContain("'price' => fake()->randomFloat");
 });
+
+it('adds the LogsActivity trait when audited', function () {
+    $f = fs('name:string')->setAudit(true);
+    expect($f->modelTraits())->toContain('LogsActivity');
+    expect($f->modelUses())->toContain('use Ngos\AdminCore\Concerns\LogsActivity;');
+});
