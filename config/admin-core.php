@@ -37,6 +37,10 @@ return [
         'enabled' => true,
         'pattern' => '{action}-{resource}',
         'model' => \Spatie\Permission\Models\Permission::class,
+        'role_model' => \Spatie\Permission\Models\Role::class,
+        // admin-core:make grants each new resource's permissions to this role so
+        // it's usable immediately (no AccessSeeder re-run). Set null to disable.
+        'super_role' => 'admin',
     ],
 
     /*

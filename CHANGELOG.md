@@ -2,6 +2,10 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.1.7
+
+- `admin-core:make` now grants the new resource's permissions to the `admin` role automatically (config `permission.super_role`), so you no longer re-run AccessSeeder after every generate.
+
 ## v1.1.6
 
 - Generated list tables now use a single global search box; the redundant per-column footer inputs were removed (they duplicated the global search and cluttered the table).

@@ -222,7 +222,7 @@ class AdminCoreMakeCommand extends Command
         $this->newLine();
         $this->info("Resource '{$class}' scaffolded.");
         $this->line("  Route:  /admin/{$snakePlural}   (name: admin.{$snakePlural}.*)");
-        $this->line('  Assign the new permissions to a role, then visit the page.');
+        $this->line("  Run <info>php artisan migrate</info>, then visit /admin/{$snakePlural} — permissions are already granted to the admin role.");
 
         return self::SUCCESS;
     }
@@ -282,12 +282,27 @@ class AdminCoreMakeCommand extends Command
         }
 
         $model = config('admin-core.permission.model', \Spatie\Permission\Models\Permission::class);
+        $names = array_map(fn ($action) => "{$action}-{$kebab}", ['list', 'create', 'edit', 'delete']);
 
-        foreach (['list', 'create', 'edit', 'delete'] as $action) {
-            $model::firstOrCreate(['name' => "{$action}-{$kebab}", 'guard_name' => 'web']);
+        foreach ($names as $name) {
+            $model::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
         }
+
+        // Grant the new permissions to the super role so the resource works right
+        // away — no need to re-run AccessSeeder after every admin-core:make.
+        $granted = '';
+        $roleName = config('admin-core.permission.super_role', 'admin');
+        if ($roleName && Schema::hasTable('roles')) {
+            $roleModel = config('admin-core.permission.role_model', \Spatie\Permission\Models\Role::class);
+            $role = $roleModel::where('name', $roleName)->first();
+            if ($role) {
+                $role->givePermissionTo($names);
+                $granted = " (granted to '{$roleName}')";
+            }
+        }
+
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        $this->line("  <info>permissions</info> list/create/edit/delete-{$kebab}");
+        $this->line("  <info>permissions</info> list/create/edit/delete-{$kebab}{$granted}");
     }
 
     private function relative(string $path): string
