@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.4.1
+
+- **Typed system helpers** `:auth` and `:sku` (imply `@`): `created_by:auth` adds a nullable `users`
+  foreign key set from `auth()->id()`, and `code:sku` adds a nullable string auto-filled with a generated
+  code — both wired in the generated `booted()` hook, no TODO to complete. Neither is user-fillable.
+- Docs: fixed a dangling README reference in the field-modifiers section.
+
 ## v1.4.0
 
 - **Write-once (`~`) and system (`@`) field modifiers.** `~` = settable on create, locked on update

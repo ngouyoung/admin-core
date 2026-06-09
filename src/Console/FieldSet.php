@@ -168,6 +168,11 @@ class FieldSet
     {
         $f = compact('name', 'type', 'nullable', 'unique', 'enum', 'writeOnce', 'system');
 
+        // Typed system helpers — these set themselves from trusted code, never user input.
+        if (in_array($type, ['auth', 'sku'], true)) {
+            $f['system'] = true;
+        }
+
         if ($type === 'foreign') {
             $base = Str::beforeLast($name, '_id');
             $f['relation'] = Str::camel($base);
@@ -246,9 +251,10 @@ class FieldSet
                 'datetime' => "\$table->dateTime('{$col}')",
                 'image', 'file' => "\$table->string('{$col}')",
                 'foreign' => "\$table->foreignId('{$col}')" . ($n ? '->nullable()' : '') . '->constrained()' . ($n ? '->nullOnDelete()' : '->cascadeOnDelete()'),
-                default => "\$table->string('{$col}')",
+                'auth' => "\$table->foreignId('{$col}')->nullable()->constrained('users')->nullOnDelete()", // set from auth()->id()
+                default => "\$table->string('{$col}')", // also covers 'sku' (a string, made nullable below as a system field)
             };
-            if ($f['type'] !== 'foreign') {
+            if (! in_array($f['type'], ['foreign', 'auth'], true)) {
                 // uploads are stored as a nullable path string regardless.
                 // System fields are filled by a hook (scaffolded as a TODO), so keep them
                 // nullable — the generated code runs before you wire the real value up.
@@ -334,7 +340,11 @@ PHP;
 
         $assigns = [];
         foreach ($system as $f) {
-            $assigns[] = "                \$model->{$f['name']} = null; // TODO: set {$f['name']} (e.g. auth()->id(), a generated code)";
+            $assigns[] = match ($f['type']) {
+                'auth' => "                \$model->{$f['name']} = auth()->id();",
+                'sku' => "                \$model->{$f['name']} = \\Illuminate\\Support\\Str::upper(\\Illuminate\\Support\\Str::random(10));",
+                default => "                \$model->{$f['name']} = null; // TODO: set {$f['name']} from trusted code",
+            };
         }
         $body = implode("\n", $assigns);
 

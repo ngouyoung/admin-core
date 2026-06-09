@@ -114,9 +114,19 @@ field name, so generate the related resource first.
 | `~` | **write-once** | settable on create, **locked on update** — fillable + StoreRequest rule, *no* UpdateRequest rule, `readonly` input on edit |
 | `@` | **system** | set by trusted code only — **not** fillable, not validated, not in the form; a `booted()` hook scaffold + nullable column (shown read-only) |
 
-E.g. `slug:string^`, `published_at:date?`, `sku:string^~` (unique, locked after create), `created_by:integer@` (set in a hook from `auth()->id()`).
+E.g. `slug:string^`, `published_at:date?`, `sku:string^~` (unique, locked after create).
 
-> Security note: `~` and `@` enforce on the **server** (missing update rule / not fillable), not just the readonly input — so a user editing the DOM still can't change them. See "fields users can't edit" below.
+**Typed system helpers** (imply `@`, auto-filled in the generated `booted()` hook — no TODO to wire up):
+
+| Type | Column | Auto-set to |
+|---|---|---|
+| `created_by:auth` | nullable `users` FK | `auth()->id()` |
+| `code:sku` | nullable string | a generated `Str::upper(Str::random(10))` code |
+
+E.g. `--fields="name:string, code:sku, created_by:auth"` gives you an auto SKU and an owner stamp with zero hand-editing — neither is user-fillable.
+
+> Security note: `~` and `@` enforce on the **server** (missing update rule / not fillable), not just the
+> readonly input — so a user editing the DOM or POSTing directly still can't change them.
 
 **Foreign keys**: `category_id:foreign` adds a `belongsTo` relation on the model, a Select2 dropdown of
 the related rows in the form (labelled by the related row's `name`, falling back to `id`), and a

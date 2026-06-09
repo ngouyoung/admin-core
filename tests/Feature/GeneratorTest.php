@@ -167,6 +167,31 @@ it('handles write-once (~) and system (@) field modifiers', function () {
     }
 });
 
+it('auto-fills :auth and :sku system fields in the booted hook', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, created_by:auth, code:sku',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $model = File::get(app_path('Models/Gizmo.php'));
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+
+    // auth → set from auth()->id(); sku → generated string; both NOT fillable.
+    expect($model)
+        ->toContain('$model->created_by = auth()->id();')
+        ->toContain('$model->code = \\Illuminate\\Support\\Str::upper')
+        ->not->toContain("'created_by'")
+        ->not->toContain("'code'");
+
+    // auth → users FK (bigint, nullable); sku → nullable string column.
+    expect($migration)
+        ->toContain("\$table->foreignId('created_by')->nullable()->constrained('users')")
+        ->toContain("\$table->string('code')->nullable();");
+
+    expect(Process::run('php -l ' . escapeshellarg(app_path('Models/Gizmo.php')))->successful())->toBeTrue();
+});
+
 it('adds a sort toggle and reorder route with --sortable', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
