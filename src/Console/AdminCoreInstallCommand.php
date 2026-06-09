@@ -267,11 +267,11 @@ PHP;
 
         $contents = preg_replace(
             '/(use Illuminate\\\\Notifications\\\\Notifiable;)/',
-            "$1\nuse Spatie\\Permission\\Traits\\HasRoles;",
+            "$1\nuse Ngos\\AdminCore\\Concerns\\HasPublicUuid;\nuse Spatie\\Permission\\Traits\\HasRoles;",
             $contents,
             1,
         );
-        $contents = preg_replace('/(use HasFactory, Notifiable)(;)/', '$1, HasRoles$2', $contents, 1);
+        $contents = preg_replace('/(use HasFactory, Notifiable)(;)/', '$1, HasRoles, HasPublicUuid$2', $contents, 1);
 
         File::put($model, $contents);
         $this->line('  <info>updated</info> app/Models/User.php (added HasRoles trait)');

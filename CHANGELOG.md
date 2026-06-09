@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.3.0
+
+- **Hybrid key strategy** (replaces uuid primary keys). `--uuid` / `generator.uuid` now generate a fast
+  **bigint `id` primary key** (lean foreign keys + joins that never bloat) **plus a unique public `uuid`
+  column** used in URLs/APIs — so ids are non-enumerable without the index/join cost of uuid PKs. New
+  `HasPublicUuid` trait auto-fills the uuid and sets `getRouteKeyName() => 'uuid'`; `CrudService` now
+  resolves every action (edit/show/update/delete/bulk-delete/restore/reorder) by the model's route key,
+  so plain `id` models are unchanged and hybrid models resolve by uuid automatically. Foreign/pivot keys
+  are always `foreignId` (bigint). The `--access` module (users/roles/permissions/group-permissions)
+  ships hybrid too.
+  **Breaking:** previously `--uuid` made the primary key a uuid; resources generated that way should be
+  regenerated (or keep their own migrations).
+
 ## v1.2.5
 
 - **Typed settings**: each setting now has a `type` (`text|textarea|number|email|image|file|boolean`)

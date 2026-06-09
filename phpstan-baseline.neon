@@ -1,6 +1,12 @@
 parameters:
 	ignoreErrors:
 		-
+			message: '#^Trait Ngos\\AdminCore\\Concerns\\HasPublicUuid is used zero times and is not analysed\.$#'
+			identifier: trait.unused
+			count: 1
+			path: src/Concerns/HasPublicUuid.php
+
+		-
 			message: '#^Trait Ngos\\AdminCore\\Concerns\\LogsActivity is used zero times and is not analysed\.$#'
 			identifier: trait.unused
 			count: 1

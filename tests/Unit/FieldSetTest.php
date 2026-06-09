@@ -42,12 +42,15 @@ it('handles a unique field with the Rule import on update', function () {
     expect($f->updateUses())->toContain('use Illuminate\Validation\Rule;');
 });
 
-it('supports uuid primary and foreign keys', function () {
+it('uses the hybrid key strategy (bigint id + public uuid, bigint FKs)', function () {
     $f = fs('name:string')->setUuid(true);
-    expect($f->primaryKey())->toBe("\$table->uuid('id')->primary();");
-    expect($f->modelTraits())->toContain('HasUuids');
-    expect($f->modelUses())->toContain('HasUuids');
-    expect(fs('category_id:foreign')->setUuid(true)->migrationColumns())->toContain('foreignUuid');
+    // bigint PK + a unique public uuid column (not a uuid primary key).
+    expect($f->primaryKey())->toContain('$table->id();')->toContain("\$table->uuid('uuid')->unique();");
+    expect($f->modelTraits())->toContain('HasPublicUuid');
+    expect($f->modelUses())->toContain('Ngos\AdminCore\Concerns\HasPublicUuid');
+    // Foreign keys stay lean bigint, never uuid.
+    expect(fs('category_id:foreign')->setUuid(true)->migrationColumns())
+        ->toContain('foreignId')->not->toContain('foreignUuid');
 });
 
 it('supports soft deletes', function () {

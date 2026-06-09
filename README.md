@@ -178,18 +178,25 @@ It adds the `SoftDeletes` trait + `deleted_at` column, a **Trash** button on the
 trash screen with **Restore** / **Delete permanently** (routes `trash` / `restore` / `forceDelete`,
 backed by `trashedQuery()` / `restore()` / `forceDelete()` on the base service).
 
-### UUID primary keys
+### Non-enumerable URLs — the hybrid key strategy (`--uuid`)
 
-Give a resource a UUID key (and UUID foreign/pivot keys) with `--uuid`:
+`--uuid` gives a resource a **public UUID** for its URLs while keeping a fast **bigint primary key**:
 
 ```bash
 php artisan admin-core:make Product --uuid --migration --fields="name:string, category_id:foreign"
 ```
 
-It generates `$table->uuid('id')->primary()`, `foreignUuid(...)`, and a `HasUuids` model. To make
-**every** generated resource use UUIDs, set `'generator' => ['uuid' => true]` in `config/admin-core.php`
-(override per-resource with `--no-uuid`). The core controller/service accept `int|string` keys, so
-integer and UUID resources coexist.
+It generates:
+- `$table->id();` — the bigint primary key (all **foreign keys and joins use this** → lean indexes that never bloat)
+- `$table->uuid('uuid')->unique();` — the **public** key used in URLs/APIs (`/admin/products/019eadac-…`, non-enumerable)
+- `foreignId('category_id')->constrained()` — bigint FK (not `foreignUuid`)
+- a model using the package's `HasPublicUuid` trait, which auto-fills the uuid and sets `getRouteKeyName() => 'uuid'`
+
+So you get **non-guessable URLs without the index/join cost of uuid primary keys** — the best default for a system that may grow. The base `CrudService` resolves every action by the model's route key, so edit/show/update/delete/bulk-delete/reorder all use the uuid automatically; plain `id` models (no `--uuid`) keep using `id` unchanged.
+
+To make **every** generated resource hybrid, set `'generator' => ['uuid' => true]` in `config/admin-core.php`
+(override per-resource with `--no-uuid`). The `--access` module (users/roles/permissions/group-permissions)
+ships hybrid too. Use a plain model? Add `Ngos\AdminCore\Concerns\HasPublicUuid` + a `uuid` column to any model.
 
 > Omitting `--fields` gives the default single `name` column (backward-compatible).
 > The generated routes are gated by `permission:*` middleware. Either assign the new permissions to a

@@ -5,9 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Ngos\AdminCore\Concerns\HasPublicUuid;
 
 class GroupPermission extends Model
 {
+    use HasPublicUuid;
+
     protected $fillable = ['name', 'parent_id', 'sort'];
 
     public function scopeParents($query)

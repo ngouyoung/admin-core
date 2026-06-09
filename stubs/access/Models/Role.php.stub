@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
+use Ngos\AdminCore\Concerns\HasPublicUuid;
 use Spatie\Permission\Models\Role as SpatieRole;
 
 class Role extends SpatieRole
 {
-    //
+    use HasPublicUuid;
 }

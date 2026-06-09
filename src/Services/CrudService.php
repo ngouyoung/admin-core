@@ -21,7 +21,9 @@ abstract class CrudService
 
     public function find(int|string $id): Model
     {
-        return $this->model->findOrFail($id);
+        // Resolve by the model's route key (its public 'uuid' under the hybrid key
+        // strategy, or 'id' for a plain bigint model) — never the raw primary key.
+        return $this->model->where($this->model->getRouteKeyName(), $id)->firstOrFail();
     }
 
     public function create(array $data): Model
@@ -53,19 +55,20 @@ abstract class CrudService
 
     public function restore(int|string $id): void
     {
-        $this->model->onlyTrashed()->findOrFail($id)->restore();
+        $this->model->onlyTrashed()->where($this->model->getRouteKeyName(), $id)->firstOrFail()->restore();
     }
 
     public function forceDelete(int|string $id): void
     {
-        $this->model->onlyTrashed()->findOrFail($id)->forceDelete();
+        $this->model->onlyTrashed()->where($this->model->getRouteKeyName(), $id)->firstOrFail()->forceDelete();
     }
 
-    /** Persist a new order: each id's `sort` becomes its 1-based position. */
+    /** Persist a new order: each (route-key) id's `sort` becomes its 1-based position. */
     public function reorder(array $ids): void
     {
+        $key = $this->model->getRouteKeyName();
         foreach (array_values($ids) as $position => $id) {
-            $this->model->newQuery()->whereKey($id)->update(['sort' => $position + 1]);
+            $this->model->newQuery()->where($key, $id)->update(['sort' => $position + 1]);
         }
     }
 }

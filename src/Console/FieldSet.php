@@ -83,10 +83,17 @@ class FieldSet
         return $this;
     }
 
-    /** The primary-key line for the migration. */
+    /**
+     * Primary-key line(s) for the migration. Hybrid strategy: always a fast bigint
+     * `id` PK, plus a unique public `uuid` column for URLs/APIs when enabled.
+     */
     public function primaryKey(): string
     {
-        return $this->uuid ? "\$table->uuid('id')->primary();" : '$table->id();';
+        if (! $this->uuid) {
+            return '$table->id();';
+        }
+
+        return "\$table->id();\n            \$table->uuid('uuid')->unique();";
     }
 
     /** The model's trait list (after `use `). */
@@ -94,7 +101,7 @@ class FieldSet
     {
         $traits = ['HasFactory'];
         if ($this->uuid) {
-            $traits[] = 'HasUuids';
+            $traits[] = 'HasPublicUuid';
         }
         if ($this->softDeletes) {
             $traits[] = 'SoftDeletes';
@@ -233,7 +240,7 @@ class FieldSet
                 'date' => "\$table->date('{$col}')",
                 'datetime' => "\$table->dateTime('{$col}')",
                 'image', 'file' => "\$table->string('{$col}')",
-                'foreign' => "\$table->" . ($this->uuid ? 'foreignUuid' : 'foreignId') . "('{$col}')" . ($n ? '->nullable()' : '') . '->constrained()' . ($n ? '->nullOnDelete()' : '->cascadeOnDelete()'),
+                'foreign' => "\$table->foreignId('{$col}')" . ($n ? '->nullable()' : '') . '->constrained()' . ($n ? '->nullOnDelete()' : '->cascadeOnDelete()'),
                 default => "\$table->string('{$col}')",
             };
             if ($f['type'] !== 'foreign') {
@@ -263,12 +270,11 @@ class FieldSet
             $pair = [$self, $other];
             sort($pair);
             $pivot = implode('_', $pair);
-            $fk = $this->uuid ? 'foreignUuid' : 'foreignId';
             $blocks[] = <<<PHP
 
         Schema::create('{$pivot}', function (Blueprint \$table) {
-            \$table->{$fk}('{$self}_id')->constrained()->cascadeOnDelete();
-            \$table->{$fk}('{$other}_id')->constrained()->cascadeOnDelete();
+            \$table->foreignId('{$self}_id')->constrained()->cascadeOnDelete();
+            \$table->foreignId('{$other}_id')->constrained()->cascadeOnDelete();
         });
 PHP;
         }
@@ -290,7 +296,7 @@ PHP;
     {
         $uses = [];
         if ($this->uuid) {
-            $uses[] = 'use Illuminate\Database\Eloquent\Concerns\HasUuids;';
+            $uses[] = 'use Ngos\AdminCore\Concerns\HasPublicUuid;';
         }
         if ($this->hasForeign()) {
             $uses[] = 'use Illuminate\Database\Eloquent\Relations\BelongsTo;';
@@ -582,7 +588,10 @@ BLADE;
 
     public function columnsJs(): string
     {
-        $cols = ["                {data: 'id', name: 'id', orderable: false, searchable: false, className: 'text-center', render: (d) => '<input type=\"checkbox\" class=\"row-check\" value=\"' + d + '\">'},"];
+        // Checkbox carries the public route key (uuid under hybrid, else id) so
+        // bulk-delete posts the same identifier the row URLs use.
+        $pk = $this->uuid ? 'uuid' : 'id';
+        $cols = ["                {data: '{$pk}', name: '{$pk}', orderable: false, searchable: false, className: 'text-center', render: (d) => '<input type=\"checkbox\" class=\"row-check\" value=\"' + d + '\">'},"];
         foreach ($this->fields as $f) {
             if (in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file'], true)) {
                 $key = in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name'];

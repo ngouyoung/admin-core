@@ -110,6 +110,27 @@ it('generates a migration that actually runs', function () {
         ->and(Schema::hasColumns('gizmos', ['id', 'name', 'price', 'body']))->toBeTrue();
 });
 
+it('uses the hybrid key strategy with --uuid (bigint PK + public uuid + bigint FKs)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, category_id:foreign',
+        '--uuid' => true,
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+    expect($migration)
+        ->toContain('$table->id();')                 // fast bigint primary key
+        ->toContain("\$table->uuid('uuid')->unique();") // public URL/API key
+        ->not->toContain("uuid('id')")                // NOT a uuid primary key
+        ->toContain('foreignId')                      // lean bigint foreign key
+        ->not->toContain('foreignUuid');
+
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->toContain('HasPublicUuid')
+        ->toContain('Ngos\AdminCore\Concerns\HasPublicUuid');
+});
+
 it('adds a sort toggle and reorder route with --sortable', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

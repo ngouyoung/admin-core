@@ -3,10 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Ngos\AdminCore\Concerns\HasPublicUuid;
 use Spatie\Permission\Models\Permission as SpatiePermission;
 
 class Permission extends SpatiePermission
 {
+    use HasPublicUuid;
+
     protected $fillable = ['name', 'guard_name', 'group_id'];
 
     public function group(): BelongsTo

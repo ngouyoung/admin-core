@@ -72,7 +72,7 @@ class AdminCoreMakeCommand extends Command
                 <div class="dd nestable-lists" id="__SNAKE___sortable">
                     <ol class="dd-list">
                         @forelse ($sortItems as $sortItem)
-                            <li class="dd-item" data-id="{{ $sortItem->id }}">
+                            <li class="dd-item" data-id="{{ $sortItem->getRouteKey() }}">
                                 <div class="dd-handle">{{ $sortItem->name ?? $sortItem->id }}</div>
                             </li>
                         @empty

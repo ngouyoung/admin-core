@@ -54,9 +54,10 @@ return [
     |--------------------------------------------------------------------------
     | Generator
     |--------------------------------------------------------------------------
-    | uuid: when true, `admin-core:make` gives every generated resource a UUID
-    | primary key (and UUID foreign keys). Override per-resource with the
-    | --uuid / --no-uuid flags.
+    | uuid: when true, `admin-core:make` uses the *hybrid* key strategy — a fast
+    | bigint `id` primary key (lean foreign keys + joins) plus a unique public
+    | `uuid` column used in URLs/APIs (non-enumerable). Override per-resource with
+    | the --uuid / --no-uuid flags.
     */
     'generator' => [
         'uuid' => false,
