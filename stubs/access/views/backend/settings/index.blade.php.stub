@@ -1,0 +1,32 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Settings')
+
+@section('breadcrumb')
+    <div class="row"><div class="col-sm-6"><h3 class="mb-0">Settings</h3></div></div>
+@endsection
+
+@section('contents')
+    <form action="{{ route('admin.settings.update') }}" method="POST">
+        @csrf @method('PUT')
+        @forelse ($groups as $group => $settings)
+            <div class="card mb-3">
+                <div class="card-header text-capitalize"><strong>{{ $group }}</strong></div>
+                <div class="card-body">
+                    @foreach ($settings as $setting)
+                        <div class="row mb-3">
+                            <label class="col-sm-3 col-form-label text-capitalize">{{ str_replace('_', ' ', $setting->key) }}</label>
+                            <div class="col-sm-9">
+                                <input type="text" name="settings[{{ $setting->key }}]" class="form-control"
+                                       value="{{ old('settings.' . $setting->key, $setting->value) }}">
+                            </div>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @empty
+            <div class="alert alert-info">No settings yet — seed some with <code>Setting::set('key', 'value')</code>.</div>
+        @endforelse
+        <button class="btn btn-primary">Save settings</button>
+    </form>
+@endsection

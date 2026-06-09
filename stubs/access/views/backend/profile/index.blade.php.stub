@@ -1,0 +1,57 @@
+@extends('backend.layouts.app')
+
+@section('title', 'My Profile')
+
+@section('breadcrumb')
+    <div class="row"><div class="col-sm-6"><h3 class="mb-0">My Profile</h3></div></div>
+@endsection
+
+@section('contents')
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <img src="{{ $user->avatar ? asset('storage/' . $user->avatar) : 'https://www.gravatar.com/avatar/?d=mp&s=120' }}"
+                         class="rounded-circle mb-2" style="width:120px;height:120px;object-fit:cover" alt="avatar">
+                    <h5 class="mb-0 text-capitalize">{{ $user->name }}</h5>
+                    <p class="text-muted">{{ $user->email }}</p>
+                    <form action="{{ route('admin.profile.avatar') }}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <input type="file" name="avatar" accept="image/*" class="form-control form-control-sm mb-2" required>
+                        <button class="btn btn-sm btn-primary w-100">Upload avatar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card mb-3">
+                <div class="card-header"><strong>Profile</strong></div>
+                <div class="card-body">
+                    <form action="{{ route('admin.profile.update') }}" method="POST">
+                        @csrf @method('PUT')
+                        <div class="mb-3"><label class="form-label">Name</label>
+                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $user->name) }}"></div>
+                        <div class="mb-3"><label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $user->email) }}"></div>
+                        <button class="btn btn-primary">Save</button>
+                    </form>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><strong>Change password</strong></div>
+                <div class="card-body">
+                    <form action="{{ route('admin.profile.password') }}" method="POST">
+                        @csrf @method('PUT')
+                        <div class="mb-3"><label class="form-label">Current password</label>
+                            <input type="password" name="current_password" class="form-control @error('current_password') is-invalid @enderror"></div>
+                        <div class="mb-3"><label class="form-label">New password</label>
+                            <input type="password" name="password" class="form-control @error('password') is-invalid @enderror"></div>
+                        <div class="mb-3"><label class="form-label">Confirm</label>
+                            <input type="password" name="password_confirmation" class="form-control"></div>
+                        <button class="btn btn-primary">Update password</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+@endsection

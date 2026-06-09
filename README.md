@@ -111,6 +111,18 @@ the related rows in the form (labelled by the related row's `name`, falling back
 related-name column in the table. The related table is inferred (`category_id` → `categories`), so it
 must already exist — generate the parent resource first.
 
+### App shell (with `--access`)
+
+The `--access` kit now ships a complete admin shell beyond the access screens:
+
+- **Profile / account** (`/admin/profile`) — edit name/email, change password, upload an avatar.
+- **Settings** (`/admin/settings`) — grouped key-value app settings with a `Setting::get('key')` helper
+  (cached), gated by the `manage-settings` permission. Seeded with `app_name`, `support_email`, etc.
+- **Dashboard** — stat-card widgets (Users / Roles / Permissions / Group Permissions counts).
+- **Auto-sidebar** — `admin-core:make` injects the new resource's nav link automatically (idempotent),
+  so you never hand-edit the sidebar.
+- **Show / detail view** — every resource gets a read-only `show` page + a View button in the table.
+
 ### Every list comes with export, bulk delete & column filters
 
 Generated index screens ship three things out of the box:

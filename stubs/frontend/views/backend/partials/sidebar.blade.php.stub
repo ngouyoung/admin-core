@@ -8,13 +8,13 @@
     <div class="sidebar-wrapper">
         <div class="d-flex align-items-center p-3">
             <div class="flex-shrink-0">
-                <span class="d-inline-flex align-items-center justify-content-center rounded-circle bg-secondary"
-                      style="width:40px;height:40px">
-                    <i class="bi bi-person-fill text-white"></i>
-                </span>
+                <img src="{{ auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : 'https://www.gravatar.com/avatar/?d=mp&s=80' }}"
+                     class="rounded-circle" style="width:40px;height:40px;object-fit:cover" alt="avatar">
             </div>
             <div class="flex-grow-1 ms-2">
-                <span class="d-block text-capitalize">{{ auth()->user()->name }}</span>
+                <a href="{{ route('admin.profile.index') }}" class="d-block text-capitalize text-decoration-none text-white">
+                    {{ auth()->user()->name }}
+                </a>
             </div>
         </div>
 
@@ -27,6 +27,7 @@
                         <p>Dashboard</p>
                     </a>
                 </li>
+                {{-- admin-core:menu --}}
 
                 <li class="nav-header text-uppercase">Access</li>
                 <li class="nav-item {{ request()->is('admin/assessments/*') ? 'menu-open' : '' }}">
@@ -72,6 +73,16 @@
                         @endcan
                     </ul>
                 </li>
+
+                @can('manage-settings')
+                    <li class="nav-header text-uppercase">System</li>
+                    <li class="nav-item">
+                        <a href="{{ route('admin.settings.index') }}"
+                           class="nav-link {{ request()->is('admin/settings*') ? 'active' : '' }}">
+                            <i class="nav-icon bi bi-gear"></i><p>Settings</p>
+                        </a>
+                    </li>
+                @endcan
             </ul>
         </nav>
     </div>

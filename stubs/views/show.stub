@@ -1,0 +1,39 @@
+@extends('backend.layouts.app')
+
+@section('title', 'DummyClass')
+
+@section('breadcrumb')
+    <div class="row">
+        <div class="col-sm-6"><h3 class="mb-0">DummyClass</h3></div>
+        <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-end">
+                <li class="breadcrumb-item"><a href="{{ route('admin.dummyModels.index') }}">DummyClasses</a></li>
+                <li class="breadcrumb-item active">View</li>
+            </ol>
+        </div>
+    </div>
+@endsection
+
+@section('contents')
+    <div class="card">
+        <div class="card-body">
+            <table class="table table-bordered mb-3">
+                <tbody>
+__AC_SHOW__
+                <tr>
+                    <th style="width:220px">Created</th>
+                    <td>{{ $object->created_at }}</td>
+                </tr>
+                </tbody>
+            </table>
+            <a href="{{ route('admin.dummyModels.index') }}" class="{{ config('class.button.back') }}">
+                <i class="{{ config('class.icon.back') }}"></i> Back
+            </a>
+            @can('edit-dummy-model')
+                <a href="{{ route('admin.dummyModels.edit', $object->id) }}" class="{{ config('class.button.edit') }}">
+                    <i class="{{ config('class.icon.edit') }}"></i> Edit
+                </a>
+            @endcan
+        </div>
+    </div>
+@endsection

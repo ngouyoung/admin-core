@@ -7,6 +7,8 @@ Route::group(['prefix' => 'dummyModels', 'as' => 'dummyModels.'], function () {
     Route::crud('dummy-model', DummyClassController::class);
 
     Route::controller(DummyClassController::class)->group(function () {
+        Route::get('show/{id}', 'show')->name('show')
+            ->middleware(config('admin-core.permission.enabled') ? 'permission:list-dummy-model' : []);
         Route::get('export', 'export')->name('export')
             ->middleware(config('admin-core.permission.enabled') ? 'permission:list-dummy-model' : []);
         Route::post('bulkDelete', 'bulkDelete')->name('bulkDelete')

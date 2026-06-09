@@ -87,6 +87,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_EAGER__' => $fields->eager(),
             '__AC_GETDATA__' => $fields->getDataColumns(),
             '__AC_RAW__' => $fields->rawColumns(),
+            '__AC_SHOW__' => $fields->showRows(),
             '__AC_FACTORY__' => $fields->factoryDefinition(),
             '__AC_SOFT_DELETES__' => $fields->softDeletesColumn(),
             '__AC_SOFT_ROUTES__' => $softRoutes,
@@ -101,6 +102,7 @@ class AdminCoreMakeCommand extends Command
             'update-request.stub' => app_path("Http/Requests/{$class}/Update{$class}Request.php"),
             'routes.stub' => base_path("routes/Web/Backend/Modules/{$snakePlural}.php"),
             'views/index.stub' => resource_path("views/backend/pages/{$snakePlural}/index.blade.php"),
+            'views/show.stub' => resource_path("views/backend/pages/{$snakePlural}/show.blade.php"),
             'views/create.stub' => resource_path("views/backend/pages/{$snakePlural}/create.blade.php"),
             'views/edit.stub' => resource_path("views/backend/pages/{$snakePlural}/edit.blade.php"),
             'views/form.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"),
@@ -132,6 +134,7 @@ class AdminCoreMakeCommand extends Command
         }
 
         $this->createPermissions($kebab);
+        $this->registerSidebarLink($plural, $snakePlural);
 
         $this->newLine();
         $this->info("Resource '{$class}' scaffolded.");
@@ -139,6 +142,46 @@ class AdminCoreMakeCommand extends Command
         $this->line('  Assign the new permissions to a role, then visit the page.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Inject a nav link at the `{{-- admin-core:menu --}}` marker in the sidebar
+     * partial (or the minimal layout). Idempotent; silently skips if no marker.
+     */
+    private function registerSidebarLink(string $plural, string $snakePlural): void
+    {
+        $partial = resource_path('views/backend/partials/sidebar.blade.php');
+        $layout = resource_path('views/backend/layouts/app.blade.php');
+        $target = File::exists($partial) ? $partial : $layout;
+
+        if (! File::exists($target)) {
+            return;
+        }
+
+        $contents = File::get($target);
+        $route = "route('admin.{$snakePlural}.index')";
+
+        if (! str_contains($contents, 'admin-core:menu') || str_contains($contents, $route)) {
+            return;
+        }
+
+        $label = \Illuminate\Support\Str::headline($plural);
+        $adminlte = str_contains($contents, 'sidebar-menu'); // AdminLTE partial vs minimal layout
+
+        $link = $adminlte
+            ? "<li class=\"nav-item\">\n"
+                . "                    <a href=\"{{ {$route} }}\" class=\"nav-link {{ request()->is('admin/{$snakePlural}*') ? 'active' : '' }}\">\n"
+                . "                        <i class=\"nav-icon bi bi-circle\"></i><p>{$label}</p>\n"
+                . "                    </a>\n"
+                . "                </li>\n                {{-- admin-core:menu --}}"
+            : "<li class=\"nav-item\">\n"
+                . "                <a href=\"{{ {$route} }}\" class=\"nav-link text-white\">\n"
+                . "                    <i class=\"fas fa-circle me-2\"></i> {$label}\n"
+                . "                </a>\n"
+                . "            </li>\n            {{-- admin-core:menu --}}";
+
+        File::put($target, str_replace('{{-- admin-core:menu --}}', $link, $contents));
+        $this->line('  <info>menu</info> added "' . $label . '" to the sidebar');
     }
 
     /** Published stubs (base_path) win over the package's own, so projects can customise them. */

@@ -197,6 +197,7 @@ PHP;
         $this->copyTree("$a/views/backend", resource_path('views/backend'));
 
         $this->copy("$a/routes/assessments.php.stub", base_path('routes/Web/Backend/Modules/assessments.php'));
+        $this->copy("$a/routes/account.php.stub", base_path('routes/Web/Backend/Modules/account.php'));
         $this->appendAuthRoutes("$a/routes/auth.php.stub");
         $this->addHasRolesTrait();
         $this->publishSpatieConfig();

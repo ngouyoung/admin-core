@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
+
+class Setting extends Model
+{
+    protected $fillable = ['key', 'value', 'group'];
+
+    public static function get(string $key, $default = null)
+    {
+        return static::cached()->get($key, $default);
+    }
+
+    /** Key => value map of every setting (cached). */
+    public static function cached()
+    {
+        return Cache::rememberForever('admin-core.settings', fn () => static::query()->pluck('value', 'key'));
+    }
+
+    public static function set(string $key, $value): void
+    {
+        static::query()->updateOrCreate(['key' => $key], ['value' => $value]);
+        Cache::forget('admin-core.settings');
+    }
+}

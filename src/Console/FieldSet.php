@@ -613,6 +613,26 @@ BLADE;
         return implode("\n", $lines);
     }
 
+    /** Read-only detail rows for the show view. */
+    public function showRows(): string
+    {
+        $rows = [];
+        foreach ($this->fields as $f) {
+            $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']);
+            $value = match ($f['type']) {
+                'foreign' => "{{ \$object->{$f['relation']}?->name }}",
+                'belongsToMany' => "@foreach(\$object->{$f['relation']} as \$i)<span class=\"badge text-bg-secondary\">{{ \$i->name ?? \$i->id }}</span> @endforeach",
+                'image' => "@if(\$object->{$f['name']})<img src=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
+                'file' => "@if(\$object->{$f['name']})<a href=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
+                'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
+                default => "{{ \$object->{$f['name']} }}",
+            };
+            $rows[] = "            <tr>\n                <th style=\"width:220px\">{$label}</th>\n                <td>{$value}</td>\n            </tr>";
+        }
+
+        return implode("\n", $rows);
+    }
+
     public function rawColumns(): string
     {
         $raw = [];

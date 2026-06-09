@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\GroupPermission;
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -30,6 +31,7 @@ class AccessSeeder extends Seeder
             'role' => GroupPermission::firstOrCreate(['name' => 'Roles Management'], ['parent_id' => $assessments->id, 'sort' => 2]),
             'permission' => GroupPermission::firstOrCreate(['name' => 'Permissions Management'], ['parent_id' => $assessments->id, 'sort' => 3]),
             'group-permission' => GroupPermission::firstOrCreate(['name' => 'Group Permissions Management'], ['parent_id' => $assessments->id, 'sort' => 4]),
+            'settings' => GroupPermission::firstOrCreate(['name' => 'Settings Management'], ['parent_id' => $all->id, 'sort' => 2]),
         ];
 
         // 2. Permissions for the built-in screens, filed under their group.
@@ -38,6 +40,7 @@ class AccessSeeder extends Seeder
             'role' => ['list', 'create', 'edit', 'delete'],
             'permission' => ['list'],
             'group-permission' => ['list', 'create', 'edit', 'delete', 'sort'],
+            'settings' => ['manage'],
         ];
         foreach ($matrix as $resource => $actions) {
             foreach ($actions as $action) {
@@ -46,6 +49,11 @@ class AccessSeeder extends Seeder
                     ['group_id' => $groups[$resource]->id],
                 );
             }
+        }
+
+        // Default application settings.
+        foreach (['app_name' => config('app.name'), 'support_email' => 'support@example.com', 'items_per_page' => '50'] as $key => $value) {
+            Setting::firstOrCreate(['key' => $key], ['value' => $value, 'group' => 'general']);
         }
 
         // 3. Admin role holds every permission.

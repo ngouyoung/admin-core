@@ -68,6 +68,11 @@ abstract class CrudController extends Controller
         return $this->toIndex();
     }
 
+    public function show(int|string $id)
+    {
+        return $this->view('show', ['object' => $this->service->find($id)]);
+    }
+
     public function edit(int|string $id)
     {
         return $this->view('edit', ['object' => $this->service->find($id)]);

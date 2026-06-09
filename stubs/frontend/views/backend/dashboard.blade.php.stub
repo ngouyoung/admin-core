@@ -1,0 +1,47 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Dashboard')
+
+@section('breadcrumb')
+    <div class="row"><div class="col-sm-6"><h3 class="mb-0">Dashboard</h3></div></div>
+@endsection
+
+@section('contents')
+    @php
+        $stats = [
+            ['label' => 'Users', 'count' => \App\Models\User::count(), 'icon' => 'bi-people', 'bg' => 'primary', 'route' => 'admin.assessments.users.index'],
+            ['label' => 'Roles', 'count' => \App\Models\Role::count(), 'icon' => 'bi-person-badge', 'bg' => 'success', 'route' => 'admin.assessments.roles.index'],
+            ['label' => 'Permissions', 'count' => \App\Models\Permission::count(), 'icon' => 'bi-key', 'bg' => 'warning', 'route' => 'admin.assessments.permissions.index'],
+            ['label' => 'Group Permissions', 'count' => \App\Models\GroupPermission::count(), 'icon' => 'bi-diagram-3', 'bg' => 'info', 'route' => 'admin.assessments.group_permissions.index'],
+        ];
+    @endphp
+    <div class="row">
+        @foreach ($stats as $s)
+            <div class="col-lg-3 col-6">
+                <div class="small-box text-bg-{{ $s['bg'] }}">
+                    <div class="inner">
+                        <h3>{{ $s['count'] }}</h3>
+                        <p>{{ $s['label'] }}</p>
+                    </div>
+                    <div class="icon"><i class="bi {{ $s['icon'] }}"></i></div>
+                    @if (Route::has($s['route']))
+                        <a href="{{ route($s['route']) }}" class="small-box-footer">
+                            More info <i class="bi bi-arrow-right-circle"></i>
+                        </a>
+                    @endif
+                </div>
+            </div>
+        @endforeach
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">Welcome to admin-core</h5>
+            <p class="card-text mb-0">
+                Scaffold a resource with
+                <code>php artisan admin-core:make Product --migration --fields="name:string"</code> —
+                it auto-adds to the sidebar.
+            </p>
+        </div>
+    </div>
+@endsection
