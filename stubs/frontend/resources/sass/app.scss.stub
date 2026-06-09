@@ -36,6 +36,10 @@ $link-decoration:      none;
 // produce an invalid `Source Sans 3` value, falling back to serif).
 body { background: $body-bg; }
 
+// Hide leftover AdminLTE card toggles (collapse/remove "−" / "✕") — there's no
+// AdminLTE JS behind them anymore, so they're dead controls.
+[data-lte-toggle] { display: none !important; }
+
 // 5. App shell (CSS grid: sidebar | [header / main / footer]) ----------------
 .ac-shell {
     display: grid;

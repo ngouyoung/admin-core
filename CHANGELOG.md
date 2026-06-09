@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.5.6
+
+- Hide leftover AdminLTE card toggles (`data-lte-toggle` collapse "−" / remove "✕") — dead controls now
+  there's no AdminLTE JS behind them.
+- Removed the duplicate page title in the topbar (it repeated each page's own heading, e.g. "Profile"
+  twice); the topbar now just carries the sidebar toggle + actions.
+
 ## v1.5.5
 
 - Fix headings/text rendering in serif: a redundant `:root { --bs-body-font-family: #{...} }` override
