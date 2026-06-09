@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('dummyModels', function (Blueprint $table) {
             __AC_PK__
 __AC_COLUMNS__
+__AC_SORT_COLUMN__
             $table->timestamps();
 __AC_SOFT_DELETES__
         });

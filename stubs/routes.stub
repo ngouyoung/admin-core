@@ -15,4 +15,5 @@ Route::group(['prefix' => 'dummyModels', 'as' => 'dummyModels.'], function () {
             ->middleware(config('admin-core.permission.enabled') ? 'permission:delete-dummy-model' : []);
     });
 __AC_SOFT_ROUTES__
+__AC_SORT_ROUTES__
 });

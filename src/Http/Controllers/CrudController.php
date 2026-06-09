@@ -156,6 +156,14 @@ abstract class CrudController extends Controller
         return redirect()->route($this->routeName('trash'));
     }
 
+    /** Persist a drag-and-drop reorder (resources generated with --sortable). */
+    public function reorder(Request $request): JsonResponse
+    {
+        $this->service->reorder(array_filter((array) $request->input('ids', [])));
+
+        return response()->json(['code' => 200]);
+    }
+
     /** Render a list of Bootstrap-5 badges for a DataTables cell (markup lives in a Blade view). */
     protected function badges(iterable $items, string $variant = 'success'): string
     {

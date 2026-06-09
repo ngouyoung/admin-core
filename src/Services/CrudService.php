@@ -60,4 +60,12 @@ abstract class CrudService
     {
         $this->model->onlyTrashed()->findOrFail($id)->forceDelete();
     }
+
+    /** Persist a new order: each id's `sort` becomes its 1-based position. */
+    public function reorder(array $ids): void
+    {
+        foreach (array_values($ids) as $position => $id) {
+            $this->model->newQuery()->whereKey($id)->update(['sort' => $position + 1]);
+        }
+    }
 }

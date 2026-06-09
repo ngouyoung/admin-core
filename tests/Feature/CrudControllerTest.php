@@ -9,6 +9,7 @@ beforeEach(function () {
     Schema::create('widgets', function (Blueprint $table) {
         $table->id();
         $table->string('name');
+        $table->integer('sort')->default(0);
         $table->timestamps();
     });
 });
@@ -76,4 +77,18 @@ it('exports a csv', function () {
 
     $response->assertOk();
     expect($response->headers->get('content-type'))->toContain('text/csv');
+});
+
+it('reorders records by sort position', function () {
+    $a = Widget::create(['name' => 'a']);
+    $b = Widget::create(['name' => 'b']);
+    $c = Widget::create(['name' => 'c']);
+
+    $this->post('/admin/widgets/reorder', ['ids' => [$c->id, $a->id, $b->id]])
+        ->assertOk()
+        ->assertJson(['code' => 200]);
+
+    expect($c->fresh()->sort)->toBe(1);
+    expect($a->fresh()->sort)->toBe(2);
+    expect($b->fresh()->sort)->toBe(3);
 });

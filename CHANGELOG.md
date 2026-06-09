@@ -4,6 +4,8 @@ All notable changes to `ngos/admin-core` are documented here.
 
 ## Unreleased
 
+- **Drag-to-reorder** (`admin-core:make --sortable`): adds a `sort` column, a drag-and-drop list index,
+  and a `reorder` endpoint backed by `CrudService::reorder()`.
 - **Audit trail**: a `LogsActivity` trait + `ActivityLog` model (in the package) record
   create/update/delete with the actor and changed attributes. `admin-core:make --audit`
   (or `generator.audit` config) adds it to a resource; `--access` ships a read-only Activity Log

@@ -134,6 +134,17 @@ Generated index screens ship three things out of the box:
 
 These live on the base `CrudController` (`export()` / `bulkDelete()`), so they apply to every resource.
 
+### Drag-to-reorder (`--sortable`)
+
+```bash
+php artisan admin-core:make Category --sortable --migration --fields="name:string"
+```
+
+Adds a `sort` column and replaces the DataTable index with a **drag-and-drop list** (reusing the
+bundled nestable plugin). Dragging a row posts the new order to a `reorder` route, which persists each
+row's `sort` position via `CrudService::reorder()`. Best paired with the `--access` kit (which bundles
+the nestable JS).
+
 ### Audit trail (`--audit`)
 
 ```bash

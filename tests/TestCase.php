@@ -41,6 +41,7 @@ abstract class TestCase extends Orchestra
                     Route::get('show/{id}', 'show')->name('show');
                     Route::get('export', 'export')->name('export');
                     Route::post('bulkDelete', 'bulkDelete')->name('bulkDelete');
+                    Route::post('reorder', 'reorder')->name('reorder');
                 });
             });
         });

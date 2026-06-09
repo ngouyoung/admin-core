@@ -83,3 +83,9 @@ it('adds the LogsActivity trait when audited', function () {
     expect($f->modelTraits())->toContain('LogsActivity');
     expect($f->modelUses())->toContain('use Ngos\AdminCore\Concerns\LogsActivity;');
 });
+
+it('adds a sort column when sortable', function () {
+    $f = fs('name:string')->setSortable(true);
+    expect($f->isSortable())->toBeTrue();
+    expect($f->sortColumn())->toContain("\$table->integer('sort')->default(0);");
+});

@@ -30,6 +30,8 @@ class FieldSet
 
     private bool $audit = false;
 
+    private bool $sortable = false;
+
     public function __construct(?string $raw)
     {
         $this->fields = $this->parse($raw);
@@ -47,6 +49,24 @@ class FieldSet
         $this->audit = $audit;
 
         return $this;
+    }
+
+    public function setSortable(bool $sortable): self
+    {
+        $this->sortable = $sortable;
+
+        return $this;
+    }
+
+    public function isSortable(): bool
+    {
+        return $this->sortable;
+    }
+
+    /** The `$table->integer('sort')...` migration line, or empty. */
+    public function sortColumn(): string
+    {
+        return $this->sortable ? "            \$table->integer('sort')->default(0);" : '';
     }
 
     public function setTable(string $table): self

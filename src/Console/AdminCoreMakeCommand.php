@@ -16,6 +16,7 @@ class AdminCoreMakeCommand extends Command
                             {--no-uuid : Force an auto-increment key even if config enables uuid}
                             {--soft-deletes : Add soft deletes + a trash/restore screen}
                             {--audit : Log created/updated/deleted activity for this resource}
+                            {--sortable : Add a drag-and-drop ordering column (sort) + reorder list}
                             {--migration : Also generate a create migration}
                             {--force : Overwrite existing files}';
 
@@ -36,12 +37,21 @@ class AdminCoreMakeCommand extends Command
         $soft = (bool) $this->option('soft-deletes');
 
         $audit = $this->option('audit') || (bool) config('admin-core.generator.audit', false);
+        $sortable = (bool) $this->option('sortable');
 
         $fields = (new FieldSet($this->option('fields')))
             ->setTable($snakePlural)
             ->setUuid($uuid)
             ->setSoftDeletes($soft)
-            ->setAudit($audit);
+            ->setAudit($audit)
+            ->setSortable($sortable);
+
+        $sortRoutes = $sortable ? sprintf(
+            "\n    Route::post('reorder', [%sController::class, 'reorder'])->name('reorder')\n"
+            . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:edit-%s' : []);",
+            $class,
+            $kebab,
+        ) : '';
 
         // Soft-delete snippets are built with the real class/route names (NOT Dummy
         // tokens) because strtr does not re-scan replaced text.
@@ -96,6 +106,8 @@ class AdminCoreMakeCommand extends Command
             '__AC_SOFT_DELETES__' => $fields->softDeletesColumn(),
             '__AC_SOFT_ROUTES__' => $softRoutes,
             '__AC_TRASH_LINK__' => $trashLink,
+            '__AC_SORT_COLUMN__' => $fields->sortColumn(),
+            '__AC_SORT_ROUTES__' => $sortRoutes,
         ];
 
         $files = [
@@ -116,6 +128,12 @@ class AdminCoreMakeCommand extends Command
             'seeder.stub' => database_path("seeders/{$class}Seeder.php"),
             'policy.stub' => app_path("Policies/{$class}Policy.php"),
         ];
+
+        if ($sortable) {
+            // A drag-to-reorder list replaces the DataTable index.
+            $files['views/sortable-index.stub'] = resource_path("views/backend/pages/{$snakePlural}/index.blade.php");
+            unset($files['views/index.stub'], $files['views/thead.stub'], $files['views/scripts.stub']);
+        }
 
         if ($soft) {
             $files['views/trash.stub'] = resource_path("views/backend/pages/{$snakePlural}/trash.blade.php");

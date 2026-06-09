@@ -1,0 +1,83 @@
+@extends('backend.layouts.app')
+
+@section('title', 'DummyClasses')
+
+@section('breadcrumb')
+    <div class="row">
+        <div class="col-sm-6"><h3 class="mb-0">DummyClasses</h3></div>
+        <div class="col-sm-6">
+            <ol class="breadcrumb float-sm-end">
+                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
+                <li class="breadcrumb-item active">DummyClasses</li>
+            </ol>
+        </div>
+    </div>
+@endsection
+
+@section('contents')
+    @php($items = \App\Models\DummyClass::orderBy('sort')->get())
+    <div class="card">
+        <div class="card-header d-flex align-items-center">
+            @can('create-dummy-model')
+                <a href="{{ route('admin.dummyModels.create') }}" class="{{ config('class.button.create') }}">
+                    <i class="{{ config('class.icon.create') }}"></i> Add New
+                </a>
+            @endcan
+            <small class="text-muted ms-auto">Drag rows to reorder</small>
+        </div>
+        <div class="card-body">
+            <div class="dd nestable-lists" id="dummyModels_sortable">
+                <ol class="dd-list">
+                    @forelse ($items as $item)
+                        <li class="dd-item" data-id="{{ $item->id }}">
+                            <div class="dd-handle">{{ $item->name ?? $item->id }}</div>
+                            <span class="float-end mt-1">
+                                @can('edit-dummy-model')
+                                    <a href="{{ route('admin.dummyModels.edit', $item->id) }}"
+                                       class="{{ config('class.button.edit') }}"><i class="{{ config('class.icon.edit') }}"></i></a>
+                                @endcan
+                                @can('delete-dummy-model')
+                                    <button data-remote="{{ route('admin.dummyModels.ajaxDelete', $item->id) }}"
+                                            class="{{ config('class.button.delete') }}" id="delete">
+                                        <i class="{{ config('class.icon.delete') }}"></i></button>
+                                @endcan
+                            </span>
+                        </li>
+                    @empty
+                        <li class="dd-item"><div class="dd-handle text-muted">No records yet.</div></li>
+                    @endforelse
+                </ol>
+            </div>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const list = $('#dummyModels_sortable');
+            if (list.nestable) {
+                list.nestable({maxDepth: 1}).on('change', function () {
+                    const ids = list.nestable('serialize').map((i) => i.id);
+                    $.post('{{ route('admin.dummyModels.reorder') }}', {ids: ids}, function () {
+                        window.toastr && window.toastr.success('Order updated');
+                    });
+                });
+            }
+
+            $(document).on('click', '#delete', function (e) {
+                e.preventDefault();
+                const url = $(this).attr('data-remote');
+                Swal.fire({
+                    title: 'Are you sure?', text: 'You will not be able to recover this record!',
+                    icon: 'warning', showCancelButton: true,
+                    confirmButtonText: 'Yes, delete it!', cancelButtonText: 'No, keep it',
+                }).then((result) => {
+                    if (result.value) {
+                        $.ajax({type: 'DELETE', url: url, success: function () { location.reload(); }});
+                    }
+                });
+            });
+        });
+    </script>
+@endpush
