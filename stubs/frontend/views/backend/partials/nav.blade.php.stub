@@ -15,12 +15,11 @@
         </a>
 
         <div class="dropdown">
-            <a href="#" class="ac-icon-btn" style="width:auto;gap:.5rem;padding:0 .5rem" data-bs-toggle="dropdown" role="button">
+            <a href="#" class="ac-user-btn" data-bs-toggle="dropdown" role="button">
                 <img src="{{ auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : $avatarFallback }}"
-                     onerror="this.onerror=null;this.src='{{ $avatarFallback }}'"
-                     class="rounded-circle" width="30" height="30" style="object-fit:cover" alt="avatar">
-                <span class="d-none d-sm-inline text-capitalize fw-medium">{{ auth()->user()->name }}</span>
-                <i class="bi bi-chevron-down" style="font-size:.75rem"></i>
+                     onerror="this.onerror=null;this.src='{{ $avatarFallback }}'" alt="avatar">
+                <span class="ac-user-btn-name d-none d-sm-inline">{{ auth()->user()->name }}</span>
+                <i class="bi bi-chevron-down ac-user-btn-caret"></i>
             </a>
             <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="border-radius:1rem">
                 <h6 class="dropdown-header text-capitalize">{{ auth()->user()->name }}</h6>

@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.5.4
+
+- Fix the topbar user dropdown: it reused the single-icon `.ac-icon-btn` (a centered CSS grid), so the
+  avatar, name and caret stacked vertically and oversized. Added a dedicated `.ac-user-btn` flex style so
+  they sit in a proper inline row.
+
 ## v1.5.3
 
 - Avatars now fall back to a self-contained inline SVG placeholder (no network/file needed) when the

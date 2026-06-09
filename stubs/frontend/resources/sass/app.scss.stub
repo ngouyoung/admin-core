@@ -146,6 +146,15 @@ body.ac-sidebar-collapsed {
     display: grid; place-items: center; text-decoration: none;
     &:hover { background: rgba($primary, .1); color: $primary; }
 }
+.ac-user-btn {
+    display: flex; align-items: center; gap: .5rem;
+    padding: .25rem .55rem; height: 40px; border-radius: .6rem;
+    border: 0; background: transparent; color: #344054; text-decoration: none;
+    img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
+    .ac-user-btn-name { font-weight: 500; text-transform: capitalize; }
+    .ac-user-btn-caret { font-size: .7rem; opacity: .6; }
+    &:hover { background: rgba($primary, .1); color: $primary; }
+}
 
 // 8. Main content ------------------------------------------------------------
 .ac-main { padding: 1.5rem; }
