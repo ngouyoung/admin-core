@@ -47,14 +47,20 @@
             </ul>
         </li>
 
-        @canany(['manage-settings', 'list-activity'])
+        @php($hasSettings = Route::has('admin.settings.index'))
+        @php($hasActivity = Route::has('admin.activity-logs.index'))
+        @if ($hasSettings || $hasActivity)
             <li class="ac-nav-header">System</li>
-            @can('manage-settings')
-                <li class="ac-nav-item"><a href="{{ route('admin.settings.index') }}" class="ac-nav-link {{ request()->is('admin/settings*') ? 'active' : '' }}"><i class="bi bi-gear"></i><span>Settings</span></a></li>
-            @endcan
-            @can('list-activity')
-                <li class="ac-nav-item"><a href="{{ route('admin.activity-logs.index') }}" class="ac-nav-link {{ request()->is('admin/activity-logs*') ? 'active' : '' }}"><i class="bi bi-clock-history"></i><span>Activity Log</span></a></li>
-            @endcan
-        @endcanany
+            @if ($hasSettings)
+                @can('manage-settings')
+                    <li class="ac-nav-item"><a href="{{ route('admin.settings.index') }}" class="ac-nav-link {{ request()->is('admin/settings*') ? 'active' : '' }}"><i class="bi bi-gear"></i><span>Settings</span></a></li>
+                @endcan
+            @endif
+            @if ($hasActivity)
+                @can('list-activity')
+                    <li class="ac-nav-item"><a href="{{ route('admin.activity-logs.index') }}" class="ac-nav-link {{ request()->is('admin/activity-logs*') ? 'active' : '' }}"><i class="bi bi-clock-history"></i><span>Activity Log</span></a></li>
+                @endcan
+            @endif
+        @endif
     </ul>
 </aside>

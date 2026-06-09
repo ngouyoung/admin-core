@@ -2,6 +2,11 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.5.1
+
+- Sidebar guards the Settings / Activity Log links with Route::has, so the themed sidebar no longer
+  errors on installs that omit those optional modules (or with an isAdmin gate bypass).
+
 ## v1.5.0
 
 - **Custom admin theme (replaces the AdminLTE dependency).** The `--access` front-end is now a bespoke
