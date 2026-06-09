@@ -199,6 +199,19 @@ class ProductController extends \Ngos\AdminCore\Http\Controllers\CrudController 
 class ProductService    extends \Ngos\AdminCore\Services\CrudService          { /* $model */ }
 ```
 
+## Testing
+
+The package ships a Pest + Orchestra Testbench suite:
+
+```bash
+composer install
+composer test
+```
+
+It covers the `FieldSet` generator (every field type, UUID, soft-deletes, uploads, m2m, factory),
+the `Route::crud` macro (registration + permission gating), and the `CrudController` flow
+(store/validate/update/delete/getData/bulk-delete/export) against an in-memory SQLite database.
+
 ## License
 
 MIT

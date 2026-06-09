@@ -21,6 +21,14 @@
             "Ngos\\AdminCore\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Ngos\\AdminCore\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest"
+    },
     "extra": {
         "laravel": {
             "providers": [
@@ -28,6 +36,16 @@
             ]
         }
     },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "require-dev": {
+        "orchestra/testbench": "*",
+        "pestphp/pest": "*",
+        "pestphp/pest-plugin-laravel": "*"
+    }
 }
