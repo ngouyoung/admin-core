@@ -3,6 +3,7 @@
 namespace Ngos\AdminCore\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -216,7 +217,7 @@ class AdminCoreMakeCommand extends Command
             $this->line('  <info>created</info> ' . $this->relative($target));
         }
 
-        $this->createPermissions($kebab);
+        $this->createPermissions($kebab, $plural);
         $this->registerSidebarLink($plural, $snakePlural);
 
         $this->newLine();
@@ -275,7 +276,7 @@ class AdminCoreMakeCommand extends Command
         return File::isDirectory($published) ? $published : __DIR__ . '/../../stubs';
     }
 
-    private function createPermissions(string $kebab): void
+    private function createPermissions(string $kebab, string $plural): void
     {
         if (! config('admin-core.permission.enabled') || ! Schema::hasTable('permissions')) {
             return;
@@ -286,6 +287,26 @@ class AdminCoreMakeCommand extends Command
 
         foreach ($names as $name) {
             $model::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+        }
+
+        // File the permissions under a "{Plural} Management" group so the Role-edit
+        // permission tree stays organised (only when the group-permission feature exists).
+        $grouped = '';
+        if (Schema::hasTable('group_permissions') && Schema::hasColumn('permissions', 'group_id')) {
+            $groupName = Str::headline($plural) . ' Management';
+            $groupId = DB::table('group_permissions')->where('name', $groupName)->value('id');
+            if (! $groupId) {
+                $parentId = DB::table('group_permissions')->where('name', 'All')->value('id');
+                $groupId = DB::table('group_permissions')->insertGetId([
+                    'name' => $groupName,
+                    'parent_id' => $parentId,
+                    'sort' => (int) DB::table('group_permissions')->where('parent_id', $parentId)->max('sort') + 1,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+            DB::table('permissions')->whereIn('name', $names)->update(['group_id' => $groupId]);
+            $grouped = " under '{$groupName}'";
         }
 
         // Grant the new permissions to the super role so the resource works right
@@ -302,7 +323,7 @@ class AdminCoreMakeCommand extends Command
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        $this->line("  <info>permissions</info> list/create/edit/delete-{$kebab}{$granted}");
+        $this->line("  <info>permissions</info> list/create/edit/delete-{$kebab}{$grouped}{$granted}");
     }
 
     private function relative(string $path): string

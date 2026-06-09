@@ -2,6 +2,10 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.1.8
+
+- admin-core:make now files each resource's permissions under an auto-created "{Plural} Management" group permission, so the Role-edit permission tree stays organised (only when the group-permission feature is installed).
+
 ## v1.1.7
 
 - `admin-core:make` now grants the new resource's permissions to the `admin` role automatically (config `permission.super_role`), so you no longer re-run AccessSeeder after every generate.
