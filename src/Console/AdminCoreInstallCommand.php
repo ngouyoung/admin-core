@@ -149,11 +149,11 @@ PHP;
     {
         $fe = __DIR__ . '/../../stubs/frontend';
 
-        // JS / SCSS / CSS sources (overwrite the framework defaults — the kit owns them).
+        // JS / SCSS sources. admin-core's app.js overwrites the framework default;
+        // the host's own vite.config builds it (and keeps Laravel's app.css/Tailwind
+        // welcome page working), so we deliberately do NOT touch vite.config.js.
         $this->copyTree("$fe/resources", resource_path(), force: true);
 
-        // Vite config (overwrite) + merge npm deps into the host package.json.
-        $this->copy("$fe/vite.config.js.stub", base_path('vite.config.js'), force: true);
         $this->mergePackageJson("$fe/package.json.stub");
 
         // AdminLTE layout + nav/sidebar/footer + login.

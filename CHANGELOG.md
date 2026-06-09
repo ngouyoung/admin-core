@@ -2,6 +2,10 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.1.1
+
+- Fix: `admin-core:install --access` no longer overwrites the host `vite.config.js`, which had dropped `resources/css/app.css` and broke Laravel's default Tailwind welcome page ("Unable to locate file in Vite manifest"). The host config builds admin-core's `app.js` as-is.
+
 ## Unreleased
 
 - **Drag-to-reorder** (`admin-core:make --sortable`): adds a `sort` column, a drag-and-drop list index,
