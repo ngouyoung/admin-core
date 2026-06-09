@@ -50,3 +50,13 @@ table thead th {
 .dtr-details {
     width: 100% !important;
 }
+
+// ---------------------------------------------------------------------------
+// Typography (Source Sans 3 — AdminLTE's font)
+// ---------------------------------------------------------------------------
+:root {
+    --bs-body-font-family: 'Source Sans 3', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+body {
+    font-family: var(--bs-body-font-family);
+}

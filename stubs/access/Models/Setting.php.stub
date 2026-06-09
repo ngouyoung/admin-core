@@ -11,13 +11,13 @@ class Setting extends Model
 
     public static function get(string $key, $default = null)
     {
-        return static::cached()->get($key, $default);
+        return static::cached()[$key] ?? $default;
     }
 
-    /** Key => value map of every setting (cached). */
-    public static function cached()
+    /** Key => value map of every setting (cached as a plain array). */
+    public static function cached(): array
     {
-        return Cache::rememberForever('admin-core.settings', fn () => static::query()->pluck('value', 'key'));
+        return Cache::rememberForever('admin-core.settings', fn () => static::query()->pluck('value', 'key')->all());
     }
 
     public static function set(string $key, $value): void

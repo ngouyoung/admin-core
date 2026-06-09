@@ -9,6 +9,8 @@ class AdminCoreInstallCommand extends Command
 {
     protected $signature = 'admin-core:install
                             {--access : Also scaffold the full AdminLTE 4 (Vite) front-end + auth + Users/Roles/Permissions/Group-Permissions}
+                            {--build : Run npm install && npm run build after publishing}
+                            {--seed : Run migrate + seed the admin user after publishing}
                             {--force : Overwrite files that already exist}';
 
     protected $description = 'Scaffold the host-side glue admin-core needs. Pass --access for the full AdminLTE 4 front-end + login + access-management module.';
@@ -44,9 +46,42 @@ class AdminCoreInstallCommand extends Command
 
         $this->newLine();
         $this->info('admin-core installed.');
+
+        if ($access) {
+            $this->buildAndSeed();
+        }
+
         $this->nextSteps();
 
         return self::SUCCESS;
+    }
+
+    /** Offer (or, with --build/--seed, force) the remaining one-time setup. */
+    private function buildAndSeed(): void
+    {
+        $interactive = $this->input->isInteractive();
+
+        if ($this->option('build') || ($interactive && $this->confirm('Build the front-end now? (npm install && npm run build)', true))) {
+            $this->runShell('npm install', 'Installing npm packages');
+            $this->runShell('npm run build', 'Building front-end assets');
+        }
+
+        if ($this->option('seed') || ($interactive && $this->confirm('Migrate the database and create an admin user?', true))) {
+            $this->call('migrate', ['--force' => true]);
+            if (File::exists(database_path('seeders/AccessSeeder.php'))) {
+                $this->call('db:seed', ['--class' => 'Database\\Seeders\\AccessSeeder', '--force' => true]);
+            }
+        }
+    }
+
+    private function runShell(string $command, string $label): void
+    {
+        $this->line("  <info>{$label}…</info>");
+        $result = \Illuminate\Support\Facades\Process::path(base_path())->timeout(900)->run($command);
+
+        $result->successful()
+            ? $this->line("  <info>done</info> {$command}")
+            : $this->warn("  '{$command}' failed — run it manually. " . trim($result->errorOutput()));
     }
 
     private function publishConfigs(): void
@@ -293,11 +328,10 @@ PHP;
         $this->line('<options=bold>Next steps:</>');
 
         if ($this->option('access')) {
-            $this->line('  1. Build the front-end:  <info>npm install && npm run build</info>');
-            $this->line('  2. Migrate:              <info>php artisan migrate</info>');
-            $this->line('  3. Seed an admin:        <info>php artisan db:seed --class=Database\\Seeders\\AccessSeeder</info>');
-            $this->line('  4. Log in at <info>/login</info> with <info>admin@example.com / password</info>.');
-            $this->line('  5. Scaffold more:        <info>php artisan admin-core:make Product --migration</info> (re-run the seeder to grant admin the new permissions).');
+            $this->line('  Log in at <info>/login</info> with <info>admin@example.com / password</info>.');
+            $this->line('  If you skipped the prompts, run: <info>npm install && npm run build</info> then');
+            $this->line('     <info>php artisan migrate && php artisan db:seed --class=Database\\Seeders\\AccessSeeder</info>');
+            $this->line('  Scaffold resources: <info>php artisan admin-core:make Product --migration --fields="name:string"</info>');
         } else {
             $this->line('  1. Spatie tables:        <info>php artisan vendor:publish --provider="Spatie\\Permission\\PermissionServiceProvider" && php artisan migrate</info>');
             $this->line('  2. Scaffold a resource:  <info>php artisan admin-core:make Product --migration && php artisan migrate</info>');

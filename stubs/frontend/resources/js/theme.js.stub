@@ -38,3 +38,25 @@ if ($.fn.dataTable) {
         order: [[0, 'asc']],
     });
 }
+
+// ---------------------------------------------------------------------------
+// Dark / light theme toggle (persisted in localStorage)
+// ---------------------------------------------------------------------------
+(function () {
+    const KEY = 'admin-core-theme';
+    const apply = (theme) => {
+        document.documentElement.setAttribute('data-bs-theme', theme);
+        const icon = document.querySelector('#theme-toggle i');
+        if (icon) icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars';
+    };
+    const stored = localStorage.getItem(KEY);
+    if (stored) apply(stored);
+
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('#theme-toggle')) return;
+        e.preventDefault();
+        const next = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+        localStorage.setItem(KEY, next);
+        apply(next);
+    });
+})();

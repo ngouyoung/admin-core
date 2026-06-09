@@ -13,6 +13,9 @@ import 'datatables.net-bs5/css/dataTables.bootstrap5.css';
 import 'datatables.net-responsive-bs5/css/responsive.bootstrap5.css';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import 'croppie/croppie.css';
+import '@fontsource/source-sans-3/400.css';
+import '@fontsource/source-sans-3/600.css';
+import '@fontsource/source-sans-3/700.css';
 
 // Custom styles (overrides last)
 import '../sass/app.scss';
@@ -39,6 +42,8 @@ import select2 from 'select2';
 select2(window, window.jQuery); // select2's UMD export is a factory that must be invoked
 import './jquery.nestable';
 import 'croppie';
+import ApexCharts from 'apexcharts';
+window.ApexCharts = ApexCharts;
 
 // App behaviour
 import './checktree';
