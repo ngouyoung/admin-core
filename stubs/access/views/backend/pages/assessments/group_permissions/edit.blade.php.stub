@@ -8,7 +8,7 @@
 @endsection
 @section('contents')
     <div class="card"><div class="card-body">
-        <form method="POST" action="{{ route('admin.assessments.group_permissions.update', $object->id) }}">
+        <form method="POST" action="{{ route('admin.assessments.group_permissions.update', $object->getRouteKey()) }}">
             @csrf @method('PUT')
             @include('backend.pages.assessments.group_permissions.partials.form')
             <button type="submit" class="{{ config('class.button.update') }}">Update</button>

@@ -10,13 +10,13 @@
             </td>
             <td style="padding: 5px">
                 @can('edit-group-permission')
-                    <a href="{{ route('admin.assessments.group_permissions.edit', $item->id) }}"
+                    <a href="{{ route('admin.assessments.group_permissions.edit', $item->getRouteKey()) }}"
                        class="{{ config('class.button.edit') }}" data-bs-toggle="tooltip" title="Edit Record">
                         <i class="{{ config('class.icon.edit') }}"></i>
                     </a>
                 @endcan
                 @can('delete-group-permission')
-                    <button data-remote="{{ route('admin.assessments.group_permissions.ajaxDelete', $item->id) }}"
+                    <button data-remote="{{ route('admin.assessments.group_permissions.ajaxDelete', $item->getRouteKey()) }}"
                             class="{{ config('class.button.delete') }}" data-bs-toggle="tooltip" title="Delete Record" id="delete">
                         <i class="{{ config('class.icon.delete') }}"></i>
                     </button>

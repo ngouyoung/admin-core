@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.5.8
+
+- `--access` views (group-permission table + edit/update forms for users/roles/group-permissions) now
+  build their edit/delete/update URLs from the model's **route key** (`getRouteKey()`), not the raw `id`.
+  With the hybrid key strategy those routes resolve by `uuid`, so the integer-id URLs were 500-ing
+  ("invalid input syntax for type uuid").
+
 ## v1.5.7
 
 - DataTable row actions (edit/delete/view) now sit in a flex row instead of stacking vertically in a narrow Actions column.
