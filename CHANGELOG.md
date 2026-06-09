@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.5.2
+
+- The reference `vite.config.js` now sets `css.preprocessorOptions.scss.quietDeps` (+ `silenceDeprecations`)
+  so building the theme is clean — Bootstrap 5.3 still uses the old `@import` / `mix()` Sass APIs that
+  Dart Sass warns about. Add the same `css` block to your existing `vite.config.js` to silence the noise.
+
 ## v1.5.1
 
 - Sidebar guards the Settings / Activity Log links with Route::has, so the themed sidebar no longer

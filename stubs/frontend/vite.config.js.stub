@@ -10,4 +10,14 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    css: {
+        preprocessorOptions: {
+            scss: {
+                // Bootstrap 5.3 still uses the old @import / mix()/red() Sass APIs;
+                // silence those (and our own @import of Bootstrap) so the build is clean.
+                quietDeps: true,
+                silenceDeprecations: ['import', 'global-builtin', 'color-functions', 'if-function'],
+            },
+        },
+    },
 });
