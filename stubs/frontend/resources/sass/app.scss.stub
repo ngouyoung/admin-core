@@ -30,9 +30,11 @@ $link-decoration:      none;
     --ac-header-h: 64px;
     --ac-sidebar-grad: linear-gradient(180deg, #4f46e5 0%, #6d28d9 55%, #7c3aed 100%);
     --ac-radius-card: #{$border-radius-xl};
-    --bs-body-font-family: #{$font-family-sans-serif};
 }
-body { font-family: var(--bs-body-font-family); background: $body-bg; }
+// Bootstrap already sets --bs-body-font-family from the (quoted) $font-family-sans-serif
+// override above — don't re-declare it here (interpolation would strip the quotes and
+// produce an invalid `Source Sans 3` value, falling back to serif).
+body { background: $body-bg; }
 
 // 5. App shell (CSS grid: sidebar | [header / main / footer]) ----------------
 .ac-shell {

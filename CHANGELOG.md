@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.5.5
+
+- Fix headings/text rendering in serif: a redundant `:root { --bs-body-font-family: #{...} }` override
+  ran the font stack through Sass interpolation, which stripped the quotes off `'Source Sans 3'` and
+  produced an invalid unquoted value. Removed it — Bootstrap already sets the (quoted) family from the
+  `$font-family-sans-serif` override, so the theme renders in Source Sans 3 as intended.
+
 ## v1.5.4
 
 - Fix the topbar user dropdown: it reused the single-icon `.ac-icon-btn` (a centered CSS grid), so the
