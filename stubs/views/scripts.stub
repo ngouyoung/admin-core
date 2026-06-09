@@ -2,20 +2,9 @@
     document.addEventListener("DOMContentLoaded", function () {
         const Table = $('#dummyModels_table').DataTable({
             ajax: {url: '{{ route('admin.dummyModels.getData') }}', type: 'GET'},
-            orderCellsTop: true,
             columns: [
 __AC_COLS__
             ],
-        });
-
-        // Per-column search (footer inputs).
-        Table.columns().every(function () {
-            const column = this;
-            $('input.column-search', this.footer()).on('keyup change clear', function () {
-                if (column.search() !== this.value) {
-                    column.search(this.value).draw();
-                }
-            });
         });
 
         // Select-all + bulk selection.

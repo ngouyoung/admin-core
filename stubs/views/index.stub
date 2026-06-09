@@ -36,11 +36,6 @@
                 <thead>
                 @include('backend.pages.dummyModels.partials.thead')
                 </thead>
-                <tfoot>
-                <tr>
-__AC_TFOOT__
-                </tr>
-                </tfoot>
             </table>
 __AC_SORT_PANEL__
         </div>
