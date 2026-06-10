@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.8.0
+
+- **Page-header component** `<x-admin-core::page-header>`: a reusable header with an auto
+  "Dashboard › Title" breadcrumb, bold title, muted description and a right-aligned `actions` slot
+  (for the primary "Add" button). Replaces the old `@section('breadcrumb')` row across the generated
+  `index` and every `--access` list page; the dead AdminLTE card `−`/`✕` tools are gone with it.
+- **Table toolbar**: every DataTable now ships a **Columns** (show/hide) button via the DataTables
+  Buttons `colvis` plugin, with search top-right and info + rows-per-page + paging on the bottom row —
+  configured once in the global DataTables defaults, no per-page wiring. (Adds `datatables.net-buttons`
+  + `datatables.net-buttons-bs5`.) The server-side CSV **Export** button stays in the card toolbar.
+- **Sidebar count badges**: a `.ac-nav-badge` pill for nav items
+  (`<span class="ac-nav-badge">{{ \App\Models\User::count() }}</span>`), accent-tinted when active.
+
 ## v1.7.0
 
 - **Customize drawer.** A client-side personalization panel (palette icon in the topbar) with six

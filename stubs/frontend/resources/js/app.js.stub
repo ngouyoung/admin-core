@@ -9,6 +9,7 @@ import 'bootstrap-icons/font/bootstrap-icons.css';
 import 'select2/dist/css/select2.css';
 import 'select2-bootstrap-5-theme/dist/select2-bootstrap-5-theme.css';
 import 'datatables.net-bs5/css/dataTables.bootstrap5.css';
+import 'datatables.net-buttons-bs5/css/buttons.bootstrap5.css';
 import 'datatables.net-responsive-bs5/css/responsive.bootstrap5.css';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import 'croppie/croppie.css';
@@ -35,6 +36,8 @@ window.Swal = Swal;
 
 // jQuery plugins
 import 'datatables.net-bs5';
+import 'datatables.net-buttons-bs5';
+import 'datatables.net-buttons/js/buttons.colVis.js';
 import 'datatables.net-responsive-bs5';
 import select2 from 'select2';
 select2(window, window.jQuery); // select2's UMD export is a factory that must be invoked

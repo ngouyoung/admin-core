@@ -2,27 +2,18 @@
 
 @section('title', 'Group Permissions')
 
-@section('breadcrumb')
-    <div class="row">
-        <div class="col-sm-6"><h3 class="mb-0">Group Permissions</h3></div>
-        <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-end">
-                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">Home</a></li>
-                <li class="breadcrumb-item active">Group Permissions</li>
-            </ol>
-        </div>
-    </div>
-@endsection
-
 @section('contents')
-    <div class="card">
-        @can('create-group-permission')
-            <div class="card-header">
+    <x-admin-core::page-header title="Group Permissions" description="Organize permissions into a nestable tree.">
+        <x-slot:actions>
+            @can('create-group-permission')
                 <a href="{{ route('admin.assessments.group_permissions.create') }}" class="{{ config('class.button.create') }}">
                     <i class="{{ config('class.icon.create') }}"></i> Add New
                 </a>
-            </div>
-        @endcan
+            @endcan
+        </x-slot:actions>
+    </x-admin-core::page-header>
+
+    <div class="card">
         <div class="card-body">
             <div class="row">
                 @if(isset($array) && $array->count() > 0)

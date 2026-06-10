@@ -209,7 +209,36 @@ body.ac-sidebar-collapsed {
 
 // 8. Main content ------------------------------------------------------------
 .ac-main { padding: calc(1.5rem * var(--ac-density)); }
-.ac-page-title { font-weight: 700; font-size: 1.4rem; margin: 0; }
+.ac-page-title { font-weight: 700; font-size: 1.45rem; margin: 0; color: var(--ac-heading); }
+
+// Page header (breadcrumb + title + description + actions)
+.ac-page-header { margin-bottom: 1.25rem; }
+.ac-breadcrumb {
+    display: flex; align-items: center; gap: .45rem; flex-wrap: wrap;
+    font-size: .85rem; color: var(--ac-muted); margin-bottom: .4rem;
+    a { color: var(--ac-muted); text-decoration: none; &:hover { color: var(--ac-heading); } }
+    i { font-size: .7rem; opacity: .7; }
+    .current { color: var(--ac-heading); font-weight: 500; }
+}
+.ac-page-header-row {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 1rem; flex-wrap: wrap;
+}
+.ac-page-desc { margin: .2rem 0 0; color: var(--ac-muted); font-size: .92rem; }
+.ac-page-actions { display: flex; align-items: center; gap: .5rem; flex-shrink: 0; }
+
+// Sidebar nav count badge ("Orders  12")
+.ac-nav-badge {
+    margin-inline-start: auto;
+    min-width: 1.4rem; padding: 0 .45rem; height: 1.4rem;
+    display: inline-grid; place-items: center;
+    font-size: .72rem; font-weight: 600; line-height: 1;
+    color: var(--ac-muted); background: var(--ac-hover);
+    border-radius: 1rem;
+}
+.ac-nav-link.active .ac-nav-badge { color: var(--ac-accent); background: color-mix(in srgb, var(--ac-accent) 16%, transparent); }
+// When a link has both a badge and a caret, the caret shouldn't also push to the end.
+.ac-nav-link .ac-nav-badge + .ac-nav-caret { margin-inline-start: .5rem; }
 .ac-footer {
     padding: 1rem 1.5rem; color: var(--ac-muted); font-size: .85rem;
     border-top: 1px solid var(--ac-border);

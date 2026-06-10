@@ -34,6 +34,7 @@
                 <i class="bi bi-chevron-right ac-nav-caret"></i>
             </a>
             <ul class="ac-treeview">
+                {{-- Add a count badge to any nav link: <span class="ac-nav-badge">{{ \App\Models\User::count() }}</span> --}}
                 @can('list-user')
                     <li class="ac-nav-item"><a href="{{ route('admin.assessments.users.index') }}" class="ac-nav-link {{ request()->is('admin/assessments/users*') ? 'active' : '' }}"><i class="bi bi-person"></i><span>Users</span></a></li>
                 @endcan

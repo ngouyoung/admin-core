@@ -36,6 +36,20 @@ if ($.fn.dataTable) {
         responsive: true,
         autoWidth: true,
         order: [[0, 'asc']],
+        // Clean toolbar: a "Columns" (show/hide) button + search on top, info +
+        // rows-per-page + paging on the bottom (matches the page-header style).
+        layout: {
+            topStart: {
+                buttons: [{
+                    extend: 'colvis',
+                    text: '<i class="bi bi-layout-three-columns me-1"></i>Columns',
+                    className: 'btn btn-sm btn-outline-secondary',
+                }],
+            },
+            topEnd: 'search',
+            bottomStart: 'info',
+            bottomEnd: ['pageLength', 'paging'],
+        },
     });
 }
 
