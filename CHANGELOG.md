@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.8.2
+
+- **Fix:** the "Columns" toolbar button rendered as a solid grey block. The DataTables Buttons BS5
+  integration forces a `btn-secondary` class on every button, on top of our `btn-outline-secondary`.
+  Cleared the Buttons default `dom.button.className` so our styling applies — it's a clean outline button now.
+
 ## v1.8.1
 
 - **Fix:** the page-header printed a stray "1" above the title. The `breadcrumb` prop defaults to `true`,

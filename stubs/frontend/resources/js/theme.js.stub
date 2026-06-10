@@ -25,6 +25,12 @@ $(function () {
 
 // Global DataTables defaults (Bootstrap 5 styling).
 if ($.fn.dataTable) {
+    // The Buttons BS5 integration forces `btn-secondary` (solid grey) onto every
+    // button; clear that so our per-button className styles it (clean outline).
+    if ($.fn.dataTable.Buttons) {
+        $.fn.dataTable.Buttons.defaults.dom.button.className = 'btn btn-sm';
+    }
+
     $.extend(true, $.fn.dataTable.defaults, {
         pageLength: 10,
         lengthMenu: [
