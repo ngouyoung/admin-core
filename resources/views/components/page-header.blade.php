@@ -5,21 +5,16 @@
                <a href="..." class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Add User</a>
            </x-slot:actions>
        </x-admin-core::page-header>
-     Pass :breadcrumb="false" to hide the auto "Dashboard › Title" trail, or a
-     <x-slot:breadcrumb> to supply your own. --}}
+     Pass :breadcrumb="false" to hide the auto "Dashboard › Title" trail. --}}
 @props(['title', 'description' => null, 'breadcrumb' => true])
 <div class="ac-page-header">
-    @if ($breadcrumb !== false)
+    @if ($breadcrumb)
         <nav class="ac-breadcrumb" aria-label="Breadcrumb">
-            @isset($breadcrumb)
-                {{ $breadcrumb }}
-            @else
-                @if (Route::has('admin.dashboard'))
-                    <a href="{{ route('admin.dashboard') }}">Dashboard</a>
-                    <i class="bi bi-chevron-right"></i>
-                @endif
-                <span class="current">{{ $title }}</span>
-            @endisset
+            @if (Route::has('admin.dashboard'))
+                <a href="{{ route('admin.dashboard') }}">Dashboard</a>
+                <i class="bi bi-chevron-right"></i>
+            @endif
+            <span class="current">{{ $title }}</span>
         </nav>
     @endif
     <div class="ac-page-header-row">

@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.8.1
+
+- **Fix:** the page-header printed a stray "1" above the title. The `breadcrumb` prop defaults to `true`,
+  so the `@isset` check was always satisfied and Blade echoed the boolean (`true` → "1"). Simplified to a
+  plain `@if ($breadcrumb)` toggle that renders the auto "Dashboard › Title" trail.
+
 ## v1.8.0
 
 - **Page-header component** `<x-admin-core::page-header>`: a reusable header with an auto
