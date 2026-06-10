@@ -8,6 +8,9 @@
         <a href="#" class="ac-icon-btn" id="theme-toggle" title="Toggle theme" role="button">
             <i class="bi bi-moon-stars"></i>
         </a>
+        <a href="#" class="ac-icon-btn" data-ac-toggle="customize" title="Customize" role="button">
+            <i class="bi bi-palette"></i>
+        </a>
         <a href="#" class="ac-icon-btn d-none d-sm-grid" data-ac-toggle="fullscreen" title="Fullscreen" role="button">
             <i class="bi bi-arrows-fullscreen"></i>
         </a>

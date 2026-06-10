@@ -1,19 +1,27 @@
-{{-- Standard view/edit/delete action buttons for a DataTables row.
+{{-- Row actions as a kebab (⋯) dropdown: View / Edit / Delete.
      Vars: $model, $base (route-name base e.g. 'admin.assessments.users.'), $resource (e.g. 'user').
-     The View button appears only when the resource registered a `show` route. --}}
-<div class="d-flex gap-1 flex-nowrap justify-content-center">
-    @if (Route::has($base . 'show'))
-        @can('list-' . $resource)
-            <a href="{{ route($base . 'show', $model->getRouteKey()) }}" class="btn btn-sm btn-info"
-               data-bs-toggle="tooltip" title="View Record"><i class="fas fa-eye"></i></a>
+     The View item appears only when the resource registered a `show` route.
+     Delete keeps id="delete" + data-remote so the existing SweetAlert handler still binds. --}}
+<div class="dropdown ac-row-actions">
+    <button class="ac-kebab" type="button" data-bs-toggle="dropdown" data-bs-display="static"
+            aria-expanded="false" aria-label="Actions">
+        <i class="bi bi-three-dots"></i>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end ac-actions-menu">
+        @if (Route::has($base . 'show'))
+            @can('list-' . $resource)
+                <li><a class="dropdown-item" href="{{ route($base . 'show', $model->getRouteKey()) }}">
+                    <i class="bi bi-eye"></i> View</a></li>
+            @endcan
+        @endif
+        @can('edit-' . $resource)
+            <li><a class="dropdown-item" href="{{ route($base . 'edit', $model->getRouteKey()) }}">
+                <i class="bi bi-pencil"></i> Edit</a></li>
         @endcan
-    @endif
-    @can('edit-' . $resource)
-        <a href="{{ route($base . 'edit', $model->getRouteKey()) }}" class="{{ config('class.button.edit') }}"
-           data-bs-toggle="tooltip" title="Edit Record"><i class="{{ config('class.icon.edit') }}"></i></a>
-    @endcan
-    @can('delete-' . $resource)
-        <button data-remote="{{ route($base . 'ajaxDelete', $model->getRouteKey()) }}" class="{{ config('class.button.delete') }}"
-                data-bs-toggle="tooltip" title="Delete Record" id="delete"><i class="{{ config('class.icon.delete') }}"></i></button>
-    @endcan
+        @can('delete-' . $resource)
+            <li><button type="button" class="dropdown-item text-danger" id="delete"
+                        data-remote="{{ route($base . 'ajaxDelete', $model->getRouteKey()) }}">
+                <i class="bi bi-trash"></i> Delete</button></li>
+        @endcan
+    </ul>
 </div>

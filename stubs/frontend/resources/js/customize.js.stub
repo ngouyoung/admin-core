@@ -1,0 +1,88 @@
+// ---------------------------------------------------------------------------
+// Customize drawer — theme / accent / density / layout / container / direction.
+// One JSON blob in localStorage drives data-* attributes on <html>; the SCSS
+// reads those. A tiny inline script in the layout <head> applies the saved
+// state before paint (no flash) — this module re-applies it and wires the UI.
+// ---------------------------------------------------------------------------
+(function () {
+    const KEY = 'ac-customize';
+    const DEFAULTS = {
+        theme: 'light',
+        accent: 'neutral',
+        density: 'comfortable',
+        layout: 'sidebar',
+        container: 'fluid',
+        direction: 'ltr',
+    };
+    const el = document.documentElement;
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+
+    const read = () => {
+        try { return Object.assign({}, DEFAULTS, JSON.parse(localStorage.getItem(KEY) || '{}')); }
+        catch (e) { return Object.assign({}, DEFAULTS); }
+    };
+    let state = read();
+
+    const applyTheme = (theme) => {
+        const resolved = theme === 'system' ? (prefersDark.matches ? 'dark' : 'light') : theme;
+        el.setAttribute('data-bs-theme', resolved);
+        const icon = document.querySelector('#theme-toggle i');
+        if (icon) icon.className = resolved === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars';
+    };
+
+    const syncButtons = (s) => {
+        document.querySelectorAll('[data-ac-set]').forEach((b) => {
+            b.classList.toggle('is-active', s[b.getAttribute('data-ac-set')] === b.getAttribute('data-ac-value'));
+        });
+    };
+
+    const apply = (s) => {
+        applyTheme(s.theme);
+        el.setAttribute('data-ac-accent', s.accent);
+        el.setAttribute('data-ac-density', s.density);
+        el.setAttribute('data-ac-layout', s.layout);
+        el.setAttribute('data-ac-container', s.container);
+        el.setAttribute('dir', s.direction);
+        syncButtons(s);
+    };
+
+    const save = () => localStorage.setItem(KEY, JSON.stringify(state));
+
+    // Follow the OS when in "system" mode.
+    const onSchemeChange = () => { if (state.theme === 'system') applyTheme('system'); };
+    prefersDark.addEventListener ? prefersDark.addEventListener('change', onSchemeChange)
+                                 : prefersDark.addListener(onSchemeChange);
+
+    document.addEventListener('DOMContentLoaded', () => apply(state));
+
+    document.addEventListener('click', (e) => {
+        const opt = e.target.closest('[data-ac-set]');
+        if (opt) {
+            e.preventDefault();
+            state[opt.getAttribute('data-ac-set')] = opt.getAttribute('data-ac-value');
+            save(); apply(state);
+            return;
+        }
+        if (e.target.closest('[data-ac-toggle="customize"]')) {
+            e.preventDefault(); document.body.classList.toggle('ac-customize-open'); return;
+        }
+        if (e.target.closest('[data-ac-customize-close]')) {
+            e.preventDefault(); document.body.classList.remove('ac-customize-open'); return;
+        }
+        if (e.target.closest('[data-ac-customize-reset]')) {
+            e.preventDefault(); state = Object.assign({}, DEFAULTS); save(); apply(state); return;
+        }
+        // Quick light/dark toggle from the topbar moon/sun button.
+        if (e.target.closest('#theme-toggle')) {
+            e.preventDefault();
+            state.theme = el.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+            save(); apply(state);
+            return;
+        }
+    });
+
+    // Close the drawer on Escape.
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') document.body.classList.remove('ac-customize-open');
+    });
+})();

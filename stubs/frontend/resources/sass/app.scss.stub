@@ -1,12 +1,13 @@
 // ===========================================================================
-//  Admin theme — clean / neutral
-//  Bootstrap 5 base + a near-black neutral accent + a bespoke "ac-" app shell.
-//  Light sidebar, hairline borders, subtle gray active states, generous space.
+//  Admin theme — clean / neutral, runtime-customizable
+//  Bootstrap 5 base + a token-driven "ac-" app shell. Every surface/border/text
+//  colour is a CSS custom property, so the Customize drawer can flip theme
+//  (light/dark/system), accent colour, density, layout, container and direction
+//  at runtime — no recompile. See customize.js + partials/customize.blade.php.
 // ===========================================================================
 
 // 1. Brand / theme variables (override Bootstrap before importing it) ---------
-$primary:       #18181b;   // zinc-900, the neutral accent (buttons, active)
-$accent-2:      #000000;   // pure black (hover)
+$primary:       #18181b;   // zinc-900, the neutral accent (compile-time default)
 $border-radius:        .5rem;
 $border-radius-sm:     .375rem;
 $border-radius-lg:     .625rem;
@@ -29,18 +30,57 @@ $link-decoration:      none;
     --ac-sidebar-w: 264px;
     --ac-sidebar-w-collapsed: 78px;
     --ac-header-h: 64px;
-    --ac-sidebar-bg: #fafafa;   // light, clean
-    --ac-border: #e5e7eb;       // hairline borders
-    --ac-hover: #f4f4f5;        // zinc-100, subtle hover/active fill
     --ac-radius-card: #{$border-radius-xl};
-}
-// Bootstrap already sets --bs-body-font-family from the (quoted) $font-family-sans-serif
-// override above — don't re-declare it here (interpolation would strip the quotes and
-// produce an invalid `Source Sans 3` value, falling back to serif).
-body { background: $body-bg; color: $body-color; }
+    --ac-density: 1;            // scaled by [data-ac-density]
 
-// Hide leftover AdminLTE card toggles (collapse/remove "−" / "✕") — there's no
-// AdminLTE JS behind them anymore, so they're dead controls.
+    // accent (overridden by [data-ac-accent]; neutral = near-black)
+    --ac-accent: #18181b;
+    --ac-accent-fg: #ffffff;
+
+    // surfaces / lines / text (overridden by [data-bs-theme="dark"])
+    --ac-body-bg:   #ffffff;
+    --ac-body-color:#18181b;
+    --ac-surface:   #ffffff;    // cards, header, sidebar user, stat
+    --ac-surface-2: #fafafa;    // sidebar
+    --ac-border:    #e5e7eb;    // hairline borders
+    --ac-hover:     #f4f4f5;    // subtle hover / active fill
+    --ac-muted:     #6b7280;
+    --ac-heading:   #18181b;
+    --ac-nav:       #3f3f46;
+    --ac-nav-icon:  #71717a;
+}
+
+// Accent presets -------------------------------------------------------------
+[data-ac-accent="neutral"] { --ac-accent: #18181b; }
+[data-ac-accent="blue"]    { --ac-accent: #2563eb; }
+[data-ac-accent="violet"]  { --ac-accent: #7c3aed; }
+[data-ac-accent="rose"]    { --ac-accent: #e11d48; }
+[data-ac-accent="orange"]  { --ac-accent: #ea580c; }
+
+// Density --------------------------------------------------------------------
+[data-ac-density="compact"]  { --ac-density: .8; }
+[data-ac-density="spacious"] { --ac-density: 1.22; }
+
+// Dark theme -----------------------------------------------------------------
+[data-bs-theme="dark"] {
+    --ac-body-bg:   #09090b;
+    --ac-body-color:#e4e4e7;
+    --ac-surface:   #18181b;
+    --ac-surface-2: #121214;
+    --ac-border:    #27272a;
+    --ac-hover:     #27272a;
+    --ac-muted:     #a1a1aa;
+    --ac-heading:   #fafafa;
+    --ac-nav:       #d4d4d8;
+    --ac-nav-icon:  #a1a1aa;
+}
+[data-bs-theme="dark"][data-ac-accent="neutral"] { --ac-accent: #e4e4e7; --ac-accent-fg: #18181b; }
+
+// Bootstrap already sets --bs-body-font-family from the (quoted) $font-family-sans-serif
+// override above — don't re-declare it here (interpolation would strip the quotes).
+body { background: var(--ac-body-bg); color: var(--ac-body-color); }
+
+// Hide leftover AdminLTE card toggles (collapse/remove "−" / "✕") — dead controls.
 [data-lte-toggle] { display: none !important; }
 
 // 5. App shell (CSS grid: sidebar | [header / main / footer]) ----------------
@@ -68,67 +108,69 @@ body.ac-sidebar-collapsed {
     .ac-treeview { display: none !important; }
 }
 
-// 6. Sidebar (light) ---------------------------------------------------------
+// 6. Sidebar -----------------------------------------------------------------
 .ac-sidebar {
-    background: var(--ac-sidebar-bg);
-    color: $body-color;
-    border-right: 1px solid var(--ac-border);
+    background: var(--ac-surface-2);
+    color: var(--ac-body-color);
+    border-inline-end: 1px solid var(--ac-border);
     position: sticky;
     top: 0;
     height: 100vh;
     overflow-y: auto;
     padding: .75rem;
     scrollbar-width: thin;
-    scrollbar-color: #d4d4d8 transparent;
+    scrollbar-color: var(--ac-border) transparent;
     &::-webkit-scrollbar { width: 6px; }
-    &::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
+    &::-webkit-scrollbar-thumb { background: var(--ac-border); border-radius: 3px; }
 }
 .ac-brand {
     display: flex; align-items: center; gap: .6rem;
     padding: .35rem .6rem 1rem;
-    color: $body-color; font-weight: 700; font-size: 1.15rem; letter-spacing: .2px; text-decoration: none;
+    color: var(--ac-heading); font-weight: 700; font-size: 1.15rem; letter-spacing: .2px; text-decoration: none;
     .ac-brand-logo {
         width: 36px; height: 36px; border-radius: .6rem; object-fit: cover;
-        background: #18181b; color: #fff; display: grid; place-items: center; flex: 0 0 auto;
+        background: var(--ac-accent); color: var(--ac-accent-fg); display: grid; place-items: center; flex: 0 0 auto;
     }
 }
 .ac-user {
     display: flex; align-items: center; gap: .6rem;
-    background: #fff;
+    background: var(--ac-surface);
     border: 1px solid var(--ac-border);
     border-radius: $border-radius-lg;
     padding: .55rem .65rem; margin-bottom: 1rem; text-decoration: none;
     img { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
     .ac-user-meta { line-height: 1.1; min-width: 0; }
-    .ac-user-name { color: $body-color; font-weight: 600; text-transform: capitalize; }
-    .ac-user-role { color: #6b7280; font-size: .75rem; }
+    .ac-user-name { color: var(--ac-heading); font-weight: 600; text-transform: capitalize; }
+    .ac-user-role { color: var(--ac-muted); font-size: .75rem; }
 }
 .ac-nav { list-style: none; margin: 0; padding: 0; }
 .ac-nav-header {
-    color: #9ca3af;
+    color: var(--ac-muted);
     font-size: .68rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
     padding: 1rem .75rem .35rem;
 }
 .ac-nav-item { margin: 2px 0; }
 .ac-nav-link {
     display: flex; align-items: center; gap: .7rem;
-    padding: .55rem .7rem;
-    color: #3f3f46;                             // zinc-700
+    padding: calc(.55rem * var(--ac-density)) .7rem;
+    color: var(--ac-nav);
     border-radius: $border-radius;
     font-weight: 500; font-size: .92rem;
     transition: background .15s, color .15s;
     cursor: pointer; text-decoration: none;
-    i { font-size: 1rem; width: 1.2rem; text-align: center; flex: 0 0 auto; color: #71717a; }
-    .ac-nav-caret { margin-left: auto; transition: transform .2s; font-size: .75rem; }
-    &:hover { background: var(--ac-hover); color: #18181b; i { color: #18181b; } }
+    i { font-size: 1rem; width: 1.2rem; text-align: center; flex: 0 0 auto; color: var(--ac-nav-icon); }
+    .ac-nav-caret { margin-inline-start: auto; transition: transform .2s; font-size: .75rem; }
+    &:hover { background: var(--ac-hover); color: var(--ac-heading); i { color: var(--ac-heading); } }
     &.active {
-        background: var(--ac-hover); color: #18181b; font-weight: 600;
-        i { color: #18181b; }
+        background: color-mix(in srgb, var(--ac-accent) 12%, transparent);
+        color: var(--ac-accent); font-weight: 600;
+        i { color: var(--ac-accent); }
     }
 }
+[data-bs-theme="dark"][data-ac-accent="neutral"] .ac-nav-link.active { color: var(--ac-heading); i { color: var(--ac-heading); } }
 .ac-nav-item.open > .ac-nav-link .ac-nav-caret { transform: rotate(90deg); }
 .ac-treeview {
-    list-style: none; margin: .15rem 0 .25rem; padding: 0 0 0 1.4rem;
+    list-style: none; margin: .15rem 0 .25rem; padding-inline-start: 1.4rem;
     display: none;
     .ac-nav-link { padding: .45rem .7rem; font-size: .92rem; }
 }
@@ -139,84 +181,95 @@ body.ac-sidebar-collapsed {
     position: sticky; top: 0; z-index: 1020;
     display: flex; align-items: center; gap: .75rem;
     padding: 0 1.25rem;
-    background: #fff;
+    background: var(--ac-surface);
     border-bottom: 1px solid var(--ac-border);
 }
 .ac-burger {
-    border: 0; background: transparent; color: $body-color;
+    border: 0; background: transparent; color: var(--ac-body-color);
     width: 40px; height: 40px; border-radius: .6rem; font-size: 1.2rem;
     display: grid; place-items: center;
-    &:hover { background: var(--ac-hover); color: #18181b; }
+    &:hover { background: var(--ac-hover); color: var(--ac-heading); }
 }
-.ac-header-actions { margin-left: auto; display: flex; align-items: center; gap: .25rem; }
+.ac-header-actions { margin-inline-start: auto; display: flex; align-items: center; gap: .25rem; }
 .ac-icon-btn {
-    border: 0; background: transparent; color: #52525b;
+    border: 0; background: transparent; color: var(--ac-muted);
     width: 40px; height: 40px; border-radius: .6rem; font-size: 1.15rem;
     display: grid; place-items: center; text-decoration: none;
-    &:hover { background: var(--ac-hover); color: #18181b; }
+    &:hover { background: var(--ac-hover); color: var(--ac-heading); }
 }
 .ac-user-btn {
     display: flex; align-items: center; gap: .5rem;
     padding: .25rem .55rem; height: 40px; border-radius: .6rem;
-    border: 0; background: transparent; color: #3f3f46; text-decoration: none;
+    border: 0; background: transparent; color: var(--ac-nav); text-decoration: none;
     img { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
     .ac-user-btn-name { font-weight: 500; text-transform: capitalize; }
     .ac-user-btn-caret { font-size: .7rem; opacity: .6; }
-    &:hover { background: var(--ac-hover); color: #18181b; }
+    &:hover { background: var(--ac-hover); color: var(--ac-heading); }
 }
 
 // 8. Main content ------------------------------------------------------------
-.ac-main { padding: 1.5rem; }
+.ac-main { padding: calc(1.5rem * var(--ac-density)); }
 .ac-page-title { font-weight: 700; font-size: 1.4rem; margin: 0; }
 .ac-footer {
-    padding: 1rem 1.5rem; color: #71717a; font-size: .85rem;
+    padding: 1rem 1.5rem; color: var(--ac-muted); font-size: .85rem;
     border-top: 1px solid var(--ac-border);
     display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem;
 }
 
-// 9. Components (clean cards, subtle stat cards, buttons, tables) -------------
+// 9. Components (cards, stat cards, buttons, tables) --------------------------
 .card {
     border-radius: var(--ac-radius-card);
     border: 1px solid var(--ac-border);
+    background: var(--ac-surface);
     box-shadow: 0 1px 2px rgba(16,24,40,.04);
     .card-header { background: transparent; border-bottom: 1px solid var(--ac-border); font-weight: 600; }
+    > .card-body { padding: calc(1.25rem * var(--ac-density)); }
 }
 .btn { border-radius: $border-radius; font-weight: 500; }
-.btn-primary { background: $primary; border-color: $primary; color: #fff; }
-.btn-primary:hover, .btn-primary:focus { background: $accent-2; border-color: $accent-2; color: #fff; }
+.btn-primary {
+    background: var(--ac-accent); border-color: var(--ac-accent); color: var(--ac-accent-fg);
+    &:hover, &:focus { background: var(--ac-accent); border-color: var(--ac-accent); color: var(--ac-accent-fg); filter: brightness(.9); }
+}
+.btn:focus-visible, .form-control:focus, .form-select:focus {
+    border-color: var(--ac-accent);
+    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--ac-accent) 25%, transparent);
+}
+.form-check-input:checked { background-color: var(--ac-accent); border-color: var(--ac-accent); }
 
-// Clean white stat cards with a soft-tinted icon chip — color used only on the chip.
+// Clean stat cards with a soft-tinted icon chip.
 .ac-stat {
     border-radius: var(--ac-radius-card);
     padding: 1.25rem;
-    background: #fff;
+    background: var(--ac-surface);
     border: 1px solid var(--ac-border);
     box-shadow: 0 1px 2px rgba(16,24,40,.04);
-    color: $body-color;
-    .ac-stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; color: #18181b; }
-    .ac-stat-label { color: #6b7280; font-weight: 500; font-size: .9rem; }
+    color: var(--ac-body-color);
+    .ac-stat-value { font-size: 1.75rem; font-weight: 700; line-height: 1.1; color: var(--ac-heading); }
+    .ac-stat-label { color: var(--ac-muted); font-weight: 500; font-size: .9rem; }
     .ac-stat-icon {
         font-size: 1.2rem; width: 44px; height: 44px; border-radius: .6rem;
-        display: grid; place-items: center; opacity: 1;
+        display: grid; place-items: center;
     }
-    &.ac-stat-1 .ac-stat-icon { background: #f4f4f5; color: #18181b; }
+    &.ac-stat-1 .ac-stat-icon { background: color-mix(in srgb, var(--ac-accent) 12%, transparent); color: var(--ac-accent); }
     &.ac-stat-2 .ac-stat-icon { background: #eff6ff; color: #2563eb; }
     &.ac-stat-3 .ac-stat-icon { background: #ecfdf5; color: #059669; }
     &.ac-stat-4 .ac-stat-icon { background: #fff7ed; color: #ea580c; }
 }
 
 .table { --bs-table-bg: transparent; }
-.table > thead th { white-space: nowrap; color: #6b7280; font-weight: 600; border-bottom: 1px solid var(--ac-border); }
+.table > thead th { white-space: nowrap; color: var(--ac-muted); font-weight: 600; border-bottom: 1px solid var(--ac-border); }
+.table > :not(caption) > * > * { padding: calc(.5rem * var(--ac-density)) calc(.75rem * var(--ac-density)); }
 
 // 10. Mobile (off-canvas sidebar) -------------------------------------------
 .ac-overlay { display: none; }
 @media (max-width: 991.98px) {
     .ac-shell { grid-template-columns: 1fr; grid-template-areas: 'header' 'main' 'footer'; }
     .ac-sidebar {
-        position: fixed; inset: 0 auto 0 0; z-index: 1045;
+        position: fixed; inset-block: 0; inset-inline: 0 auto; z-index: 1045;
         width: var(--ac-sidebar-w);
         transform: translateX(-100%); transition: transform .22s ease;
     }
+    [dir="rtl"] .ac-sidebar { inset-inline: auto 0; transform: translateX(100%); }
     body.ac-sidebar-open .ac-sidebar { transform: translateX(0); }
     body.ac-sidebar-open .ac-overlay {
         display: block; position: fixed; inset: 0; z-index: 1040;
@@ -224,7 +277,42 @@ body.ac-sidebar-collapsed {
     }
 }
 
-// 11. Plugin alignment (kept from the original kit) --------------------------
+// 11. Top-nav layout (desktop only; mobile keeps the off-canvas drawer) ------
+@media (min-width: 992px) {
+    [data-ac-layout="topnav"] {
+        .ac-shell {
+            grid-template-columns: 1fr;
+            grid-template-rows: var(--ac-header-h) auto 1fr auto;
+            grid-template-areas: 'header' 'sidebar' 'main' 'footer';
+        }
+        &.ac-sidebar-collapsed .ac-shell { grid-template-columns: 1fr; }
+        .ac-sidebar {
+            position: sticky; top: var(--ac-header-h); height: auto; overflow: visible;
+            border-inline-end: 0; border-bottom: 1px solid var(--ac-border);
+            padding: .4rem 1rem; display: flex; align-items: center; gap: .25rem;
+        }
+        .ac-brand, .ac-user, .ac-nav-header { display: none; }
+        .ac-nav { display: flex; flex-flow: row wrap; gap: .25rem; }
+        .ac-nav-item { margin: 0; position: relative; }
+        .ac-nav-link .ac-nav-caret { margin-inline-start: .35rem; }
+        .ac-treeview {
+            position: absolute; top: 100%; inset-inline-start: 0; min-width: 210px;
+            margin: .35rem 0 0; padding: .35rem;
+            background: var(--ac-surface); border: 1px solid var(--ac-border);
+            border-radius: .7rem; box-shadow: 0 12px 32px rgba(16,24,40,.14); z-index: 1030;
+        }
+    }
+}
+
+// 12. Boxed container --------------------------------------------------------
+[data-ac-container="boxed"] .ac-main { width: 100%; max-width: 1280px; margin-inline: auto; }
+
+// 13. RTL tweaks (Bootstrap spacing utils already flip via logical props) -----
+[dir="rtl"] {
+    .ac-treeview { padding-inline-start: 1.4rem; }
+}
+
+// 14. Plugin alignment (kept from the original kit) --------------------------
 ul.checktree {
     list-style-type: none; padding-inline-start: 0;
     ul { list-style-type: none; }
@@ -237,16 +325,80 @@ ul.checktree {
 .is-invalid .select2-container--bootstrap-5 .select2-selection { border-color: var(--bs-danger); }
 .dtr-details { width: 100% !important; }
 
-// 12. Auth / login -----------------------------------------------------------
+// 15. Auth / login -----------------------------------------------------------
 .ac-auth {
     min-height: 100vh; display: grid; place-items: center; padding: 1.5rem;
-    background: #fafafa;
+    background: var(--ac-surface-2);
 }
 .ac-auth-card {
     width: 100%; max-width: 410px;
-    background: #fff; border-radius: var(--ac-radius-card);
+    background: var(--ac-surface); border-radius: var(--ac-radius-card);
     border: 1px solid var(--ac-border);
     box-shadow: 0 10px 30px rgba(16,24,40,.06);
     padding: 2.25rem 2rem;
 }
-.ac-auth-brand { text-align: center; font-weight: 800; font-size: 1.5rem; color: #18181b; margin-bottom: .35rem; }
+.ac-auth-brand { text-align: center; font-weight: 800; font-size: 1.5rem; color: var(--ac-heading); margin-bottom: .35rem; }
+
+// 16. Customize drawer -------------------------------------------------------
+.ac-customize {
+    position: fixed; inset-block: 0; inset-inline-end: 0;
+    width: 340px; max-width: 86vw;
+    background: var(--ac-surface);
+    border-inline-start: 1px solid var(--ac-border);
+    box-shadow: -12px 0 40px rgba(16,24,40,.12);
+    transform: translateX(100%); transition: transform .25s ease;
+    z-index: 1060; display: flex; flex-direction: column;
+}
+[dir="rtl"] .ac-customize { transform: translateX(-100%); }
+body.ac-customize-open .ac-customize { transform: none; }
+.ac-customize-backdrop {
+    position: fixed; inset: 0; background: rgba(16,24,40,.4);
+    opacity: 0; visibility: hidden; transition: opacity .2s; z-index: 1055;
+}
+body.ac-customize-open .ac-customize-backdrop { opacity: 1; visibility: visible; }
+.ac-cz-head {
+    display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem;
+    padding: 1.1rem 1.25rem; border-bottom: 1px solid var(--ac-border);
+    h5 { margin: 0; font-weight: 700; }
+    p { margin: .15rem 0 0; font-size: .85rem; color: var(--ac-muted); }
+}
+.ac-cz-body { padding: 1.25rem; overflow-y: auto; }
+.ac-cz-group { margin-bottom: 1.4rem; &:last-child { margin-bottom: 0; } }
+.ac-cz-label { font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ac-muted); margin-bottom: .55rem; }
+.ac-cz-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem;
+    &.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    &.cols-5 { grid-template-columns: repeat(5, 1fr); }
+}
+.ac-cz-opt {
+    display: flex; flex-direction: column; align-items: center; gap: .35rem;
+    padding: .6rem .35rem; border: 1px solid var(--ac-border); border-radius: .6rem;
+    background: transparent; color: var(--ac-body-color); font-size: .76rem; font-weight: 500;
+    cursor: pointer; transition: background .15s, border-color .15s;
+    i { font-size: 1.05rem; }
+    &:hover { background: var(--ac-hover); }
+    &.is-active { border-color: var(--ac-accent); box-shadow: 0 0 0 1px var(--ac-accent) inset; }
+}
+.ac-cz-swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); }
+
+// 17. Row actions (kebab dropdown) -------------------------------------------
+.ac-row-actions {
+    .ac-kebab {
+        border: 0; background: transparent; color: var(--ac-muted);
+        width: 32px; height: 32px; border-radius: .5rem; font-size: 1.1rem;
+        display: inline-grid; place-items: center; cursor: pointer;
+        &:hover, &[aria-expanded="true"] { background: var(--ac-hover); color: var(--ac-heading); }
+    }
+}
+.ac-actions-menu {
+    --bs-dropdown-min-width: 9rem;
+    border: 1px solid var(--ac-border);
+    border-radius: .7rem;
+    box-shadow: 0 12px 32px rgba(16,24,40,.14);
+    padding: .35rem;
+    .dropdown-item {
+        border-radius: .45rem; font-size: .88rem; font-weight: 500;
+        display: flex; align-items: center; gap: .6rem; padding: .45rem .6rem;
+        i { font-size: .95rem; width: 1.1rem; text-align: center; }
+        &:active { background: var(--ac-hover); color: inherit; }
+    }
+}

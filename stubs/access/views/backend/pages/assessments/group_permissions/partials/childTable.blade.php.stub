@@ -9,18 +9,23 @@
                 @endif
             </td>
             <td style="padding: 5px">
-                @can('edit-group-permission')
-                    <a href="{{ route('admin.assessments.group_permissions.edit', $item->getRouteKey()) }}"
-                       class="{{ config('class.button.edit') }}" data-bs-toggle="tooltip" title="Edit Record">
-                        <i class="{{ config('class.icon.edit') }}"></i>
-                    </a>
-                @endcan
-                @can('delete-group-permission')
-                    <button data-remote="{{ route('admin.assessments.group_permissions.ajaxDelete', $item->getRouteKey()) }}"
-                            class="{{ config('class.button.delete') }}" data-bs-toggle="tooltip" title="Delete Record" id="delete">
-                        <i class="{{ config('class.icon.delete') }}"></i>
+                <div class="dropdown ac-row-actions">
+                    <button class="ac-kebab" type="button" data-bs-toggle="dropdown" data-bs-display="static"
+                            aria-expanded="false" aria-label="Actions">
+                        <i class="bi bi-three-dots"></i>
                     </button>
-                @endcan
+                    <ul class="dropdown-menu dropdown-menu-end ac-actions-menu">
+                        @can('edit-group-permission')
+                            <li><a class="dropdown-item" href="{{ route('admin.assessments.group_permissions.edit', $item->getRouteKey()) }}">
+                                <i class="bi bi-pencil"></i> Edit</a></li>
+                        @endcan
+                        @can('delete-group-permission')
+                            <li><button type="button" class="dropdown-item text-danger" id="delete"
+                                        data-remote="{{ route('admin.assessments.group_permissions.ajaxDelete', $item->getRouteKey()) }}">
+                                <i class="bi bi-trash"></i> Delete</button></li>
+                        @endcan
+                    </ul>
+                </div>
             </td>
         </tr>
         @if($item->child->count() > 0)

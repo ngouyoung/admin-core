@@ -6,6 +6,23 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ setting('app_name', config('app.name')) }} | @yield('title', 'Dashboard')</title>
 
+    {{-- Apply saved Customize settings before paint (no flash). See resources/js/customize.js --}}
+    <script>
+        (function () {
+            try {
+                var c = JSON.parse(localStorage.getItem('ac-customize') || '{}');
+                var el = document.documentElement, t = c.theme || 'light';
+                if (t === 'system') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                el.setAttribute('data-bs-theme', t);
+                el.setAttribute('data-ac-accent', c.accent || 'neutral');
+                el.setAttribute('data-ac-density', c.density || 'comfortable');
+                el.setAttribute('data-ac-layout', c.layout || 'sidebar');
+                el.setAttribute('data-ac-container', c.container || 'fluid');
+                el.setAttribute('dir', c.direction || 'ltr');
+            } catch (e) {}
+        })();
+    </script>
+
     @vite(['resources/js/app.js'])
     @stack('style')
 </head>
@@ -27,6 +44,7 @@
     @include('backend.partials.footer')
 </div>
 <div class="ac-overlay" data-ac-toggle="sidebar"></div>
+@include('backend.partials.customize')
 @stack('scripts')
 </body>
 </html>

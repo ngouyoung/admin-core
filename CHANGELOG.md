@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.7.0
+
+- **Customize drawer.** A client-side personalization panel (palette icon in the topbar) with six
+  controls, persisted in `localStorage` and applied before paint (no flash): **Theme** (Light / Dark /
+  System, with a full dark variant), **Accent colour** (Neutral / Blue / Violet / Rose / Orange),
+  **Density** (Compact / Comfortable / Spacious), **Layout** (Sidebar / Top-Nav), **Container**
+  (Fluid / Boxed) and **Direction** (LTR / RTL). The theme is now fully token-driven (CSS custom
+  properties), so every surface/border/accent flips at runtime — no recompile. New `customize.js` +
+  `partials/customize.blade.php`; the topbar moon button is now a quick light/dark toggle owned by the
+  same module.
+- **Row actions as a kebab (⋯) dropdown.** The DataTable View/Edit/Delete buttons (and the
+  group-permission tree) collapse into a compact `⋯` menu instead of a row of buttons — cleaner tables,
+  and the column no longer widens with the action set. Delete keeps its existing SweetAlert confirm.
+
 ## v1.6.0
 
 - **Clean / neutral theme.** Retuned the shell to a minimal "shadcn"-style look: a **light sidebar**

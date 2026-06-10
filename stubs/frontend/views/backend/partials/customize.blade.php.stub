@@ -1,0 +1,73 @@
+{{-- Customize drawer — toggled by [data-ac-toggle="customize"]; state lives in
+     localStorage (see resources/js/customize.js). Pure client-side, no backend. --}}
+<div class="ac-customize-backdrop" data-ac-customize-close></div>
+<aside class="ac-customize" aria-label="Customize">
+    <div class="ac-cz-head">
+        <div>
+            <h5>Customize</h5>
+            <p>Personalize your dashboard experience.</p>
+        </div>
+        <button type="button" class="ac-icon-btn" data-ac-customize-close aria-label="Close">
+            <i class="bi bi-x-lg"></i>
+        </button>
+    </div>
+
+    <div class="ac-cz-body">
+        <div class="ac-cz-group">
+            <div class="ac-cz-label">Theme</div>
+            <div class="ac-cz-options">
+                <button type="button" class="ac-cz-opt" data-ac-set="theme" data-ac-value="light"><i class="bi bi-sun"></i> Light</button>
+                <button type="button" class="ac-cz-opt" data-ac-set="theme" data-ac-value="dark"><i class="bi bi-moon-stars"></i> Dark</button>
+                <button type="button" class="ac-cz-opt" data-ac-set="theme" data-ac-value="system"><i class="bi bi-display"></i> System</button>
+            </div>
+        </div>
+
+        <div class="ac-cz-group">
+            <div class="ac-cz-label">Color</div>
+            <div class="ac-cz-options cols-5">
+                <button type="button" class="ac-cz-opt" data-ac-set="accent" data-ac-value="neutral" title="Neutral"><span class="ac-cz-swatch" style="background:#18181b"></span></button>
+                <button type="button" class="ac-cz-opt" data-ac-set="accent" data-ac-value="blue" title="Blue"><span class="ac-cz-swatch" style="background:#2563eb"></span></button>
+                <button type="button" class="ac-cz-opt" data-ac-set="accent" data-ac-value="violet" title="Violet"><span class="ac-cz-swatch" style="background:#7c3aed"></span></button>
+                <button type="button" class="ac-cz-opt" data-ac-set="accent" data-ac-value="rose" title="Rose"><span class="ac-cz-swatch" style="background:#e11d48"></span></button>
+                <button type="button" class="ac-cz-opt" data-ac-set="accent" data-ac-value="orange" title="Orange"><span class="ac-cz-swatch" style="background:#ea580c"></span></button>
+            </div>
+        </div>
+
+        <div class="ac-cz-group">
+            <div class="ac-cz-label">Density</div>
+            <div class="ac-cz-options">
+                <button type="button" class="ac-cz-opt" data-ac-set="density" data-ac-value="compact"><i class="bi bi-list"></i> Compact</button>
+                <button type="button" class="ac-cz-opt" data-ac-set="density" data-ac-value="comfortable"><i class="bi bi-list-nested"></i> Comfortable</button>
+                <button type="button" class="ac-cz-opt" data-ac-set="density" data-ac-value="spacious"><i class="bi bi-distribute-vertical"></i> Spacious</button>
+            </div>
+        </div>
+
+        <div class="ac-cz-group">
+            <div class="ac-cz-label">Layout</div>
+            <div class="ac-cz-options cols-2">
+                <button type="button" class="ac-cz-opt" data-ac-set="layout" data-ac-value="sidebar"><i class="bi bi-layout-sidebar"></i> Sidebar</button>
+                <button type="button" class="ac-cz-opt" data-ac-set="layout" data-ac-value="topnav"><i class="bi bi-layout-text-window"></i> Top Nav</button>
+            </div>
+        </div>
+
+        <div class="ac-cz-group">
+            <div class="ac-cz-label">Container</div>
+            <div class="ac-cz-options cols-2">
+                <button type="button" class="ac-cz-opt" data-ac-set="container" data-ac-value="fluid"><i class="bi bi-arrows"></i> Fluid</button>
+                <button type="button" class="ac-cz-opt" data-ac-set="container" data-ac-value="boxed"><i class="bi bi-aspect-ratio"></i> Boxed</button>
+            </div>
+        </div>
+
+        <div class="ac-cz-group">
+            <div class="ac-cz-label">Direction</div>
+            <div class="ac-cz-options cols-2">
+                <button type="button" class="ac-cz-opt" data-ac-set="direction" data-ac-value="ltr"><i class="bi bi-text-left"></i> LTR</button>
+                <button type="button" class="ac-cz-opt" data-ac-set="direction" data-ac-value="rtl"><i class="bi bi-text-right"></i> RTL</button>
+            </div>
+        </div>
+
+        <button type="button" class="btn btn-outline-secondary btn-sm w-100" data-ac-customize-reset>
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset to defaults
+        </button>
+    </div>
+</aside>
