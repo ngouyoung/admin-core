@@ -14,6 +14,12 @@
                     <i class="bi bi-eye"></i> View</a></li>
             @endcan
         @endif
+        @foreach (($extra ?? []) as $item)
+            @if (empty($item['can']) || auth()->user()->can($item['can']))
+                <li><a class="dropdown-item {{ $item['class'] ?? '' }}" href="{{ $item['url'] }}">
+                    <i class="{{ $item['icon'] ?? 'bi bi-dot' }}"></i> {{ $item['label'] }}</a></li>
+            @endif
+        @endforeach
         @can('edit-' . $resource)
             <li><a class="dropdown-item" href="{{ route($base . 'edit', $model->getRouteKey()) }}">
                 <i class="bi bi-pencil"></i> Edit</a></li>

@@ -170,13 +170,23 @@ abstract class CrudController extends Controller
         return view('admin-core::datatable.badges', compact('items', 'variant'))->render();
     }
 
-    /** Render the standard edit/delete action buttons for a DataTables row. */
-    protected function actions($model, string $resource): string
+    /**
+     * Render the row's kebab (⋯) menu of view/edit/delete actions.
+     *
+     * Extra resource-specific items can be injected as a list of:
+     *   ['label' => 'Change Password', 'url' => route(...), 'icon' => 'bi bi-key',
+     *    'can' => 'change-password-user', 'class' => 'text-danger']
+     * ('icon', 'can' and 'class' are optional). They render above Edit/Delete.
+     *
+     * @param  array<int, array<string, string>>  $extra
+     */
+    protected function actions($model, string $resource, array $extra = []): string
     {
         return view('admin-core::datatable.actions', [
             'model' => $model,
             'base' => $this->routeName(''),
             'resource' => $resource,
+            'extra' => $extra,
         ])->render();
     }
 }

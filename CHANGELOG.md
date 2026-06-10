@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.8.3
+
+- **Extensible row actions.** `actions($model, $resource, $extra = [])` now takes a list of extra
+  menu items (`label`, `url`, optional `icon` / `can` / `class`) that render inside the kebab (⋯)
+  dropdown above Edit/Delete — so resource-specific actions (e.g. a user's "Change Password") sit in the
+  same menu instead of a stray coloured button next to it.
+- **Fix (hybrid keys):** custom action links must use `getRouteKey()`, not `->id`. The host Users
+  "Change Password" link passed the integer id into a route whose controller resolves by the **uuid**
+  route key, throwing `invalid input syntax for type uuid: "1"`. Folded it into the kebab with the
+  route key.
+
 ## v1.8.2
 
 - **Fix:** the "Columns" toolbar button rendered as a solid grey block. The DataTables Buttons BS5
