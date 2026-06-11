@@ -16,5 +16,5 @@ class StoreDummyClassRequest extends FormRequest
         return [
 __AC_STORE_RULES__
         ];
-    }
+    }__AC_STORE_PREPARE__
 }

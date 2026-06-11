@@ -12,6 +12,18 @@ npm install && npm run build
 
 ---
 
+## → v1.14.0 — More field types
+
+No breaking change. The `--fields` DSL gains `time`, `url`, `slug`, `json`, and `password`. Examples:
+
+```bash
+php artisan admin-core:make Article --migration --fields="\
+  name:string, slug:slug, website:url, start_at:time, meta:json, secret:password"
+```
+
+`slug` is auto-derived from `name` when blank; `json` round-trips through a textarea (array cast);
+`password` is hashed and a blank value on edit keeps the current one. Existing resources are unaffected.
+
 ## → v1.13.0 — Model casts
 
 No breaking change. Newly generated models declare a `casts()` method for boolean / date / datetime /

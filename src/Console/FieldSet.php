@@ -173,6 +173,13 @@ class FieldSet
             $f['system'] = true;
         }
 
+        // A slug is always unique and nullable (left blank → derived from `name`
+        // in the model's creating hook, so validation must allow the empty value).
+        if ($type === 'slug') {
+            $f['unique'] = true;
+            $f['nullable'] = true;
+        }
+
         if ($type === 'foreign') {
             $base = Str::beforeLast($name, '_id');
             $f['relation'] = Str::camel($base);
@@ -249,6 +256,8 @@ class FieldSet
                 'boolean' => "\$table->boolean('{$col}')" . ($n ? '' : '->default(false)'),
                 'date' => "\$table->date('{$col}')",
                 'datetime' => "\$table->dateTime('{$col}')",
+                'time' => "\$table->time('{$col}')",
+                'json' => "\$table->json('{$col}')",
                 'image', 'file' => "\$table->string('{$col}')",
                 'foreign' => "\$table->foreignId('{$col}')" . ($n ? '->nullable()' : '') . '->constrained()' . ($n ? '->nullOnDelete()' : '->cascadeOnDelete()'),
                 'auth' => "\$table->foreignId('{$col}')->nullable()->constrained('users')->nullOnDelete()", // set from auth()->id()
@@ -333,19 +342,25 @@ PHP;
      */
     public function modelBoot(): string
     {
-        $system = array_filter($this->fields, fn ($f) => ! empty($f['system']) && $this->isColumn($f));
-        if (! $system) {
+        $assigns = [];
+        foreach ($this->fields as $f) {
+            if (! empty($f['system']) && $this->isColumn($f)) {
+                $assigns[] = match ($f['type']) {
+                    'auth' => "                \$model->{$f['name']} = auth()->id();",
+                    'sku' => "                \$model->{$f['name']} = \\Illuminate\\Support\\Str::upper(\\Illuminate\\Support\\Str::random(10));",
+                    default => "                \$model->{$f['name']} = null; // TODO: set {$f['name']} from trusted code",
+                };
+            }
+            // A blank slug derives from the `name` field when one exists.
+            if ($f['type'] === 'slug' && $this->hasName()) {
+                $assigns[] = "                \$model->{$f['name']} ??= \\Illuminate\\Support\\Str::slug(\$model->name);";
+            }
+        }
+
+        if (! $assigns) {
             return '';
         }
 
-        $assigns = [];
-        foreach ($system as $f) {
-            $assigns[] = match ($f['type']) {
-                'auth' => "                \$model->{$f['name']} = auth()->id();",
-                'sku' => "                \$model->{$f['name']} = \\Illuminate\\Support\\Str::upper(\\Illuminate\\Support\\Str::random(10));",
-                default => "                \$model->{$f['name']} = null; // TODO: set {$f['name']} from trusted code",
-            };
-        }
         $body = implode("\n", $assigns);
 
         return <<<PHP
@@ -378,6 +393,11 @@ PHP;
                 $f['type'] === 'boolean' => 'fake()->boolean()',
                 $f['type'] === 'date' => 'fake()->date()',
                 $f['type'] === 'datetime' => 'fake()->dateTime()',
+                $f['type'] === 'time' => "fake()->time('H:i')",
+                $f['type'] === 'url' => 'fake()->url()',
+                $f['type'] === 'slug' => 'fake()->unique()->slug()',
+                $f['type'] === 'json' => "['key' => fake()->word()]",
+                $f['type'] === 'password' => "'password'", // hashed by the model's 'hashed' cast
                 $f['type'] === 'enum' => "fake()->randomElement(['" . implode("', '", $f['enum']) . "'])",
                 $f['type'] === 'foreign' => "\\App\\Models\\{$f['relModel']}::factory()",
                 in_array($f['type'], ['image', 'file'], true) => 'null',
@@ -432,6 +452,8 @@ PHP;
                 'date' => 'date',
                 'datetime' => 'datetime',
                 'decimal' => 'decimal:2',
+                'json' => 'array',
+                'password' => 'hashed',
                 default => null,
             };
             if ($cast !== null) {
@@ -503,8 +525,23 @@ PHP;
                 case 'datetime':
                     $rules = [$required, "'date'"];
                     break;
+                case 'time':
+                    $rules = [$required, "'date_format:H:i'"];
+                    break;
                 case 'email':
                     $rules = [$required, "'email'", "'max:255'"];
+                    break;
+                case 'url':
+                    $rules = [$required, "'url'", "'max:255'"];
+                    break;
+                case 'slug':
+                    $rules = [$required, "'string'", "'max:255'", "'alpha_dash'"];
+                    break;
+                case 'json':
+                    $rules = [$required, "'array'"]; // decoded from a JSON string in prepareForValidation()
+                    break;
+                case 'password':
+                    $rules = [$update ? "'nullable'" : $required, "'string'", "'min:8'"];
                     break;
                 case 'enum':
                     $rules = [$required, "'in:" . implode(',', $f['enum']) . "'"];
@@ -539,6 +576,44 @@ PHP;
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * A `prepareForValidation()` body when fields need pre-validation massaging:
+     * a JSON column arrives as a textarea string and is decoded to an array (so
+     * the `array` cast stores it once), and a blank password on update is dropped
+     * so the existing hash isn't overwritten. Empty (omitted) when neither applies.
+     */
+    public function prepare(bool $update): string
+    {
+        $lines = [];
+        foreach ($this->fields as $f) {
+            if ($f['type'] === 'json') {
+                $lines[] = "        if (is_string(\$this->{$f['name']})) {\n"
+                    . "            \$this->merge(['{$f['name']}' => json_decode(\$this->{$f['name']}, true)]);\n"
+                    . "        }";
+            }
+            if ($f['type'] === 'password' && $update) {
+                $lines[] = "        if (blank(\$this->{$f['name']})) {\n"
+                    . "            \$this->request->remove('{$f['name']}');\n"
+                    . "        }";
+            }
+        }
+
+        if (! $lines) {
+            return '';
+        }
+
+        $body = implode("\n", $lines);
+
+        return <<<PHP
+
+
+    protected function prepareForValidation(): void
+    {
+$body
+    }
+PHP;
     }
 
     // ---- Form --------------------------------------------------------
@@ -586,7 +661,11 @@ PHP;
             'decimal' => "<input type=\"number\" step=\"0.01\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
             'date' => "<input type=\"date\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
             'datetime' => "<input type=\"datetime-local\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
+            'time' => "<input type=\"time\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
             'email' => "<input type=\"email\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
+            'url' => "<input type=\"url\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
+            'password' => "<input type=\"password\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" autocomplete=\"new-password\">",
+            'json' => "<textarea name=\"{$col}\" id=\"{$col}\" rows=\"4\" class=\"form-control font-monospace {$err}\"{$ro}>{{ is_array({$old}) ? json_encode({$old}, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : {$old} }}</textarea>",
             'enum' => $this->enumSelect($f, $err, $old),
             'image' => $this->fileInput($f, $err, true),
             'file' => $this->fileInput($f, $err, false),

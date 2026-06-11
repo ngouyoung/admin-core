@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.14.0
+
+- **Five new field types in the `--fields` DSL:**
+  - `time` — `time` column, `<input type="time">`, `date_format:H:i` validation.
+  - `url` — string column, `<input type="url">`, `url` validation.
+  - `slug` — nullable + unique string, `alpha_dash` validation; **auto-derived from `name`** (when present)
+    in the model's `creating` hook if left blank.
+  - `json` — `json` column cast to `array`; edited as a pretty-printed monospace textarea and decoded in
+    `prepareForValidation` so it stores once.
+  - `password` — string column cast to `hashed`; `min:8`; a **blank password on update is dropped** so the
+    existing hash isn't overwritten (`new-password` autocomplete, value never echoed).
+
+  Each wires through migration, `$fillable`, validation, form control, factory, and casts. Generated
+  request classes gain a `prepareForValidation()` only when a `json`/`password` field needs it.
+
 ## v1.13.0
 
 - **Generated models now declare a `casts()` method.** Eloquent doesn't auto-cast custom columns, so a

@@ -151,6 +151,8 @@ class AdminCoreMakeCommand extends Command
             '__AC_SERVICE_BODY__' => $fields->serviceBody(),
             '__AC_STORE_RULES__' => $fields->storeRules(),
             '__AC_UPDATE_RULES__' => $fields->updateRules(),
+            '__AC_STORE_PREPARE__' => $fields->prepare(false),
+            '__AC_UPDATE_PREPARE__' => $fields->prepare(true),
             '__AC_UPDATE_USES__' => $fields->updateUses(),
             '__AC_FORM__' => $fields->formFields(),
             '__AC_FORM_SCRIPTS__' => $fields->formScripts(),

@@ -331,6 +331,65 @@ it('omits the casts() method when no column needs casting', function () {
         ->not->toContain('protected function casts(): array');
 });
 
+it('scaffolds the extended field types (time / url / slug / json / password)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Article',
+        '--fields' => 'name:string, slug:slug, website:url, start_at:time, meta:json, secret:password',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // Migration: time + json column types; slug is nullable + unique.
+    $migration = collect(glob(database_path('migrations/*_create_articles_table.php')))->first();
+    expect(File::get($migration))
+        ->toContain("\$table->time('start_at')")
+        ->toContain("\$table->json('meta')")
+        ->toContain("\$table->string('slug')->nullable()->unique()");
+
+    // Model: json → array cast, password → hashed cast, slug derived from name.
+    expect(File::get(app_path('Models/Article.php')))
+        ->toContain("'meta' => 'array'")
+        ->toContain("'secret' => 'hashed'")
+        ->toContain('$model->slug ??= \\Illuminate\\Support\\Str::slug($model->name)');
+
+    // Validation: url, time format, slug alpha_dash, password min length.
+    $store = File::get(app_path('Http/Requests/Article/StoreArticleRequest.php'));
+    expect($store)
+        ->toContain("'website' => ['required', 'url', 'max:255']")
+        ->toContain("'start_at' => ['required', 'date_format:H:i']")
+        ->toContain("'alpha_dash'")
+        ->toContain("'secret' => ['required', 'string', 'min:8']")
+        ->toContain('json_decode($this->meta, true)'); // JSON textarea decoded before validation
+
+    // Update: password optional, blank password dropped so the hash survives.
+    $update = File::get(app_path('Http/Requests/Article/UpdateArticleRequest.php'));
+    expect($update)
+        ->toContain("'secret' => ['nullable', 'string', 'min:8']")
+        ->toContain("\$this->request->remove('secret')");
+
+    // Form controls.
+    expect(File::get(resource_path('views/backend/pages/articles/partials/form.blade.php')))
+        ->toContain('type="url"')
+        ->toContain('type="time"')
+        ->toContain('type="password"')
+        ->toContain('json_encode(');
+
+    // Clean up Article (not part of the standard gizmo target set).
+    foreach ([
+        app_path('Models/Article.php'),
+        app_path('Http/Controllers/Backend/ArticleController.php'),
+        app_path('Http/Requests/Article'),
+        app_path('Services/Articles'),
+        app_path('Policies/ArticlePolicy.php'),
+        base_path('routes/Web/Backend/Modules/articles.php'),
+        resource_path('views/backend/pages/articles'),
+        database_path('factories/ArticleFactory.php'),
+        database_path('seeders/ArticleSeeder.php'),
+        $migration,
+    ] as $path) {
+        File::isDirectory($path) ? File::deleteDirectory($path) : File::delete($path);
+    }
+});
+
 it('omits filter tabs when there is no enum field', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

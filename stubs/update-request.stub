@@ -16,5 +16,5 @@ class UpdateDummyClassRequest extends FormRequest
         return [
 __AC_UPDATE_RULES__
         ];
-    }
+    }__AC_UPDATE_PREPARE__
 }

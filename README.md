@@ -92,12 +92,22 @@ php artisan admin-core:make Product --migration --fields="\
 | `decimal` | `decimal(10,2)` | number (step) | `numeric` |
 | `boolean` | `boolean` default 0 | checkbox | `boolean` |
 | `date` / `datetime` | `date` / `dateTime` | date / datetime-local | `date` |
+| `time` | `time` | time | `date_format:H:i` |
 | `email` | `string` | email | `email` |
+| `url` | `string` | url | `url,max:255` |
 | `enum:a\|b\|c` | `string` | `<select>` | `in:a,b,c` |
+| `slug` | `string` nullable unique | text | `alpha_dash` + unique (auto from `name`) |
+| `json` | `json` | monospace textarea | `array` (decoded from the textarea) |
+| `password` | `string` | password | `min:8` (hashed; blank on edit = keep) |
 | `foreign` (`x_id`) | `foreignId()->constrained()` | Select2 of related rows | `exists:xs,id` |
 | `image` | `string` (path) | file input + preview | `image,max:2048` |
 | `file` | `string` (path) | file input | `file,max:10240` |
 | `belongsToMany` (`m2m`) | pivot table | multi-Select2 | `array` + `exists` |
+
+The model also gets a `casts()` method (`boolean`, `date`, `datetime`, `decimal:2`, `json → array`,
+`password → hashed`). A `slug` left blank is derived from `name` in the `creating` hook; a `json` field
+round-trips through a textarea (decoded in `prepareForValidation`, stored via the array cast); a blank
+`password` on **update** is dropped so the existing hash is preserved.
 
 `image`/`file` also generate **upload handling in the service** (store on the `public` disk, delete the
 old file on update, clean up on delete) and add `enctype="multipart/form-data"` to the form — run
