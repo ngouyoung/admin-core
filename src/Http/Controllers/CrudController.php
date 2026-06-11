@@ -114,12 +114,13 @@ abstract class CrudController extends Controller
 
         return response()->streamDownload(function () use ($rows, $columns) {
             $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel renders accented/non-ASCII text correctly
             fputcsv($out, $columns);
             foreach ($rows as $row) {
                 fputcsv($out, array_map(fn ($c) => $this->csvCell($row->getAttribute($c)), $columns));
             }
             fclose($out);
-        }, $name, ['Content-Type' => 'text/csv']);
+        }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
 
     /**

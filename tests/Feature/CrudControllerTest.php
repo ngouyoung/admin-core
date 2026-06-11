@@ -77,6 +77,8 @@ it('exports a csv', function () {
 
     $response->assertOk();
     expect($response->headers->get('content-type'))->toContain('text/csv');
+    // Leads with a UTF-8 BOM so Excel reads accented/non-ASCII text correctly.
+    expect($response->streamedContent())->toStartWith("\xEF\xBB\xBF");
 });
 
 it('neutralises CSV formula injection on export', function () {

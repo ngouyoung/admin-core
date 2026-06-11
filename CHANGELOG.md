@@ -2,6 +2,11 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.14.3
+
+- **Fix: CSV export now leads with a UTF-8 BOM** (and a `charset=UTF-8` content type), so accented and
+  non-ASCII text (é, ñ, ü, 中文 …) opens correctly in Excel instead of as mojibake.
+
 ## v1.14.2
 
 - **Security: neutralise CSV / formula injection on export.** The CSV export wrote raw cell values, so a
