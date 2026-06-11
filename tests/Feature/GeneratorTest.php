@@ -192,6 +192,44 @@ it('auto-fills :auth and :sku system fields in the booted hook', function () {
     expect(Process::run('php -l ' . escapeshellarg(app_path('Models/Gizmo.php')))->successful())->toBeTrue();
 });
 
+it('files permissions under a group permission that receives a uuid (hybrid keys)', function () {
+    // Reproduce a hybrid-key install: a group_permissions table whose uuid column
+    // is NOT NULL. createPermissions() inserts the group via the query builder,
+    // which bypasses the model's HasPublicUuid hook — it must fill the uuid itself.
+    config()->set('admin-core.permission.enabled', true);
+    config()->set('admin-core.permission.model', \Ngos\AdminCore\Tests\Fixtures\HybridPermission::class);
+
+    Schema::dropIfExists('group_permissions');
+    Schema::dropIfExists('permissions');
+    Schema::create('permissions', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->id();
+        $t->string('name');
+        $t->string('guard_name')->default('web');
+        $t->unsignedBigInteger('group_id')->nullable();
+        $t->timestamps();
+    });
+    Schema::create('group_permissions', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->id();
+        $t->uuid('uuid')->unique();
+        $t->string('name');
+        $t->unsignedBigInteger('parent_id')->nullable();
+        $t->integer('sort')->default(0);
+        $t->timestamps();
+    });
+    \Illuminate\Support\Facades\DB::table('group_permissions')->insert([
+        'uuid' => (string) \Illuminate\Support\Str::uuid(),
+        'name' => 'All', 'sort' => 1, 'created_at' => now(), 'updated_at' => now(),
+    ]);
+
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])
+        ->assertSuccessful();
+
+    $group = \Illuminate\Support\Facades\DB::table('group_permissions')->where('name', 'Gizmos Management')->first();
+    expect($group)->not->toBeNull()
+        ->and($group->uuid)->not->toBeNull()
+        ->and(\Illuminate\Support\Facades\DB::table('permissions')->where('name', 'list-gizmo')->value('group_id'))->toEqual($group->id);
+});
+
 it('adds segmented filter tabs for an enum field', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

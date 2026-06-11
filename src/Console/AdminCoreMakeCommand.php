@@ -308,7 +308,7 @@ class AdminCoreMakeCommand extends Command
                 // Raw insert bypasses the model's HasPublicUuid hook, so fill the
                 // public uuid ourselves when the hybrid-key column is present.
                 if (Schema::hasColumn('group_permissions', 'uuid')) {
-                    $row['uuid'] = (string) (method_exists(Str::class, 'uuid7') ? Str::uuid7() : Str::orderedUuid());
+                    $row['uuid'] = (string) Str::uuid7();
                 }
                 $groupId = DB::table('group_permissions')->insertGetId($row);
             }

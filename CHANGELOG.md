@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.10.2
+
+- **Test:** a generator regression test now runs `admin-core:make` against a hybrid group-permissions
+  schema (NOT NULL `uuid`) and asserts the "{Plural} Management" group is created with a uuid — the gap
+  that let the v1.10.1 crash through (the test env had permissions disabled). Tightened the uuid fill to
+  `Str::uuid7()` directly (the package requires Laravel 13, where it always exists).
+
 ## v1.10.1
 
 - **Fix (hybrid keys): `admin-core:make` crashed creating the "{Plural} Management" group permission.**
