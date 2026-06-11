@@ -12,6 +12,18 @@ npm install && npm run build
 
 ---
 
+## → v1.16.0 — Generated tests
+
+No breaking change — opt in with `--tests`:
+
+```bash
+php artisan admin-core:make Product --tests --migration --fields="name:string"
+```
+
+The generated `tests/Feature/ProductTest.php` is self-contained (creates a permissioned user, exercises
+the CRUD cycle over HTTP) and assumes a `User` factory + Spatie permissions, which the `--access` kit
+provides. Pair with `--migration` so `RefreshDatabase` has the table.
+
 ## → v1.15.0 — CSV import
 
 No breaking change for new resources (the Import button + `import` route are generated). To add import to

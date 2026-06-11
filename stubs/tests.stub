@@ -1,0 +1,88 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\DummyClass;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
+
+/**
+ * Generated CRUD feature test. Self-contained: it creates a user holding this
+ * resource's permissions (when permissions are enabled) and exercises the
+ * index, getData, store, update and delete actions over HTTP — update/delete
+ * addressed by the public route key. Generate with --migration so the
+ * RefreshDatabase run has the table.
+ */
+class DummyClassTest extends TestCase
+{
+    use RefreshDatabase;
+
+    /** A user granted the given resource abilities, plus the back-office base perms. */
+    private function actor(array $abilities = ['list', 'create', 'edit', 'delete']): User
+    {
+        $user = User::factory()->create();
+
+        if (config('admin-core.permission.enabled')) {
+            $model = config('admin-core.permission.model', \Spatie\Permission\Models\Permission::class);
+            $names = ['backend', 'access'];
+            foreach ($abilities as $ability) {
+                $names[] = "{$ability}-dummy-model";
+            }
+            foreach ($names as $name) {
+                $model::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+            }
+            $user->givePermissionTo($names);
+            app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+        }
+
+        return $user;
+    }
+
+    public function test_index_and_getdata_render(): void
+    {
+        DummyClass::factory()->create();
+
+        $this->actingAs($this->actor())->get(route('admin.dummyModels.index'))->assertOk();
+        $this->actingAs($this->actor())->getJson(route('admin.dummyModels.getData'))->assertOk();
+    }
+
+    public function test_store_persists_a_record(): void
+    {
+        $payload = DummyClass::factory()->make()->toArray();
+__AC_TEST_FILES__
+        $this->actingAs($this->actor())
+            ->post(route('admin.dummyModels.store'), $payload)
+            ->assertRedirect();
+
+        $this->assertSame(1, DummyClass::count());
+    }
+
+    public function test_update_and_delete_addressed_by_route_key(): void
+    {
+        $object = DummyClass::factory()->create();
+
+        $payload = DummyClass::factory()->make()->toArray();
+__AC_TEST_FILES__
+        $this->actingAs($this->actor())
+            ->put(route('admin.dummyModels.update', $object->getRouteKey()), $payload)
+            ->assertRedirect();
+
+        $this->actingAs($this->actor())
+            ->delete(route('admin.dummyModels.delete', $object->getRouteKey()))
+            ->assertRedirect();
+
+        $this->__AC_TEST_DELETE_ASSERT__;
+    }
+
+    public function test_index_is_forbidden_without_permission(): void
+    {
+        if (! config('admin-core.permission.enabled')) {
+            $this->markTestSkipped('Permissions are disabled for this resource.');
+        }
+
+        $this->actingAs($this->actor([]))
+            ->get(route('admin.dummyModels.index'))
+            ->assertForbidden();
+    }
+}

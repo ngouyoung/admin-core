@@ -375,6 +375,26 @@ $body
 PHP;
     }
 
+    /**
+     * Fake-upload lines for the generated feature test — the factory sets file
+     * columns to null, so a required image/file would fail the store rule. Each
+     * mutates $payload with a faked upload. Empty when the resource has no files.
+     */
+    public function testFilePayload(): string
+    {
+        $lines = [];
+        foreach ($this->fields as $f) {
+            if ($f['type'] === 'image') {
+                $lines[] = "        \$payload['{$f['name']}'] = \\Illuminate\\Http\\UploadedFile::fake()->image('{$f['name']}.jpg');";
+            }
+            if ($f['type'] === 'file') {
+                $lines[] = "        \$payload['{$f['name']}'] = \\Illuminate\\Http\\UploadedFile::fake()->create('{$f['name']}.pdf', 10);";
+            }
+        }
+
+        return implode("\n", $lines);
+    }
+
     /** Field-aware factory definition lines. */
     public function factoryDefinition(): string
     {

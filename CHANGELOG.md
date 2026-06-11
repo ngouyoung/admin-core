@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.16.0
+
+- **`--tests` flag — scaffold a CRUD feature test per resource.** `admin-core:make Product --tests` writes
+  a self-contained `tests/Feature/ProductTest.php` that exercises the resource over HTTP: index + getData
+  render, store persists (faking image/file uploads so required-upload resources still pass), update +
+  delete addressed by the **public route key**, and the index is forbidden without permission. It builds
+  its own permissioned user from `config('admin-core.permission.model')`, asserts soft-deletion for
+  `--soft-deletes` resources (else hard delete), and runs green out of the box (pair with `--migration`).
+
 ## v1.15.0
 
 - **CSV import — the counterpart to export.** Generated index screens get an **Import** button (a modal

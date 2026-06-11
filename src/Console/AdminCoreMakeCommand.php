@@ -19,6 +19,7 @@ class AdminCoreMakeCommand extends Command
                             {--audit : Log created/updated/deleted activity for this resource}
                             {--sortable : Add a drag-and-drop ordering column (sort) + reorder list}
                             {--migration : Also generate a create migration}
+                            {--tests : Also generate a CRUD feature test (best paired with --migration)}
                             {--force : Overwrite existing files}';
 
     protected $description = 'Scaffold a full admin-core CRUD resource (model, service, controller, requests, routes, views, permissions).';
@@ -171,6 +172,8 @@ class AdminCoreMakeCommand extends Command
             '__AC_SORT_BUTTON__' => $sortButton,
             '__AC_SORT_PANEL__' => $sortPanel,
             '__AC_FILTER_TABS__' => $fields->filterTabs($snakePlural . '_table'),
+            '__AC_TEST_FILES__' => $fields->testFilePayload(),
+            '__AC_TEST_DELETE_ASSERT__' => $soft ? 'assertSoftDeleted($object)' : 'assertModelMissing($object)',
         ];
 
         $files = [
@@ -194,6 +197,10 @@ class AdminCoreMakeCommand extends Command
 
         if ($soft) {
             $files['views/trash.stub'] = resource_path("views/backend/pages/{$snakePlural}/trash.blade.php");
+        }
+
+        if ($this->option('tests')) {
+            $files['tests.stub'] = base_path("tests/Feature/{$class}Test.php");
         }
 
         if ($this->option('migration')) {

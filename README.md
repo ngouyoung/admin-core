@@ -213,6 +213,18 @@ It adds the `SoftDeletes` trait + `deleted_at` column, a **Trash** button on the
 trash screen with **Restore** / **Delete permanently** (routes `trash` / `restore` / `forceDelete`,
 backed by `trashedQuery()` / `restore()` / `forceDelete()` on the base service).
 
+### Generated tests (`--tests`)
+
+```bash
+php artisan admin-core:make Product --tests --migration --fields="name:string, price:decimal?"
+```
+
+Writes a self-contained `tests/Feature/ProductTest.php` that drives the resource over HTTP: the index +
+`getData` render, `store` persists (faking any image/file uploads), `update` + `delete` resolve by the
+public route key, and the index is **forbidden** without permission. It creates its own user and grants
+the resource's permissions (via `config('admin-core.permission.model')`), so it runs green out of the box
+— pair it with `--migration` so `RefreshDatabase` has the table.
+
 ### Non-enumerable URLs — the hybrid key strategy (`--uuid`)
 
 `--uuid` gives a resource a **public UUID** for its URLs while keeping a fast **bigint primary key**:

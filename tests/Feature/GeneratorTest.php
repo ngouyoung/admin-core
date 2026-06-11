@@ -24,6 +24,7 @@ function gizmoTargets(): array
         resource_path('views/backend/pages/gizmos'),
         database_path('factories/GizmoFactory.php'),
         database_path('seeders/GizmoSeeder.php'),
+        base_path('tests/Feature/GizmoTest.php'),
     ];
 }
 
@@ -388,6 +389,37 @@ it('scaffolds the extended field types (time / url / slug / json / password)', f
     ] as $path) {
         File::isDirectory($path) ? File::deleteDirectory($path) : File::delete($path);
     }
+});
+
+it('generates a CRUD feature test with --tests', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, avatar:image',
+        '--tests' => true,
+    ])->assertSuccessful();
+
+    $path = base_path('tests/Feature/GizmoTest.php');
+    expect(File::exists($path))->toBeTrue();
+    expect(File::get($path))
+        ->toContain('class GizmoTest extends TestCase')
+        ->toContain("route('admin.gizmos.update', \$object->getRouteKey())") // hybrid route key
+        ->toContain('-gizmo"')                                               // resource permission (e.g. "{$ability}-gizmo")
+        ->toContain('->assertForbidden()')                                   // permission gating
+        ->toContain("\$payload['avatar'] = \\Illuminate\\Http\\UploadedFile::fake()->image('avatar.jpg')")
+        ->toContain('assertModelMissing($object)');                          // hard delete
+});
+
+it('asserts soft deletion in the generated test for a soft-deletes resource', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--soft-deletes' => true,
+        '--tests' => true,
+    ])->assertSuccessful();
+
+    expect(File::get(base_path('tests/Feature/GizmoTest.php')))
+        ->toContain('assertSoftDeleted($object)')
+        ->not->toContain('assertModelMissing');
 });
 
 it('omits filter tabs when there is no enum field', function () {
