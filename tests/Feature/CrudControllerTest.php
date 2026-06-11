@@ -116,6 +116,29 @@ it('ignores a UTF-8 BOM and non-fillable columns on import (round-trips export)'
     expect($w->id)->not->toBe(7); // the id column was ignored, not forced
 });
 
+it('scopes find() through an overridden query() — the BaseService tenant hook', function () {
+    $visible = Widget::create(['name' => 'Visible']);
+    $hidden = Widget::create(['name' => 'Hidden']);
+
+    // A service whose query() hides everything but "Visible" — find() must honour it,
+    // proving a single query() override (e.g. tenant scoping) covers reads + lookups.
+    $service = new class(new Widget) extends \Ngos\AdminCore\Services\CrudService {
+        public function __construct(Widget $model)
+        {
+            $this->model = $model;
+        }
+
+        public function query(array|string|null $relation = null): \Illuminate\Database\Eloquent\Builder
+        {
+            return parent::query($relation)->where('name', 'Visible');
+        }
+    };
+
+    expect($service->find($visible->getKey())->name)->toBe('Visible');
+
+    $service->find($hidden->getKey()); // out of scope → not found
+})->throws(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+
 it('neutralises CSV formula injection on export', function () {
     Widget::create(['name' => '=HYPERLINK("http://evil","clickme")']);
 

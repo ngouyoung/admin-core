@@ -334,6 +334,19 @@ class ProductController extends \Ngos\AdminCore\Http\Controllers\CrudController 
 class ProductService    extends \Ngos\AdminCore\Services\CrudService          { /* $model */ }
 ```
 
+The web and API controllers share a common spine, so generated controllers stay thin and cross-cutting
+concerns have one home:
+
+```
+BaseController  (service + FormRequest bindings; your shared seam)
+├── CrudController  (web: views, redirects, DataTables, export/import)  ← thin web controllers
+└── ApiController   (JSON: index/show/store/update/destroy, paginated)  ← thin --api controllers
+```
+
+`BaseService` is the service-layer equivalent: it holds the model binding + the foundational `query()`, and
+`find()` flows through it — so a single `query()` override (e.g. a tenant scope) covers every list, lookup,
+update and delete across both the admin and the API.
+
 ## Testing
 
 The package ships a Pest + Orchestra Testbench suite (in-memory SQLite):

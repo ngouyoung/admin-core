@@ -5,10 +5,8 @@ namespace Ngos\AdminCore\Http\Controllers;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Ngos\AdminCore\Services\CrudService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\DataTables;
 
@@ -21,20 +19,13 @@ use Yajra\DataTables\DataTables;
  * - "Not found" is a native ModelNotFoundException (→ errors/404), no string sentinels.
  * - View/route names are resolved from config('admin-core.*'), not hardcoded prefixes.
  */
-abstract class CrudController extends Controller
+abstract class CrudController extends BaseController
 {
     /** Blade dot-path under config('admin-core.views.path_prefix'), e.g. 'assessments.users.' */
     protected string $viewPath = '';
 
     /** Route-name base under config('admin-core.route.name_prefix'), e.g. 'assessments.users.' */
     protected string $routeBase = '';
-
-    /** CRUD service for this resource. */
-    protected CrudService $service;
-
-    /** FormRequest classes — resolved (and validated) when the action runs. */
-    protected string $storeRequest;
-    protected string $updateRequest;
 
     protected function view(string $file, array $data = [])
     {

@@ -439,12 +439,13 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         ->toContain("'category' => \$this->category?->name")
         ->not->toContain("'secret'");
 
-    // API controller reuses the same service + form requests, addressed by route key.
+    // Thin API controller: the CRUD actions live on the base ApiController, the
+    // generated class just wires the service, resource and form requests.
     expect(File::get(app_path('Http/Controllers/Api/GizmoApiController.php')))
-        ->toContain('class GizmoApiController extends Controller')
-        ->toContain('GizmoResource::collection($this->service->query()->paginate')
-        ->toContain('StoreGizmoRequest $request')
-        ->toContain('->setStatusCode(201)');
+        ->toContain('class GizmoApiController extends ApiController')
+        ->toContain('$this->resource = GizmoResource::class')
+        ->toContain('$this->storeRequest = StoreGizmoRequest::class')
+        ->toContain('$this->updateRequest = UpdateGizmoRequest::class');
 
     // Sanctum-gated apiResource routes under api.gizmos.*.
     expect(File::get(base_path('routes/Api/Modules/gizmos.php')))

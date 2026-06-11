@@ -2,7 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
-## v1.17.0
+## v1.18.0
+
+- **Shared base classes for the web + API surfaces.** Three new abstractions give the Blade admin and the
+  JSON API a common spine, so cross-cutting concerns live in one place:
+  - **`BaseController`** — the shared controller seam (`$service` + store/update FormRequest bindings).
+    Both `CrudController` (web) and `ApiController` (API) extend it.
+  - **`ApiController`** — the API twin of `CrudController`: the five JSON actions (index/show/store/update/
+    destroy, paginated, uuid-addressed) now live on this base, so generated `Api\…ApiController` classes are
+    **thin** (just wire `$service`, `$resource`, `$storeRequest`, `$updateRequest`) — same shape as the web
+    controllers over `CrudController`. API behaviour/fixes now live in one class, not regenerated per resource.
+  - **`BaseService`** — holds the model binding + the foundational `query()`. `find()` now flows through
+    `query()`, so a single `query()` override in a host base service (e.g. a `tenant_id` scope) covers every
+    list, lookup, update and delete — for the admin and the API at once.
+
+  Transparent for existing code: `CrudController` / `CrudService` keep the same public surface. Generated web
+  resources are unchanged; generated `--api` controllers are now thin subclasses of `ApiController`.
 
 - **`--api` flag — generate a JSON API per resource** for a decoupled front-end (Nuxt, mobile) or a
   multi-tenant merchant portal. `admin-core:make Product --api` writes a `JsonResource`, an

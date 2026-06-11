@@ -9,21 +9,18 @@ use Illuminate\Database\Eloquent\Model;
  * Base CRUD service. Receives plain arrays (never the HTTP Request) so it can be
  * driven from controllers, jobs, commands or tests, and signals "not found" with
  * a native ModelNotFoundException (→ 404) rather than a magic string.
+ *
+ * The model binding + foundational query() live on {@see BaseService}, so a host
+ * base service can scope every read (incl. find/update/delete) in one place.
  */
-abstract class CrudService
+abstract class CrudService extends BaseService
 {
-    protected Model $model;
-
-    public function query(array|string|null $relation = null): Builder
-    {
-        return $relation ? $this->model->with($relation) : $this->model->query();
-    }
-
     public function find(int|string $id): Model
     {
         // Resolve by the model's route key (its public 'uuid' under the hybrid key
         // strategy, or 'id' for a plain bigint model) — never the raw primary key.
-        return $this->model->where($this->model->getRouteKeyName(), $id)->firstOrFail();
+        // Routed through query() so a query() override (e.g. tenant scope) applies.
+        return $this->query()->where($this->model->getRouteKeyName(), $id)->firstOrFail();
     }
 
     public function create(array $data): Model
