@@ -192,6 +192,34 @@ it('auto-fills :auth and :sku system fields in the booted hook', function () {
     expect(Process::run('php -l ' . escapeshellarg(app_path('Models/Gizmo.php')))->successful())->toBeTrue();
 });
 
+it('adds segmented filter tabs for an enum field', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, status:enum:draft|published|archived',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // status is the 2nd field, so column index 2 (checkbox is 0, name is 1).
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->toContain('<x-admin-core::filter-tabs')
+        ->toContain('table="#gizmos_table"')
+        ->toContain(':column="2"')
+        ->toContain("'draft' => 'Draft'")
+        ->toContain("'published' => 'Published'");
+});
+
+it('omits filter tabs when there is no enum field', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->not->toContain('filter-tabs')
+        ->not->toContain('__AC_FILTER_TABS__');
+});
+
 it('adds a sort toggle and reorder route with --sortable', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

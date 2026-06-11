@@ -167,6 +167,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_SORT_ROUTES__' => $sortRoutes,
             '__AC_SORT_BUTTON__' => $sortButton,
             '__AC_SORT_PANEL__' => $sortPanel,
+            '__AC_FILTER_TABS__' => $fields->filterTabs($snakePlural . '_table'),
         ];
 
         $files = [

@@ -409,7 +409,22 @@ body.ac-customize-open .ac-customize-backdrop { opacity: 1; visibility: visible;
 }
 .ac-cz-swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); }
 
-// 17. Row actions (kebab dropdown) -------------------------------------------
+// 17. Segmented filter tabs (<x-admin-core::filter-tabs>) --------------------
+.ac-tabs {
+    display: inline-flex; gap: .15rem; padding: .2rem;
+    background: var(--ac-hover); border-radius: .6rem; margin-bottom: 1rem;
+    max-width: 100%; overflow-x: auto;
+}
+.ac-tab {
+    border: 0; background: transparent; color: var(--ac-muted);
+    font-weight: 500; font-size: .88rem; white-space: nowrap;
+    padding: .35rem .8rem; border-radius: .45rem; cursor: pointer;
+    transition: background .15s, color .15s;
+    &:hover { color: var(--ac-heading); }
+    &.is-active { background: var(--ac-surface); color: var(--ac-heading); box-shadow: 0 1px 2px rgba(16,24,40,.08); }
+}
+
+// 18. Row actions (kebab dropdown) -------------------------------------------
 .ac-row-actions {
     .ac-kebab {
         border: 0; background: transparent; color: var(--ac-muted);

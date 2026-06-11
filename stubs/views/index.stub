@@ -13,7 +13,7 @@
         </x-slot:actions>
     </x-admin-core::page-header>
 
-    <div class="card">
+__AC_FILTER_TABS__    <div class="card">
         <div class="card-header d-flex flex-wrap gap-1 align-items-center">
             <a href="{{ route('admin.dummyModels.export') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-file-csv"></i> Export

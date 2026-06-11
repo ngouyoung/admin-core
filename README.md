@@ -237,6 +237,20 @@ Everything `install` injects is wrapped in `// >>> admin-core:* … // <<< admin
 touched** — only package-owned files (config, layout, access module, front-end kit) are purged. Add
 `--force` to skip the confirmation prompt.
 
+## UI components & theme
+
+The `--access` kit ships a custom Bootstrap-5 theme (no AdminLTE) plus reusable Blade components:
+
+- **`<x-admin-core::page-header title="…" description="…">`** — breadcrumb + title + description, with
+  an `<x-slot:actions>` for the primary button.
+- **`<x-admin-core::filter-tabs table="#x_table" :column="2" :tabs="['' => 'All', 'draft' => 'Draft']" />`**
+  — segmented tabs that drive a server-side DataTables column search (auto-added for enum fields).
+- **Customize drawer** (palette icon in the topbar): theme (light/dark/system), accent colour, density,
+  layout (sidebar/top-nav), container (fluid/boxed) and direction (LTR/RTL) — persisted in `localStorage`.
+- **Row actions** render as a kebab (⋯) menu; add resource-specific items via the 3rd arg of `actions()`.
+
+Re-skin the whole thing from the `--ac-*` CSS tokens / SCSS variables at the top of `resources/sass/app.scss`.
+
 ## Customising
 
 - **Stubs:** `php artisan vendor:publish --tag=admin-core-stubs` → `stubs/admin-core/` (yours win over the package's).

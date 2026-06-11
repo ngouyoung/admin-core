@@ -51,4 +51,5 @@ import './shell';
 import './checktree';
 import './theme';
 import './customize';
+import './filter-tabs';
 import './notify';

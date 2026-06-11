@@ -664,6 +664,33 @@ BLADE;
         return implode("\n", $cols);
     }
 
+    /**
+     * Segmented filter tabs for the first enum field (empty when there is none),
+     * targeting its DataTable column (checkbox is column 0, then the fields).
+     */
+    public function filterTabs(string $tableId): string
+    {
+        $index = null;
+        $enum = null;
+        foreach (array_values($this->fields) as $i => $f) {
+            if ($f['type'] === 'enum') {
+                $index = $i + 1; // +1 for the leading checkbox column
+                $enum = $f['enum'];
+                break;
+            }
+        }
+        if ($index === null) {
+            return '';
+        }
+
+        $tabs = ["'' => 'All'"];
+        foreach ($enum as $value) {
+            $tabs[] = "'{$value}' => '" . ucfirst($value) . "'";
+        }
+
+        return "    <x-admin-core::filter-tabs table=\"#{$tableId}\" :column=\"{$index}\" :tabs=\"[" . implode(', ', $tabs) . "]\" />\n\n";
+    }
+
     // ---- Controller getData -----------------------------------------
 
     public function eager(): string

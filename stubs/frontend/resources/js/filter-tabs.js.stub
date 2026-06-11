@@ -1,0 +1,21 @@
+// ---------------------------------------------------------------------------
+// Segmented filter tabs (<x-admin-core::filter-tabs>): clicking a tab runs a
+// column search on the associated DataTable. Delegated so it works with tables
+// rendered/redrawn after load.
+// ---------------------------------------------------------------------------
+document.addEventListener('click', (e) => {
+    const tab = e.target.closest('[data-ac-tabs] .ac-tab');
+    if (!tab) return;
+
+    const wrap = tab.closest('[data-ac-tabs]');
+    wrap.querySelectorAll('.ac-tab').forEach((t) => t.classList.toggle('is-active', t === tab));
+
+    const $ = window.jQuery;
+    const node = $ ? $(wrap.dataset.acTable) : null;
+    if (!$ || !node.length || !$.fn.dataTable.isDataTable(node)) return;
+
+    node.DataTable()
+        .column(parseInt(wrap.dataset.acColumn, 10))
+        .search(tab.dataset.acValue || '')
+        .draw();
+});

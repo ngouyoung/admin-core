@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.9.0
+
+- **Segmented filter tabs** `<x-admin-core::filter-tabs>`: a reusable pill control
+  (All / Active / Draft …) that runs a server-side DataTables column search.
+  `admin-core:make` now drops it onto the generated `index` automatically for the first
+  **enum** field — `status:enum:draft|published|archived` yields tabs filtering that column.
+  Drop it on any page with `<x-admin-core::filter-tabs table="#x_table" :column="2" :tabs="[...]" />`.
+
 ## v1.8.3
 
 - **Extensible row actions.** `actions($model, $resource, $extra = [])` now takes a list of extra
@@ -150,7 +158,7 @@ All notable changes to `ngos/admin-core` are documented here.
 
 - **Hybrid key strategy** (replaces uuid primary keys). `--uuid` / `generator.uuid` now generate a fast
   **bigint `id` primary key** (lean foreign keys + joins that never bloat) **plus a unique public `uuid`
-  column** used in URLs/APIs â so ids are non-enumerable without the index/join cost of uuid PKs. New
+  column** used in URLs/APIs — so ids are non-enumerable without the index/join cost of uuid PKs. New
   `HasPublicUuid` trait auto-fills the uuid and sets `getRouteKeyName() => 'uuid'`; `CrudService` now
   resolves every action (edit/show/update/delete/bulk-delete/restore/reorder) by the model's route key,
   so plain `id` models are unchanged and hybrid models resolve by uuid automatically. Foreign/pivot keys
@@ -162,7 +170,7 @@ All notable changes to `ngos/admin-core` are documented here.
 ## v1.2.5
 
 - **Typed settings**: each setting now has a `type` (`text|textarea|number|email|image|file|boolean`)
-  that drives the control rendered on the Settings screen â so **Site Logo is a real image upload**
+  that drives the control rendered on the Settings screen — so **Site Logo is a real image upload**
   (with preview), Items Per Page a number field, Support Email an email field, etc. The controller
   stores uploaded files on the `public` disk (replacing the old file) and keeps the existing value when
   no new file is chosen. Adds a `type` column to the settings migration and seeds the defaults with
@@ -170,14 +178,14 @@ All notable changes to `ngos/admin-core` are documented here.
 
 ## v1.2.4
 
-- **Docs**: corrected README claims that had drifted from the code â `admin-core:make` now auto-grants
+- **Docs**: corrected README claims that had drifted from the code — `admin-core:make` now auto-grants
   permissions (no re-seed), the removed per-column footer search, the `--sortable` toggle panel (the
   DataTable stays), and the expanded test/CI coverage; added the one-command `--build --seed` tip.
 - **Cleanup**: removed the dead `FieldSet::tfoot()` method (orphaned when per-column search was dropped).
 
 ## v1.2.3
 
-- **Generator + installer tests** (44 tests total): `admin-core:make` is now covered end to end â
+- **Generator + installer tests** (44 tests total): `admin-core:make` is now covered end to end —
   it asserts the scaffolded files exist, contain no leftover stub tokens, pass `php -l`, and that
   the generated migration actually migrates; plus `--sortable`, `--soft-deletes`, the
   no-duplicate-migration guard, and `--force` overwrite behaviour. `admin-core:install` covers the
@@ -228,7 +236,7 @@ All notable changes to `ngos/admin-core` are documented here.
 
 ## v1.1.3
 
-- Profile avatar now uses a Croppie crop-and-upload modal (circular viewport, base64 upload) instead of a plain file input â matching the original app. Adds the `croppie` front-end dependency.
+- Profile avatar now uses a Croppie crop-and-upload modal (circular viewport, base64 upload) instead of a plain file input — matching the original app. Adds the `croppie` front-end dependency.
 
 ## v1.1.2
 
@@ -237,18 +245,6 @@ All notable changes to `ngos/admin-core` are documented here.
 ## v1.1.1
 
 - Fix: `admin-core:install --access` no longer overwrites the host `vite.config.js`, which had dropped `resources/css/app.css` and broke Laravel's default Tailwind welcome page ("Unable to locate file in Vite manifest"). The host config builds admin-core's `app.js` as-is.
-
-## Unreleased
-
-- **Static analysis**: Larastan (PHPStan level 5) via `composer analyse`;
-  baseline grandfathers framework-dynamic false positives, LSP signature breaks fail the build.
-
-- **Drag-to-reorder** (`admin-core:make --sortable`): adds a `sort` column, a drag-and-drop list index,
-  and a `reorder` endpoint backed by `CrudService::reorder()`.
-- **Audit trail**: a `LogsActivity` trait + `ActivityLog` model (in the package) record
-  create/update/delete with the actor and changed attributes. `admin-core:make --audit`
-  (or `generator.audit` config) adds it to a resource; `--access` ships a read-only Activity Log
-  viewer; `admin-core:install` publishes the `activity_logs` migration.
 
 ## v1.0.0
 
