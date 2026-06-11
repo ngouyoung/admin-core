@@ -41,7 +41,11 @@ if ($.fn.dataTable) {
         serverSide: true,
         responsive: true,
         autoWidth: true,
-        order: [[0, 'asc']],
+        // No forced initial sort: column 0 is the (non-orderable) select-all
+        // checkbox, and ordering by it makes DataTables 2.x stamp a stray sort
+        // arrow next to the checkbox. Let the server return its natural order;
+        // users can still click any real column header to sort.
+        order: [],
         // Clean toolbar: a "Columns" (show/hide) button + search on top, info +
         // rows-per-page + paging on the bottom (matches the page-header style).
         layout: {

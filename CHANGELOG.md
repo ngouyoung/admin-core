@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.10.3
+
+- **Fix: a stray sort arrow appeared next to the select-all checkbox.** The DataTables global default
+  forced `order: [[0, 'asc']]`, but column 0 is the non-orderable select-all checkbox — so DataTables 2.x
+  marked it the active sort column and stamped a `span.dt-column-order` arrow there (not clickable, just
+  confusing). The default is now `order: []`: the server returns its natural order and real column headers
+  remain sortable on click.
+
 ## v1.10.2
 
 - **Test:** a generator regression test now runs `admin-core:make` against a hybrid group-permissions
