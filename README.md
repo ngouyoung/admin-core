@@ -6,6 +6,9 @@ It gives you a thin, conventional CRUD skeleton — abstract `CrudController` + 
 `Route::crud()` route macro, and an `admin-core:make` resource generator — so every backend table
 in your app is built the same way, with permission gating and yajra DataTables wired in.
 
+> **New here?** Read [`ARCHITECTURE.md`](ARCHITECTURE.md) — a one-page map of the layers (web + JSON API
+> over one shared service) and a "where do I put X?" cheat sheet.
+
 - **Blade + Bootstrap 5 + jQuery DataTables.** No Livewire. jQuery only for plugins.
 - **Config-driven.** Route-name prefix, view-path prefix, permission pattern and pagination all in `config/admin-core.php`.
 - **Permission-aware.** Each CRUD action is gated by `permission:{action}-{resource}` (spatie/laravel-permission).

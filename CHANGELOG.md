@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.18.1
+
+- **Docs: `ARCHITECTURE.md`** — a one-page map of the reusable skeleton (the five base classes, the
+  web + JSON API sharing one service, the request lifecycle, a "where do I put X?" cheat sheet, and what
+  the generator emits per resource). Linked from the README. Docs only.
+
 ## v1.18.0
 
 - **Shared base classes for the web + API surfaces.** Three new abstractions give the Blade admin and the
