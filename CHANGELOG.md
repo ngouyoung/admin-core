@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.17.0
+
+- **`--api` flag — generate a JSON API per resource** for a decoupled front-end (Nuxt, mobile) or a
+  multi-tenant merchant portal. `admin-core:make Product --api` writes a `JsonResource`, an
+  `Api\…ApiController` (index/show/store/update/destroy, paginated), and a Sanctum-gated `apiResource`
+  route file under `api.{plural}.*`. The controller **reuses the web CRUD's `Service` + FormRequests**
+  (one source of truth for validation/authorization), and **the public id in every payload is the uuid
+  route key — never the bigint id** (non-enumerable across tenants). Passwords and the owner FK are never
+  serialised; uploads become public URLs; relations resolve to their `name`. New `admin-core.api` config
+  (`middleware` default `['auth:sanctum']`, `per_page` 25) — add a tenant-scoping middleware there for
+  multi-tenant. Load the route files by globbing `routes/Api/Modules/*.php` from `routes/api.php`.
+
 ## v1.16.0
 
 - **`--tests` flag — scaffold a CRUD feature test per resource.** `admin-core:make Product --tests` writes

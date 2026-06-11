@@ -1,0 +1,15 @@
+<?php
+
+use App\Http\Controllers\Api\DummyClassApiController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware(config('admin-core.api.middleware', ['auth:sanctum']))
+    ->prefix('dummyModels')
+    ->name('api.dummyModels.')
+    ->group(function () {
+        Route::get('/', [DummyClassApiController::class, 'index'])->name('index');
+        Route::post('/', [DummyClassApiController::class, 'store'])->name('store');
+        Route::get('{id}', [DummyClassApiController::class, 'show'])->name('show');
+        Route::put('{id}', [DummyClassApiController::class, 'update'])->name('update');
+        Route::delete('{id}', [DummyClassApiController::class, 'destroy'])->name('destroy');
+    });

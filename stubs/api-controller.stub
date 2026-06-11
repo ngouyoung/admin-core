@@ -1,0 +1,58 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Requests\DummyClass\StoreDummyClassRequest;
+use App\Http\Requests\DummyClass\UpdateDummyClassRequest;
+use App\Http\Resources\DummyClassResource;
+use App\Services\DummyClasses\DummyClassService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
+
+/**
+ * JSON API for DummyClass — reuses the same service + form requests as the web
+ * CRUD, so validation/authorization stay in one place. Records are addressed by
+ * their public route key (uuid); the bigint id is never exposed.
+ */
+class DummyClassApiController extends Controller
+{
+    public function __construct(protected DummyClassService $service)
+    {
+    }
+
+    public function index(Request $request): AnonymousResourceCollection
+    {
+        $perPage = (int) $request->integer('per_page', config('admin-core.api.per_page', 25));
+
+        return DummyClassResource::collection($this->service->query()->paginate($perPage));
+    }
+
+    public function show(string $id): DummyClassResource
+    {
+        return new DummyClassResource($this->service->find($id));
+    }
+
+    public function store(StoreDummyClassRequest $request): JsonResponse
+    {
+        $object = DB::transaction(fn () => $this->service->create($request->validated()));
+
+        return (new DummyClassResource($object))->response()->setStatusCode(201);
+    }
+
+    public function update(UpdateDummyClassRequest $request, string $id): DummyClassResource
+    {
+        $object = DB::transaction(fn () => $this->service->update($id, $request->validated()));
+
+        return new DummyClassResource($object);
+    }
+
+    public function destroy(string $id): JsonResponse
+    {
+        $this->service->delete($id);
+
+        return response()->json(['data' => true]);
+    }
+}

@@ -12,6 +12,27 @@ npm install && npm run build
 
 ---
 
+## → v1.17.0 — JSON API
+
+No breaking change — opt in with `--api`:
+
+```bash
+php artisan admin-core:make Product --api --migration --fields="name:string, price:decimal"
+```
+
+One-time setup: load the generated API route files by globbing them from `routes/api.php`, and
+(optionally) publish the config to tune `admin-core.api.middleware` / `per_page`:
+
+```php
+// routes/api.php
+foreach (glob(__DIR__ . '/Api/Modules/*.php') ?: [] as $module) {
+    require $module;
+}
+```
+
+Requires `laravel/sanctum` (the default guard). For multi-tenant, add your tenant-scoping middleware to
+`config('admin-core.api.middleware')`.
+
 ## → v1.16.0 — Generated tests
 
 No breaking change — opt in with `--tests`:

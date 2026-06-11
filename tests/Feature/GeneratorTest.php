@@ -25,6 +25,9 @@ function gizmoTargets(): array
         database_path('factories/GizmoFactory.php'),
         database_path('seeders/GizmoSeeder.php'),
         base_path('tests/Feature/GizmoTest.php'),
+        app_path('Http/Resources/GizmoResource.php'),
+        app_path('Http/Controllers/Api/GizmoApiController.php'),
+        base_path('routes/Api/Modules/gizmos.php'),
     ];
 }
 
@@ -420,6 +423,34 @@ it('asserts soft deletion in the generated test for a soft-deletes resource', fu
     expect(File::get(base_path('tests/Feature/GizmoTest.php')))
         ->toContain('assertSoftDeleted($object)')
         ->not->toContain('assertModelMissing');
+});
+
+it('generates a JSON API with --api (resource + controller + routes)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, secret:password, category_id:foreign',
+        '--api' => true,
+    ])->assertSuccessful();
+
+    // JsonResource: public uuid id, the password is never exposed, relation by name.
+    expect(File::get(app_path('Http/Resources/GizmoResource.php')))
+        ->toContain('class GizmoResource extends JsonResource')
+        ->toContain("'id' => \$this->getRouteKey()")
+        ->toContain("'category' => \$this->category?->name")
+        ->not->toContain("'secret'");
+
+    // API controller reuses the same service + form requests, addressed by route key.
+    expect(File::get(app_path('Http/Controllers/Api/GizmoApiController.php')))
+        ->toContain('class GizmoApiController extends Controller')
+        ->toContain('GizmoResource::collection($this->service->query()->paginate')
+        ->toContain('StoreGizmoRequest $request')
+        ->toContain('->setStatusCode(201)');
+
+    // Sanctum-gated apiResource routes under api.gizmos.*.
+    expect(File::get(base_path('routes/Api/Modules/gizmos.php')))
+        ->toContain("config('admin-core.api.middleware'")
+        ->toContain("->name('api.gizmos.')")
+        ->toContain("[GizmoApiController::class, 'index']");
 });
 
 it('omits filter tabs when there is no enum field', function () {

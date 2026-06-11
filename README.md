@@ -225,6 +225,35 @@ public route key, and the index is **forbidden** without permission. It creates 
 the resource's permissions (via `config('admin-core.permission.model')`), so it runs green out of the box
 — pair it with `--migration` so `RefreshDatabase` has the table.
 
+### JSON API (`--api`)
+
+For a decoupled front-end (Nuxt, mobile, another SPA) or a multi-tenant merchant portal, `--api` adds a
+clean JSON API alongside the Blade admin:
+
+```bash
+php artisan admin-core:make Product --api --migration --fields="name:string, price:decimal"
+```
+
+Generates a **`ProductResource`** (JsonResource), a **`Api\ProductApiController`** (index/show/store/
+update/destroy), and a Sanctum-gated **`apiResource`** route file under `api.products.*`. The controller
+**reuses the same `Service` + FormRequests** as the web CRUD, so validation/authorization live in one
+place; the index is paginated (`?per_page=`). Crucially, **the public id is always the uuid route key,
+never the bigint `id`** — so internal ids are never enumerable across tenants:
+
+```json
+{ "data": [ { "id": "019eb7a1-…-c046e429998b", "name": "Espresso", "price": "4.50" } ], "meta": { … } }
+```
+
+Configure the guard + page size in `config('admin-core.api')` (default `['auth:sanctum']`, 25) — add a
+tenant-scoping middleware there for multi-tenant setups. API route files are auto-loaded if `routes/api.php`
+globs `routes/Api/Modules/*.php`:
+
+```php
+foreach (glob(__DIR__ . '/Api/Modules/*.php') ?: [] as $module) {
+    require $module;
+}
+```
+
 ### Non-enumerable URLs — the hybrid key strategy (`--uuid`)
 
 `--uuid` gives a resource a **public UUID** for its URLs while keeping a fast **bigint primary key**:

@@ -20,6 +20,7 @@ class AdminCoreMakeCommand extends Command
                             {--sortable : Add a drag-and-drop ordering column (sort) + reorder list}
                             {--migration : Also generate a create migration}
                             {--tests : Also generate a CRUD feature test (best paired with --migration)}
+                            {--api : Also generate a JSON API (resource + controller + apiResource routes)}
                             {--force : Overwrite existing files}';
 
     protected $description = 'Scaffold a full admin-core CRUD resource (model, service, controller, requests, routes, views, permissions).';
@@ -174,6 +175,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_FILTER_TABS__' => $fields->filterTabs($snakePlural . '_table'),
             '__AC_TEST_FILES__' => $fields->testFilePayload(),
             '__AC_TEST_DELETE_ASSERT__' => $soft ? 'assertSoftDeleted($object)' : 'assertModelMissing($object)',
+            '__AC_RESOURCE_FIELDS__' => $fields->resourceFields(),
         ];
 
         $files = [
@@ -201,6 +203,12 @@ class AdminCoreMakeCommand extends Command
 
         if ($this->option('tests')) {
             $files['tests.stub'] = base_path("tests/Feature/{$class}Test.php");
+        }
+
+        if ($this->option('api')) {
+            $files['api-resource.stub'] = app_path("Http/Resources/{$class}Resource.php");
+            $files['api-controller.stub'] = app_path("Http/Controllers/Api/{$class}ApiController.php");
+            $files['api-routes.stub'] = base_path("routes/Api/Modules/{$snakePlural}.php");
         }
 
         if ($this->option('migration')) {

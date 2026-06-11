@@ -395,6 +395,36 @@ PHP;
         return implode("\n", $lines);
     }
 
+    /**
+     * JSON resource body — one line per field (the public uuid `id` and the
+     * timestamps live in the stub). Passwords and the owner FK are never exposed;
+     * uploads become public URLs and relations resolve to their `name`.
+     */
+    public function resourceFields(): string
+    {
+        $lines = [];
+        foreach ($this->fields as $f) {
+            if (in_array($f['type'], ['password', 'auth'], true)) {
+                continue;
+            }
+            if ($f['type'] === 'foreign') {
+                $lines[] = "            '{$f['relation']}' => \$this->{$f['relation']}?->name,";
+                continue;
+            }
+            if ($f['type'] === 'belongsToMany') {
+                $lines[] = "            '{$f['relation']}' => \$this->whenLoaded('{$f['relation']}', fn () => \$this->{$f['relation']}->pluck('name')),";
+                continue;
+            }
+            if (in_array($f['type'], ['image', 'file'], true)) {
+                $lines[] = "            '{$f['name']}' => \$this->{$f['name']} ? asset('storage/' . \$this->{$f['name']}) : null,";
+                continue;
+            }
+            $lines[] = "            '{$f['name']}' => \$this->{$f['name']},";
+        }
+
+        return implode("\n", $lines);
+    }
+
     /** Field-aware factory definition lines. */
     public function factoryDefinition(): string
     {

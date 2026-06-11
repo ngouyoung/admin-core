@@ -52,6 +52,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | API (--api)
+    |--------------------------------------------------------------------------
+    | Resources generated with --api expose a JSON API (JsonResource + apiResource
+    | routes) for a decoupled front-end (Nuxt, mobile, …). The public identifier is
+    | always the uuid route key, never the bigint id. `middleware` guards every API
+    | route — Sanctum by default; add a tenant-scoping middleware here for a
+    | multi-tenant setup. `per_page` is the default index page size (override with
+    | ?per_page=).
+    */
+    'api' => [
+        'middleware' => ['auth:sanctum'],
+        'per_page' => 25,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Generator
     |--------------------------------------------------------------------------
     | uuid: when true, `admin-core:make` uses the *hybrid* key strategy — a fast
