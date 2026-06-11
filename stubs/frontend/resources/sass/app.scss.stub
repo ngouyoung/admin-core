@@ -86,7 +86,10 @@ body { background: var(--ac-body-bg); color: var(--ac-body-color); }
 // 5. App shell (CSS grid: sidebar | [header / main / footer]) ----------------
 .ac-shell {
     display: grid;
-    grid-template-columns: var(--ac-sidebar-w) 1fr;
+    // minmax(0, 1fr): without the 0 minimum, the main column won't shrink below
+    // its content's width, so a wide table (DataTable) overflows the viewport and
+    // breaks DataTables Responsive's width calc. This bounds it to the space left.
+    grid-template-columns: var(--ac-sidebar-w) minmax(0, 1fr);
     grid-template-rows: var(--ac-header-h) 1fr auto;
     grid-template-areas:
         'sidebar header'
@@ -96,12 +99,12 @@ body { background: var(--ac-body-bg); color: var(--ac-body-color); }
     transition: grid-template-columns .22s ease;
 }
 .ac-sidebar { grid-area: sidebar; }
-.ac-header  { grid-area: header; }
-.ac-main    { grid-area: main; }
-.ac-footer  { grid-area: footer; }
+.ac-header  { grid-area: header; min-width: 0; }
+.ac-main    { grid-area: main; min-width: 0; }
+.ac-footer  { grid-area: footer; min-width: 0; }
 
 // Collapsed (desktop) — sidebar shrinks to icons.
-body.ac-sidebar-collapsed .ac-shell { grid-template-columns: var(--ac-sidebar-w-collapsed) 1fr; }
+body.ac-sidebar-collapsed .ac-shell { grid-template-columns: var(--ac-sidebar-w-collapsed) minmax(0, 1fr); }
 body.ac-sidebar-collapsed {
     .ac-brand-text, .ac-user-meta, .ac-nav-link span, .ac-nav-header, .ac-nav-caret { display: none; }
     .ac-nav-link { justify-content: center; }
@@ -292,7 +295,7 @@ body.ac-sidebar-collapsed {
 // 10. Mobile (off-canvas sidebar) -------------------------------------------
 .ac-overlay { display: none; }
 @media (max-width: 991.98px) {
-    .ac-shell { grid-template-columns: 1fr; grid-template-areas: 'header' 'main' 'footer'; }
+    .ac-shell { grid-template-columns: minmax(0, 1fr); grid-template-areas: 'header' 'main' 'footer'; }
     .ac-sidebar {
         position: fixed; inset-block: 0; inset-inline: 0 auto; z-index: 1045;
         width: var(--ac-sidebar-w);
@@ -310,11 +313,11 @@ body.ac-sidebar-collapsed {
 @media (min-width: 992px) {
     [data-ac-layout="topnav"] {
         .ac-shell {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
             grid-template-rows: var(--ac-header-h) auto 1fr auto;
             grid-template-areas: 'header' 'sidebar' 'main' 'footer';
         }
-        &.ac-sidebar-collapsed .ac-shell { grid-template-columns: 1fr; }
+        &.ac-sidebar-collapsed .ac-shell { grid-template-columns: minmax(0, 1fr); }
         .ac-sidebar {
             position: sticky; top: var(--ac-header-h); height: auto; overflow: visible;
             border-inline-end: 0; border-bottom: 1px solid var(--ac-border);

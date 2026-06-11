@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.9.1
+
+- **Fix: wide tables overflowed the viewport** (right-hand columns cut off, DataTables Responsive not
+  collapsing). The shell grid's main column used a plain `1fr`, whose `auto` minimum refuses to shrink
+  below the content width — so a wide table blew the page past the viewport and Responsive miscalculated.
+  Bounded it with `grid-template-columns: … minmax(0, 1fr)` + `min-width: 0` on the content areas, so the
+  table is constrained and Responsive collapses columns correctly.
+
 ## v1.9.0
 
 - **Segmented filter tabs** `<x-admin-core::filter-tabs>`: a reusable pill control
