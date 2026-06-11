@@ -246,6 +246,25 @@ it('adds segmented filter tabs for an enum field', function () {
         ->toContain("'published' => 'Published'");
 });
 
+it('renders an enum column as a status pill (table + show), marked raw', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, status:enum:draft|published|archived',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // DataTables cell: editColumn wraps the value in an .ac-status pill, and the
+    // column is registered raw so the markup isn't escaped.
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->toContain("->editColumn('status'")
+        ->toContain('class="ac-status" data-status="')
+        ->toMatch('/rawColumns\(\[[^\]]*\bstatus\b/');
+
+    // Detail screen: same pill.
+    expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))
+        ->toContain('<span class="ac-status" data-status="{{ $object->status }}">');
+});
+
 it('omits filter tabs when there is no enum field', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

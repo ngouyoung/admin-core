@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.11.0
+
+- **Enum columns now render as status pills.** Previously an enum field (e.g. `status:enum:draft|published|archived`)
+  printed as raw lowercase text in the table and the detail screen. The generator now wraps it in a soft,
+  dotted `.ac-status` pill — in both the DataTable cell (`editColumn` + raw) and the show view. A new
+  token-driven SCSS component colours common status words semantically (published/active → green,
+  pending/processing → amber, failed/cancelled → red, archived/inactive → muted) and falls back to a
+  neutral pill for any unknown value, so every enum looks deliberate. Pairs with the existing enum
+  filter-tabs.
+
 ## v1.10.3
 
 - **Fix: a stray sort arrow appeared next to the select-all checkbox.** The DataTables global default

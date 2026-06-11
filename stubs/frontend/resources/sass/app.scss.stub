@@ -446,6 +446,37 @@ body.ac-customize-open .ac-customize-backdrop { opacity: 1; visibility: visible;
     &.is-active { background: var(--ac-surface); color: var(--ac-heading); box-shadow: 0 1px 2px rgba(16,24,40,.08); }
 }
 
+// Status pill — renders enum columns (e.g. draft / published / archived) as a
+// soft, dotted pill. Neutral by default; common status words get a semantic
+// tint. Unknown values fall back to neutral, so any enum still looks deliberate.
+.ac-status {
+    display: inline-flex; align-items: center; gap: .4em;
+    padding: .2rem .6rem; border-radius: 999px;
+    font-size: .76rem; font-weight: 500; line-height: 1.25;
+    text-transform: capitalize; white-space: nowrap;
+    color: var(--ac-heading); background: var(--ac-hover);
+    border: 1px solid var(--ac-border);
+    &::before { content: ""; width: .42em; height: .42em; border-radius: 50%; background: currentColor; opacity: .55; }
+}
+@mixin ac-status-tone($c) {
+    color: #{$c};
+    background: color-mix(in srgb, #{$c} 12%, transparent);
+    border-color: color-mix(in srgb, #{$c} 24%, transparent);
+    &::before { opacity: .9; }
+}
+.ac-status[data-status="published" i], .ac-status[data-status="active" i],
+.ac-status[data-status="approved" i], .ac-status[data-status="completed" i],
+.ac-status[data-status="paid" i], .ac-status[data-status="success" i],
+.ac-status[data-status="enabled" i] { @include ac-status-tone(var(--bs-success)); }
+.ac-status[data-status="pending" i], .ac-status[data-status="processing" i],
+.ac-status[data-status="review" i], .ac-status[data-status="on_hold" i] { @include ac-status-tone(var(--bs-warning)); }
+.ac-status[data-status="rejected" i], .ac-status[data-status="failed" i],
+.ac-status[data-status="cancelled" i], .ac-status[data-status="canceled" i],
+.ac-status[data-status="banned" i], .ac-status[data-status="disabled" i],
+.ac-status[data-status="error" i] { @include ac-status-tone(var(--bs-danger)); }
+.ac-status[data-status="archived" i], .ac-status[data-status="inactive" i],
+.ac-status[data-status="closed" i], .ac-status[data-status="expired" i] { color: var(--ac-muted); }
+
 // 18. Row actions (kebab dropdown) -------------------------------------------
 .ac-row-actions {
     .ac-kebab {

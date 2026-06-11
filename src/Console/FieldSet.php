@@ -716,6 +716,9 @@ BLADE;
             if ($f['type'] === 'belongsToMany') {
                 $lines[] = "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(\$i->name ?? \$i->id) . '</span>')->implode(' '))";
             }
+            if ($f['type'] === 'enum') {
+                $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}) . '\">' . e(\$row->{$f['name']}) . '</span>' : '')";
+            }
             if ($f['type'] === 'image') {
                 $lines[] = "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . asset('storage/' . \$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')";
             }
@@ -739,6 +742,7 @@ BLADE;
                 'image' => "@if(\$object->{$f['name']})<img src=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
+                'enum' => "@if(\$object->{$f['name']})<span class=\"ac-status\" data-status=\"{{ \$object->{$f['name']} }}\">{{ \$object->{$f['name']} }}</span>@endif",
                 default => "{{ \$object->{$f['name']} }}",
             };
             $rows[] = "            <tr>\n                <th style=\"width:220px\">{$label}</th>\n                <td>{$value}</td>\n            </tr>";
@@ -754,7 +758,7 @@ BLADE;
             $raw[] = "'name'";
         }
         foreach ($this->fields as $f) {
-            if (in_array($f['type'], ['belongsToMany', 'image', 'file'], true)) {
+            if (in_array($f['type'], ['belongsToMany', 'image', 'file', 'enum'], true)) {
                 $raw[] = "'{$f['name']}'";
             }
         }
