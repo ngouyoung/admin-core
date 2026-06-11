@@ -12,6 +12,22 @@ npm install && npm run build
 
 ---
 
+## → v1.19.0 — Base classes renamed (`WebController` / `BaseService`)
+
+No action required — `CrudController` and `CrudService` live on as **deprecated aliases**, so existing code
+keeps working. To adopt the new names, change your `extends`:
+
+```php
+- class ProductController extends \Ngos\AdminCore\Http\Controllers\CrudController
++ class ProductController extends \Ngos\AdminCore\Http\Controllers\WebController
+
+- class ProductService extends \Ngos\AdminCore\Services\CrudService
++ class ProductService extends \Ngos\AdminCore\Services\BaseService
+```
+
+Re-publish the stubs (`vendor:publish --tag=admin-core-stubs --force`) to get the new names in future
+generated code. The aliases will be dropped in the next major version.
+
 ## → v1.17.0 — JSON API
 
 No breaking change — opt in with `--api`:

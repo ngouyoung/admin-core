@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.19.0
+
+- **Renamed the base classes for clarity — back-compat aliases kept.** The web controller and the
+  catch-all service were named after "CRUD", but they do more (export/import/bulk, soft-delete, reorder),
+  and the service is simply the base every service extends. The clearer names frame them as *channels over
+  shared bases*:
+  - `CrudController` → **`WebController`** (the web/HTML channel; its API twin is `ApiController`).
+  - `CrudService` → **`BaseService`** (the one service base both channels use — the previous
+    `BaseService` + `CrudService` split is collapsed into it).
+
+  The old names remain as **deprecated aliases** (`CrudController extends WebController`,
+  `CrudService extends BaseService`), so existing `extends CrudController` / `extends CrudService` code keeps
+  working unchanged. Newly generated resources use the new names. The aliases will be removed in a future
+  major version.
+
 ## v1.18.1
 
 - **Docs: `ARCHITECTURE.md`** — a one-page map of the reusable skeleton (the five base classes, the

@@ -6,9 +6,9 @@ use App\Http\Requests\Role\StoreRoleRequest;
 use App\Http\Requests\Role\UpdateRoleRequest;
 use App\Services\GroupPermissions\GroupPermissionsService;
 use App\Services\Roles\RoleService;
-use Ngos\AdminCore\Http\Controllers\CrudController;
+use Ngos\AdminCore\Http\Controllers\WebController;
 
-class RoleController extends CrudController
+class RoleController extends WebController
 {
     private GroupPermissionsService $groupPermissionService;
 

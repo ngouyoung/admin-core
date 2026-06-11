@@ -6,13 +6,16 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Common base for admin-core services.
+ * Base service every resource service extends — the shared business core used by
+ * both the web (WebController) and JSON API (ApiController) channels.
  *
- * Holds the model binding and the foundational query() — the single read
- * chokepoint that CrudService builds on (find/update/delete all flow through
- * it). Override query() in a host base service to apply a cross-cutting scope
- * (e.g. a tenant_id filter) to every list and lookup at once, for both the web
- * admin and the JSON API.
+ * Receives plain arrays (never the HTTP Request) so it can be driven from
+ * controllers, jobs, commands or tests, and signals "not found" with a native
+ * ModelNotFoundException (→ 404) rather than a magic string.
+ *
+ * query() is the single read chokepoint — find/update/delete all flow through it,
+ * so a single query() override in a host base service (e.g. a tenant_id scope)
+ * covers every list, lookup, update and delete across the admin and the API.
  */
 abstract class BaseService
 {
@@ -21,5 +24,59 @@ abstract class BaseService
     public function query(array|string|null $relation = null): Builder
     {
         return $relation ? $this->model->with($relation) : $this->model->query();
+    }
+
+    public function find(int|string $id): Model
+    {
+        // Resolve by the model's route key (its public 'uuid' under the hybrid key
+        // strategy, or 'id' for a plain bigint model) — never the raw primary key.
+        // Routed through query() so a query() override (e.g. tenant scope) applies.
+        return $this->query()->where($this->model->getRouteKeyName(), $id)->firstOrFail();
+    }
+
+    public function create(array $data): Model
+    {
+        return $this->model->create($data);
+    }
+
+    public function update(int|string $id, array $data): Model
+    {
+        $model = $this->find($id);
+        $model->update($data);
+
+        return $model;
+    }
+
+    public function delete(int|string $id): void
+    {
+        $this->find($id)->delete();
+    }
+
+    // -- Soft deletes (only meaningful when the model uses SoftDeletes) --
+
+    public function trashedQuery(array|string|null $relation = null): Builder
+    {
+        $query = $relation ? $this->model->with($relation) : $this->model->newQuery();
+
+        return $query->onlyTrashed();
+    }
+
+    public function restore(int|string $id): void
+    {
+        $this->model->onlyTrashed()->where($this->model->getRouteKeyName(), $id)->firstOrFail()->restore();
+    }
+
+    public function forceDelete(int|string $id): void
+    {
+        $this->model->onlyTrashed()->where($this->model->getRouteKeyName(), $id)->firstOrFail()->forceDelete();
+    }
+
+    /** Persist a new order: each (route-key) id's `sort` becomes its 1-based position. */
+    public function reorder(array $ids): void
+    {
+        $key = $this->model->getRouteKeyName();
+        foreach (array_values($ids) as $position => $id) {
+            $this->model->newQuery()->where($key, $id)->update(['sort' => $position + 1]);
+        }
     }
 }

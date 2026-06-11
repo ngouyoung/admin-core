@@ -6,9 +6,9 @@ use App\Models\User;
 use App\Services\Roles\RoleService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
-use Ngos\AdminCore\Services\CrudService;
+use Ngos\AdminCore\Services\BaseService;
 
-class UserService extends CrudService
+class UserService extends BaseService
 {
     private RoleService $roleService;
 

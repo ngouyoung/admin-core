@@ -2,7 +2,7 @@
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Ngos\AdminCore\Services\CrudService;
+use Ngos\AdminCore\Services\BaseService;
 use Ngos\AdminCore\Tests\Fixtures\SoftWidget;
 
 beforeEach(function () {
@@ -15,9 +15,9 @@ beforeEach(function () {
     });
 });
 
-function softService(): CrudService
+function softService(): BaseService
 {
-    return new class(new SoftWidget) extends CrudService
+    return new class(new SoftWidget) extends BaseService
     {
         public function __construct(SoftWidget $model)
         {

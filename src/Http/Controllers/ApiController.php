@@ -9,7 +9,7 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Base JSON API controller — the web CrudController's API twin.
+ * Base JSON API controller — the web WebController's API twin.
  *
  * Same service + FormRequests (one source of truth for validation/authorization),
  * but returns JsonResource payloads instead of views/redirects. Generated

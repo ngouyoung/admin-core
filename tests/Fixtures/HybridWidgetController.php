@@ -2,9 +2,9 @@
 
 namespace Ngos\AdminCore\Tests\Fixtures;
 
-use Ngos\AdminCore\Http\Controllers\CrudController;
+use Ngos\AdminCore\Http\Controllers\WebController;
 
-class HybridWidgetController extends CrudController
+class HybridWidgetController extends WebController
 {
     public function __construct(HybridWidgetService $service)
     {

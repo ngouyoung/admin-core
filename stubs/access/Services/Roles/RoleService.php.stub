@@ -5,9 +5,9 @@ namespace App\Services\Roles;
 use App\Models\Role;
 use App\Services\Permissions\PermissionService;
 use Illuminate\Database\Eloquent\Model;
-use Ngos\AdminCore\Services\CrudService;
+use Ngos\AdminCore\Services\BaseService;
 
-class RoleService extends CrudService
+class RoleService extends BaseService
 {
     private PermissionService $permissionService;
 

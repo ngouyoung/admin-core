@@ -2,7 +2,7 @@
 
 A reusable, config-driven **admin CRUD core** for Laravel 13 + Bootstrap 5, with a custom branded admin theme.
 
-It gives you a thin, conventional CRUD skeleton — abstract `CrudController` + `CrudService`, a
+It gives you a thin, conventional CRUD skeleton — abstract `WebController` + `BaseService`, a
 `Route::crud()` route macro, and an `admin-core:make` resource generator — so every backend table
 in your app is built the same way, with permission gating and yajra DataTables wired in.
 
@@ -171,7 +171,7 @@ Generated index screens ship these out of the box:
 - **Bulk delete** — a select-all checkbox column + a "Delete selected" button that soft/hard-deletes the
   chosen rows in one request (`bulkDelete` route, gated by `delete-*`).
 
-All live on the base `CrudController` (`export()` / `import()` / `bulkDelete()`), plus a single DataTables
+All live on the base `WebController` (`export()` / `import()` / `bulkDelete()`), plus a single DataTables
 search box (server-side via yajra), so they apply to every resource.
 
 ### Drag-to-reorder (`--sortable`)
@@ -182,7 +182,7 @@ php artisan admin-core:make Category --sortable --migration --fields="name:strin
 
 Adds a `sort` column and a **Sort** toggle button on the index that reveals a **drag-and-drop panel**
 (reusing the bundled nestable plugin) — the DataTable stays put. Dragging a row posts the new order to a
-`reorder` route, which persists each row's `sort` position via `CrudService::reorder()`. Best paired with
+`reorder` route, which persists each row's `sort` position via `BaseService::reorder()`. Best paired with
 the `--access` kit (which bundles the nestable JS).
 
 ### Audit trail (`--audit`)
@@ -271,7 +271,7 @@ It generates:
 - `foreignId('category_id')->constrained()` — bigint FK (not `foreignUuid`)
 - a model using the package's `HasPublicUuid` trait, which auto-fills the uuid and sets `getRouteKeyName() => 'uuid'`
 
-So you get **non-guessable URLs without the index/join cost of uuid primary keys** — the best default for a system that may grow. The base `CrudService` resolves every action by the model's route key, so edit/show/update/delete/bulk-delete/reorder all use the uuid automatically; plain `id` models (no `--uuid`) keep using `id` unchanged.
+So you get **non-guessable URLs without the index/join cost of uuid primary keys** — the best default for a system that may grow. The base `BaseService` resolves every action by the model's route key, so edit/show/update/delete/bulk-delete/reorder all use the uuid automatically; plain `id` models (no `--uuid`) keep using `id` unchanged.
 
 To make **every** generated resource hybrid, set `'generator' => ['uuid' => true]` in `config/admin-core.php`
 (override per-resource with `--no-uuid`). The `--access` module (users/roles/permissions/group-permissions)
@@ -333,8 +333,8 @@ Route::group(['prefix' => 'products', 'as' => 'products.'], function () {
 ```
 
 ```php
-class ProductController extends \Ngos\AdminCore\Http\Controllers\CrudController { /* $service, $viewPath, $routeBase, $storeRequest, $updateRequest */ }
-class ProductService    extends \Ngos\AdminCore\Services\CrudService          { /* $model */ }
+class ProductController extends \Ngos\AdminCore\Http\Controllers\WebController { /* $service, $viewPath, $routeBase, $storeRequest, $updateRequest */ }
+class ProductService    extends \Ngos\AdminCore\Services\BaseService          { /* $model */ }
 ```
 
 The web and API controllers share a common spine, so generated controllers stay thin and cross-cutting
@@ -342,7 +342,7 @@ concerns have one home:
 
 ```
 BaseController  (service + FormRequest bindings; your shared seam)
-├── CrudController  (web: views, redirects, DataTables, export/import)  ← thin web controllers
+├── WebController  (web: views, redirects, DataTables, export/import)  ← thin web controllers
 └── ApiController   (JSON: index/show/store/update/destroy, paginated)  ← thin --api controllers
 ```
 
@@ -361,7 +361,7 @@ composer analyse    # Larastan / PHPStan level 5
 ```
 
 It covers the `FieldSet` generator (every field type, UUID, soft-deletes, uploads, m2m, factory), the
-`Route::crud` macro (registration + permission gating), the `CrudController` flow
+`Route::crud` macro (registration + permission gating), the `WebController` flow
 (store/validate/update/delete/getData/bulk-delete/export), settings, soft-delete trash/restore, and the
 two commands end to end: `admin-core:make` (scaffolds valid, token-free, `php -l`-clean files whose
 migration actually runs) and `admin-core:install` (config/view publishing + the `routes/web.php` /

@@ -9,15 +9,14 @@ are two thin presentation skins over that shared core.**
                                   │
         ┌─────────────────────────┴──────────────────────────┐
         ▼                                                     ▼
-  CrudController (web)                                  ApiController (api)
+  WebController (web)                                  ApiController (api)
   views · redirects · DataTables · export/import       JsonResource · pagination
         └──────────────┬───────────────┬───────────────────┘
                        │ BaseController │   (shared: $service + $storeRequest/$updateRequest)
                        └───────┬────────┘
                                ▼
-                         CrudService          ← writes: create / update / delete / restore / reorder
-                               │ BaseService   ← reads:  $model + query()  (the tenant-scope seam)
-                               ▼
+                         BaseService   query() · find · create/update/delete · soft-delete · reorder
+                               ▼          (override query() once → tenant scope for everything)
                             Eloquent model  (HasPublicUuid: bigint id + public uuid)
 ```
 
@@ -26,21 +25,20 @@ are two thin presentation skins over that shared core.**
 | Class | Layer | Responsibility |
 |---|---|---|
 | `BaseController` | controller seam | shared bindings (`$service`, `$storeRequest`, `$updateRequest`); the place for cross-cutting web+API concerns |
-| `CrudController` | web | `index/create/store/show/edit/update/delete` (views + redirects), `getData` (DataTables), `export`/`import`/`bulkDelete` |
+| `WebController` | web | `index/create/store/show/edit/update/delete` (views + redirects), `getData` (DataTables), `export`/`import`/`bulkDelete` |
 | `ApiController` | api | `index/show/store/update/destroy` as JSON — paginated, addressed by the uuid route key |
-| `BaseService` | read foundation | `$model` + `query()` — override `query()` once to scope every read (incl. `find`) |
-| `CrudService` | writes | `find/create/update/delete` + soft-delete (`trashedQuery/restore/forceDelete`) + `reorder` |
+| `BaseService` | service (business core) | `$model` + `query()` (the tenant seam — `find` flows through it) · `create/update/delete` · soft-delete (`trashedQuery/restore/forceDelete`) · `reorder` |
 
-The web and API controllers **call the same `CrudService`** and are validated by the **same FormRequests**.
+The web and API controllers **call the same `BaseService`** and are validated by the **same FormRequests**.
 They diverge only at presentation (HTML vs JSON), which is inherent.
 
 ## Request lifecycle
 
-- **Web write:** `CrudController::store()` → `app($storeRequest)->validated()` → `CrudService::create()`
+- **Web write:** `WebController::store()` → `app($storeRequest)->validated()` → `BaseService::create()`
   inside `DB::transaction()` → redirect to index.
-- **API write:** `ApiController::store()` → same FormRequest, same `CrudService::create()` → `201` +
+- **API write:** `ApiController::store()` → same FormRequest, same `BaseService::create()` → `201` +
   `JsonResource`.
-- **Read:** both go through `CrudService::query()` / `find()` → so one `query()` override scopes both.
+- **Read:** both go through `BaseService::query()` / `find()` → so one `query()` override scopes both.
 
 ## Where do I put X?
 
@@ -48,7 +46,7 @@ They diverge only at presentation (HTML vs JSON), which is inherent.
 |---|---|
 | change a validation rule | the generated `Store…Request` / `Update…Request` |
 | add business logic (side effects, calculations) | the resource's `…Service` (override `create`/`update`) |
-| scope everything to a tenant / a user | override `query()` in a host base service (extend `CrudService`) |
+| scope everything to a tenant / a user | override `query()` in a host base service (extend `BaseService`) |
 | change what the API returns | the `…Resource` (JsonResource) |
 | add a row action / column | the controller's `getData()` / the `thead` partial |
 | wrap every API response (envelope) / add auth | `BaseController` (or a host base over `ApiController`) |
@@ -61,8 +59,8 @@ They diverge only at presentation (HTML vs JSON), which is inherent.
 
 ```
 app/Models/Product.php                         extends Model (HasPublicUuid, casts)
-app/Services/Products/ProductService.php       extends CrudService
-app/Http/Controllers/Backend/ProductController extends CrudController   (thin)
+app/Services/Products/ProductService.php       extends BaseService
+app/Http/Controllers/Backend/ProductController extends WebController   (thin)
 app/Http/Controllers/Api/ProductApiController  extends ApiController    (thin, --api)
 app/Http/Resources/ProductResource.php         JsonResource             (--api)
 app/Http/Requests/Product/{Store,Update}…      FormRequest
@@ -73,7 +71,8 @@ routes/Api/Modules/products.php                Sanctum apiResource      (--api)
 database/{factories,seeders,migrations}/…      + tests/Feature/ProductTest.php (--tests)
 ```
 
-Everything generated is **thin** — the logic lives in the five base classes above.
+Everything generated is **thin** — the logic lives in the four base classes (`BaseController`,
+`WebController`, `ApiController`, `BaseService`).
 
 ## Conventions
 

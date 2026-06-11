@@ -2,10 +2,10 @@
 
 namespace App\Services\DummyClasses;
 
-use Ngos\AdminCore\Services\CrudService;
+use Ngos\AdminCore\Services\BaseService;
 use App\Models\DummyClass;
 __AC_SERVICE_USES__
-class DummyClassService extends CrudService
+class DummyClassService extends BaseService
 {
     public function __construct(DummyClass $dummyModel)
     {

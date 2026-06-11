@@ -6,9 +6,9 @@ use App\Http\Requests\GroupPermission\StoreGroupPermissionRequest;
 use App\Http\Requests\GroupPermission\UpdateGroupPermissionRequest;
 use App\Services\GroupPermissions\GroupPermissionsService;
 use Illuminate\Http\JsonResponse;
-use Ngos\AdminCore\Http\Controllers\CrudController;
+use Ngos\AdminCore\Http\Controllers\WebController;
 
-class GroupPermissionsController extends CrudController
+class GroupPermissionsController extends WebController
 {
     public function __construct(GroupPermissionsService $groupPermissionsService)
     {

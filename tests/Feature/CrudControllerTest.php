@@ -122,7 +122,7 @@ it('scopes find() through an overridden query() — the BaseService tenant hook'
 
     // A service whose query() hides everything but "Visible" — find() must honour it,
     // proving a single query() override (e.g. tenant scoping) covers reads + lookups.
-    $service = new class(new Widget) extends \Ngos\AdminCore\Services\CrudService {
+    $service = new class(new Widget) extends \Ngos\AdminCore\Services\BaseService {
         public function __construct(Widget $model)
         {
             $this->model = $model;

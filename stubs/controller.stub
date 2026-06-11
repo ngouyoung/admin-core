@@ -2,12 +2,12 @@
 
 namespace App\Http\Controllers\Backend;
 
-use Ngos\AdminCore\Http\Controllers\CrudController;
+use Ngos\AdminCore\Http\Controllers\WebController;
 use App\Http\Requests\DummyClass\StoreDummyClassRequest;
 use App\Http\Requests\DummyClass\UpdateDummyClassRequest;
 use App\Services\DummyClasses\DummyClassService;
 
-class DummyClassController extends CrudController
+class DummyClassController extends WebController
 {
     public function __construct(DummyClassService $service)
     {

@@ -7,7 +7,7 @@ use Ngos\AdminCore\Tests\Fixtures\HybridWidget;
 /**
  * End-to-end CRUD over HTTP for a hybrid-key resource (bigint id + public uuid).
  * This is the generator's default key strategy, and the path where the edit/delete
- * bugs lived — addressing a record by its uuid route key, resolved in CrudService.
+ * bugs lived — addressing a record by its uuid route key, resolved in BaseService.
  */
 beforeEach(function () {
     Schema::dropIfExists('hybrid_widgets');

@@ -16,16 +16,16 @@ parameters:
 			message: '#^Parameter \#1 \$view of function view expects view\-string\|null, string given\.$#'
 			identifier: argument.type
 			count: 2
-			path: src/Http/Controllers/CrudController.php
+			path: src/Http/Controllers/WebController.php
 
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:onlyTrashed\(\)\.$#'
 			identifier: method.notFound
 			count: 1
-			path: src/Services/CrudService.php
+			path: src/Services/BaseService.php
 
 		-
 			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:onlyTrashed\(\)\.$#'
 			identifier: method.notFound
 			count: 2
-			path: src/Services/CrudService.php
+			path: src/Services/BaseService.php

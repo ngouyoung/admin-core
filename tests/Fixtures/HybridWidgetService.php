@@ -2,9 +2,9 @@
 
 namespace Ngos\AdminCore\Tests\Fixtures;
 
-use Ngos\AdminCore\Services\CrudService;
+use Ngos\AdminCore\Services\BaseService;
 
-class HybridWidgetService extends CrudService
+class HybridWidgetService extends BaseService
 {
     public function __construct(HybridWidget $model)
     {

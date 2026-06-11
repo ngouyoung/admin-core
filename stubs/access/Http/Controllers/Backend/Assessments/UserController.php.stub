@@ -6,9 +6,9 @@ use App\Http\Requests\User\StoreUserRequest;
 use App\Http\Requests\User\UpdateUserRequest;
 use App\Services\Roles\RoleService;
 use App\Services\Users\UserService;
-use Ngos\AdminCore\Http\Controllers\CrudController;
+use Ngos\AdminCore\Http\Controllers\WebController;
 
-class UserController extends CrudController
+class UserController extends WebController
 {
     private RoleService $roleService;
 

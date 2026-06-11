@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Backend\Assessments;
 
 use App\Services\Permissions\PermissionService;
-use Ngos\AdminCore\Http\Controllers\CrudController;
+use Ngos\AdminCore\Http\Controllers\WebController;
 
-class PermissionController extends CrudController
+class PermissionController extends WebController
 {
     public function __construct(PermissionService $permissionService)
     {
