@@ -242,9 +242,14 @@ touched** — only package-owned files (config, layout, access module, front-end
 The `--access` kit ships a custom Bootstrap-5 theme (no AdminLTE) plus reusable Blade components:
 
 - **`<x-admin-core::page-header title="…" description="…">`** — breadcrumb + title + description, with
-  an `<x-slot:actions>` for the primary button.
+  an `<x-slot:actions>` for the primary button. For sub-pages, add `parent` + `:parent-url` for a
+  `Dashboard › Posts › Edit` trail. Used on every index / create / edit / show.
 - **`<x-admin-core::filter-tabs table="#x_table" :column="2" :tabs="['' => 'All', 'draft' => 'Draft']" />`**
   — segmented tabs that drive a server-side DataTables column search (auto-added for enum fields).
+- **Status pills** — enum columns render as a soft `.ac-status` pill in the table and the show view
+  (semantic colours for common words: published/active → green, pending → amber, failed/cancelled → red,
+  archived → muted; unknown values fall back to neutral). Reuse anywhere with
+  `<span class="ac-status" data-status="…">…</span>`.
 - **`<x-admin-core::stat-list title="Summary" :items="[['label' => 'Refund', 'value' => '-35.00', 'suffix' => 'USD']]" />`**
   — a label→value summary card (right-aligned tabular numbers, negatives in red, `'strong' => true` for totals).
 - **Customize drawer** (palette icon in the topbar): theme (light/dark/system), accent colour, density,
@@ -288,7 +293,10 @@ It covers the `FieldSet` generator (every field type, UUID, soft-deletes, upload
 (store/validate/update/delete/getData/bulk-delete/export), settings, soft-delete trash/restore, and the
 two commands end to end: `admin-core:make` (scaffolds valid, token-free, `php -l`-clean files whose
 migration actually runs) and `admin-core:install` (config/view publishing + the `routes/web.php` /
-`bootstrap/app.php` wiring, including idempotency). CI runs both `test` and `analyse` on PHP 8.3 + 8.4.
+`bootstrap/app.php` wiring, including idempotency). Dedicated regression guards cover the hybrid-key
+edit/show route links (uuid, not bigint id), enum status pills, segmented filter tabs, the consistent
+create/edit/show page-header, and the group-permission uuid fill. CI runs both `test` and `analyse` on
+PHP 8.3 + 8.4.
 
 ## License
 

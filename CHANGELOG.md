@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.12.1
+
+- **Docs:** README and UPGRADING brought up to date with the features shipped since v1.9.0 — the status
+  pill (`.ac-status` / enum columns), the `page-header` `parent`/`parentUrl` sub-page crumb, and the
+  current regression-test coverage. Added an UPGRADING note flagging the v1.12.0 hybrid-key edit fix for
+  resources generated on an older version (their `edit`/`show` route links still use `$object->id`).
+  Docs only — no code change.
+
 ## v1.12.0
 
 - **Fix (hybrid keys): the edit form and the show→edit link posted to the bigint `id`, not the public

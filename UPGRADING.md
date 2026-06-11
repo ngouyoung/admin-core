@@ -12,6 +12,44 @@ npm install && npm run build
 
 ---
 
+## → v1.12.0 — Hybrid-key edit fix + page-header on create/edit/show
+
+**Action required if you generated resources before v1.12.0 *and* use `--uuid` (hybrid keys).**
+Older generated `edit.blade.php` / `show.blade.php` keyed their route links by the bigint
+`id` instead of the public route key, so saving an edit resolved `uuid = <int>` and crashed
+with an invalid-uuid SQL error. Patch the two links in each generated resource:
+
+```blade
+{{-- edit.blade.php — form action --}}
+- <form action="{{ route('admin.posts.update', $object->id) }}" method="POST">
++ <form action="{{ route('admin.posts.update', $object->getRouteKey()) }}" method="POST">
+
+{{-- show.blade.php — Edit link --}}
+- <a href="{{ route('admin.posts.edit', $object->id) }}" ...>
++ <a href="{{ route('admin.posts.edit', $object->getRouteKey()) }}" ...>
+```
+
+Also new: `create` / `edit` / `show` now use `<x-admin-core::page-header>` (matching the index),
+and the component gained optional `parent` + `parentUrl` props for a sub-page crumb
+(`Dashboard › Posts › Edit`):
+
+```blade
+<x-admin-core::page-header title="Edit Post" parent="Posts"
+    :parent-url="route('admin.posts.index')" />
+```
+
+## → v1.11.0 — Enum status pills
+
+No breaking change. Newly generated resources render their **enum** column as a soft
+`.ac-status` pill (semantic colours for common status words, neutral fallback) in both the
+table and the show view. To apply it to an existing column, wrap the value:
+
+```blade
+<span class="ac-status" data-status="{{ $object->status }}">{{ $object->status }}</span>
+```
+
+In a DataTables cell, do it in `editColumn` and add the column to `rawColumns`.
+
 ## → v1.9.0 — Segmented filter tabs
 
 No breaking change. Newly generated resources with an **enum** field get
