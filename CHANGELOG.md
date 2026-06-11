@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.10.1
+
+- **Fix (hybrid keys): `admin-core:make` crashed creating the "{Plural} Management" group permission.**
+  It inserted the group via the query builder (`DB::table(...)->insertGetId()`), which bypasses the
+  `HasPublicUuid` model hook — so under the hybrid key strategy the NOT NULL `group_permissions.uuid`
+  column blew up (`null value in column "uuid" … violates not-null constraint`). The insert now fills a
+  uuid itself when that column is present.
+
 ## v1.10.0
 
 - **Summary stat-list component** `<x-admin-core::stat-list>`: a card of "Label …… value [suffix]" rows
