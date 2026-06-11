@@ -12,6 +12,23 @@ npm install && npm run build
 
 ---
 
+## → v1.13.0 — Model casts
+
+No breaking change. Newly generated models declare a `casts()` method for boolean / date / datetime /
+decimal columns, so those attributes come back as `bool` / `Carbon` / fixed-precision strings instead of
+raw DB values. To add it to an existing model:
+
+```php
+protected function casts(): array
+{
+    return [
+        'is_active'    => 'boolean',
+        'published_at' => 'datetime',
+        'price'        => 'decimal:2',
+    ];
+}
+```
+
 ## → v1.12.0 — Hybrid-key edit fix + page-header on create/edit/show
 
 **Action required if you generated resources before v1.12.0 *and* use `--uuid` (hybrid keys).**

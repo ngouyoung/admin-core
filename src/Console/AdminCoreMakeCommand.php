@@ -141,6 +141,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_PK__' => $fields->primaryKey(),
             '__AC_MODEL_TRAITS__' => $fields->modelTraits(),
             '__AC_MODEL_USES__' => $fields->modelUses(),
+            '__AC_CASTS__' => $fields->casts(),
             '__AC_RELATIONS__' => $fields->relations(),
             '__AC_MODEL_BOOT__' => $fields->modelBoot(),
             '__AC_COLUMNS__' => $fields->migrationColumns(),

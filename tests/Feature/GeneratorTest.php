@@ -304,6 +304,33 @@ it('gives create/edit/show a consistent page-header with a parent crumb', functi
         ->not->toContain("@section('breadcrumb')");
 });
 
+it('casts boolean / date / datetime / decimal columns on the model', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, active:boolean, born:date, published_at:datetime, price:decimal',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->toContain('protected function casts(): array')
+        ->toContain("'active' => 'boolean'")
+        ->toContain("'born' => 'date'")
+        ->toContain("'published_at' => 'datetime'")
+        ->toContain("'price' => 'decimal:2'")
+        ->not->toContain("'name' => '"); // strings are not cast
+});
+
+it('omits the casts() method when no column needs casting', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, slug:string',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->not->toContain('protected function casts(): array');
+});
+
 it('omits filter tabs when there is no enum field', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

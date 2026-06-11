@@ -416,6 +416,47 @@ PHP;
         return implode("\n", $methods);
     }
 
+    /**
+     * A `casts()` method so domain types come back correctly — booleans as
+     * bool, date/datetime as Carbon, decimals as fixed-precision strings.
+     * Custom columns aren't auto-cast by Eloquent, so without this a checkbox
+     * field reads as 1/0 and a date reads as a plain string. Empty (omitted)
+     * when the resource has no castable columns.
+     */
+    public function casts(): string
+    {
+        $casts = [];
+        foreach ($this->fields as $f) {
+            $cast = match ($f['type']) {
+                'boolean' => 'boolean',
+                'date' => 'date',
+                'datetime' => 'datetime',
+                'decimal' => 'decimal:2',
+                default => null,
+            };
+            if ($cast !== null) {
+                $casts[] = "            '{$f['name']}' => '{$cast}',";
+            }
+        }
+
+        if (! $casts) {
+            return '';
+        }
+
+        $body = implode("\n", $casts);
+
+        return <<<PHP
+
+    protected function casts(): array
+    {
+        return [
+$body
+        ];
+    }
+
+PHP;
+    }
+
     // ---- Validation --------------------------------------------------
 
     public function storeRules(): string

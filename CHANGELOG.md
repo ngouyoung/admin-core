@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.13.0
+
+- **Generated models now declare a `casts()` method.** Eloquent doesn't auto-cast custom columns, so a
+  `boolean` field read back as `1/0` and `date`/`datetime` columns as plain strings (not `Carbon`). The
+  generator now emits `casts()` mapping `boolean → boolean`, `date → date`, `datetime → datetime`,
+  `decimal → decimal:2`. Omitted entirely when a resource has no castable column (e.g. string-only models
+  stay clean). Existing models are unaffected — regenerate or add the method by hand.
+
 ## v1.12.1
 
 - **Docs:** README and UPGRADING brought up to date with the features shipped since v1.9.0 — the status
