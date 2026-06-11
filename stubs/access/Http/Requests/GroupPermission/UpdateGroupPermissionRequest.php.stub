@@ -17,7 +17,7 @@ class UpdateGroupPermissionRequest extends FormRequest
         $id = $this->route('id');
 
         return [
-            'name' => ['required', 'string', 'max:255', Rule::unique('group_permissions', 'name')->ignore($id)],
+            'name' => ['required', 'string', 'max:255', Rule::unique('group_permissions', 'name')->ignore($id, 'uuid')],
             'parent_id' => ['nullable', 'integer', 'exists:group_permissions,id'],
         ];
     }
