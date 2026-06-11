@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.14.1
+
+- **Test:** end-to-end HTTP coverage for the **hybrid key strategy** (bigint `id` + public `uuid`). The
+  existing controller tests ran against an integer-keyed fixture, so the resolve-by-uuid path — the
+  generator's default, and where the edit/delete crashes lived — was never executed. A new suite drives a
+  hybrid fixture through update / delete / ajaxDelete / getData addressed by its uuid, and asserts the
+  bigint id is *not* a public handle (404). Test-only — no runtime change.
+
 ## v1.14.0
 
 - **Five new field types in the `--fields` DSL:**

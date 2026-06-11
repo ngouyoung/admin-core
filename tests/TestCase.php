@@ -4,6 +4,7 @@ namespace Ngos\AdminCore\Tests;
 
 use Illuminate\Support\Facades\Route;
 use Ngos\AdminCore\AdminCoreServiceProvider;
+use Ngos\AdminCore\Tests\Fixtures\HybridWidgetController;
 use Ngos\AdminCore\Tests\Fixtures\WidgetController;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -43,6 +44,12 @@ abstract class TestCase extends Orchestra
                     Route::post('bulkDelete', 'bulkDelete')->name('bulkDelete');
                     Route::post('reorder', 'reorder')->name('reorder');
                 });
+            });
+
+            // Hybrid-key variant (bigint id + public uuid route key) — exercises
+            // the resolve-by-uuid path the generator produces by default.
+            Route::prefix('hybrid-widgets')->name('hybrid_widgets.')->group(function () {
+                Route::crud('hybrid-widget', HybridWidgetController::class);
             });
         });
     }
