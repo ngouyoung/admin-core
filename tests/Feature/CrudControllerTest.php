@@ -81,6 +81,41 @@ it('exports a csv', function () {
     expect($response->streamedContent())->toStartWith("\xEF\xBB\xBF");
 });
 
+it('imports rows from a csv', function () {
+    $csv = "name\nImported A\nImported B\n";
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);
+
+    $this->post('/admin/widgets/import', ['file' => $file])->assertRedirect();
+
+    expect(Widget::where('name', 'Imported A')->exists())->toBeTrue();
+    expect(Widget::where('name', 'Imported B')->exists())->toBeTrue();
+});
+
+it('skips invalid rows on import, importing the valid ones', function () {
+    // Second row's name exceeds max:255 → skipped; the valid row still imports.
+    $csv = "name\nGood\n" . str_repeat('x', 300) . "\n";
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);
+
+    $this->post('/admin/widgets/import', ['file' => $file])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect(Widget::count())->toBe(1);
+    expect(Widget::where('name', 'Good')->exists())->toBeTrue();
+});
+
+it('ignores a UTF-8 BOM and non-fillable columns on import (round-trips export)', function () {
+    // Mirrors an exported file: BOM + id/created_at columns that aren't fillable.
+    $csv = "\xEF\xBB\xBFid,name,created_at\n7,Roundtrip,2026-01-01 00:00:00\n";
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);
+
+    $this->post('/admin/widgets/import', ['file' => $file])->assertRedirect();
+
+    $w = Widget::where('name', 'Roundtrip')->first();
+    expect($w)->not->toBeNull();
+    expect($w->id)->not->toBe(7); // the id column was ignored, not forced
+});
+
 it('neutralises CSV formula injection on export', function () {
     Widget::create(['name' => '=HYPERLINK("http://evil","clickme")']);
 

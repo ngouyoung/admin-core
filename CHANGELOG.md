@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.15.0
+
+- **CSV import — the counterpart to export.** Generated index screens get an **Import** button (a modal
+  file upload, gated by `create-*`) and the base `CrudController` gains `import()`: it parses the uploaded
+  CSV, maps the header row to columns, keeps only fillable keys (so a round-tripped export with
+  `id`/`uuid`/timestamps imports cleanly), strips the UTF-8 BOM, and validates **each row against the
+  resource's store rules** — valid rows are inserted, invalid ones are skipped and summarised in a flash
+  message. A new `POST import` route is registered per resource.
+
 ## v1.14.3
 
 - **Fix: CSV export now leads with a UTF-8 BOM** (and a `charset=UTF-8` content type), so accented and

@@ -7,6 +7,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Ngos\AdminCore\Services\CrudService;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\DataTables;
@@ -138,6 +139,58 @@ abstract class CrudController extends Controller
         }
 
         return $value;
+    }
+
+    /**
+     * Import rows from an uploaded CSV (same shape as the export). The header row
+     * maps cells to columns; each row is validated against the store rules and
+     * only fillable keys are kept, so a round-tripped export (with id/uuid/dates)
+     * imports cleanly. Invalid rows are skipped and reported, not fatal.
+     */
+    public function import(Request $request): RedirectResponse
+    {
+        $request->validate(['file' => ['required', 'file', 'mimes:csv,txt', 'max:5120']]);
+
+        $rules = (new $this->storeRequest)->rules();
+        $fillable = $this->service->query()->getModel()->getFillable();
+
+        $handle = fopen($request->file('file')->getRealPath(), 'r');
+        $header = fgetcsv($handle) ?: [];
+        if (isset($header[0])) {
+            $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]); // strip the UTF-8 BOM our export writes
+        }
+
+        $imported = 0;
+        $errors = [];
+        $line = 1;
+
+        while (($cells = fgetcsv($handle)) !== false) {
+            $line++;
+            if (count(array_filter($cells, fn ($v) => $v !== null && $v !== '')) === 0) {
+                continue; // blank line
+            }
+
+            $cells = array_pad(array_slice($cells, 0, count($header)), count($header), null);
+            $row = array_intersect_key(array_combine($header, $cells), array_flip($fillable));
+
+            $validator = Validator::make($row, $rules);
+            if ($validator->fails()) {
+                $errors[] = "Row {$line}: " . $validator->errors()->first();
+                continue;
+            }
+
+            DB::transaction(fn () => $this->service->create($validator->validated()));
+            $imported++;
+        }
+        fclose($handle);
+
+        $message = "Imported {$imported} row(s).";
+        if ($errors) {
+            $message .= ' Skipped ' . count($errors) . ': ' . implode(' | ', array_slice($errors, 0, 5))
+                . (count($errors) > 5 ? ' …' : '');
+        }
+
+        return back()->with('success', $message);
     }
 
     /** Delete every selected row (soft delete if the model uses SoftDeletes). */

@@ -11,6 +11,8 @@ Route::group(['prefix' => 'dummyModels', 'as' => 'dummyModels.'], function () {
             ->middleware(config('admin-core.permission.enabled') ? 'permission:list-dummy-model' : []);
         Route::get('export', 'export')->name('export')
             ->middleware(config('admin-core.permission.enabled') ? 'permission:list-dummy-model' : []);
+        Route::post('import', 'import')->name('import')
+            ->middleware(config('admin-core.permission.enabled') ? 'permission:create-dummy-model' : []);
         Route::post('bulkDelete', 'bulkDelete')->name('bulkDelete')
             ->middleware(config('admin-core.permission.enabled') ? 'permission:delete-dummy-model' : []);
     });

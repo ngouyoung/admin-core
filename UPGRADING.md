@@ -12,6 +12,19 @@ npm install && npm run build
 
 ---
 
+## → v1.15.0 — CSV import
+
+No breaking change for new resources (the Import button + `import` route are generated). To add import to
+a resource generated on an older version, register the route alongside the others:
+
+```php
+Route::post('import', 'import')->name('import')
+    ->middleware(config('admin-core.permission.enabled') ? 'permission:create-posts' : []);
+```
+
+then drop an Import button/modal posting to `route('admin.posts.import')` on the index (see the current
+`index` stub). `import()` already lives on the base `CrudController`, so no controller change is needed.
+
 ## → v1.14.0 — More field types
 
 No breaking change. The `--fields` DSL gains `time`, `url`, `slug`, `json`, and `password`. Examples:

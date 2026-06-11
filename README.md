@@ -155,16 +155,21 @@ The `--access` kit now ships a complete admin shell beyond the access screens:
   so you never hand-edit the sidebar.
 - **Show / detail view** — every resource gets a read-only `show` page + a View button in the table.
 
-### Every list comes with export & bulk delete
+### Every list comes with export, import & bulk delete
 
-Generated index screens ship two things out of the box:
+Generated index screens ship these out of the box:
 
-- **Export** — an `Export` button streams the table to CSV (`export` route, gated by `list-*`).
+- **Export** — an `Export` button streams the table to CSV (`export` route, gated by `list-*`). The output
+  is injection-safe (formula cells are neutralised) and leads with a UTF-8 BOM so Excel reads it correctly.
+- **Import** — an `Import` button opens a modal to upload a CSV (same shape as Export). Each row is
+  validated against the resource's store rules; only fillable columns are kept (so a round-tripped export
+  with `id`/`uuid`/timestamps imports cleanly), invalid rows are skipped and reported (`import` route,
+  gated by `create-*`).
 - **Bulk delete** — a select-all checkbox column + a "Delete selected" button that soft/hard-deletes the
   chosen rows in one request (`bulkDelete` route, gated by `delete-*`).
 
-Both live on the base `CrudController` (`export()` / `bulkDelete()`), plus a single DataTables search box
-(server-side via yajra), so they apply to every resource.
+All live on the base `CrudController` (`export()` / `import()` / `bulkDelete()`), plus a single DataTables
+search box (server-side via yajra), so they apply to every resource.
 
 ### Drag-to-reorder (`--sortable`)
 

@@ -17,7 +17,12 @@ __AC_FILTER_TABS__    <div class="card">
         <div class="card-header d-flex flex-wrap gap-1 align-items-center">
             <a href="{{ route('admin.dummyModels.export') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-file-csv"></i> Export
-            </a>__AC_TRASH_LINK____AC_SORT_BUTTON__
+            </a>
+            @can('create-dummy-model')
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">
+                    <i class="fas fa-file-import"></i> Import
+                </button>
+            @endcan__AC_TRASH_LINK____AC_SORT_BUTTON__
             @can('delete-dummy-model')
                 <button id="bulk-delete" class="{{ config('class.button.delete') }} d-none ms-auto">
                     <i class="{{ config('class.icon.delete') }}"></i> Delete selected (<span id="bulk-count">0</span>)
@@ -33,6 +38,29 @@ __AC_FILTER_TABS__    <div class="card">
 __AC_SORT_PANEL__
         </div>
     </div>
+
+    @can('create-dummy-model')
+        <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <form action="{{ route('admin.dummyModels.import') }}" method="POST" enctype="multipart/form-data" class="modal-content">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title">Import DummyClasses</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-muted small mb-2">Upload a CSV whose header row matches the column names — the same shape as Export. Invalid rows are skipped and reported.</p>
+                        <input type="file" name="file" accept=".csv,.txt" class="form-control @error('file') is-invalid @enderror" required>
+                        @error('file')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-file-import"></i> Import</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endcan
 @endsection
 
 @push('scripts')
