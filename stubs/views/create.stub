@@ -3,6 +3,8 @@
 @section('title', 'Create DummyClass')
 
 @section('contents')
+    <x-admin-core::page-header title="Create DummyClass" parent="DummyClasses" :parent-url="route('admin.dummyModels.index')" />
+
     <div class="card">
         <div class="card-body">
             <form action="{{ route('admin.dummyModels.store') }}" method="POST"__AC_ENCTYPE__>

@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.12.0
+
+- **Fix (hybrid keys): the edit form and the show→edit link posted to the bigint `id`, not the public
+  route key.** Generated `edit.blade.php` submitted to `route('…update', $object->id)` and `show.blade.php`
+  linked `route('…edit', $object->id)`. Under the hybrid strategy the route binds by `uuid`, so saving an
+  edit resolved `uuid = <int>` and crashed with an invalid-uuid SQL error. Both now use
+  `$object->getRouteKey()`. (Same bug class as the v1.5.8 host fixes — now closed at the generator.)
+- **Consistent page headers on create / edit / show.** They previously jumped straight into a bare form
+  card (no title/breadcrumb), while `show` used the legacy AdminLTE `@section('breadcrumb')`. All three now
+  use `<x-admin-core::page-header>` like the index, with a "Dashboard › {Plural} › {Action}" trail. The
+  component gained optional `parent` + `parentUrl` props for that middle crumb; `show` carries Back/Edit in
+  its header actions.
+
 ## v1.11.0
 
 - **Enum columns now render as status pills.** Previously an enum field (e.g. `status:enum:draft|published|archived`)

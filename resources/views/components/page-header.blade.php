@@ -5,13 +5,23 @@
                <a href="..." class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Add User</a>
            </x-slot:actions>
        </x-admin-core::page-header>
-     Pass :breadcrumb="false" to hide the auto "Dashboard › Title" trail. --}}
-@props(['title', 'description' => null, 'breadcrumb' => true])
+     Pass :breadcrumb="false" to hide the auto "Dashboard › Title" trail. For a
+     sub-page (create / edit / show), pass parent + parentUrl to insert the list
+     crumb: "Dashboard › Posts › Edit". --}}
+@props(['title', 'description' => null, 'breadcrumb' => true, 'parent' => null, 'parentUrl' => null])
 <div class="ac-page-header">
     @if ($breadcrumb)
         <nav class="ac-breadcrumb" aria-label="Breadcrumb">
             @if (Route::has('admin.dashboard'))
                 <a href="{{ route('admin.dashboard') }}">Dashboard</a>
+                <i class="bi bi-chevron-right"></i>
+            @endif
+            @if ($parent)
+                @if ($parentUrl)
+                    <a href="{{ $parentUrl }}">{{ $parent }}</a>
+                @else
+                    <span>{{ $parent }}</span>
+                @endif
                 <i class="bi bi-chevron-right"></i>
             @endif
             <span class="current">{{ $title }}</span>

@@ -2,22 +2,23 @@
 
 @section('title', 'DummyClass')
 
-@section('breadcrumb')
-    <div class="row">
-        <div class="col-sm-6"><h3 class="mb-0">DummyClass</h3></div>
-        <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-end">
-                <li class="breadcrumb-item"><a href="{{ route('admin.dummyModels.index') }}">DummyClasses</a></li>
-                <li class="breadcrumb-item active">View</li>
-            </ol>
-        </div>
-    </div>
-@endsection
-
 @section('contents')
+    <x-admin-core::page-header title="DummyClass" parent="DummyClasses" :parent-url="route('admin.dummyModels.index')">
+        <x-slot:actions>
+            <a href="{{ route('admin.dummyModels.index') }}" class="{{ config('class.button.back') }}">
+                <i class="{{ config('class.icon.back') }}"></i> Back
+            </a>
+            @can('edit-dummy-model')
+                <a href="{{ route('admin.dummyModels.edit', $object->getRouteKey()) }}" class="{{ config('class.button.edit') }}">
+                    <i class="{{ config('class.icon.edit') }}"></i> Edit
+                </a>
+            @endcan
+        </x-slot:actions>
+    </x-admin-core::page-header>
+
     <div class="card">
         <div class="card-body">
-            <table class="table table-bordered mb-3">
+            <table class="table table-bordered mb-0">
                 <tbody>
 __AC_SHOW__
                 <tr>
@@ -26,14 +27,6 @@ __AC_SHOW__
                 </tr>
                 </tbody>
             </table>
-            <a href="{{ route('admin.dummyModels.index') }}" class="{{ config('class.button.back') }}">
-                <i class="{{ config('class.icon.back') }}"></i> Back
-            </a>
-            @can('edit-dummy-model')
-                <a href="{{ route('admin.dummyModels.edit', $object->id) }}" class="{{ config('class.button.edit') }}">
-                    <i class="{{ config('class.icon.edit') }}"></i> Edit
-                </a>
-            @endcan
         </div>
     </div>
 @endsection

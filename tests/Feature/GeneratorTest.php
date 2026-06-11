@@ -265,6 +265,45 @@ it('renders an enum column as a status pill (table + show), marked raw', functio
         ->toContain('<span class="ac-status" data-status="{{ $object->status }}">');
 });
 
+it('keys edit/show route links by the public route key, not the bigint id (hybrid keys)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // The update action and the show→edit link must use getRouteKey() (the uuid
+    // under the hybrid strategy). Posting to `…/{id}` would resolve the binding
+    // by uuid = <int> and blow up with an invalid-uuid SQL error.
+    $edit = File::get(resource_path('views/backend/pages/gizmos/edit.blade.php'));
+    expect($edit)
+        ->toContain("route('admin.gizmos.update', \$object->getRouteKey())")
+        ->not->toContain('$object->id');
+
+    $show = File::get(resource_path('views/backend/pages/gizmos/show.blade.php'));
+    expect($show)
+        ->toContain("route('admin.gizmos.edit', \$object->getRouteKey())")
+        ->not->toContain('$object->id');
+});
+
+it('gives create/edit/show a consistent page-header with a parent crumb', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    foreach (['create', 'edit', 'show'] as $view) {
+        expect(File::get(resource_path("views/backend/pages/gizmos/{$view}.blade.php")))
+            ->toContain('<x-admin-core::page-header')
+            ->toContain('parent="Gizmos"');
+    }
+
+    // The legacy AdminLTE breadcrumb section is gone from show.
+    expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))
+        ->not->toContain("@section('breadcrumb')");
+});
+
 it('omits filter tabs when there is no enum field', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
