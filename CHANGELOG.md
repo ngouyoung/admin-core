@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.14.2
+
+- **Security: neutralise CSV / formula injection on export.** The CSV export wrote raw cell values, so a
+  record whose text field began with `=`, `+`, `-`, `@`, tab or CR (e.g. `=HYPERLINK(...)`) ran as a live
+  formula when the file was opened in Excel/Sheets. Such cells are now prefixed with a single quote so the
+  spreadsheet treats them as text; genuine numbers (including negatives) are left untouched, so the export
+  stays usable.
+
 ## v1.14.1
 
 - **Test:** end-to-end HTTP coverage for the **hybrid key strategy** (bigint `id` + public `uuid`). The

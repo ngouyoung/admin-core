@@ -116,10 +116,27 @@ abstract class CrudController extends Controller
             $out = fopen('php://output', 'w');
             fputcsv($out, $columns);
             foreach ($rows as $row) {
-                fputcsv($out, array_map(fn ($c) => $row->getAttribute($c), $columns));
+                fputcsv($out, array_map(fn ($c) => $this->csvCell($row->getAttribute($c)), $columns));
             }
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv']);
+    }
+
+    /**
+     * Neutralise CSV / formula injection: a cell whose text begins with =, +, -,
+     * @, tab or CR is run as a formula by Excel/Sheets. Prefixing a single quote
+     * makes the app treat it as text. Genuine numbers (incl. negatives) are left
+     * alone so the export stays usable.
+     */
+    protected function csvCell(mixed $value): mixed
+    {
+        if (is_string($value) && $value !== ''
+            && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)
+            && ! is_numeric($value)) {
+            return "'" . $value;
+        }
+
+        return $value;
     }
 
     /** Delete every selected row (soft delete if the model uses SoftDeletes). */

@@ -79,6 +79,18 @@ it('exports a csv', function () {
     expect($response->headers->get('content-type'))->toContain('text/csv');
 });
 
+it('neutralises CSV formula injection on export', function () {
+    Widget::create(['name' => '=HYPERLINK("http://evil","clickme")']);
+
+    $content = $this->get('/admin/widgets/export')->streamedContent();
+
+    // The dangerous cell is prefixed with a quote so spreadsheets treat it as text.
+    // fputcsv wraps it in double quotes (it has commas), so guarded => "'=HYPERLINK,
+    // and the raw, unguarded "=HYPERLINK must not appear.
+    expect($content)->toContain('\'=HYPERLINK');
+    expect($content)->not->toContain('"=HYPERLINK');
+});
+
 it('reorders records by sort position', function () {
     $a = Widget::create(['name' => 'a']);
     $b = Widget::create(['name' => 'b']);
