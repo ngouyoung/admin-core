@@ -412,7 +412,26 @@ body.ac-customize-open .ac-customize-backdrop { opacity: 1; visibility: visible;
 }
 .ac-cz-swatch { width: 22px; height: 22px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); }
 
-// 17. Segmented filter tabs (<x-admin-core::filter-tabs>) --------------------
+// 17. Summary stat list (<x-admin-core::stat-list>) --------------------------
+.ac-stat-list {
+    .ac-stat-rows { list-style: none; margin: 0; padding: 0; }
+    .ac-stat-row {
+        display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+        padding: calc(.7rem * var(--ac-density)) 1.1rem;
+        border-bottom: 1px solid var(--ac-border);
+        &:last-child { border-bottom: 0; }
+        &.is-strong { font-weight: 700; .ac-stat-row-label { color: var(--ac-heading); } }
+    }
+    .ac-stat-row-label { color: var(--ac-muted); }
+    .ac-stat-row-value {
+        font-weight: 600; color: var(--ac-heading);
+        font-variant-numeric: tabular-nums; white-space: nowrap; text-align: end;
+        &.is-negative { color: var(--bs-danger); }
+    }
+    .ac-stat-row-suffix { color: var(--ac-muted); font-weight: 500; font-size: .82em; margin-inline-start: .35rem; }
+}
+
+// 18. Segmented filter tabs (<x-admin-core::filter-tabs>) --------------------
 .ac-tabs {
     display: inline-flex; gap: .15rem; padding: .2rem;
     background: var(--ac-hover); border-radius: .6rem; margin-bottom: 1rem;

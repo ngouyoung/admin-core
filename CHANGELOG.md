@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.10.0
+
+- **Summary stat-list component** `<x-admin-core::stat-list>`: a card of "Label …… value [suffix]" rows
+  with right-aligned, tabular-aligned numbers — negatives auto-render red, `'strong' => true` emphasises a
+  total. For compact financial/metric summaries (invoices, totals, debt, tips) alongside the big stat tiles.
+
 ## v1.9.1
 
 - **Fix: wide tables overflowed the viewport** (right-hand columns cut off, DataTables Responsive not

@@ -245,6 +245,8 @@ The `--access` kit ships a custom Bootstrap-5 theme (no AdminLTE) plus reusable 
   an `<x-slot:actions>` for the primary button.
 - **`<x-admin-core::filter-tabs table="#x_table" :column="2" :tabs="['' => 'All', 'draft' => 'Draft']" />`**
   — segmented tabs that drive a server-side DataTables column search (auto-added for enum fields).
+- **`<x-admin-core::stat-list title="Summary" :items="[['label' => 'Refund', 'value' => '-35.00', 'suffix' => 'USD']]" />`**
+  — a label→value summary card (right-aligned tabular numbers, negatives in red, `'strong' => true` for totals).
 - **Customize drawer** (palette icon in the topbar): theme (light/dark/system), accent colour, density,
   layout (sidebar/top-nav), container (fluid/boxed) and direction (LTR/RTL) — persisted in `localStorage`.
 - **Row actions** render as a kebab (⋯) menu; add resource-specific items via the 3rd arg of `actions()`.
