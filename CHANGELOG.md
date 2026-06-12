@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.20.2
+
+- **Harden the API list query against array-valued params.** A client sending `?filter[col][]=x` would bind
+  an array into `where()` (a 500), and `?search[]=`/`?sort[]=` cast an array to the string `"Array"`.
+  `applyFilters` now only acts on scalar values, and `applySearch`/`applySort` ignore non-string input — so
+  malformed query params are silently ignored instead of erroring.
+
 ## v1.20.1
 
 - **Security: permission-gate every API action.** The generated API routes were guarded only by

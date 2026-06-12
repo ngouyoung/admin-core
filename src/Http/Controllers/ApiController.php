@@ -44,11 +44,13 @@ abstract class ApiController extends BaseController
         return ($this->resource)::collection($query->paginate($perPage)->withQueryString());
     }
 
-    /** `?filter[col]=value` → exact match, only for whitelisted columns. */
+    /** `?filter[col]=value` → exact match, only for whitelisted columns (scalar values only). */
     protected function applyFilters(Builder $query, Request $request): void
     {
         foreach ((array) $request->query('filter', []) as $column => $value) {
-            if (in_array($column, $this->filterable, true) && $value !== '' && $value !== null) {
+            // is_scalar guards against array-valued params (?filter[col][]=x), which would
+            // bind an array into where() and error.
+            if (in_array($column, $this->filterable, true) && is_scalar($value) && $value !== '') {
                 $query->where($column, $value);
             }
         }
@@ -57,8 +59,8 @@ abstract class ApiController extends BaseController
     /** `?search=term` → OR-LIKE across the searchable columns (grouped so it doesn't leak past filters). */
     protected function applySearch(Builder $query, Request $request): void
     {
-        $term = trim((string) $request->query('search', ''));
-        if ($term === '' || $this->searchable === []) {
+        $term = $request->query('search', '');
+        if (! is_string($term) || ($term = trim($term)) === '' || $this->searchable === []) {
             return;
         }
 
@@ -72,8 +74,8 @@ abstract class ApiController extends BaseController
     /** `?sort=col` / `?sort=-col` (desc) → only for whitelisted columns. */
     protected function applySort(Builder $query, Request $request): void
     {
-        $sort = trim((string) $request->query('sort', ''));
-        if ($sort === '') {
+        $sort = $request->query('sort', '');
+        if (! is_string($sort) || ($sort = trim($sort)) === '') {
             return;
         }
 

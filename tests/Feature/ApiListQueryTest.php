@@ -69,6 +69,17 @@ it('ignores a sort on a non-whitelisted column (no error, no order applied)', fu
     $this->getJson('/api/widgets?sort=secret')->assertOk()->assertJsonCount(2, 'data');
 });
 
+it('ignores array-valued query params without erroring', function () {
+    Widget::create(['name' => 'A', 'status' => 'active']);
+    Widget::create(['name' => 'B', 'status' => 'active']);
+
+    // A client (or fuzzer) sending array params must not 500 — filter[col][]=x would
+    // otherwise bind an array into where(); search[]/sort[] would cast an array to string.
+    $this->getJson('/api/widgets?filter[status][]=active&search[]=A&sort[]=name')
+        ->assertOk()
+        ->assertJsonCount(2, 'data');
+});
+
 it('clamps per_page to the configured maximum', function () {
     config(['admin-core.api.max_per_page' => 2]);
     foreach (range(1, 5) as $i) {
