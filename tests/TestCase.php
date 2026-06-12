@@ -5,6 +5,7 @@ namespace Ngos\AdminCore\Tests;
 use Illuminate\Support\Facades\Route;
 use Ngos\AdminCore\AdminCoreServiceProvider;
 use Ngos\AdminCore\Tests\Fixtures\HybridWidgetController;
+use Ngos\AdminCore\Tests\Fixtures\WidgetApiController;
 use Ngos\AdminCore\Tests\Fixtures\WidgetController;
 use Orchestra\Testbench\TestCase as Orchestra;
 
@@ -53,5 +54,9 @@ abstract class TestCase extends Orchestra
                 Route::crud('hybrid-widget', HybridWidgetController::class);
             });
         });
+
+        // JSON API index (top-level, like a real api.php module) — exercises
+        // ApiController's search/sort/filter list query.
+        Route::middleware('web')->get('api/widgets', [WidgetApiController::class, 'index'])->name('api.widgets.index');
     }
 }

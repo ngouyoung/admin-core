@@ -2,6 +2,7 @@
 
 namespace Ngos\AdminCore\Http\Controllers;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -21,11 +22,67 @@ abstract class ApiController extends BaseController
     /** @var class-string<JsonResource> The resource used to serialise responses. */
     protected string $resource;
 
+    /** Columns a `?search=` term matches (LIKE). Whitelist — empty disables search. */
+    protected array $searchable = [];
+
+    /** Columns `?sort=col` / `?sort=-col` may order by. Whitelist — anything else is ignored. */
+    protected array $sortable = [];
+
+    /** Columns `?filter[col]=value` may exact-match. Whitelist — anything else is ignored. */
+    protected array $filterable = [];
+
     public function index(Request $request): AnonymousResourceCollection
     {
-        $perPage = (int) $request->integer('per_page', (int) config('admin-core.api.per_page', 25));
+        $query = $this->service->query();
+        $this->applyFilters($query, $request);
+        $this->applySearch($query, $request);
+        $this->applySort($query, $request);
 
-        return ($this->resource)::collection($this->service->query()->paginate($perPage));
+        $perPage = (int) $request->integer('per_page', (int) config('admin-core.api.per_page', 25));
+        $perPage = max(1, min($perPage, (int) config('admin-core.api.max_per_page', 100)));
+
+        return ($this->resource)::collection($query->paginate($perPage)->withQueryString());
+    }
+
+    /** `?filter[col]=value` → exact match, only for whitelisted columns. */
+    protected function applyFilters(Builder $query, Request $request): void
+    {
+        foreach ((array) $request->query('filter', []) as $column => $value) {
+            if (in_array($column, $this->filterable, true) && $value !== '' && $value !== null) {
+                $query->where($column, $value);
+            }
+        }
+    }
+
+    /** `?search=term` → OR-LIKE across the searchable columns (grouped so it doesn't leak past filters). */
+    protected function applySearch(Builder $query, Request $request): void
+    {
+        $term = trim((string) $request->query('search', ''));
+        if ($term === '' || $this->searchable === []) {
+            return;
+        }
+
+        $query->where(function (Builder $q) use ($term) {
+            foreach ($this->searchable as $column) {
+                $q->orWhere($column, 'like', '%' . $term . '%');
+            }
+        });
+    }
+
+    /** `?sort=col` / `?sort=-col` (desc) → only for whitelisted columns. */
+    protected function applySort(Builder $query, Request $request): void
+    {
+        $sort = trim((string) $request->query('sort', ''));
+        if ($sort === '') {
+            return;
+        }
+
+        $descending = str_starts_with($sort, '-');
+        $column = ltrim($sort, '-');
+
+        if (in_array($column, $this->sortable, true)) {
+            $query->orderBy($column, $descending ? 'desc' : 'asc');
+        }
     }
 
     public function show(string $id): JsonResource

@@ -247,6 +247,18 @@ never the bigint `id`** — so internal ids are never enumerable across tenants:
 { "data": [ { "id": "019eb7a1-…-c046e429998b", "name": "Espresso", "price": "4.50" } ], "meta": { … } }
 ```
 
+**List query** — the `index` supports `?search=`, `?sort=`, `?filter[col]=` and `?per_page=`, so a
+front-end data table works out of the box:
+
+```
+GET /api/products?search=esp&filter[status]=active&sort=-created_at&per_page=20
+```
+
+The generated controller derives the **whitelists** from the fields — `$searchable` (text columns,
+LIKE), `$sortable` (scalar columns + `created_at`; `-col` = desc), `$filterable` (enum/foreign/boolean,
+exact match). Anything not on a whitelist is silently ignored, so a client can't sort/filter by an
+arbitrary column. `per_page` is clamped to `config('admin-core.api.max_per_page')` (default 100).
+
 Configure the guard + page size in `config('admin-core.api')` (default `['auth:sanctum']`, 25) — add a
 tenant-scoping middleware there for multi-tenant setups. API route files are auto-loaded if `routes/api.php`
 globs `routes/Api/Modules/*.php`:

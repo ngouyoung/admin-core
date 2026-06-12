@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.20.0
+
+- **API list query — search / sort / filter / paginate on the JSON `index`.** `ApiController::index` now
+  honours `?search=` (LIKE across `$searchable`), `?sort=col` / `?sort=-col` (whitelisted `$sortable`,
+  `-` = desc), `?filter[col]=value` (exact match on whitelisted `$filterable`), and `?per_page=` (clamped
+  to `config('admin-core.api.max_per_page')`, default 100). Lives on the shared base, so every `--api`
+  resource inherits it. Generated controllers **derive the whitelists from the fields** — text columns are
+  searchable, scalar columns + `created_at` sortable, enum/foreign/boolean filterable. Columns outside a
+  whitelist are silently ignored, so a client can't order or filter by an arbitrary column. This is what a
+  decoupled front-end (Nuxt, mobile) needs to drive a real data table.
+
 ## v1.19.1
 
 - **Fix (hybrid keys): the `--access` kit's update requests ignored the unique rule by the wrong column.**

@@ -425,6 +425,39 @@ PHP;
         return implode("\n", $lines);
     }
 
+    /** API `?search=` columns — text-like fields the term matches with LIKE. */
+    public function apiSearchable(): string
+    {
+        return $this->apiColumns(['string', 'text', 'email', 'slug', 'url']);
+    }
+
+    /** API `?sort=` columns — scalar fields plus created_at (whitelist). */
+    public function apiSortable(): string
+    {
+        $cols = $this->apiColumns(['string', 'integer', 'decimal', 'date', 'datetime', 'time', 'boolean', 'enum', 'email', 'slug', 'url']);
+
+        return $cols === '' ? "'created_at'" : $cols . ", 'created_at'";
+    }
+
+    /** API `?filter[col]=` columns — exact-match fields (enum/foreign/boolean). */
+    public function apiFilterable(): string
+    {
+        return $this->apiColumns(['enum', 'foreign', 'boolean']);
+    }
+
+    /** Quoted, comma-joined column names for the given field types (non-system, real columns). */
+    private function apiColumns(array $types): string
+    {
+        $cols = [];
+        foreach ($this->fields as $f) {
+            if (in_array($f['type'], $types, true) && empty($f['system']) && $this->isColumn($f)) {
+                $cols[] = "'{$f['name']}'";
+            }
+        }
+
+        return implode(', ', $cols);
+    }
+
     /** Field-aware factory definition lines. */
     public function factoryDefinition(): string
     {

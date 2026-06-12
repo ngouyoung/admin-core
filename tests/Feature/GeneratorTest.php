@@ -445,7 +445,11 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         ->toContain('class GizmoApiController extends ApiController')
         ->toContain('$this->resource = GizmoResource::class')
         ->toContain('$this->storeRequest = StoreGizmoRequest::class')
-        ->toContain('$this->updateRequest = UpdateGizmoRequest::class');
+        ->toContain('$this->updateRequest = UpdateGizmoRequest::class')
+        // List-query whitelists derived from the fields: name searchable, category filterable.
+        ->toContain("protected array \$searchable = ['name']")
+        ->toContain("protected array \$sortable = ['name', 'created_at']")
+        ->toContain("protected array \$filterable = ['category_id']");
 
     // Sanctum-gated apiResource routes under api.gizmos.*.
     expect(File::get(base_path('routes/Api/Modules/gizmos.php')))

@@ -176,6 +176,9 @@ class AdminCoreMakeCommand extends Command
             '__AC_TEST_FILES__' => $fields->testFilePayload(),
             '__AC_TEST_DELETE_ASSERT__' => $soft ? 'assertSoftDeleted($object)' : 'assertModelMissing($object)',
             '__AC_RESOURCE_FIELDS__' => $fields->resourceFields(),
+            '__AC_API_SEARCHABLE__' => $fields->apiSearchable(),
+            '__AC_API_SORTABLE__' => $fields->apiSortable(),
+            '__AC_API_FILTERABLE__' => $fields->apiFilterable(),
         ];
 
         $files = [

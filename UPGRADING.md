@@ -12,6 +12,20 @@ npm install && npm run build
 
 ---
 
+## → v1.20.0 — API list query
+
+No action required for new `--api` resources (the `$searchable` / `$sortable` / `$filterable` whitelists are
+generated). To enable it on an API controller generated earlier, add the properties:
+
+```php
+protected array $searchable = ['name'];          // ?search= (LIKE)
+protected array $sortable   = ['name', 'created_at']; // ?sort=col / ?sort=-col
+protected array $filterable = ['status'];         // ?filter[col]=value
+```
+
+`ApiController::index` reads them; columns not whitelisted are ignored. Optionally set
+`config('admin-core.api.max_per_page')` (default 100).
+
 ## → v1.19.0 — Base classes renamed (`WebController` / `BaseService`)
 
 No action required — `CrudController` and `CrudService` live on as **deprecated aliases**, so existing code

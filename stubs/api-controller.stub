@@ -14,6 +14,15 @@ use Ngos\AdminCore\Http\Controllers\ApiController;
  */
 class DummyClassApiController extends ApiController
 {
+    /** ?search= matches these columns (LIKE). */
+    protected array $searchable = [__AC_API_SEARCHABLE__];
+
+    /** ?sort=col / ?sort=-col may order by these. */
+    protected array $sortable = [__AC_API_SORTABLE__];
+
+    /** ?filter[col]=value may exact-match these. */
+    protected array $filterable = [__AC_API_FILTERABLE__];
+
     public function __construct(DummyClassService $service)
     {
         $this->service = $service;

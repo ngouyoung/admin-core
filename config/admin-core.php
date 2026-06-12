@@ -64,6 +64,8 @@ return [
     'api' => [
         'middleware' => ['auth:sanctum'],
         'per_page' => 25,
+        // Hard cap on ?per_page= so a client can't request an unbounded page.
+        'max_per_page' => 100,
     ],
 
     /*
