@@ -21,6 +21,7 @@ class AdminCoreMakeCommand extends Command
                             {--migration : Also generate a create migration}
                             {--tests : Also generate a CRUD feature test (best paired with --migration)}
                             {--api : Also generate a JSON API (resource + controller + apiResource routes)}
+                            {--api-only : Generate ONLY the JSON API (no web controller/views/routes) — add the web channel later by re-running without it}
                             {--force : Overwrite existing files}';
 
     protected $description = 'Scaffold a full admin-core CRUD resource (model, service, controller, requests, routes, views, permissions).';
@@ -182,34 +183,51 @@ class AdminCoreMakeCommand extends Command
             '__AC_API_FILTERABLE__' => $fields->apiFilterable(),
         ];
 
+        // Channels: web (default), api (--api adds it, --api-only swaps to it). The
+        // shared core is always generated; reruns skip existing files, so a web-only
+        // resource gains the API later via `--api` (and an api-only one gains the
+        // web channel by re-running without --api-only).
+        $api = $this->option('api') || $this->option('api-only');
+        $web = ! $this->option('api-only');
+
+        // Shared core — both channels sit on these.
         $files = [
             'model.stub' => app_path("Models/{$class}.php"),
             'service.stub' => app_path("Services/{$plural}/{$class}Service.php"),
-            'controller.stub' => app_path("Http/Controllers/Backend/{$class}Controller.php"),
             'store-request.stub' => app_path("Http/Requests/{$class}/Store{$class}Request.php"),
             'update-request.stub' => app_path("Http/Requests/{$class}/Update{$class}Request.php"),
-            'routes.stub' => base_path("routes/Web/Backend/Modules/{$snakePlural}.php"),
-            'views/index.stub' => resource_path("views/backend/pages/{$snakePlural}/index.blade.php"),
-            'views/show.stub' => resource_path("views/backend/pages/{$snakePlural}/show.blade.php"),
-            'views/create.stub' => resource_path("views/backend/pages/{$snakePlural}/create.blade.php"),
-            'views/edit.stub' => resource_path("views/backend/pages/{$snakePlural}/edit.blade.php"),
-            'views/form.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"),
-            'views/thead.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"),
-            'views/scripts.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/scripts.blade.php"),
             'factory.stub' => database_path("factories/{$class}Factory.php"),
             'seeder.stub' => database_path("seeders/{$class}Seeder.php"),
             'policy.stub' => app_path("Policies/{$class}Policy.php"),
         ];
 
-        if ($soft) {
+        if ($web) {
+            $files += [
+                'controller.stub' => app_path("Http/Controllers/Backend/{$class}Controller.php"),
+                'routes.stub' => base_path("routes/Web/Backend/Modules/{$snakePlural}.php"),
+                'views/index.stub' => resource_path("views/backend/pages/{$snakePlural}/index.blade.php"),
+                'views/show.stub' => resource_path("views/backend/pages/{$snakePlural}/show.blade.php"),
+                'views/create.stub' => resource_path("views/backend/pages/{$snakePlural}/create.blade.php"),
+                'views/edit.stub' => resource_path("views/backend/pages/{$snakePlural}/edit.blade.php"),
+                'views/form.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"),
+                'views/thead.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"),
+                'views/scripts.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/scripts.blade.php"),
+            ];
+        }
+
+        if ($soft && $web) {
             $files['views/trash.stub'] = resource_path("views/backend/pages/{$snakePlural}/trash.blade.php");
         }
 
         if ($this->option('tests')) {
-            $files['tests.stub'] = base_path("tests/Feature/{$class}Test.php");
+            if ($web) {
+                $files['tests.stub'] = base_path("tests/Feature/{$class}Test.php");
+            } else {
+                $this->warn('Skipped --tests: the generated feature test drives the web routes (re-run without --api-only to add them).');
+            }
         }
 
-        if ($this->option('api')) {
+        if ($api) {
             $files['api-resource.stub'] = app_path("Http/Resources/{$class}Resource.php");
             $files['api-controller.stub'] = app_path("Http/Controllers/Api/{$class}ApiController.php");
             $files['api-routes.stub'] = base_path("routes/Api/Modules/{$snakePlural}.php");
@@ -262,12 +280,21 @@ class AdminCoreMakeCommand extends Command
         }
 
         $this->createPermissions($kebab, $plural);
-        $this->registerSidebarLink($plural, $snakePlural);
+        if ($web) {
+            $this->registerSidebarLink($plural, $snakePlural);
+        }
 
         $this->newLine();
         $this->info("Resource '{$class}' scaffolded.");
-        $this->line("  Route:  /admin/{$snakePlural}   (name: admin.{$snakePlural}.*)");
-        $this->line("  Run <info>php artisan migrate</info>, then visit /admin/{$snakePlural} — permissions are already granted to the admin role.");
+        if ($web) {
+            $this->line("  Web:  /admin/{$snakePlural}   (name: admin.{$snakePlural}.*)");
+        }
+        if ($api) {
+            $this->line("  API:  /api/{$snakePlural}   (name: api.{$snakePlural}.*)");
+        }
+        $this->line($web
+            ? "  Run <info>php artisan migrate</info>, then visit /admin/{$snakePlural} — permissions are already granted to the admin role."
+            : "  Run <info>php artisan migrate</info> — API routes are loaded from routes/Api/Modules and gated by the {$kebab} permissions.");
 
         return self::SUCCESS;
     }

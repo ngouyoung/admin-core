@@ -12,6 +12,17 @@ npm install && npm run build
 
 ---
 
+## → v1.22.0 — Channel-selective generation
+
+No breaking change. `admin-core:make` gains `--api-only` (headless API, no web files). Existing
+resources can adopt a channel additively — re-run the same command with the desired flags and the same
+`--fields`; files that already exist are skipped, only the missing channel is created:
+
+```bash
+php artisan admin-core:make Product --fields="…" --api        # add API to a web resource
+php artisan admin-core:make Product --fields="…"              # add web to an api-only resource
+```
+
 ## → v1.21.0 — Backed enums for enum fields
 
 No breaking change — resources generated earlier keep their `in:` rules and string handling. Newly

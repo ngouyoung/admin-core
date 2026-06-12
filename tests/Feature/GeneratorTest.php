@@ -495,6 +495,52 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         ->toContain("->middleware(\$gate('list'))");
 });
 
+it('generates only the API channel with --api-only (no web files, no sidebar link)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--api-only' => true,
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // Shared core + API channel exist…
+    expect(File::exists(app_path('Models/Gizmo.php')))->toBeTrue();
+    expect(File::exists(app_path('Services/Gizmos/GizmoService.php')))->toBeTrue();
+    expect(File::exists(app_path('Http/Controllers/Api/GizmoApiController.php')))->toBeTrue();
+    expect(File::exists(base_path('routes/Api/Modules/gizmos.php')))->toBeTrue();
+
+    // …but nothing from the web channel.
+    expect(File::exists(app_path('Http/Controllers/Backend/GizmoController.php')))->toBeFalse();
+    expect(File::exists(base_path('routes/Web/Backend/Modules/gizmos.php')))->toBeFalse();
+    expect(File::isDirectory(resource_path('views/backend/pages/gizmos')))->toBeFalse();
+});
+
+it('adds the API channel to an existing web resource (and web to an api-only one)', function () {
+    // 1) web-only first…
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+    expect(File::exists(app_path('Http/Controllers/Api/GizmoApiController.php')))->toBeFalse();
+    $webController = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+
+    // …then re-run with --api: API files appear, existing web files untouched.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--api' => true])
+        ->assertSuccessful();
+    expect(File::exists(app_path('Http/Controllers/Api/GizmoApiController.php')))->toBeTrue();
+    expect(File::exists(base_path('routes/Api/Modules/gizmos.php')))->toBeTrue();
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))->toBe($webController);
+
+    cleanupGizmo();
+
+    // 2) the reverse: api-only first, then add the web channel by re-running plain.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--api-only' => true])
+        ->assertSuccessful();
+    $apiController = File::get(app_path('Http/Controllers/Api/GizmoApiController.php'));
+
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+    expect(File::exists(app_path('Http/Controllers/Backend/GizmoController.php')))->toBeTrue();
+    expect(File::exists(resource_path('views/backend/pages/gizmos/index.blade.php')))->toBeTrue();
+    expect(File::get(app_path('Http/Controllers/Api/GizmoApiController.php')))->toBe($apiController);
+});
+
 it('omits filter tabs when there is no enum field', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

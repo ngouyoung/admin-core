@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.22.0
+
+- **Independent channels: `--api-only`.** Generate just the headless JSON API (model/service/requests +
+  API controller/resource/routes — no web controller, views, web routes or sidebar link) for an API-first
+  or front-end-decoupled project. The three modes: default = web only, `--api` = web + API, `--api-only`
+  = API only. **Re-running is additive** (existing files are skipped): add the API to a web resource by
+  re-running with `--api`, or add the web channel to an api-only resource by re-running without
+  `--api-only` — both channels share the same model/service/requests. `--tests` with `--api-only` is
+  skipped with a warning (the generated feature test drives the web routes).
+
 ## v1.21.0
 
 - **Enum fields are now backed by a generated PHP enum — code, not schema.** `status:enum:draft|published`

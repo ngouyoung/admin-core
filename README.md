@@ -246,7 +246,19 @@ php artisan admin-core:make Product --api --migration --fields="name:string, pri
 Generates a **`ProductResource`** (JsonResource), a **`Api\ProductApiController`** (index/show/store/
 update/destroy), and a **`apiResource`** route file under `api.products.*` — Sanctum-gated, with **each
 action carrying the same permission as the web admin** (`list`/`create`/`edit`/`delete-product`), so the
-API and the back office enforce one permission model. The controller **reuses the same `Service` +
+API and the back office enforce one permission model.
+
+**Channels are independent — pick what you need, add the rest later:**
+
+```bash
+php artisan admin-core:make Product …              # web only (default)
+php artisan admin-core:make Product … --api        # web + API
+php artisan admin-core:make Product … --api-only   # API only (headless: no views/web routes/sidebar)
+```
+
+Re-running is additive (existing files are skipped): a web-only resource gains the API by re-running with
+`--api`; an api-only resource gains the web channel by re-running **without** `--api-only`. Both channels
+share the same model/service/requests, so nothing is duplicated. The controller **reuses the same `Service` +
 FormRequests** as the web CRUD, so validation/authorization live in one place; the index is paginated
 (`?per_page=`). Crucially, **the public id is always the uuid route key,
 never the bigint `id`** — so internal ids are never enumerable across tenants:
