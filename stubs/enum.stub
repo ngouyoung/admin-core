@@ -1,0 +1,14 @@
+<?php
+
+namespace App\Enums;
+
+/**
+ * Single source of truth for the allowed values — validation (Rule::enum), the
+ * model cast, the form select, the index filter-tabs and the factory all read
+ * this. Add a case here and every layer picks it up; the column stays a plain
+ * string in the database, so no migration is needed.
+ */
+enum __AC_ENUM_CLASS__: string
+{
+__AC_ENUM_CASES__
+}

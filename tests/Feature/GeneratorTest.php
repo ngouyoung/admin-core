@@ -28,6 +28,7 @@ function gizmoTargets(): array
         app_path('Http/Resources/GizmoResource.php'),
         app_path('Http/Controllers/Api/GizmoApiController.php'),
         base_path('routes/Api/Modules/gizmos.php'),
+        app_path('Enums'), // generated backed enums (GizmoStatus, …)
     ];
 }
 
@@ -242,12 +243,44 @@ it('adds segmented filter tabs for an enum field', function () {
     ])->assertSuccessful();
 
     // status is the 2nd field, so column index 2 (checkbox is 0, name is 1).
+    // Tabs come from the backed enum's cases — single source of truth.
     expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
         ->toContain('<x-admin-core::filter-tabs')
         ->toContain('table="#gizmos_table"')
         ->toContain(':column="2"')
-        ->toContain("'draft' => 'Draft'")
-        ->toContain("'published' => 'Published'");
+        ->toContain(':enum="\App\Enums\GizmoStatus::class"');
+});
+
+it('generates a backed enum as the single source of truth for an enum field', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, status:enum:draft|published|on_hold',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // The enum class itself, one case per value (studly name, raw value).
+    expect(File::get(app_path('Enums/GizmoStatus.php')))
+        ->toContain('enum GizmoStatus: string')
+        ->toContain("case Draft = 'draft';")
+        ->toContain("case Published = 'published';")
+        ->toContain("case OnHold = 'on_hold';");
+
+    // Validation via Rule::enum, not a hardcoded in: list.
+    expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
+        ->toContain('Rule::enum(\App\Enums\GizmoStatus::class)')
+        ->not->toContain("'in:draft");
+
+    // Model casts the column to the enum (DB column stays a plain string).
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->toContain("'status' => \App\Enums\GizmoStatus::class");
+    $migration = collect(glob(database_path('migrations/*_create_gizmos_table.php')))->first();
+    expect(File::get($migration))->toContain("\$table->string('status')");
+
+    // Form select + factory iterate the cases — no duplicated value lists anywhere.
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
+        ->toContain('\App\Enums\GizmoStatus::cases()');
+    expect(File::get(database_path('factories/GizmoFactory.php')))
+        ->toContain('fake()->randomElement(\App\Enums\GizmoStatus::cases())');
 });
 
 it('renders an enum column as a status pill (table + show), marked raw', function () {
@@ -264,9 +297,9 @@ it('renders an enum column as a status pill (table + show), marked raw', functio
         ->toContain('class="ac-status" data-status="')
         ->toMatch('/rawColumns\(\[[^\]]*\bstatus\b/');
 
-    // Detail screen: same pill.
+    // Detail screen: same pill (the cast makes $object->status an enum → ->value).
     expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))
-        ->toContain('<span class="ac-status" data-status="{{ $object->status }}">');
+        ->toContain('<span class="ac-status" data-status="{{ $object->status->value }}">');
 });
 
 it('keys edit/show route links by the public route key, not the bigint id (hybrid keys)', function () {

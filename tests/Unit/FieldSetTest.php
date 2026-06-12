@@ -20,10 +20,17 @@ it('builds a nullable decimal', function () {
     expect($f->storeRules())->toContain("'price' => ['nullable', 'numeric']");
 });
 
-it('builds an enum select with an in rule', function () {
-    $f = fs('status:enum:draft|published');
-    expect($f->storeRules())->toContain("'in:draft,published'");
-    expect($f->formFields())->toContain('<select');
+it('builds an enum select backed by a generated enum class', function () {
+    $f = fs('status:enum:draft|published')->setClass('Product');
+    // Validation + form both reference the backed enum — the single source of truth.
+    expect($f->storeRules())->toContain('Rule::enum(\App\Enums\ProductStatus::class)');
+    expect($f->formFields())->toContain('<select')
+        ->toContain('\App\Enums\ProductStatus::cases()');
+    // The DB column stays a plain string (adding a case never needs a migration).
+    expect($f->migrationColumns())->toContain("\$table->string('status');");
+    expect($f->enumDefinitions())->toBe([
+        ['class' => 'ProductStatus', 'cases' => ['Draft' => 'draft', 'Published' => 'published']],
+    ]);
 });
 
 it('builds a foreign key with belongsTo + exists + eager load', function () {

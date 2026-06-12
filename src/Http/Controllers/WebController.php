@@ -125,6 +125,11 @@ abstract class WebController extends BaseController
      */
     protected function csvCell(mixed $value): mixed
     {
+        // Enum-cast attributes arrive as BackedEnum instances; export their value.
+        if ($value instanceof \BackedEnum) {
+            $value = $value->value;
+        }
+
         if (is_string($value) && $value !== ''
             && in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true)
             && ! is_numeric($value)) {

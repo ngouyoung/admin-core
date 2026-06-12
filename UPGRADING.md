@@ -12,6 +12,17 @@ npm install && npm run build
 
 ---
 
+## → v1.21.0 — Backed enums for enum fields
+
+No breaking change — resources generated earlier keep their `in:` rules and string handling. Newly
+generated enum fields get an `App\Enums\{Model}{Field}` backed enum as the single source of truth
+(validation `Rule::enum`, model cast, form select, filter-tabs, factory). **Add a value by adding a
+`case` to that file — no migration** (the column is a plain string).
+
+To migrate an existing resource by hand: create the enum class, cast the attribute to it, swap the
+`in:` rule for `Rule::enum(...)`, and append `->value` wherever the attribute is rendered (the cast
+makes it an enum instance, not a string).
+
 ## → v1.20.1 — API permission gating
 
 The generated API routes now permission-gate **every** action (previously only `store`/`update` were

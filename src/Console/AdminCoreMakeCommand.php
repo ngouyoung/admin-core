@@ -47,7 +47,8 @@ class AdminCoreMakeCommand extends Command
             ->setUuid($uuid)
             ->setSoftDeletes($soft)
             ->setAudit($audit)
-            ->setSortable($sortable);
+            ->setSortable($sortable)
+            ->setClass($class);
 
         $sortRoutes = $sortable ? sprintf(
             "\n    Route::post('reorder', [%sController::class, 'reorder'])->name('reorder')\n"
@@ -236,6 +237,27 @@ class AdminCoreMakeCommand extends Command
             }
             File::ensureDirectoryExists(dirname($target));
             File::put($target, strtr(File::get("{$stubBase}/{$stub}"), $replace));
+            $this->line('  <info>created</info> ' . $this->relative($target));
+        }
+
+        // One backed enum per enum field (App\Enums\PostStatus) — the single source
+        // of truth its validation/cast/form/tabs/factory all reference.
+        foreach ($fields->enumDefinitions() as $def) {
+            $target = app_path("Enums/{$def['class']}.php");
+            if (File::exists($target) && ! $this->option('force')) {
+                $this->warn('Skipped (exists): ' . $this->relative($target));
+                continue;
+            }
+            $cases = implode("\n", array_map(
+                fn ($name, $value) => "    case {$name} = '{$value}';",
+                array_keys($def['cases']),
+                $def['cases'],
+            ));
+            File::ensureDirectoryExists(dirname($target));
+            File::put($target, strtr(File::get("{$stubBase}/enum.stub"), [
+                '__AC_ENUM_CLASS__' => $def['class'],
+                '__AC_ENUM_CASES__' => $cases,
+            ]));
             $this->line('  <info>created</info> ' . $this->relative($target));
         }
 

@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.21.0
+
+- **Enum fields are now backed by a generated PHP enum — code, not schema.** `status:enum:draft|published`
+  generates `App\Enums\ProductStatus` (string-backed) as the single source of truth: validation uses
+  `Rule::enum(...)` (replacing the duplicated `in:` lists), the model **casts** the attribute to the enum,
+  and the form `<select>`, index filter-tabs and factory all iterate its `cases()`. The DB column stays a
+  plain `string`, so **adding a value = adding one `case` to the enum file — no migration**, and every
+  layer (validation, form, tabs, factory) picks it up automatically.
+- `<x-admin-core::filter-tabs>` gains an `:enum` prop (builds the tabs from a backed enum's cases);
+  `:tabs` still works for hand-rolled lists.
+- **Fix:** CSV export now serialises enum-cast attributes by their value (a `BackedEnum` instance would
+  have crashed `fputcsv`).
+- Existing resources are unaffected (their `in:` rules keep working); regenerate to adopt the enum style.
+
 ## v1.20.2
 
 - **Harden the API list query against array-valued params.** A client sending `?filter[col][]=x` would bind

@@ -32,9 +32,44 @@ class FieldSet
 
     private bool $sortable = false;
 
+    private string $class = 'DummyClass';
+
     public function __construct(?string $raw)
     {
         $this->fields = $this->parse($raw);
+    }
+
+    public function setClass(string $class): self
+    {
+        $this->class = $class;
+
+        return $this;
+    }
+
+    /** The backed-enum class name for an enum field, e.g. Post + status → PostStatus. */
+    public function enumClass(array $f): string
+    {
+        return $this->class . Str::studly($f['name']);
+    }
+
+    /**
+     * Enum classes to generate: [['class' => 'PostStatus', 'cases' => ['draft' => 'Draft', …]], …].
+     * One per enum field — the single source of truth for that field's allowed values.
+     */
+    public function enumDefinitions(): array
+    {
+        $defs = [];
+        foreach ($this->fields as $f) {
+            if ($f['type'] === 'enum') {
+                $cases = [];
+                foreach ($f['enum'] as $value) {
+                    $cases[Str::studly($value)] = $value;
+                }
+                $defs[] = ['class' => $this->enumClass($f), 'cases' => $cases];
+            }
+        }
+
+        return $defs;
     }
 
     public function setSoftDeletes(bool $softDeletes): self
@@ -481,7 +516,7 @@ PHP;
                 $f['type'] === 'slug' => 'fake()->unique()->slug()',
                 $f['type'] === 'json' => "['key' => fake()->word()]",
                 $f['type'] === 'password' => "'password'", // hashed by the model's 'hashed' cast
-                $f['type'] === 'enum' => "fake()->randomElement(['" . implode("', '", $f['enum']) . "'])",
+                $f['type'] === 'enum' => "fake()->randomElement(\\App\\Enums\\{$this->enumClass($f)}::cases())",
                 $f['type'] === 'foreign' => "\\App\\Models\\{$f['relModel']}::factory()",
                 in_array($f['type'], ['image', 'file'], true) => 'null',
                 default => 'fake()->words(3, true)',
@@ -530,6 +565,11 @@ PHP;
     {
         $casts = [];
         foreach ($this->fields as $f) {
+            // An enum field casts to its backed-enum class (still a string in the DB).
+            if ($f['type'] === 'enum') {
+                $casts[] = "            '{$f['name']}' => \\App\\Enums\\{$this->enumClass($f)}::class,";
+                continue;
+            }
             $cast = match ($f['type']) {
                 'boolean' => 'boolean',
                 'date' => 'date',
@@ -627,7 +667,7 @@ PHP;
                     $rules = [$update ? "'nullable'" : $required, "'string'", "'min:8'"];
                     break;
                 case 'enum':
-                    $rules = [$required, "'in:" . implode(',', $f['enum']) . "'"];
+                    $rules = [$required, "\\Illuminate\\Validation\\Rule::enum(\\App\\Enums\\{$this->enumClass($f)}::class)"];
                     break;
                 case 'image':
                     $rules = [$update ? "'nullable'" : $required, "'image'", "'max:2048'"];
@@ -770,12 +810,15 @@ BLADE;
 
     private function enumSelect(array $f, string $err, string $old): string
     {
-        $options = '';
-        foreach ($f['enum'] as $value) {
-            $options .= "\n            <option value=\"{$value}\" @selected({$old} === '{$value}')>{$value}</option>";
-        }
+        // Single source of truth: iterate the backed enum's cases (compare by ->value,
+        // since the cast makes $object->{field} an enum instance).
+        $enumClass = '\\App\\Enums\\' . $this->enumClass($f);
+        $selected = "old('{$f['name']}', \$object?->{$f['name']}?->value)";
 
-        return "<select name=\"{$f['name']}\" id=\"{$f['name']}\" class=\"form-select {$err}\">{$options}\n        </select>";
+        return "<select name=\"{$f['name']}\" id=\"{$f['name']}\" class=\"form-select {$err}\">\n"
+            . "            @foreach ({$enumClass}::cases() as \$case)\n"
+            . "                <option value=\"{{ \$case->value }}\" @selected({$selected} === \$case->value)>{{ ucfirst(\$case->value) }}</option>\n"
+            . "            @endforeach\n        </select>";
     }
 
     private function fileInput(array $f, string $err, bool $image): string
@@ -874,11 +917,11 @@ BLADE;
     public function filterTabs(string $tableId): string
     {
         $index = null;
-        $enum = null;
+        $enumClass = null;
         foreach (array_values($this->fields) as $i => $f) {
             if ($f['type'] === 'enum') {
                 $index = $i + 1; // +1 for the leading checkbox column
-                $enum = $f['enum'];
+                $enumClass = $this->enumClass($f);
                 break;
             }
         }
@@ -886,12 +929,8 @@ BLADE;
             return '';
         }
 
-        $tabs = ["'' => 'All'"];
-        foreach ($enum as $value) {
-            $tabs[] = "'{$value}' => '" . ucfirst($value) . "'";
-        }
-
-        return "    <x-admin-core::filter-tabs table=\"#{$tableId}\" :column=\"{$index}\" :tabs=\"[" . implode(', ', $tabs) . "]\" />\n\n";
+        // The component builds its tabs from the enum's cases — single source of truth.
+        return "    <x-admin-core::filter-tabs table=\"#{$tableId}\" :column=\"{$index}\" :enum=\"\\App\\Enums\\{$enumClass}::class\" />\n\n";
     }
 
     // ---- Controller getData -----------------------------------------
@@ -920,7 +959,7 @@ BLADE;
                 $lines[] = "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(\$i->name ?? \$i->id) . '</span>')->implode(' '))";
             }
             if ($f['type'] === 'enum') {
-                $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}) . '\">' . e(\$row->{$f['name']}) . '</span>' : '')";
+                $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\$row->{$f['name']}->value) . '</span>' : '')";
             }
             if ($f['type'] === 'image') {
                 $lines[] = "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . asset('storage/' . \$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')";
@@ -945,7 +984,7 @@ BLADE;
                 'image' => "@if(\$object->{$f['name']})<img src=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
-                'enum' => "@if(\$object->{$f['name']})<span class=\"ac-status\" data-status=\"{{ \$object->{$f['name']} }}\">{{ \$object->{$f['name']} }}</span>@endif",
+                'enum' => "@if(\$object->{$f['name']})<span class=\"ac-status\" data-status=\"{{ \$object->{$f['name']}->value }}\">{{ \$object->{$f['name']}->value }}</span>@endif",
                 default => "{{ \$object->{$f['name']} }}",
             };
             $rows[] = "            <tr>\n                <th style=\"width:220px\">{$label}</th>\n                <td>{$value}</td>\n            </tr>";
