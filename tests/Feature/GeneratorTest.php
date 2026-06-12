@@ -451,11 +451,15 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         ->toContain("protected array \$sortable = ['name', 'created_at']")
         ->toContain("protected array \$filterable = ['category_id']");
 
-    // Sanctum-gated apiResource routes under api.gizmos.*.
+    // Sanctum-gated apiResource routes under api.gizmos.*, each action permission-gated
+    // by the same permission as the web admin (delete → delete-gizmo, etc.).
     expect(File::get(base_path('routes/Api/Modules/gizmos.php')))
         ->toContain("config('admin-core.api.middleware'")
         ->toContain("->name('api.gizmos.')")
-        ->toContain("[GizmoApiController::class, 'index']");
+        ->toContain("[GizmoApiController::class, 'index']")
+        ->toContain("'permission:' . \$action . '-gizmo'")
+        ->toContain("'destroy'])->name('destroy')->middleware(\$gate('delete'))")
+        ->toContain("->middleware(\$gate('list'))");
 });
 
 it('omits filter tabs when there is no enum field', function () {

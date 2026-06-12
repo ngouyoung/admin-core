@@ -238,9 +238,11 @@ php artisan admin-core:make Product --api --migration --fields="name:string, pri
 ```
 
 Generates a **`ProductResource`** (JsonResource), a **`Api\ProductApiController`** (index/show/store/
-update/destroy), and a Sanctum-gated **`apiResource`** route file under `api.products.*`. The controller
-**reuses the same `Service` + FormRequests** as the web CRUD, so validation/authorization live in one
-place; the index is paginated (`?per_page=`). Crucially, **the public id is always the uuid route key,
+update/destroy), and a **`apiResource`** route file under `api.products.*` — Sanctum-gated, with **each
+action carrying the same permission as the web admin** (`list`/`create`/`edit`/`delete-product`), so the
+API and the back office enforce one permission model. The controller **reuses the same `Service` +
+FormRequests** as the web CRUD, so validation/authorization live in one place; the index is paginated
+(`?per_page=`). Crucially, **the public id is always the uuid route key,
 never the bigint `id`** — so internal ids are never enumerable across tenants:
 
 ```json

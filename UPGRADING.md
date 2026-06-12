@@ -12,6 +12,21 @@ npm install && npm run build
 
 ---
 
+## → v1.20.1 — API permission gating
+
+The generated API routes now permission-gate **every** action (previously only `store`/`update` were
+gated, via their FormRequest). If you generated `--api` resources on an earlier version, regenerate the
+route file or add the gate yourself:
+
+```php
+$gate = fn (string $action) => config('admin-core.permission.enabled')
+    ? 'permission:' . $action . '-product' : [];
+Route::get('/',       [...,'index'])  ->name('index')  ->middleware($gate('list'));
+// store→create, show→list, update→edit, destroy→delete
+```
+
+Make sure the API token's user actually holds the resource permissions, or the API will (correctly) 403.
+
 ## → v1.20.0 — API list query
 
 No action required for new `--api` resources (the `$searchable` / `$sortable` / `$filterable` whitelists are

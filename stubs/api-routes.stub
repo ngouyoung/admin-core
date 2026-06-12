@@ -3,13 +3,19 @@
 use App\Http\Controllers\Api\DummyClassApiController;
 use Illuminate\Support\Facades\Route;
 
+// Each action is gated by the same permission as the web admin (when permission
+// gating is enabled), so the API and the back office enforce one permission model.
+$gate = fn (string $action) => config('admin-core.permission.enabled')
+    ? 'permission:' . $action . '-dummy-model'
+    : [];
+
 Route::middleware(config('admin-core.api.middleware', ['auth:sanctum']))
     ->prefix('dummyModels')
     ->name('api.dummyModels.')
-    ->group(function () {
-        Route::get('/', [DummyClassApiController::class, 'index'])->name('index');
-        Route::post('/', [DummyClassApiController::class, 'store'])->name('store');
-        Route::get('{id}', [DummyClassApiController::class, 'show'])->name('show');
-        Route::put('{id}', [DummyClassApiController::class, 'update'])->name('update');
-        Route::delete('{id}', [DummyClassApiController::class, 'destroy'])->name('destroy');
+    ->group(function () use ($gate) {
+        Route::get('/', [DummyClassApiController::class, 'index'])->name('index')->middleware($gate('list'));
+        Route::post('/', [DummyClassApiController::class, 'store'])->name('store')->middleware($gate('create'));
+        Route::get('{id}', [DummyClassApiController::class, 'show'])->name('show')->middleware($gate('list'));
+        Route::put('{id}', [DummyClassApiController::class, 'update'])->name('update')->middleware($gate('edit'));
+        Route::delete('{id}', [DummyClassApiController::class, 'destroy'])->name('destroy')->middleware($gate('delete'));
     });

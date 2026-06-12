@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.20.1
+
+- **Security: permission-gate every API action.** The generated API routes were guarded only by
+  `auth:sanctum`, while `store`/`update` also got a permission check from their FormRequest's `authorize()`
+  — so `index`/`show`/**`destroy`** were reachable by **any** authenticated token regardless of its
+  `list`/`delete` permission (a token holder could delete via the API without `delete-{resource}`). Each
+  API route now carries `permission:{action}-{resource}` (gated on `config('admin-core.permission.enabled')`,
+  the same toggle + pattern as the web `Route::crud` macro), so the API and the back office enforce one
+  permission model. Regenerate `--api` resources (or add the middleware) to pick this up.
+
 ## v1.20.0
 
 - **API list query — search / sort / filter / paginate on the JSON `index`.** `ApiController::index` now
