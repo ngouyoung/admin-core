@@ -60,16 +60,17 @@ class AdminCoreFieldCommand extends Command
             $this->warn("  already exists — skipped: {$name}");
         }
 
-        // Relation / upload fields need wiring this command can't surgically patch
-        // (model relations, the controller's getData eager-load/addColumn, the
-        // service's pivot-sync or file-storage). Skip them rather than leave a
-        // half-wired resource — point the user at the full generator.
+        // Some field types need wiring this command can't surgically patch:
+        //  - relations / uploads (model relations, getData eager-load, pivot-sync, file-storage);
+        //  - system fields (@/sku/auth) — not mass-assignable, so the $fillable idempotency check
+        //    can't track them (re-runs would duplicate) and they need a booted() value-setter.
+        // Skip them rather than leave a half-wired resource — point the user at the full generator.
         $needsWiring = array_map(fn ($f) => $f['name'], array_filter(
             (new FieldSet(implode(', ', $newTokens)))->fields(),
-            fn ($f) => in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file'], true),
+            fn ($f) => in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file'], true) || ! empty($f['system']),
         ));
         foreach ($needsWiring as $name) {
-            $this->warn("  needs relation/upload wiring — skipped: {$name} (regenerate with `admin-core:make {$class} --fields=\"…\" --force`, or wire it by hand)");
+            $this->warn("  needs the full generator — skipped: {$name} (relation/upload/system field; regenerate with `admin-core:make {$class} --fields=\"…\" --force`, or wire it by hand)");
         }
         $newTokens = array_filter($newTokens, fn ($t) => ! in_array(trim(explode(':', $t)[0]), $needsWiring, true));
 
@@ -81,12 +82,14 @@ class AdminCoreFieldCommand extends Command
             return self::SUCCESS;
         }
 
-        $fs = (new FieldSet(implode(', ', $newTokens)))->setTable($snakePlural)->setClass($class);
+        $fs = (new FieldSet(implode(', ', $newTokens)))->setTable($snakePlural)->setClass($class)
+            ->setHasName(in_array('name', $existing, true)); // so a slug derives from the model's existing name
         $fields = $fs->fields();
         $names = array_map(fn ($f) => $f['name'], $fields);
 
         $this->writeMigration($snakePlural, $fs, $names);
         $this->patchModel($model, $fs, $fields);
+        $this->patchBoot($model, $fs);
         $this->patchRequest(app_path("Http/Requests/{$class}/Store{$class}Request.php"), $fs->storeRules());
         $this->patchRequest(app_path("Http/Requests/{$class}/Update{$class}Request.php"), $fs->updateRules());
         // json fields decode their textarea string to an array; a blank password on update is dropped.
@@ -192,6 +195,42 @@ class AdminCoreFieldCommand extends Command
 
         File::put($path, $contents);
         $this->line('  <info>patched</info> ' . $this->relative($path) . ' (fillable' . ($castLines ? ' + casts' : '') . ')');
+    }
+
+    /**
+     * Add (or extend) the model's booted() creating-hook so a newly-added slug auto-derives
+     * from `name`. Extends an existing static::creating closure, or appends a fresh booted()
+     * method before the class brace. (System fields are skipped upstream, so this is slug-only.)
+     */
+    private function patchBoot(string $path, FieldSet $fs): void
+    {
+        $body = $fs->bootBody();
+        if (trim($body) === '') {
+            return;
+        }
+
+        $contents = File::get($path);
+
+        if (str_contains($contents, 'function booted(')) {
+            // Drop the assignments at the top of the existing creating() closure.
+            $patched = preg_replace(
+                '/(static::creating\(function \(self \$model\) \{)/',
+                "$1\n{$body}",
+                $contents,
+                1,
+            );
+            if ($patched === null || $patched === $contents) {
+                $this->warn('  ' . $this->relative($path) . ' has a custom booted() without a creating() hook — add the slug derive by hand');
+
+                return;
+            }
+        } else {
+            // Append a fresh booted() method just before the class's closing brace.
+            $patched = rtrim(rtrim($contents), '}') . $fs->modelBoot() . "\n}\n";
+        }
+
+        File::put($path, $patched);
+        $this->line('  <info>patched</info> ' . $this->relative($path) . ' (booted hook)');
     }
 
     /** Insert rule lines before the closing `];` of a FormRequest's rules() array. */

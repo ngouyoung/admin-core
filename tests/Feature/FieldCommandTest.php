@@ -103,6 +103,30 @@ it('adds the Rule import when a unique field is added to a request that lacked i
         ->and(strpos($update, 'use Illuminate\Validation\Rule;'))->toBeLessThan(strpos($update, 'Rule::unique('));
 });
 
+it('wires the booted() slug derive when adding a slug, and skips system fields', function () {
+    test()->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--migration' => true])
+        ->assertSuccessful();
+
+    // slug = wireable (fillable-tracked); code:sku = system (not mass-assignable) → skipped.
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'handle:slug, code:sku'])
+        ->expectsOutputToContain('needs the full generator — skipped: code')
+        ->assertSuccessful();
+
+    $model = File::get(app_path('Models/Gizmo.php'));
+    expect($model)
+        ->toContain('protected static function booted(): void')
+        ->toContain('static::creating(function (self $model) {')
+        ->toContain('$model->handle ??= \Illuminate\Support\Str::slug($model->name);')
+        ->toContain("'name', 'handle'")          // slug added to fillable…
+        ->not->toContain("'code'");              // …system field was not
+
+    // Adding a second slug extends the existing booted() (one method, two derives).
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'tag:slug'])->assertSuccessful();
+    $model = File::get(app_path('Models/Gizmo.php'));
+    expect(substr_count($model, 'function booted('))->toBe(1)
+        ->and(substr_count($model, 'Str::slug($model->name)'))->toBe(2);
+});
+
 it('wires prepareForValidation for json (decode) and password (drop blank on update)', function () {
     test()->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'title:string', '--migration' => true])
         ->assertSuccessful();
@@ -156,8 +180,8 @@ it('skips relation/upload fields (they need the full generator), adding the scal
 
     // category_id (foreign) + avatar (image) can't be surgically wired; sku (scalar) can.
     $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'sku:string, category_id:foreign, avatar:image'])
-        ->expectsOutputToContain('needs relation/upload wiring — skipped: category_id')
-        ->expectsOutputToContain('needs relation/upload wiring — skipped: avatar')
+        ->expectsOutputToContain('needs the full generator — skipped: category_id')
+        ->expectsOutputToContain('needs the full generator — skipped: avatar')
         ->assertSuccessful();
 
     $model = File::get(app_path('Models/Gizmo.php'));

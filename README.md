@@ -359,9 +359,10 @@ php artisan admin-core:field Product "sku:string^, discount:decimal?"
 php artisan migrate
 ```
 
-It generates an `add_…_to_products_table` migration and **surgically patches** the model (`$fillable` +
-casts), the store/update requests (validation rules + the `prepareForValidation()` hook for `json`/`password`),
-the form / table-header / DataTable-script / detail (show) views, and the factory — adding *just* those fields. Same `--fields` DSL (so `status:enum:a|b` also creates the backed
+It generates an `add_…_to_products_table` migration and **surgically patches** the model (`$fillable`, casts,
+and the `booted()` slug-derive hook), the store/update requests (validation rules + the `prepareForValidation()`
+hook for `json`/`password`), the form / table-header / DataTable-script / detail (show) views, and the factory
+— adding *just* those fields. Same `--fields` DSL (so `status:enum:a|b` also creates the backed
 enum class). **Fields that already exist are detected and skipped** (by `$fillable`), so re-running is safe
 — pass a mix of old and new and only the new ones are added:
 
@@ -379,10 +380,11 @@ exist** — it refuses up front (so you never get an `add_…` migration that ca
 If the resource has an **`--api`** channel, the new field is also added to its `JsonResource` and the
 search/sort/filter whitelists (by type) — so it shows up in the API too, not just the admin.
 
-**Scope:** it handles scalar fields (string/text/number/bool/date/enum/json/slug/password/…). Relation
-and upload fields (`foreign`, `belongsToMany`, `image`, `file`) need wiring it can't surgically patch
-(model relations, the controller's `getData` eager-load, the service's pivot-sync / file-storage), so it
-**skips them with a note** — add those by regenerating the resource with `admin-core:make … --force`.
+**Scope:** it handles scalar fields (string/text/number/bool/date/enum/json/slug/password/…). Relation and
+upload fields (`foreign`, `belongsToMany`, `image`, `file`) and **system fields** (`@` / `sku` / `auth` —
+not mass-assignable, so `$fillable` can't track them for idempotency) need wiring it can't surgically patch
+(model relations, the controller's `getData` eager-load, the service's pivot-sync / file-storage, a trusted
+value-setter), so it **skips them with a note** — add those by regenerating with `admin-core:make … --force`.
 
 > Patching assumes the views/model still match the generated shape; heavily hand-edited files may need a
 > manual touch-up (it never duplicates, so a re-run won't hurt).

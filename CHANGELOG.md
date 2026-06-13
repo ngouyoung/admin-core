@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.28.3
+
+- **`admin-core:field` now wires the `booted()` hook for a `slug`** — a slug added later auto-derives from
+  the model's `name` (adds a fresh `booted()` or extends an existing `creating()` closure), instead of
+  staying blank until typed.
+- **System fields (`@` / `sku` / `auth`) are now skipped by `admin-core:field`** with a note. They're not
+  mass-assignable, so the `$fillable` idempotency check can't track them (re-runs would duplicate) and they
+  need a `booted()` value-setter — use `admin-core:make … --force` to (re)scaffold those.
+
 ## v1.28.2
 
 - **Fix: `admin-core:field` now wires `prepareForValidation()` for `json`/`password` fields.** Adding a

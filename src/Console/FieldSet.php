@@ -34,9 +34,23 @@ class FieldSet
 
     private string $class = 'DummyClass';
 
+    private ?bool $hasNameOverride = null;
+
     public function __construct(?string $raw)
     {
         $this->fields = $this->parse($raw);
+    }
+
+    /**
+     * Tell the set whether the model already has a `name` column (used by the add-field
+     * command, whose token set won't contain the pre-existing `name`). Drives the slug
+     * auto-derive in the booted() hook.
+     */
+    public function setHasName(bool $hasName): self
+    {
+        $this->hasNameOverride = $hasName;
+
+        return $this;
     }
 
     public function setClass(string $class): self
@@ -246,7 +260,7 @@ class FieldSet
 
     private function hasName(): bool
     {
-        return collect($this->fields)->contains(fn ($f) => $f['name'] === 'name');
+        return $this->hasNameOverride ?? collect($this->fields)->contains(fn ($f) => $f['name'] === 'name');
     }
 
     private function hasFiles(): bool
@@ -382,6 +396,27 @@ PHP;
      */
     public function modelBoot(): string
     {
+        $body = $this->bootBody();
+
+        if ($body === '') {
+            return '';
+        }
+
+        return <<<PHP
+
+
+    protected static function booted(): void
+    {
+        static::creating(function (self \$model) {
+$body
+        });
+    }
+PHP;
+    }
+
+    /** The `static::creating` assignment lines for system/slug fields, or '' when none apply. */
+    public function bootBody(): string
+    {
         $assigns = [];
         foreach ($this->fields as $f) {
             if (! empty($f['system']) && $this->isColumn($f)) {
@@ -397,22 +432,7 @@ PHP;
             }
         }
 
-        if (! $assigns) {
-            return '';
-        }
-
-        $body = implode("\n", $assigns);
-
-        return <<<PHP
-
-
-    protected static function booted(): void
-    {
-        static::creating(function (self \$model) {
-$body
-        });
-    }
-PHP;
+        return implode("\n", $assigns);
     }
 
     /**
