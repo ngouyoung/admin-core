@@ -9,6 +9,7 @@ class AdminCoreInstallCommand extends Command
 {
     protected $signature = 'admin-core:install
                             {--access : Also scaffold the full Bootstrap 5 (Vite) admin theme + auth + Users/Roles/Permissions/Group-Permissions}
+                            {--api-auth : Also scaffold Passport OAuth2 API auth (/api/login password grant, /api/logout, /api/me) for a decoupled front-end}
                             {--build : Run npm install && npm run build after publishing}
                             {--seed : Run migrate + seed the admin user after publishing}
                             {--force : Overwrite files that already exist}';
@@ -42,6 +43,13 @@ class AdminCoreInstallCommand extends Command
             // Minimal, zero-build starter layout.
             $this->copyStub('layout.blade.php.stub', resource_path('views/backend/layouts/app.blade.php'));
             $this->copyStub('dashboard.blade.php.stub', resource_path('views/backend/dashboard.blade.php'));
+        }
+
+        if ($this->option('api-auth')) {
+            $this->newLine();
+            $this->info('Installing API auth (Passport)…');
+            $this->newLine();
+            $this->installApiAuth();
         }
 
         $this->newLine();
@@ -290,6 +298,143 @@ PHP;
     }
 
     // ------------------------------------------------------------------
+    // API auth (Passport OAuth2 password grant) — --api-auth
+    // ------------------------------------------------------------------
+
+    private function installApiAuth(): void
+    {
+        $a = __DIR__ . '/../../stubs/api-auth';
+
+        $this->copy("$a/AuthController.php.stub", app_path('Http/Controllers/Api/AuthController.php'));
+        $this->copy("$a/ApiAuthServiceProvider.php.stub", app_path('Providers/ApiAuthServiceProvider.php'));
+        $this->registerProvider('App\\Providers\\ApiAuthServiceProvider');
+        $this->wireApiRoutes("$a/auth-routes.php.stub");
+        $this->ensureApiRouting();
+        $this->switchApiGuard();
+
+        // API modules directory for `admin-core:make … --api` route files.
+        $dir = base_path('routes/Api/Modules');
+        if (! File::isDirectory($dir)) {
+            File::ensureDirectoryExists($dir);
+            File::put($dir . '/.gitkeep', '');
+            $this->line('  <info>created</info> routes/Api/Modules/');
+        }
+    }
+
+    /** Add a provider class to bootstrap/providers.php (idempotent). */
+    private function registerProvider(string $class): void
+    {
+        $file = base_path('bootstrap/providers.php');
+        if (! File::exists($file)) {
+            $this->warn("  bootstrap/providers.php not found — register {$class} manually.");
+            return;
+        }
+
+        $contents = File::get($file);
+        if (str_contains($contents, $class)) {
+            $this->line('  <comment>exists</comment>  ApiAuthServiceProvider in bootstrap/providers.php');
+            return;
+        }
+
+        $patched = preg_replace('/\];/', "    {$class}::class,\n];", $contents, 1);
+        if ($patched === null || $patched === $contents) {
+            $this->warn("  could not auto-edit bootstrap/providers.php — register {$class} manually.");
+            return;
+        }
+
+        File::put($file, $patched);
+        $this->line('  <info>updated</info> bootstrap/providers.php (registered ApiAuthServiceProvider)');
+    }
+
+    /** Create routes/api.php (or append to it) with the auth routes + the Api/Modules loader. */
+    private function wireApiRoutes(string $fragmentStub): void
+    {
+        $api = base_path('routes/api.php');
+        $authBlock = "\n// >>> admin-core:api-auth\n" . trim(File::get($fragmentStub)) . "\n// <<< admin-core:api-auth\n";
+        $modulesBlock = <<<'PHP'
+
+// >>> admin-core:api-modules
+// API modules generated with `admin-core:make … --api`.
+foreach (glob(__DIR__ . '/Api/Modules/*.php') ?: [] as $apiModule) {
+    require $apiModule;
+}
+// <<< admin-core:api-modules
+
+PHP;
+
+        if (! File::exists($api)) {
+            File::put($api, "<?php\n\nuse Illuminate\\Support\\Facades\\Route;\n" . $authBlock . $modulesBlock);
+            $this->line('  <info>created</info> routes/api.php (auth routes + API module loader)');
+            return;
+        }
+
+        $contents = File::get($api);
+        $appended = false;
+
+        if (! str_contains($contents, 'admin-core:api-auth')) {
+            File::append($api, $authBlock);
+            $appended = true;
+        }
+        // Skip the loader when the host already requires Api/Modules (hand-wired).
+        if (! str_contains(File::get($api), 'Api/Modules')) {
+            File::append($api, $modulesBlock);
+            $appended = true;
+        }
+
+        $this->line($appended
+            ? '  <info>updated</info> routes/api.php (auth routes / API module loader)'
+            : '  <comment>exists</comment>  api auth routes already in routes/api.php');
+    }
+
+    /** Make sure bootstrap/app.php actually loads routes/api.php. */
+    private function ensureApiRouting(): void
+    {
+        $app = base_path('bootstrap/app.php');
+        if (! File::exists($app)) {
+            return;
+        }
+
+        $contents = File::get($app);
+        if (str_contains($contents, 'routes/api.php')) {
+            return; // already routed
+        }
+
+        $patched = preg_replace(
+            "/(web:\s*__DIR__\s*\.\s*'\/\.\.\/routes\/web\.php',)/",
+            "$1\n        api: __DIR__.'/../routes/api.php',",
+            $contents,
+            1,
+        );
+
+        if ($patched === null || $patched === $contents) {
+            $this->warn("  could not auto-edit bootstrap/app.php — add `api: __DIR__.'/../routes/api.php'` to withRouting() manually.");
+            return;
+        }
+
+        File::put($app, $patched);
+        $this->line('  <info>updated</info> bootstrap/app.php (registered routes/api.php)');
+    }
+
+    /** Point the published admin-core api middleware at the Passport guard. */
+    private function switchApiGuard(): void
+    {
+        $config = config_path('admin-core.php');
+        if (! File::exists($config)) {
+            return;
+        }
+
+        $contents = File::get($config);
+        if (! str_contains($contents, "'auth:sanctum'")) {
+            $this->line('  <comment>exists</comment>  admin-core api middleware already non-sanctum');
+            return;
+        }
+
+        File::put($config, str_replace("'auth:sanctum'", "'auth:api'", $contents));
+        $this->line("  <info>updated</info> config/admin-core.php (api middleware → 'auth:api')");
+        $this->warn("  add an 'api' guard with driver 'passport' to config/auth.php — see the next steps below.");
+    }
+
+    // ------------------------------------------------------------------
 
     private function copyTree(string $srcDir, string $destDir, bool $force = false): void
     {
@@ -336,6 +481,19 @@ PHP;
             $this->line('  1. Spatie tables:        <info>php artisan vendor:publish --provider="Spatie\\Permission\\PermissionServiceProvider" && php artisan migrate</info>');
             $this->line('  2. Scaffold a resource:  <info>php artisan admin-core:make Product --migration && php artisan migrate</info>');
             $this->line('  3. For the full admin theme + login + user/role management: <info>php artisan admin-core:install --access</info>');
+        }
+
+        if ($this->option('api-auth')) {
+            $this->newLine();
+            $this->line('<options=bold>API auth — finish the Passport setup (it cannot be installed by an artisan command):</>');
+            $this->line('  1. <info>composer require laravel/passport</info>');
+            $this->line('  2. <info>php artisan migrate</info>                          # oauth tables');
+            $this->line('  3. <info>php artisan passport:keys</info>                    # this env\'s keys (git-ignored)');
+            $this->line('  4. <info>php artisan passport:client --password --name="API" --provider=users</info>');
+            $this->line('     → put the printed id/secret in .env as <info>PASSPORT_PASSWORD_CLIENT_ID</info> / <info>PASSPORT_PASSWORD_CLIENT_SECRET</info>');
+            $this->line('  5. Add the <info>api</info> guard to <info>config/auth.php</info>: <comment>\'api\' => [\'driver\' => \'passport\', \'provider\' => \'users\']</comment>');
+            $this->line('  6. Add <info>use Laravel\\Passport\\HasApiTokens;</info> (+ the trait) to <info>App\\Models\\User</info>');
+            $this->line('  Then: <info>POST /api/login</info> {email, password} → access_token; <info>GET /api/me</info> with the Bearer token.');
         }
     }
 }

@@ -12,6 +12,19 @@ npm install && npm run build
 
 ---
 
+## → v1.23.0 — API auth scaffold
+
+No breaking change — opt in with `admin-core:install --api-auth`. It scaffolds the Passport OAuth2 auth
+endpoints and wires routing/config, then prints the Passport setup it can't run for you:
+
+```bash
+php artisan admin-core:install --api-auth
+composer require laravel/passport
+php artisan migrate && php artisan passport:keys
+php artisan passport:client --password --name="API" --provider=users   # → .env PASSPORT_PASSWORD_CLIENT_ID/_SECRET
+# add the 'api' guard (driver: passport) to config/auth.php, and HasApiTokens to App\Models\User
+```
+
 ## → v1.22.0 — Channel-selective generation
 
 No breaking change. `admin-core:make` gains `--api-only` (headless API, no web files). Existing

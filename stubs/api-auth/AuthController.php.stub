@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Routing\Controller;
+
+/**
+ * API auth for a decoupled front-end (SPA / merchant portal / mobile) using the
+ * Laravel Passport OAuth2 password grant. The client secret stays server-side:
+ * the client posts email + password to /api/login, which proxies the credentials
+ * to Passport's /oauth/token and returns the access + refresh tokens.
+ *
+ * Set PASSPORT_PASSWORD_CLIENT_ID / PASSPORT_PASSWORD_CLIENT_SECRET in .env
+ * (created by `php artisan passport:client --password`).
+ */
+class AuthController extends Controller
+{
+    /** POST /api/login — exchange email + password for an OAuth2 access token. */
+    public function login(Request $request): JsonResponse
+    {
+        $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        // Dispatch the password grant in-process (no nested HTTP call to self).
+        $tokenRequest = Request::create('/oauth/token', 'POST', [
+            'grant_type' => 'password',
+            'client_id' => config('admin-core.api.password_client_id'),
+            'client_secret' => config('admin-core.api.password_client_secret'),
+            'username' => $request->input('email'),
+            'password' => $request->input('password'),
+            'scope' => '',
+        ]);
+
+        $response = app()->handle($tokenRequest);
+        $payload = json_decode((string) $response->getContent(), true) ?: [];
+
+        if ($response->getStatusCode() !== 200) {
+            return response()->json(['message' => 'The provided credentials are incorrect.'], 401);
+        }
+
+        return response()->json($payload);
+    }
+
+    /** POST /api/logout — revoke the current access token AND its refresh token. */
+    public function logout(Request $request): JsonResponse
+    {
+        $token = $request->user()->token();
+        $token->revoke();
+        $token->refreshToken?->revoke();
+
+        return response()->json(['data' => true]);
+    }
+
+    /** GET /api/me — the authenticated user. */
+    public function me(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        return response()->json([
+            'data' => [
+                'id' => $user->getRouteKey(),
+                'name' => $user->name,
+                'email' => $user->email,
+                'roles' => method_exists($user, 'getRoleNames') ? $user->getRoleNames() : [],
+            ],
+        ]);
+    }
+}

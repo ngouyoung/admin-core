@@ -1,0 +1,31 @@
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\ServiceProvider;
+
+/**
+ * Passport (OAuth2) setup for the admin-core JSON API — published by
+ * `admin-core:install --api-auth`, yours to tune.
+ *
+ * Guarded by class_exists so the app still boots before
+ * `composer require laravel/passport` has been run.
+ */
+class ApiAuthServiceProvider extends ServiceProvider
+{
+    public function boot(): void
+    {
+        if (! class_exists(\Laravel\Passport\Passport::class)) {
+            return;
+        }
+
+        // The API login uses the OAuth2 password grant (disabled by default in Passport).
+        \Laravel\Passport\Passport::enablePasswordGrant();
+
+        // Short-lived access tokens (a leaked token is only good for an hour); the
+        // client renews silently with the refresh token (two weeks).
+        \Laravel\Passport\Passport::tokensExpireIn(now()->addHour());
+        \Laravel\Passport\Passport::refreshTokensExpireIn(now()->addDays(14));
+        \Laravel\Passport\Passport::personalAccessTokensExpireIn(now()->addDays(30));
+    }
+}

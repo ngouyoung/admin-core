@@ -66,6 +66,10 @@ return [
         'per_page' => 25,
         // Hard cap on ?per_page= so a client can't request an unbounded page.
         'max_per_page' => 100,
+        // Passport password-grant client used by /api/login (admin-core:install --api-auth).
+        // Created with `php artisan passport:client --password` — secret stays server-side.
+        'password_client_id' => env('PASSPORT_PASSWORD_CLIENT_ID'),
+        'password_client_secret' => env('PASSPORT_PASSWORD_CLIENT_SECRET'),
     ],
 
     /*

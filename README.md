@@ -289,6 +289,30 @@ foreach (glob(__DIR__ . '/Api/Modules/*.php') ?: [] as $module) {
 }
 ```
 
+### API auth — token login (`admin-core:install --api-auth`)
+
+Your `--api` resources are guarded, but the SPA/mobile client needs a way to **log in and get a token**.
+`admin-core:install --api-auth` scaffolds OAuth2 auth (Laravel Passport, password grant):
+
+```bash
+php artisan admin-core:install --api-auth
+```
+
+It publishes `Api\AuthController` (`/api/login`, `/api/logout`, `/api/me`) + an `ApiAuthServiceProvider`
+(short-lived tokens: 1h access / 14d refresh; login throttled 6/min), wires `routes/api.php` (auth routes
++ the `Api/Modules` loader) and `bootstrap/app.php`, and flips `admin-core.api.middleware` to `auth:api`.
+`/api/login` proxies the password grant in-process so the **client secret never leaves the server**:
+
+```jsonc
+// POST /api/login {"email":"…","password":"…"}  →
+{ "token_type": "Bearer", "access_token": "…", "refresh_token": "…", "expires_in": 3600 }
+```
+
+Passport can't be pulled in by an artisan command, so the install prints the finishing steps:
+`composer require laravel/passport` → `passport:keys` → `passport:client --password` (put the id/secret in
+`.env` as `PASSPORT_PASSWORD_CLIENT_ID`/`_SECRET`) → add the `api` guard (`driver: passport`) to
+`config/auth.php` → add `Laravel\Passport\HasApiTokens` to `App\Models\User`. Then `POST /api/login`.
+
 ### Non-enumerable URLs — the hybrid key strategy (`--uuid`)
 
 `--uuid` gives a resource a **public UUID** for its URLs while keeping a fast **bigint primary key**:

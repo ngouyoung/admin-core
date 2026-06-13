@@ -12,7 +12,13 @@ use Illuminate\Support\Facades\File;
 /** Host files install mutates (snapshotted + restored). */
 function installHostFiles(): array
 {
-    return [base_path('routes/web.php'), base_path('bootstrap/app.php'), base_path('package.json')];
+    return [
+        base_path('routes/web.php'),
+        base_path('routes/api.php'),
+        base_path('bootstrap/app.php'),
+        base_path('bootstrap/providers.php'),
+        base_path('package.json'),
+    ];
 }
 
 /** Files/dirs install publishes (deleted after each test). */
@@ -23,6 +29,9 @@ function installPublished(): array
         config_path('class.php'),
         resource_path('views/backend'),
         base_path('routes/Web'),
+        base_path('routes/Api'),
+        app_path('Http/Controllers/Api/AuthController.php'),
+        app_path('Providers/ApiAuthServiceProvider.php'),
         database_path('migrations/0001_01_01_000020_create_activity_logs_table.php'),
     ];
 }
@@ -46,11 +55,15 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Middleware;
 
 return Application::configure(basePath: dirname(__DIR__))
+    ->withRouting(
+        web: __DIR__.'/../routes/web.php',
+    )
     ->withMiddleware(function (Middleware $middleware) {
         //
     })
     ->create();
 PHP);
+    File::put(base_path('bootstrap/providers.php'), "<?php\n\nreturn [\n    App\\Providers\\AppServiceProvider::class,\n];\n");
 });
 
 afterEach(function () {
@@ -97,4 +110,37 @@ it('is idempotent — re-running does not double-wire', function () {
 
     expect(substr_count(File::get(base_path('routes/web.php')), '>>> admin-core:routes'))->toBe(1)
         ->and(substr_count(File::get(base_path('bootstrap/app.php')), '>>> admin-core:middleware'))->toBe(1);
+});
+
+it('scaffolds Passport API auth with --api-auth', function () {
+    $this->artisan('admin-core:install', ['--api-auth' => true])->assertSuccessful();
+
+    // Controller + provider published, provider registered.
+    expect(File::get(app_path('Http/Controllers/Api/AuthController.php')))
+        ->toContain('class AuthController')
+        ->toContain("Request::create('/oauth/token', 'POST'");
+    expect(File::get(app_path('Providers/ApiAuthServiceProvider.php')))
+        ->toContain('Passport::enablePasswordGrant()')
+        ->toContain('tokensExpireIn');
+    expect(File::get(base_path('bootstrap/providers.php')))->toContain('ApiAuthServiceProvider::class');
+
+    // routes/api.php created with the auth routes + the module loader; bootstrap routed.
+    expect(File::get(base_path('routes/api.php')))
+        ->toContain('admin-core:api-auth')
+        ->toContain("'login'")
+        ->toContain("'auth:api'")
+        ->toContain('admin-core:api-modules');
+    expect(File::get(base_path('bootstrap/app.php')))->toContain("api: __DIR__.'/../routes/api.php'");
+
+    // The published api middleware now points at the Passport guard.
+    expect(File::get(config_path('admin-core.php')))->toContain("'auth:api'");
+});
+
+it('is idempotent for --api-auth too', function () {
+    $this->artisan('admin-core:install', ['--api-auth' => true])->assertSuccessful();
+    $this->artisan('admin-core:install', ['--api-auth' => true])->assertSuccessful();
+
+    expect(substr_count(File::get(base_path('routes/api.php')), '>>> admin-core:api-auth'))->toBe(1)
+        ->and(substr_count(File::get(base_path('routes/api.php')), '>>> admin-core:api-modules'))->toBe(1)
+        ->and(substr_count(File::get(base_path('bootstrap/providers.php')), 'ApiAuthServiceProvider'))->toBe(1);
 });

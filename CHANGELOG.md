@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.23.0
+
+- **`admin-core:install --api-auth` — Passport OAuth2 API auth, scaffolded.** Publishes an
+  `Api\AuthController` (`/api/login` password grant, `/api/logout`, `/api/me`) and a guarded
+  `ApiAuthServiceProvider` (1h access tokens / 14d refresh, login throttled 6/min, refresh revoked on
+  logout), registers the provider, wires `routes/api.php` (auth routes + the `Api/Modules` loader) and
+  `bootstrap/app.php`, and switches `admin-core.api.middleware` to `auth:api`. All edits are
+  sentinel-wrapped and idempotent. The login proxies the password grant **in-process**, so the client
+  secret stays server-side. Since `composer require laravel/passport` can't run from an artisan command,
+  the install prints the finishing steps (keys, password client, `.env` client id/secret, the `api`
+  guard, the `HasApiTokens` trait). New `admin-core.api.password_client_id`/`password_client_secret`
+  config keys (from env).
+
 ## v1.22.0
 
 - **Independent channels: `--api-only`.** Generate just the headless JSON API (model/service/requests +

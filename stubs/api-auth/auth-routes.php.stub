@@ -1,0 +1,8 @@
+// API auth (Passport password grant) for a decoupled front-end.
+// Tight throttle on login (6/min per IP) to blunt credential-stuffing / brute force.
+Route::post('login', [\App\Http\Controllers\Api\AuthController::class, 'login'])
+    ->middleware('throttle:6,1')->name('api.login');
+Route::middleware('auth:api')->group(function () {
+    Route::post('logout', [\App\Http\Controllers\Api\AuthController::class, 'logout'])->name('api.logout');
+    Route::get('me', [\App\Http\Controllers\Api\AuthController::class, 'me'])->name('api.me');
+});
