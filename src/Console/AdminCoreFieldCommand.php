@@ -27,12 +27,21 @@ class AdminCoreFieldCommand extends Command
     public function handle(): int
     {
         $class = Str::studly(Str::singular($this->argument('name')));
-        $plural = Str::plural($class);
         $snakePlural = Str::snake(Str::pluralStudly($class));
 
         $model = app_path("Models/{$class}.php");
         if (! File::exists($model)) {
             $this->error("Resource '{$class}' not found (no app/Models/{$class}.php). Run `admin-core:make {$class}` first.");
+
+            return self::FAILURE;
+        }
+
+        // The add migration is `Schema::table(...)` — it needs the table to exist
+        // (or a pending create migration that will make it). Bail before patching
+        // anything if there's neither, so we never leave a migration that can't run.
+        if (! $this->tableExists($snakePlural) && ! glob(base_path("database/migrations/*_create_{$snakePlural}_table.php"))) {
+            $this->error("Table '{$snakePlural}' doesn't exist and there's no create migration for it.");
+            $this->line("  Create it first: <info>php artisan admin-core:make {$class} --migration && php artisan migrate</info>");
 
             return self::FAILURE;
         }
@@ -75,6 +84,16 @@ class AdminCoreFieldCommand extends Command
         $this->line('  Run <info>php artisan migrate</info> to apply the new column(s).');
 
         return self::SUCCESS;
+    }
+
+    /** Whether the DB table exists (false if there's no usable connection). */
+    private function tableExists(string $table): bool
+    {
+        try {
+            return \Illuminate\Support\Facades\Schema::hasTable($table);
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /** Field names in the model's $fillable array. */

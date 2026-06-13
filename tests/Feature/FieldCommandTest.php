@@ -25,6 +25,19 @@ it('errors when the resource does not exist', function () {
         ->assertFailed();
 });
 
+it('refuses when the table has no migration and does not exist (no orphan migration)', function () {
+    // Resource generated WITHOUT --migration: model exists, but no table / create migration.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'sku:string'])
+        ->expectsOutputToContain("Table 'gizmos' doesn't exist")
+        ->assertFailed();
+
+    // Nothing was patched and no add migration was written.
+    expect(glob(database_path('migrations/*_add_sku_to_gizmos_table.php')))->toBeEmpty();
+    expect(File::get(app_path('Models/Gizmo.php')))->not->toContain("'sku'");
+});
+
 it('adds new fields across migration, model, requests, views and factory', function () {
     makeGizmo();
 

@@ -360,6 +360,11 @@ php artisan admin-core:field Product "status:enum:a|b, paid_at:datetime?"
 #   created …_add_paid_at_to_products_table.php  (+ patches)
 ```
 
+It resolves the resource by **singular** name, so `admin-core:field Products …` and `… Product …` both
+hit the `Product` model. If the model doesn't exist — or the table has **no create migration and doesn't
+exist** — it refuses up front (so you never get an `add_…` migration that can't run) and tells you to
+`admin-core:make … --migration` first.
+
 > Patching assumes the views/model still match the generated shape; heavily hand-edited files may need a
 > manual touch-up (it never duplicates, so a re-run won't hurt).
 

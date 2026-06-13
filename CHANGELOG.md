@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.24.1
+
+- **`admin-core:field` now refuses when the table can't exist.** If the resource has no DB table **and** no
+  create migration (e.g. it was generated without `--migration` and never migrated), the command would
+  generate an `add_…_to_…_table` migration that fails on `migrate` (`relation … does not exist`). It now
+  checks up front and aborts before patching anything, pointing you to `admin-core:make … --migration`.
+  (A pending create migration is fine — the add migration runs after it.)
+
 ## v1.24.0
 
 - **`admin-core:field` — add fields to an existing resource.** `admin-core:make` only scaffolds once; this
