@@ -76,6 +76,24 @@ it('adds new fields across migration, model, requests, views and factory', funct
     expect(File::exists(app_path('Enums/GizmoStatus.php')))->toBeTrue();
 });
 
+it('skips relation/upload fields (they need the full generator), adding the scalar ones', function () {
+    makeGizmo();
+
+    // category_id (foreign) + avatar (image) can't be surgically wired; sku (scalar) can.
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'sku:string, category_id:foreign, avatar:image'])
+        ->expectsOutputToContain('needs relation/upload wiring — skipped: category_id')
+        ->expectsOutputToContain('needs relation/upload wiring — skipped: avatar')
+        ->assertSuccessful();
+
+    $model = File::get(app_path('Models/Gizmo.php'));
+    expect($model)->toContain("'sku'")
+        ->not->toContain("'category_id'")
+        ->not->toContain("'avatar'");
+    // No belongsTo relation was bolted on (that's the whole reason we skip it).
+    expect($model)->not->toContain('belongsTo');
+    expect(glob(database_path('migrations/*_add_sku_to_gizmos_table.php')))->toHaveCount(1);
+});
+
 it('skips fields that already exist (idempotent), adding only the new one', function () {
     makeGizmo();
     $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'sku:string'])->assertSuccessful();

@@ -365,6 +365,11 @@ hit the `Product` model. If the model doesn't exist — or the table has **no cr
 exist** — it refuses up front (so you never get an `add_…` migration that can't run) and tells you to
 `admin-core:make … --migration` first.
 
+**Scope:** it handles scalar fields (string/text/number/bool/date/enum/json/slug/password/…). Relation
+and upload fields (`foreign`, `belongsToMany`, `image`, `file`) need wiring it can't surgically patch
+(model relations, the controller's `getData` eager-load, the service's pivot-sync / file-storage), so it
+**skips them with a note** — add those by regenerating the resource with `admin-core:make … --force`.
+
 > Patching assumes the views/model still match the generated shape; heavily hand-edited files may need a
 > manual touch-up (it never duplicates, so a re-run won't hurt).
 

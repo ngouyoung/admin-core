@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.24.2
+
+- **`admin-core:field` now skips relation/upload fields instead of half-wiring them.** A `foreign` /
+  `belongsToMany` / `image` / `file` field needs wiring the surgical patcher can't add (model relations,
+  the controller's `getData` eager-load/`addColumn`, the service's pivot-sync or file-storage) — previously
+  it patched the migration/fillable/form/columns but left the relation + controller + service unwired,
+  yielding a broken DataTables column / unsaved uploads. It now detects those types, skips them with a
+  note (pointing at `admin-core:make … --force`), and still adds any scalar fields in the same call.
+
 ## v1.24.1
 
 - **`admin-core:field` now refuses when the table can't exist.** If the resource has no DB table **and** no

@@ -59,8 +59,23 @@ class AdminCoreFieldCommand extends Command
             $this->warn("  already exists — skipped: {$name}");
         }
 
+        // Relation / upload fields need wiring this command can't surgically patch
+        // (model relations, the controller's getData eager-load/addColumn, the
+        // service's pivot-sync or file-storage). Skip them rather than leave a
+        // half-wired resource — point the user at the full generator.
+        $needsWiring = array_map(fn ($f) => $f['name'], array_filter(
+            (new FieldSet(implode(', ', $newTokens)))->fields(),
+            fn ($f) => in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file'], true),
+        ));
+        foreach ($needsWiring as $name) {
+            $this->warn("  needs relation/upload wiring — skipped: {$name} (regenerate with `admin-core:make {$class} --fields=\"…\" --force`, or wire it by hand)");
+        }
+        $newTokens = array_filter($newTokens, fn ($t) => ! in_array(trim(explode(':', $t)[0]), $needsWiring, true));
+
         if (! $newTokens) {
-            $this->info("Nothing to add — every field already exists on {$class}.");
+            $this->info($needsWiring
+                ? "Nothing added — the field(s) above need the full generator (relations/uploads)."
+                : "Nothing to add — every field already exists on {$class}.");
 
             return self::SUCCESS;
         }
