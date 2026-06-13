@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.25.0
+
+- **`admin-core:field` now syncs the API channel too.** When the resource has an `--api` channel, adding a
+  field also patches its `JsonResource` (so the field appears in the API payload) and the
+  `$searchable`/`$sortable`/`$filterable` whitelists by type — previously the field landed in the DB + web
+  admin but was silently absent from the API. No-op for web-only resources.
+
 ## v1.24.2
 
 - **`admin-core:field` now skips relation/upload fields instead of half-wiring them.** A `foreign` /

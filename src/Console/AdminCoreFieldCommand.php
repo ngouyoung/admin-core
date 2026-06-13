@@ -92,6 +92,8 @@ class AdminCoreFieldCommand extends Command
         $this->patchThead(resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"), $fields, $fs);
         $this->patchScripts(resource_path("views/backend/pages/{$snakePlural}/partials/scripts.blade.php"), $fields, $fs);
         $this->patchFactory(database_path("factories/{$class}Factory.php"), $fs->factoryDefinition());
+        $this->patchApiResource($class, $fs);
+        $this->patchApiWhitelists($class, $fields);
         $this->writeEnums($fs);
 
         $this->newLine();
@@ -270,6 +272,77 @@ class AdminCoreFieldCommand extends Command
             File::put($path, $patched);
             $this->line('  <info>patched</info> ' . $this->relative($path));
         }
+    }
+
+    /** When the resource has an --api channel, add the new fields to its JsonResource. */
+    private function patchApiResource(string $class, FieldSet $fs): void
+    {
+        $path = app_path("Http/Resources/{$class}Resource.php");
+        if (! File::exists($path) || trim($fs->resourceFields()) === '') {
+            return;
+        }
+
+        $patched = preg_replace(
+            "/(\n\s*'created_at' => )/",
+            "\n" . $fs->resourceFields() . '$1',
+            File::get($path),
+            1,
+        );
+
+        if ($patched !== null && $patched !== File::get($path)) {
+            File::put($path, $patched);
+            $this->line('  <info>patched</info> ' . $this->relative($path) . ' (API resource)');
+        }
+    }
+
+    /** When the resource has an --api controller, extend its search/sort/filter whitelists. */
+    private function patchApiWhitelists(string $class, array $fields): void
+    {
+        $path = app_path("Http/Controllers/Api/{$class}ApiController.php");
+        if (! File::exists($path)) {
+            return;
+        }
+
+        $search = $sort = $filter = [];
+        foreach ($fields as $f) {
+            if (in_array($f['type'], ['string', 'text', 'email', 'slug', 'url'], true)) {
+                $search[] = "'{$f['name']}'";
+            }
+            if (in_array($f['type'], ['string', 'integer', 'decimal', 'date', 'datetime', 'time', 'boolean', 'enum', 'email', 'slug', 'url'], true)) {
+                $sort[] = "'{$f['name']}'";
+            }
+            if (in_array($f['type'], ['enum', 'boolean'], true)) {
+                $filter[] = "'{$f['name']}'";
+            }
+        }
+
+        $contents = File::get($path);
+        $contents = $this->addToArrayProp($contents, 'searchable', $search);
+        $contents = $this->addToArrayProp($contents, 'sortable', $sort);
+        $contents = $this->addToArrayProp($contents, 'filterable', $filter);
+
+        File::put($path, $contents);
+        $this->line('  <info>patched</info> ' . $this->relative($path) . ' (API whitelists)');
+    }
+
+    /** Append entries to a `protected array $prop = [...]` property. */
+    private function addToArrayProp(string $contents, string $prop, array $entries): string
+    {
+        if (! $entries) {
+            return $contents;
+        }
+
+        return preg_replace_callback(
+            '/(protected array \$' . $prop . ' = \[)([^\]]*)(\];)/',
+            function ($m) use ($entries) {
+                $existing = trim($m[2]);
+                $combined = $existing === '' ? implode(', ', $entries) : $existing . ', ' . implode(', ', $entries);
+
+                return $m[1] . $combined . $m[3];
+            },
+            $contents,
+            1,
+        );
     }
 
     /** Generate a backed enum class per new enum field (skips ones that exist). */

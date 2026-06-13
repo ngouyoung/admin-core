@@ -365,6 +365,9 @@ hit the `Product` model. If the model doesn't exist — or the table has **no cr
 exist** — it refuses up front (so you never get an `add_…` migration that can't run) and tells you to
 `admin-core:make … --migration` first.
 
+If the resource has an **`--api`** channel, the new field is also added to its `JsonResource` and the
+search/sort/filter whitelists (by type) — so it shows up in the API too, not just the admin.
+
 **Scope:** it handles scalar fields (string/text/number/bool/date/enum/json/slug/password/…). Relation
 and upload fields (`foreign`, `belongsToMany`, `image`, `file`) need wiring it can't surgically patch
 (model relations, the controller's `getData` eager-load, the service's pivot-sync / file-storage), so it

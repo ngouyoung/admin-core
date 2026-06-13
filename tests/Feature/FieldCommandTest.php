@@ -76,6 +76,29 @@ it('adds new fields across migration, model, requests, views and factory', funct
     expect(File::exists(app_path('Enums/GizmoStatus.php')))->toBeTrue();
 });
 
+it('syncs a new field into the API channel when the resource has one', function () {
+    test()->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--api' => true,
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'tier:enum:free|pro, blurb:string'])
+        ->assertSuccessful();
+
+    // The JsonResource exposes the new fields…
+    expect(File::get(app_path('Http/Resources/GizmoResource.php')))
+        ->toContain("'tier' => \$this->tier")
+        ->toContain("'blurb' => \$this->blurb");
+
+    // …and the whitelists pick them up by type (blurb searchable, both sortable, tier filterable).
+    expect(File::get(app_path('Http/Controllers/Api/GizmoApiController.php')))
+        ->toContain("\$searchable = ['name', 'blurb']")
+        ->toContain("'tier', 'blurb']")          // appended to sortable
+        ->toContain("\$filterable = ['tier']");
+});
+
 it('skips relation/upload fields (they need the full generator), adding the scalar ones', function () {
     makeGizmo();
 
