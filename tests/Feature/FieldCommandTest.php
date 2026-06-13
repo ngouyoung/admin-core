@@ -103,6 +103,31 @@ it('adds the Rule import when a unique field is added to a request that lacked i
         ->and(strpos($update, 'use Illuminate\Validation\Rule;'))->toBeLessThan(strpos($update, 'Rule::unique('));
 });
 
+it('wires prepareForValidation for json (decode) and password (drop blank on update)', function () {
+    test()->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'title:string', '--migration' => true])
+        ->assertSuccessful();
+
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'meta:json, secret:password'])
+        ->assertSuccessful();
+
+    // Store: json decoded (so the textarea string satisfies the `array` rule); no password drop on create.
+    expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
+        ->toContain('protected function prepareForValidation(): void')
+        ->toContain("json_decode(\$this->meta, true)")
+        ->not->toContain('blank($this->secret)');
+
+    // Update: json decoded AND a blank password is dropped so the stored hash isn't overwritten.
+    expect(File::get(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php')))
+        ->toContain("json_decode(\$this->meta, true)")
+        ->toContain('blank($this->secret)');
+
+    // Adding another json field extends the existing method rather than adding a second one.
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'payload:json'])->assertSuccessful();
+    $update = File::get(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php'));
+    expect(substr_count($update, 'function prepareForValidation'))->toBe(1)
+        ->and($update)->toContain("json_decode(\$this->payload, true)");
+});
+
 it('syncs a new field into the API channel when the resource has one', function () {
     test()->artisan('admin-core:make', [
         'name' => 'Gizmo',

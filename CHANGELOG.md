@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.28.2
+
+- **Fix: `admin-core:field` now wires `prepareForValidation()` for `json`/`password` fields.** Adding a
+  `json` field inserted the `array` rule but not the decode hook, so the textarea string was rejected by
+  validation; adding a `password` field left no blank-drop on update, so saving an edit with the field blank
+  overwrote the stored hash. The patcher now adds (or extends) `prepareForValidation()` on the Store/Update
+  requests: json is decoded, and a blank password is dropped on update.
+
 ## v1.28.1
 
 - **Fix: `admin-core:field` adding a `unique` field broke the UpdateRequest.** The update rule uses an

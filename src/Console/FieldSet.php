@@ -717,7 +717,8 @@ PHP;
      * the `array` cast stores it once), and a blank password on update is dropped
      * so the existing hash isn't overwritten. Empty (omitted) when neither applies.
      */
-    public function prepare(bool $update): string
+    /** The `prepareForValidation()` body lines (json decode / blank-password drop), or '' when none apply. */
+    public function prepareBody(bool $update): string
     {
         $lines = [];
         foreach ($this->fields as $f) {
@@ -733,11 +734,16 @@ PHP;
             }
         }
 
-        if (! $lines) {
+        return implode("\n", $lines);
+    }
+
+    public function prepare(bool $update): string
+    {
+        $body = $this->prepareBody($update);
+
+        if ($body === '') {
             return '';
         }
-
-        $body = implode("\n", $lines);
 
         return <<<PHP
 

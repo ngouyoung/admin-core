@@ -89,6 +89,9 @@ class AdminCoreFieldCommand extends Command
         $this->patchModel($model, $fs, $fields);
         $this->patchRequest(app_path("Http/Requests/{$class}/Store{$class}Request.php"), $fs->storeRules());
         $this->patchRequest(app_path("Http/Requests/{$class}/Update{$class}Request.php"), $fs->updateRules());
+        // json fields decode their textarea string to an array; a blank password on update is dropped.
+        $this->patchPrepare(app_path("Http/Requests/{$class}/Store{$class}Request.php"), $fs->prepareBody(false));
+        $this->patchPrepare(app_path("Http/Requests/{$class}/Update{$class}Request.php"), $fs->prepareBody(true));
         $this->patchForm(resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"), $fs->formFields());
         $this->patchThead(resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"), $fields, $fs);
         $this->patchScripts(resource_path("views/backend/pages/{$snakePlural}/partials/scripts.blade.php"), $fields, $fs);
@@ -267,6 +270,44 @@ class AdminCoreFieldCommand extends Command
         if ($patched !== null && $patched !== $contents) {
             File::put($path, $patched);
             $this->line('  <info>patched</info> ' . $this->relative($path));
+        }
+    }
+
+    /**
+     * Add (or extend) the request's prepareForValidation() with the given body lines —
+     * json decode / blank-password drop. Without this, a json field's `array` rule rejects
+     * the textarea string, and a blank password on update overwrites the stored hash.
+     */
+    private function patchPrepare(string $path, string $body): void
+    {
+        if (! File::exists($path) || trim($body) === '') {
+            return;
+        }
+
+        $contents = File::get($path);
+
+        if (str_contains($contents, 'function prepareForValidation(')) {
+            // Extend the existing method — insert before its closing brace.
+            $patched = preg_replace(
+                '/(protected function prepareForValidation\(\): void\s*\{)(.*?)(\n    \})/s',
+                "$1$2\n{$body}$3",
+                $contents,
+                1,
+            );
+        } else {
+            // Add the method right after the rules() method's closing brace.
+            $method = "\n\n    protected function prepareForValidation(): void\n    {\n{$body}\n    }";
+            $patched = preg_replace(
+                '/(public function rules\(\): array\s*\{.*?\n    \})/s',
+                '$1' . $method,
+                $contents,
+                1,
+            );
+        }
+
+        if ($patched !== null && $patched !== $contents) {
+            File::put($path, $patched);
+            $this->line('  <info>patched</info> ' . $this->relative($path) . ' (prepareForValidation)');
         }
     }
 
