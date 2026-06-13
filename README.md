@@ -359,8 +359,8 @@ php artisan migrate
 ```
 
 It generates an `add_…_to_products_table` migration and **surgically patches** the model (`$fillable` +
-casts), the store/update requests (validation), the form / table-header / DataTable-script views, and the
-factory — adding *just* those fields. Same `--fields` DSL (so `status:enum:a|b` also creates the backed
+casts), the store/update requests (validation), the form / table-header / DataTable-script / detail (show)
+views, and the factory — adding *just* those fields. Same `--fields` DSL (so `status:enum:a|b` also creates the backed
 enum class). **Fields that already exist are detected and skipped** (by `$fillable`), so re-running is safe
 — pass a mix of old and new and only the new ones are added:
 

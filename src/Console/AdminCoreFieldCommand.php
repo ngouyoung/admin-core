@@ -10,8 +10,9 @@ use Illuminate\Support\Str;
  * Add one or more fields to an EXISTING admin-core resource — the part the
  * scaffolder can't do on a re-run. Generates an `add_…_to_…_table` migration and
  * surgically patches the model ($fillable + casts), the store/update requests,
- * the form/thead/scripts views and the factory. Fields that already exist on the
- * resource are detected and skipped, so it's safe to re-run.
+ * the form/thead/scripts/show views and the factory (plus the API resource +
+ * whitelists when the resource has an --api channel). Fields that already exist on
+ * the resource are detected and skipped, so it's safe to re-run.
  *
  *   php artisan admin-core:field Product "sku:string^, discount:decimal?"
  */
@@ -91,6 +92,7 @@ class AdminCoreFieldCommand extends Command
         $this->patchForm(resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"), $fs->formFields());
         $this->patchThead(resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"), $fields, $fs);
         $this->patchScripts(resource_path("views/backend/pages/{$snakePlural}/partials/scripts.blade.php"), $fields, $fs);
+        $this->patchShow(resource_path("views/backend/pages/{$snakePlural}/show.blade.php"), $fs->showRows());
         $this->patchFactory(database_path("factories/{$class}Factory.php"), $fs->factoryDefinition());
         $this->patchApiResource($class, $fs);
         $this->patchApiWhitelists($class, $fields);
@@ -247,6 +249,29 @@ class AdminCoreFieldCommand extends Command
         $cols = implode("\n", array_map(fn ($f) => $fs->fieldColumn($f), $fields));
         $contents = File::get($path);
         $patched = preg_replace("/(\n\s*\{data: 'actions')/", "\n{$cols}$1", $contents, 1);
+
+        if ($patched !== null && $patched !== $contents) {
+            File::put($path, $patched);
+            $this->line('  <info>patched</info> ' . $this->relative($path));
+        }
+    }
+
+    /** Insert detail rows before the timestamps row of the show (detail) view. */
+    private function patchShow(string $path, string $rows): void
+    {
+        if (! File::exists($path) || trim($rows) === '') {
+            return;
+        }
+
+        $contents = File::get($path);
+        // Anchor on the generated "Created" row so the new fields land with the
+        // others, above the timestamps (mirrors thead anchoring on <th>Actions</th>).
+        $patched = preg_replace(
+            '/(\n[ \t]*<tr>\s*<th style="width:220px">Created<\/th>)/',
+            "\n{$rows}$1",
+            $contents,
+            1,
+        );
 
         if ($patched !== null && $patched !== $contents) {
             File::put($path, $patched);

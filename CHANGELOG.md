@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.27.0
+
+- **`admin-core:field` now patches the detail (show) view too.** A field added later was wired into the
+  index table, form, requests, model, factory and API — but **not** the resource's `show.blade.php`, so it
+  was missing from the detail page. It's now inserted as a row (above the timestamps), enum values rendered
+  via `->value` like the generator. Skipped silently if the show view was removed/customised past the anchor.
+
 ## v1.26.0
 
 - **Adding a channel no longer needs `--fields`.** When you re-run `admin-core:make` to add the API (or web)

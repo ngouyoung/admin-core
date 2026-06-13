@@ -70,6 +70,13 @@ it('adds new fields across migration, model, requests, views and factory', funct
         ->toContain("{data: 'status', name: 'status'}")
         ->toContain("{data: 'note', name: 'note'}");
 
+    // Show (detail) view: a row per new field, above the Created/timestamps row.
+    $show = File::get(resource_path('views/backend/pages/gizmos/show.blade.php'));
+    expect($show)
+        ->toContain('$object->note')
+        ->toContain('$object->status->value')                                        // enum rendered by value
+        ->and(strpos($show, '$object->note'))->toBeLessThan(strpos($show, '>Created</th>')); // before timestamps
+
     // Form + factory + the backed enum class.
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))->toContain('name="status"');
     expect(File::get(database_path('factories/GizmoFactory.php')))->toContain('GizmoStatus::cases()');
