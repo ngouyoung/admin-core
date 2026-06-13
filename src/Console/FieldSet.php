@@ -554,6 +554,24 @@ PHP;
         return implode("\n", $methods);
     }
 
+    /** The cast expression for one field, or null when it needs none. */
+    public function fieldCast(array $f): ?string
+    {
+        if ($f['type'] === 'enum') {
+            return '\\App\\Enums\\' . $this->enumClass($f) . '::class';
+        }
+
+        return match ($f['type']) {
+            'boolean' => "'boolean'",
+            'date' => "'date'",
+            'datetime' => "'datetime'",
+            'decimal' => "'decimal:2'",
+            'json' => "'array'",
+            'password' => "'hashed'",
+            default => null,
+        };
+    }
+
     /**
      * A `casts()` method so domain types come back correctly — booleans as
      * bool, date/datetime as Carbon, decimals as fixed-precision strings.
@@ -565,22 +583,9 @@ PHP;
     {
         $casts = [];
         foreach ($this->fields as $f) {
-            // An enum field casts to its backed-enum class (still a string in the DB).
-            if ($f['type'] === 'enum') {
-                $casts[] = "            '{$f['name']}' => \\App\\Enums\\{$this->enumClass($f)}::class,";
-                continue;
-            }
-            $cast = match ($f['type']) {
-                'boolean' => 'boolean',
-                'date' => 'date',
-                'datetime' => 'datetime',
-                'decimal' => 'decimal:2',
-                'json' => 'array',
-                'password' => 'hashed',
-                default => null,
-            };
+            $cast = $this->fieldCast($f);
             if ($cast !== null) {
-                $casts[] = "            '{$f['name']}' => '{$cast}',";
+                $casts[] = "            '{$f['name']}' => {$cast},";
             }
         }
 
@@ -884,11 +889,17 @@ BLADE;
     {
         $cells = ['    <th style="width:1%"><input type="checkbox" id="check-all"></th>'];
         foreach ($this->fields as $f) {
-            $cells[] = '    <th>' . $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']) . '</th>';
+            $cells[] = $this->fieldTh($f);
         }
         $cells[] = '    <th>Actions</th>';
 
         return implode("\n", $cells);
+    }
+
+    /** The `<th>` cell for one field (reused when inserting a column later). */
+    public function fieldTh(array $f): string
+    {
+        return '    <th>' . $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']) . '</th>';
     }
 
     public function columnsJs(): string
@@ -898,16 +909,29 @@ BLADE;
         $pk = $this->uuid ? 'uuid' : 'id';
         $cols = ["                {data: '{$pk}', name: '{$pk}', orderable: false, searchable: false, className: 'text-center', render: (d) => '<input type=\"checkbox\" class=\"row-check\" value=\"' + d + '\">'},"];
         foreach ($this->fields as $f) {
-            if (in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file'], true)) {
-                $key = in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name'];
-                $cols[] = "                {data: '{$key}', orderable: false, searchable: false},";
-            } else {
-                $cols[] = "                {data: '{$f['name']}', name: '{$f['name']}'},";
-            }
+            $cols[] = $this->fieldColumn($f);
         }
         $cols[] = "                {data: 'actions', orderable: false, searchable: false},";
 
         return implode("\n", $cols);
+    }
+
+    /** The DataTables `columns:` entry for one field (reused when inserting a column later). */
+    public function fieldColumn(array $f): string
+    {
+        if (in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file'], true)) {
+            $key = in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name'];
+
+            return "                {data: '{$key}', orderable: false, searchable: false},";
+        }
+
+        return "                {data: '{$f['name']}', name: '{$f['name']}'},";
+    }
+
+    /** Parsed fields (read-only access for the add-field command). */
+    public function fields(): array
+    {
+        return $this->fields;
     }
 
     /**

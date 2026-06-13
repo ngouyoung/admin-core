@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.24.0
+
+- **`admin-core:field` — add fields to an existing resource.** `admin-core:make` only scaffolds once; this
+  new command does the after-the-fact change you'd otherwise do by hand across migration + model + views.
+  `admin-core:field Product "sku:string^, discount:decimal?"` generates an `add_…_to_…_table` migration and
+  **surgically patches** the model (`$fillable` + casts), the store/update requests, the form / thead /
+  scripts views and the factory — adding only those fields (enum fields also get their backed enum class).
+  **Idempotent:** fields already present (in `$fillable`) are detected and skipped, so re-running — or
+  passing a mix of existing and new fields — only adds the new ones and never duplicates a column/rule/
+  input. Extracted reusable `FieldSet::fieldTh()`/`fieldColumn()`/`fieldCast()`/`fields()` helpers (the
+  generator now uses them too).
+
 ## v1.23.0
 
 - **`admin-core:install --api-auth` — Passport OAuth2 API auth, scaffolded.** Publishes an

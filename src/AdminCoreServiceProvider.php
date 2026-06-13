@@ -5,6 +5,7 @@ namespace Ngos\AdminCore;
 use Closure;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Ngos\AdminCore\Console\AdminCoreFieldCommand;
 use Ngos\AdminCore\Console\AdminCoreInstallCommand;
 use Ngos\AdminCore\Console\AdminCoreMakeCommand;
 use Ngos\AdminCore\Console\AdminCoreReinstallCommand;
@@ -27,6 +28,7 @@ class AdminCoreServiceProvider extends ServiceProvider
             $this->commands([
                 AdminCoreInstallCommand::class,
                 AdminCoreMakeCommand::class,
+                AdminCoreFieldCommand::class,
                 AdminCoreReinstallCommand::class,
                 AdminCoreUninstallCommand::class,
                 AdminCoreVersionCommand::class,

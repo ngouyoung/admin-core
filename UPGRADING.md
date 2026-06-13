@@ -12,6 +12,19 @@ npm install && npm run build
 
 ---
 
+## → v1.24.0 — Add fields to an existing resource
+
+No breaking change — new `admin-core:field` command. Instead of hand-editing the migration + model + views
+to add a field, run:
+
+```bash
+php artisan admin-core:field Product "sku:string^, discount:decimal?"
+php artisan migrate
+```
+
+Existing fields are skipped (idempotent). Publish the stubs (`--tag=admin-core-stubs`) to customise the
+generated `add_…` migration.
+
 ## → v1.23.0 — API auth scaffold
 
 No breaking change — opt in with `admin-core:install --api-auth`. It scaffolds the Passport OAuth2 auth

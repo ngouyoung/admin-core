@@ -37,8 +37,8 @@ function cleanupGizmo(): void
     foreach (gizmoTargets() as $path) {
         File::isDirectory($path) ? File::deleteDirectory($path) : File::delete($path);
     }
-    foreach (glob(database_path('migrations/*_create_gizmos_table.php')) ?: [] as $migration) {
-        File::delete($migration);
+    foreach (glob(database_path('migrations/*_gizmos_table.php')) ?: [] as $migration) {
+        File::delete($migration); // create_ and add_…_to_gizmos_table
     }
 }
 
