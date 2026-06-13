@@ -83,6 +83,26 @@ it('adds new fields across migration, model, requests, views and factory', funct
     expect(File::exists(app_path('Enums/GizmoStatus.php')))->toBeTrue();
 });
 
+it('adds the Rule import when a unique field is added to a request that lacked it', function () {
+    // A resource with no unique field — its UpdateRequest has no `use …\Rule;`.
+    test()->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'title:string', '--migration' => true])
+        ->assertSuccessful();
+    expect(File::get(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php')))
+        ->not->toContain('use Illuminate\Validation\Rule;');
+
+    // Adding a unique field injects `Rule::unique(...)->ignore(...)` — the import must come with it,
+    // or the request fatals with "Class Rule not found" on update.
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'sku:string^'])->assertSuccessful();
+
+    $update = File::get(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php'));
+    expect($update)
+        ->toContain('use Illuminate\Validation\Rule;')
+        ->toContain("Rule::unique('gizmos', 'sku')");
+    // The import is declared before it's used (and only once).
+    expect(substr_count($update, 'use Illuminate\Validation\Rule;'))->toBe(1)
+        ->and(strpos($update, 'use Illuminate\Validation\Rule;'))->toBeLessThan(strpos($update, 'Rule::unique('));
+});
+
 it('syncs a new field into the API channel when the resource has one', function () {
     test()->artisan('admin-core:make', [
         'name' => 'Gizmo',

@@ -198,10 +198,24 @@ class AdminCoreFieldCommand extends Command
             return;
         }
 
+        $contents = File::get($path);
+
+        // The update rule for a unique field uses an unqualified `Rule::unique(...)`. A
+        // resource generated with no unique field has no `use Illuminate\Validation\Rule;`,
+        // so without this the patched request fatals with "Class Rule not found".
+        if (str_contains($rules, 'Rule::unique(') && ! str_contains($contents, 'use Illuminate\Validation\Rule;')) {
+            $contents = preg_replace(
+                '/(use Illuminate\\\\Foundation\\\\Http\\\\FormRequest;)/',
+                "$1\nuse Illuminate\\Validation\\Rule;",
+                $contents,
+                1,
+            );
+        }
+
         $patched = preg_replace(
             '/(public function rules\(\): array\s*\{\s*return \[)(.*?)(\n\s*\];)/s',
             "$1$2\n{$rules}$3",
-            File::get($path),
+            $contents,
             1,
         );
 

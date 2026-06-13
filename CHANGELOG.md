@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.28.1
+
+- **Fix: `admin-core:field` adding a `unique` field broke the UpdateRequest.** The update rule uses an
+  unqualified `Rule::unique(...)`, but a resource generated without any unique field has no
+  `use Illuminate\Validation\Rule;` import — so the patched request fataled with *Class "…\Rule" not found*
+  when validating an update. The patcher now adds the import alongside the rule (once, only when needed).
+
 ## v1.28.0
 
 - **New `#` field modifier — add a plain database index.** Suffix a field with `#` to get `->index()` on
