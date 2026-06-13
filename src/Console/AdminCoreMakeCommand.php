@@ -43,7 +43,19 @@ class AdminCoreMakeCommand extends Command
         $audit = $this->option('audit') || (bool) config('admin-core.generator.audit', false);
         $sortable = (bool) $this->option('sortable');
 
-        $fields = (new FieldSet($this->option('fields')))
+        // Adding a channel to an EXISTING resource? Infer the fields from its model so
+        // you don't have to re-type --fields just to scaffold the API (or web) side —
+        // e.g. `admin-core:make Post --api` on a web-only Post.
+        $fieldsDsl = $this->option('fields');
+        if (trim((string) $fieldsDsl) === '' && File::exists(app_path("Models/{$class}.php"))) {
+            $inferred = $this->inferFieldsFromModel($class, $snakePlural);
+            if ($inferred !== null) {
+                $fieldsDsl = $inferred;
+                $this->line("  <info>inferred</info> fields from {$class} model: <comment>{$inferred}</comment>");
+            }
+        }
+
+        $fields = (new FieldSet($fieldsDsl))
             ->setTable($snakePlural)
             ->setUuid($uuid)
             ->setSoftDeletes($soft)
@@ -345,6 +357,131 @@ class AdminCoreMakeCommand extends Command
         $published = base_path('stubs/admin-core');
 
         return File::isDirectory($published) ? $published : __DIR__ . '/../../stubs';
+    }
+
+    /**
+     * Reconstruct the `--fields` DSL from an existing resource so a channel can be added
+     * without re-typing it. Field names + order come from the model's `$fillable`; column
+     * types come from the migration(s) (authoritative — catches integer/time the model
+     * doesn't cast), upgraded to enum/password where `casts()` reveals it (both are stored
+     * as plain string columns). `belongsToMany` relations are read off the model. Returns
+     * null when there's nothing to infer. Upload (image/file) columns read back as plain
+     * strings — the migration can't tell them apart — so pass --fields for those.
+     */
+    private function inferFieldsFromModel(string $class, string $table): ?string
+    {
+        $src = File::get(app_path("Models/{$class}.php"));
+
+        if (! preg_match('/protected \$fillable = \[(.*?)\];/s', $src, $m)) {
+            return null;
+        }
+        preg_match_all("/'([^']+)'/", $m[1], $names);
+        $names = $names[1];
+        if (! $names) {
+            return null;
+        }
+
+        // column => cast expression (e.g. status => \App\Enums\PostStatus::class, secret => 'hashed')
+        $casts = [];
+        if (preg_match('/function casts\(\): array.*?return \[(.*?)\];/s', $src, $cm)) {
+            preg_match_all("/'([^']+)'\s*=>\s*([^\n,]+)/", $cm[1], $cc, PREG_SET_ORDER);
+            foreach ($cc as $row) {
+                $casts[$row[1]] = trim($row[2]);
+            }
+        }
+
+        $columns = $this->migrationColumnTypes($table); // column => DSL type from $table->TYPE(...)
+
+        $tokens = [];
+        foreach ($names as $name) {
+            $tokens[] = $name . ':' . $this->inferType($name, $casts[$name] ?? null, $columns[$name] ?? null);
+        }
+
+        // belongsToMany lives on the model as a typed relation, not in $fillable.
+        if (preg_match_all('/public function (\w+)\(\): BelongsToMany/', $src, $mm)) {
+            foreach ($mm[1] as $relation) {
+                $tokens[] = $relation . ':belongsToMany';
+            }
+        }
+
+        return implode(', ', $tokens); // always ≥1 token here ($names was non-empty)
+    }
+
+    /** Map one fillable column back to a DSL type from its cast (enum/password) then its migration column type. */
+    private function inferType(string $name, ?string $cast, ?string $migrationType): string
+    {
+        // enum + password are plain columns; only the cast reveals what they really are.
+        if ($cast !== null) {
+            if (str_contains($cast, '::class') && ($cases = $this->enumCasesDsl($cast)) !== null) {
+                return 'enum:' . $cases;
+            }
+            if (strtolower(trim($cast, "'\"")) === 'hashed') {
+                return 'password';
+            }
+        }
+
+        // The migration is authoritative for everything else (incl. integer/time, which aren't cast).
+        if ($migrationType !== null) {
+            return $migrationType;
+        }
+
+        // No migration column (hand-added field?) — fall back to the cast, then the name.
+        $c = $cast !== null ? strtolower(trim($cast, "'\"")) : '';
+
+        return match (true) {
+            $c === 'boolean', $c === 'bool' => 'boolean',
+            $c === 'date' => 'date',
+            str_starts_with($c, 'datetime'), str_starts_with($c, 'immutable_datetime') => 'datetime',
+            str_starts_with($c, 'decimal') => 'decimal',
+            $c === 'array', $c === 'json', str_starts_with($c, 'collection') => 'json',
+            $c === 'integer', $c === 'int' => 'integer',
+            default => str_ends_with($name, '_id') ? 'foreign' : 'string',
+        };
+    }
+
+    /** column => DSL type, scanned from every migration that touches the table (create + add_*). */
+    private function migrationColumnTypes(string $table): array
+    {
+        $map = [];
+        foreach (glob(base_path("database/migrations/*_{$table}_table.php")) ?: [] as $file) {
+            preg_match_all('/\$table->(\w+)\(\s*[\'"](\w+)[\'"]/', File::get($file), $cols, PREG_SET_ORDER);
+            foreach ($cols as $row) {
+                $dsl = match ($row[1]) {
+                    'string', 'char' => 'string',
+                    'text', 'longText', 'mediumText', 'tinyText' => 'text',
+                    'integer', 'bigInteger', 'unsignedBigInteger', 'unsignedInteger',
+                    'smallInteger', 'unsignedSmallInteger', 'tinyInteger', 'unsignedTinyInteger' => 'integer',
+                    'decimal', 'unsignedDecimal', 'float', 'double' => 'decimal',
+                    'boolean' => 'boolean',
+                    'date' => 'date',
+                    'dateTime', 'dateTimeTz', 'timestamp', 'timestampTz' => 'datetime',
+                    'time', 'timeTz' => 'time',
+                    'json', 'jsonb' => 'json',
+                    'foreignId', 'foreignUuid' => 'foreign',
+                    default => null, // id/uuid/timestamps/softDeletes/etc. — not user fields
+                };
+                if ($dsl !== null) {
+                    $map[$row[2]] = $dsl;
+                }
+            }
+        }
+
+        return $map;
+    }
+
+    /** Pipe-joined enum values read from the backed enum a cast points at, or null. */
+    private function enumCasesDsl(string $castExpr): ?string
+    {
+        if (! preg_match('/Enums\\\\(\w+)::class/', $castExpr, $m)) {
+            return null;
+        }
+        $path = app_path("Enums/{$m[1]}.php");
+        if (! File::exists($path)) {
+            return null;
+        }
+        preg_match_all("/case \w+ = '([^']+)'/", File::get($path), $cases);
+
+        return $cases[1] ? implode('|', $cases[1]) : null;
     }
 
     private function createPermissions(string $kebab, string $plural): void

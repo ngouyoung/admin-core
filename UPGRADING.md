@@ -12,6 +12,18 @@ npm install && npm run build
 
 ---
 
+## → v1.26.0 — Add a channel without re-typing `--fields`
+
+No breaking change. When you add the API (or web) channel to a resource that **already exists**, you can now
+omit `--fields` — they're inferred from the model + migration:
+
+```bash
+php artisan admin-core:make Post --api      # was: --api --fields="title:string, status:enum:…"
+```
+
+Explicit `--fields` still takes precedence. Upload (`image`/`file`) columns look like plain strings when
+inferred, so pass `--fields` for resources that have them.
+
 ## → v1.24.0 — Add fields to an existing resource
 
 No breaking change — new `admin-core:field` command. Instead of hand-editing the migration + model + views
@@ -45,8 +57,8 @@ resources can adopt a channel additively — re-run the same command with the de
 `--fields`; files that already exist are skipped, only the missing channel is created:
 
 ```bash
-php artisan admin-core:make Product --fields="…" --api        # add API to a web resource
-php artisan admin-core:make Product --fields="…"              # add web to an api-only resource
+php artisan admin-core:make Product --api        # add API to a web resource (fields inferred since v1.26)
+php artisan admin-core:make Product              # add web to an api-only resource
 ```
 
 ## → v1.21.0 — Backed enums for enum fields

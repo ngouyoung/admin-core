@@ -257,8 +257,18 @@ php artisan admin-core:make Product … --api-only   # API only (headless: no vi
 ```
 
 Re-running is additive (existing files are skipped): a web-only resource gains the API by re-running with
-`--api`; an api-only resource gains the web channel by re-running **without** `--api-only`. Both channels
-share the same model/service/requests, so nothing is duplicated. The controller **reuses the same `Service` +
+`--api`; an api-only resource gains the web channel by re-running **without** `--api-only`. When you add a
+channel to a resource that **already exists**, you can **omit `--fields` entirely** — they're reconstructed
+from the existing model + migration (types and all), so adding the API to ten web resources is just:
+
+```bash
+for name in Post Product Order Customer …; do
+    php artisan admin-core:make "$name" --api      # fields inferred — no retyping
+done
+```
+
+(Upload `image`/`file` columns can't be told apart from plain strings when inferring — pass `--fields`
+explicitly for those.) Both channels share the same model/service/requests, so nothing is duplicated. The controller **reuses the same `Service` +
 FormRequests** as the web CRUD, so validation/authorization live in one place; the index is paginated
 (`?per_page=`). Crucially, **the public id is always the uuid route key,
 never the bigint `id`** — so internal ids are never enumerable across tenants:

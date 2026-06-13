@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.26.0
+
+- **Adding a channel no longer needs `--fields`.** When you re-run `admin-core:make` to add the API (or web)
+  channel to a resource that already exists, the fields are reconstructed from its model + migration — field
+  names/order from `$fillable`, column types from the migration (so `integer`/`time` are detected, not just
+  the cast subset), and enum values read from the backed enum class. So `admin-core:make Post --api` on a
+  web-only `Post` just works, and adding the API to N resources is an `--api`-only loop. Explicit `--fields`
+  still wins; upload (`image`/`file`) columns can't be distinguished when inferring, so pass `--fields` for
+  those. Inference only kicks in when `--fields` is omitted **and** the model already exists.
+
 ## v1.25.0
 
 - **`admin-core:field` now syncs the API channel too.** When the resource has an `--api` channel, adding a

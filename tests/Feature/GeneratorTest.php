@@ -541,6 +541,34 @@ it('adds the API channel to an existing web resource (and web to an api-only one
     expect(File::get(app_path('Http/Controllers/Api/GizmoApiController.php')))->toBe($apiController);
 });
 
+it('infers fields from the existing model when adding a channel without --fields', function () {
+    // A web-only resource with types the model does NOT all cast (integer/time have no cast).
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--migration' => true,
+        '--fields' => 'title:string, status:enum:draft|live, qty:integer, open_at:time, category_id:foreign',
+    ])->assertSuccessful();
+
+    // Add the API channel with NO --fields — fields are reconstructed from the model + migration.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--api' => true])
+        ->expectsOutputToContain('title:string, status:enum:draft|live, qty:integer, open_at:time, category_id:foreign')
+        ->assertSuccessful();
+
+    // Resource carries every field (enum + foreign resolved) — no re-typing needed.
+    expect(File::get(app_path('Http/Resources/GizmoResource.php')))
+        ->toContain("'title' => \$this->title")
+        ->toContain("'status' => \$this->status")
+        ->toContain("'qty' => \$this->qty")
+        ->toContain("'category' => \$this->category?->name");
+
+    // Whitelists are type-correct: the integer/time columns stay OUT of $searchable
+    // (a LIKE on them errors on Postgres); enum + foreign go to $filterable.
+    expect(File::get(app_path('Http/Controllers/Api/GizmoApiController.php')))
+        ->toContain("\$searchable = ['title']")                         // not qty / open_at / status
+        ->toContain("\$sortable = ['title', 'status', 'qty', 'open_at', 'created_at']")
+        ->toContain("\$filterable = ['status', 'category_id']");
+});
+
 it('omits filter tabs when there is no enum field', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
