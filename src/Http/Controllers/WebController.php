@@ -109,9 +109,11 @@ abstract class WebController extends BaseController
         return response()->streamDownload(function () use ($rows, $columns) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel renders accented/non-ASCII text correctly
-            fputcsv($out, $columns);
+            // escape: '' = RFC-4180 quoting (double the quotes, no backslash escaping); also
+            // silences PHP 8.4's "the $escape parameter must be provided" deprecation.
+            fputcsv($out, $columns, escape: '');
             foreach ($rows as $row) {
-                fputcsv($out, array_map(fn ($c) => $this->csvCell($row->getAttribute($c)), $columns));
+                fputcsv($out, array_map(fn ($c) => $this->csvCell($row->getAttribute($c)), $columns), escape: '');
             }
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
@@ -128,6 +130,12 @@ abstract class WebController extends BaseController
         // Enum-cast attributes arrive as BackedEnum instances; export their value.
         if ($value instanceof \BackedEnum) {
             $value = $value->value;
+        }
+
+        // json/array-cast columns come back as arrays — encode them, or fputcsv hits
+        // "Array to string conversion" and writes a literal "Array". Round-trips via import.
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
         }
 
         if (is_string($value) && $value !== ''
@@ -149,11 +157,18 @@ abstract class WebController extends BaseController
     {
         $request->validate(['file' => ['required', 'file', 'mimes:csv,txt', 'max:5120']]);
 
+        $model = $this->service->query()->getModel();
         $rules = (new $this->storeRequest)->rules();
-        $fillable = $this->service->query()->getModel()->getFillable();
+        $fillable = $model->getFillable();
+        // Columns the model casts to array/json — their cells are decoded back from the
+        // JSON string the export wrote, so a round-tripped json field imports as an array.
+        $arrayColumns = array_keys(array_filter(
+            $model->getCasts(),
+            fn ($cast) => in_array($cast, ['array', 'json', 'object', 'collection'], true),
+        ));
 
         $handle = fopen($request->file('file')->getRealPath(), 'r');
-        $header = fgetcsv($handle) ?: [];
+        $header = fgetcsv($handle, escape: '') ?: [];
         if (isset($header[0])) {
             $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]); // strip the UTF-8 BOM our export writes
         }
@@ -162,7 +177,7 @@ abstract class WebController extends BaseController
         $errors = [];
         $line = 1;
 
-        while (($cells = fgetcsv($handle)) !== false) {
+        while (($cells = fgetcsv($handle, escape: '')) !== false) {
             $line++;
             if (count(array_filter($cells, fn ($v) => $v !== null && $v !== '')) === 0) {
                 continue; // blank line
@@ -170,6 +185,15 @@ abstract class WebController extends BaseController
 
             $cells = array_pad(array_slice($cells, 0, count($header)), count($header), null);
             $row = array_intersect_key(array_combine($header, $cells), array_flip($fillable));
+
+            foreach ($arrayColumns as $col) {
+                if (isset($row[$col]) && is_string($row[$col]) && $row[$col] !== '') {
+                    $decoded = json_decode($row[$col], true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        $row[$col] = $decoded;
+                    }
+                }
+            }
 
             $validator = Validator::make($row, $rules);
             if ($validator->fails()) {

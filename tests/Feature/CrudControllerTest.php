@@ -151,6 +151,22 @@ it('neutralises CSV formula injection on export', function () {
     expect($content)->not->toContain('"=HYPERLINK');
 });
 
+it('encodes array/enum values for CSV export instead of writing "Array"', function () {
+    // csvCell turns a json/array-cast attribute into a JSON string (fputcsv would otherwise
+    // emit a literal "Array" + a PHP warning); enums export their backing value.
+    $exporter = new class extends \Ngos\AdminCore\Http\Controllers\WebController {
+        public function cell(mixed $v): mixed
+        {
+            return $this->csvCell($v);
+        }
+    };
+
+    expect($exporter->cell(['k' => 'v', 'n' => 2]))->toBe('{"k":"v","n":2}')
+        ->and($exporter->cell([]))->toBe('[]')
+        ->and($exporter->cell('plain'))->toBe('plain')
+        ->and($exporter->cell(null))->toBeNull();
+});
+
 it('reorders records by sort position', function () {
     $a = Widget::create(['name' => 'a']);
     $b = Widget::create(['name' => 'b']);

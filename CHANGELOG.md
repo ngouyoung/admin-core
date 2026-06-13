@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.28.4
+
+- **Fix: CSV export of a `json`/array-cast column wrote a literal `"Array"`** (plus a PHP *Array to string
+  conversion* warning). Such columns are now JSON-encoded in the cell, and the import side decodes array-cast
+  columns back, so a `json` field round-trips export → import cleanly.
+- **Fix: PHP 8.4 `fputcsv()`/`fgetcsv()` deprecation.** Export/import now pass `escape: ''` (RFC-4180
+  quoting — double the quotes, no backslash escaping), silencing *"the $escape parameter must be provided"*.
+
 ## v1.28.3
 
 - **`admin-core:field` now wires the `booted()` hook for a `slug`** — a slug added later auto-derives from
