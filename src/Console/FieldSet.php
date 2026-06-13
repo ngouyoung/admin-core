@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
  *   - image    file upload, stored on the public disk, thumbnailed in the table
  *   - file     any file upload
  *   - belongsToMany (aliases manyToMany, m2m)  ->  pivot table + multi-select + sync
- *   - modifiers trailing  ?  = nullable,  ^  = unique   (e.g. slug:string^?)
+ *   - modifiers trailing  ?  = nullable,  ^  = unique,  #  = index   (e.g. slug:string^?, status:enum:a|b#)
  */
 class FieldSet
 {
@@ -171,13 +171,14 @@ class FieldSet
             $name = trim($name);
             $spec = trim($spec);
 
-            $nullable = $unique = $writeOnce = $system = false;
-            while ($spec !== '' && in_array(substr($spec, -1), ['?', '^', '~', '@'], true)) {
+            $nullable = $unique = $writeOnce = $system = $index = false;
+            while ($spec !== '' && in_array(substr($spec, -1), ['?', '^', '~', '@', '#'], true)) {
                 match (substr($spec, -1)) {
                     '?' => $nullable = true,
                     '^' => $unique = true,
                     '~' => $writeOnce = true, // settable on create, locked on update
                     '@' => $system = true,    // set by trusted code only (never user-fillable)
+                    '#' => $index = true,     // plain (non-unique) database index
                     default => null,          // unreachable (guarded by the while), keeps match exhaustive
                 };
                 $spec = substr($spec, 0, -1);
@@ -193,15 +194,15 @@ class FieldSet
                 $spec = 'belongsToMany';
             }
 
-            $fields[] = $this->field($name, $spec ?: 'string', $nullable, $unique, $enum, $writeOnce, $system);
+            $fields[] = $this->field($name, $spec ?: 'string', $nullable, $unique, $enum, $writeOnce, $system, $index);
         }
 
         return $fields ?: [$this->field('name', 'string')];
     }
 
-    private function field(string $name, string $type, bool $nullable = false, bool $unique = false, array $enum = [], bool $writeOnce = false, bool $system = false): array
+    private function field(string $name, string $type, bool $nullable = false, bool $unique = false, array $enum = [], bool $writeOnce = false, bool $system = false, bool $index = false): array
     {
-        $f = compact('name', 'type', 'nullable', 'unique', 'enum', 'writeOnce', 'system');
+        $f = compact('name', 'type', 'nullable', 'unique', 'enum', 'writeOnce', 'system', 'index');
 
         // Typed system helpers — these set themselves from trusted code, never user input.
         if (in_array($type, ['auth', 'sku'], true)) {
@@ -307,6 +308,10 @@ class FieldSet
                 }
                 if ($f['unique']) {
                     $line .= '->unique()';
+                } elseif (! empty($f['index'])) {
+                    // A unique constraint already creates an index, so only add a plain
+                    // one when the column isn't unique. (Foreign keys index themselves.)
+                    $line .= '->index()';
                 }
             }
             $lines[] = '            ' . $line . ';';

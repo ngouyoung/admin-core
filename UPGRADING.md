@@ -12,6 +12,18 @@ npm install && npm run build
 
 ---
 
+## → v1.28.0 — `#` index modifier
+
+No breaking change. Suffix a field with `#` to add a plain DB index on its column:
+
+```bash
+php artisan admin-core:make Order --migration --fields="status:enum:new|paid#, placed_at:datetime#"
+php artisan admin-core:field Order "tracking_no:string#"
+```
+
+No-op when the column is already `^` unique or a `foreign` (both already index). To index a column on a
+resource generated earlier, add `->index()` in a hand-written `Schema::table(...)` migration as usual.
+
 ## → v1.26.0 — Add a channel without re-typing `--fields`
 
 No breaking change. When you add the API (or web) channel to a resource that **already exists**, you can now

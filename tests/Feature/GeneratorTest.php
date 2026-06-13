@@ -610,6 +610,23 @@ it('adds a trash screen and soft-delete routes with --soft-deletes', function ()
         ->and(File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))->toContain('softDeletes');
 });
 
+it('adds a plain index with the # modifier (but not when the column is already unique)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'status:enum:new|paid#, placed_at:datetime#, ref:string^#, name:string',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+    expect($migration)
+        ->toContain("\$table->string('status')->index();")
+        ->toContain("\$table->dateTime('placed_at')->index();")
+        ->toContain("\$table->string('ref')->unique();")   // ^# → unique only (no double index)
+        ->not->toContain("\$table->string('ref')->unique()->index();")
+        ->and(substr_count($migration, '->index()'))->toBe(2)   // status + placed_at, not ref/name
+        ->and($migration)->toContain("\$table->string('name');"); // plain, no index
+});
+
 it('never duplicates the migration on a second run', function () {
     $args = ['name' => 'Gizmo', '--fields' => 'name:string', '--migration' => true];
 

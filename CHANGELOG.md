@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.28.0
+
+- **New `#` field modifier — add a plain database index.** Suffix a field with `#` to get `->index()` on
+  the migration column (e.g. `status:enum:new|paid#`, `placed_at:datetime#`) for columns you filter/sort on
+  often. It's a no-op when the column is already `^` unique (a unique constraint indexes itself) or a
+  `foreign` (constrained keys self-index), so you never get a double index. Works in both `admin-core:make`
+  (create migration) and `admin-core:field` (add migration).
+
 ## v1.27.0
 
 - **`admin-core:field` now patches the detail (show) view too.** A field added later was wired into the

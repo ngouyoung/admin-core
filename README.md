@@ -130,10 +130,11 @@ field name, so generate the related resource first.
 |---|---|---|
 | `?` | nullable | nullable column + `nullable` rule |
 | `^` | unique | unique index + `unique` rule (ignores self by route key on update) |
+| `#` | index | plain (non-unique) DB index — `->index()` on a hot filter/sort column (no-op if also `^`, or on a `foreign`, since both already index) |
 | `~` | **write-once** | settable on create, **locked on update** — fillable + StoreRequest rule, *no* UpdateRequest rule, `readonly` input on edit |
 | `@` | **system** | set by trusted code only — **not** fillable, not validated, not in the form; a `booted()` hook scaffold + nullable column (shown read-only) |
 
-E.g. `slug:string^`, `published_at:date?`, `sku:string^~` (unique, locked after create).
+E.g. `slug:string^`, `published_at:date?#` (nullable + indexed), `status:enum:new|paid#`, `sku:string^~` (unique, locked after create).
 
 **Typed system helpers** (imply `@`, auto-filled in the generated `booted()` hook — no TODO to wire up):
 
