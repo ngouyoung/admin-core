@@ -9,6 +9,7 @@ beforeEach(function () {
     Schema::create('widgets', function (Blueprint $table) {
         $table->id();
         $table->string('name');
+        $table->string('secret')->nullable();
         $table->integer('sort')->default(0);
         $table->timestamps();
     });
@@ -149,6 +150,17 @@ it('neutralises CSV formula injection on export', function () {
     // and the raw, unguarded "=HYPERLINK must not appear.
     expect($content)->toContain('\'=HYPERLINK');
     expect($content)->not->toContain('"=HYPERLINK');
+});
+
+it('never exports a password (hashed) column', function () {
+    Widget::create(['name' => 'Has Secret', 'secret' => 'topsecret123']);
+
+    $content = $this->get('/admin/widgets/export')->streamedContent();
+
+    // The header must not list the column, and the bcrypt hash must not appear anywhere.
+    expect($content)->toContain('name')
+        ->not->toContain('secret')
+        ->not->toContain('$2y$');
 });
 
 it('encodes array/enum values for CSV export instead of writing "Array"', function () {

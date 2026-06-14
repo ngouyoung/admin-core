@@ -103,7 +103,16 @@ abstract class WebController extends BaseController
     public function export(): StreamedResponse
     {
         $rows = $this->service->query()->get();
-        $columns = $rows->isEmpty() ? [] : array_keys($rows->first()->getAttributes());
+        // Never export password hashes: drop anything the model marks $hidden, plus any
+        // `hashed`-cast column (covers models that predate the generated $hidden).
+        $model = $this->service->query()->getModel();
+        $secret = array_merge(
+            $model->getHidden(),
+            array_keys(array_filter($model->getCasts(), fn ($cast) => $cast === 'hashed')),
+        );
+        $columns = $rows->isEmpty()
+            ? []
+            : array_values(array_diff(array_keys($rows->first()->getAttributes()), $secret));
         $name = trim(str_replace('.', '-', $this->routeBase), '-') . '-' . now()->format('Ymd-His') . '.csv';
 
         return response()->streamDownload(function () use ($rows, $columns) {

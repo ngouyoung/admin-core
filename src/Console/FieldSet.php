@@ -368,6 +368,23 @@ PHP;
             ->implode(', ');
     }
 
+    /** Quoted, comma-joined names of password (hashed) columns — kept out of array/JSON output. */
+    public function hiddenColumns(): string
+    {
+        return collect($this->fields)
+            ->filter(fn ($f) => $f['type'] === 'password')
+            ->map(fn ($f) => "'{$f['name']}'")
+            ->implode(', ');
+    }
+
+    /** The `protected $hidden = [...]` declaration for password columns, or '' when there are none. */
+    public function hidden(): string
+    {
+        $cols = $this->hiddenColumns();
+
+        return $cols === '' ? '' : "\n\n    protected \$hidden = [{$cols}];";
+    }
+
     public function modelUses(): string
     {
         $uses = [];

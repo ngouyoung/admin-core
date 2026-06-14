@@ -154,6 +154,7 @@ class AdminCoreMakeCommand extends Command
             'dummyModel' => $camel,
             'dummy-model' => $kebab,
             '__AC_FILLABLE__' => $fields->fillable(),
+            '__AC_HIDDEN__' => $fields->hidden(),
             '__AC_PK__' => $fields->primaryKey(),
             '__AC_MODEL_TRAITS__' => $fields->modelTraits(),
             '__AC_MODEL_USES__' => $fields->modelUses(),

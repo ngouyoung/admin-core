@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.28.5
+
+- **Security: CSV export no longer leaks `password` hashes.** Export used every DB column, so a resource
+  with a `password` field dumped its bcrypt hash into the file. Export now drops the model's `$hidden`
+  columns **and** any `hashed`-cast column (protects resources generated before this release too).
+- **Generated models now declare `protected $hidden` for password fields** (keeping the hash out of
+  `toArray()`/JSON/activity-log output, the way Laravel's `User` hides its password). `admin-core:field`
+  adds/extends `$hidden` when you add a password field later.
+
 ## v1.28.4
 
 - **Fix: CSV export of a `json`/array-cast column wrote a literal `"Array"`** (plus a PHP *Array to string

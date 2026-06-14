@@ -193,8 +193,29 @@ class AdminCoreFieldCommand extends Command
             }
         }
 
+        // 3. $hidden — keep new password columns out of array/JSON output (extend or add).
+        $hiddenCols = $fs->hiddenColumns();
+        if ($hiddenCols !== '') {
+            if (preg_match('/protected \$hidden = \[/', $contents)) {
+                $contents = preg_replace_callback(
+                    '/(protected \$hidden = \[)(.*?)(\];)/s',
+                    fn ($m) => $m[1] . ($m[2] === '' ? '' : rtrim($m[2]) . ', ') . $hiddenCols . $m[3],
+                    $contents,
+                    1,
+                );
+            } else {
+                $contents = preg_replace(
+                    '/(protected \$fillable = \[.*?\];\n)/s',
+                    "$1\n    protected \$hidden = [{$hiddenCols}];\n",
+                    $contents,
+                    1,
+                );
+            }
+        }
+
         File::put($path, $contents);
-        $this->line('  <info>patched</info> ' . $this->relative($path) . ' (fillable' . ($castLines ? ' + casts' : '') . ')');
+        $touched = array_filter(['fillable', $castLines ? 'casts' : '', $hiddenCols !== '' ? 'hidden' : '']);
+        $this->line('  <info>patched</info> ' . $this->relative($path) . ' (' . implode(' + ', $touched) . ')');
     }
 
     /**

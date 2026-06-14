@@ -382,10 +382,11 @@ it('scaffolds the extended field types (time / url / slug / json / password)', f
         ->toContain("\$table->json('meta')")
         ->toContain("\$table->string('slug')->nullable()->unique()");
 
-    // Model: json → array cast, password → hashed cast, slug derived from name.
+    // Model: json → array cast, password → hashed cast + $hidden, slug derived from name.
     expect(File::get(app_path('Models/Article.php')))
         ->toContain("'meta' => 'array'")
         ->toContain("'secret' => 'hashed'")
+        ->toContain("protected \$hidden = ['secret'];")   // password kept out of array/JSON output
         ->toContain('$model->slug ??= \\Illuminate\\Support\\Str::slug($model->name)');
 
     // Validation: url, time format, slug alpha_dash, password min length.

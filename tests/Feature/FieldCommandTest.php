@@ -127,6 +127,22 @@ it('wires the booted() slug derive when adding a slug, and skips system fields',
         ->and(substr_count($model, 'Str::slug($model->name)'))->toBe(2);
 });
 
+it('adds password columns to the model $hidden (so the hash is never serialised)', function () {
+    test()->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'title:string', '--migration' => true])
+        ->assertSuccessful();
+    expect(File::get(app_path('Models/Gizmo.php')))->not->toContain('$hidden');
+
+    // First password → adds the $hidden declaration.
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'secret:password'])->assertSuccessful();
+    expect(File::get(app_path('Models/Gizmo.php')))->toContain("protected \$hidden = ['secret'];");
+
+    // Second password → extends it (not a second declaration).
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'pin:password'])->assertSuccessful();
+    $model = File::get(app_path('Models/Gizmo.php'));
+    expect($model)->toContain("protected \$hidden = ['secret', 'pin'];")
+        ->and(substr_count($model, 'protected $hidden'))->toBe(1);
+});
+
 it('wires prepareForValidation for json (decode) and password (drop blank on update)', function () {
     test()->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'title:string', '--migration' => true])
         ->assertSuccessful();
