@@ -48,6 +48,11 @@ trait LogsActivity
     {
         $hidden = array_merge(
             ['password', 'remember_token', 'created_at', 'updated_at'],
+            // Any column the model marks $hidden (the generator hides password fields by
+            // their real name) or casts as `hashed` — so a `secret:password` hash is never
+            // written to the log, not just a column literally named "password".
+            $this->getHidden(),
+            array_keys(array_filter($this->getCasts(), fn ($cast) => $cast === 'hashed')),
             property_exists($this, 'activityHidden') ? $this->activityHidden : [],
         );
 

@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.28.6
+
+- **Security: the activity log no longer records password hashes named anything but `password`.**
+  `LogsActivity` only stripped a column literally named `password`, so a `secret:password` field's hash was
+  written to `activity_logs` on create/update. It now also excludes the model's `$hidden` columns and any
+  `hashed`-cast column (matching the v1.28.5 export fix), so any password field is kept out of the log.
+
 ## v1.28.5
 
 - **Security: CSV export no longer leaks `password` hashes.** Export used every DB column, so a resource
