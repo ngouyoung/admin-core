@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.1.0
+
+- **Dynamic, permission-aware sidebar menu.** The sidebar is now driven by a `menu` array in
+  `config/admin-core.php` and rendered by a new `<x-admin-core::sidebar-menu />` component. Items are
+  filtered by `Ngos\AdminCore\Support\Sidebar`: an item is hidden when the user lacks its `can` permission
+  (only while `permission.enabled`) or its `route` doesn't exist, treeview parents with no visible children
+  are dropped, and section headers left empty are pruned. Supports nested (treeview) groups, `header`
+  rows, and `match` patterns for the active state.
+  - **`admin-core:make` now registers resources as menu *data*** — it appends an entry to the config `menu`
+    (with `can => 'list-…'`), instead of injecting Blade. So generated links are permission-gated like the
+    built-in ones (fixes generated items showing to users without access). Falls back to the old Blade
+    injection for installs that predate the data-driven menu, so nothing breaks.
+  - **Adopt it** by re-publishing the config + sidebar (`vendor:publish --tag=admin-core-config` / the
+    install kit), or add a `menu` array yourself — see UPGRADING. Run `config:clear` after generating if
+    you cache config.
+
 ## v2.0.0
 
 First major release — a stabilisation cut after the v1.28.x fix series. **One breaking change:**

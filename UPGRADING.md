@@ -12,6 +12,33 @@ npm install && npm run build
 
 ---
 
+## → v2.1.0 — Dynamic, permission-aware sidebar menu
+
+No breaking change — opt in. The sidebar can now be driven by a `menu` array in `config/admin-core.php`
+and rendered by `<x-admin-core::sidebar-menu />`, which hides items the user can't reach (by `can`
+permission or a missing `route`). `admin-core:make` appends new resources to that array instead of editing
+Blade; if the config has no `menu` (older installs), it falls back to the previous Blade injection — so you
+don't have to do anything.
+
+**To adopt the dynamic menu:**
+
+```bash
+php artisan vendor:publish --tag=admin-core-config --force   # gets the `menu` array (re-apply any local config tweaks)
+php artisan vendor:publish --tag=admin-core-views --force    # optional: the component-based sidebar partial
+```
+
+Then the sidebar partial is just:
+
+```blade
+<ul class="ac-nav">
+    <x-admin-core::sidebar-menu />
+</ul>
+```
+
+Each item: `['label' => 'Products', 'route' => 'admin.products.index', 'icon' => 'bi bi-box', 'can' =>
+'list-product', 'match' => 'admin/products*']`. Use `['header' => 'Section']` for a label and a `children`
+array for a collapsible group. Run `php artisan config:clear` after generating if you cache config.
+
 ## → v2.0.0 — Deprecated base-class aliases removed
 
 **Breaking — the only breaking change in 2.0.** The back-compat aliases `CrudController` and `CrudService`

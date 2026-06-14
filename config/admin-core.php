@@ -26,6 +26,39 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sidebar menu
+    |--------------------------------------------------------------------------
+    | The admin sidebar is data-driven: <x-admin-core::sidebar-menu /> renders this
+    | array, dropping any item the current user can't reach (its `can` permission
+    | fails, or its `route` doesn't exist) and any section header left empty.
+    |
+    | Item shapes:
+    |   ['label' => 'Products', 'route' => 'admin.products.index',
+    |    'icon' => 'bi bi-box', 'can' => 'list-product', 'match' => 'admin/products*']
+    |   ['header' => 'Access']                                  // a section label
+    |   ['label' => 'Access', 'icon' => '…', 'match' => 'admin/x/*',
+    |    'children' => [ …items… ]]                             // a collapsible group
+    |
+    | `admin-core:make` appends new resources at the `admin-core:menu` marker below.
+    | (Run `php artisan config:clear` after generating if you cache config.)
+    */
+    'menu' => [
+        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'bi bi-speedometer2', 'match' => 'admin/dashboard'],
+        // admin-core:menu
+        ['header' => 'Access'],
+        ['label' => 'Assessments', 'icon' => 'bi bi-people', 'match' => 'admin/assessments/*', 'children' => [
+            ['label' => 'Users', 'route' => 'admin.assessments.users.index', 'icon' => 'bi bi-person', 'can' => 'list-user', 'match' => 'admin/assessments/users*'],
+            ['label' => 'Roles', 'route' => 'admin.assessments.roles.index', 'icon' => 'bi bi-shield-lock', 'can' => 'list-role', 'match' => 'admin/assessments/roles*'],
+            ['label' => 'Group Permissions', 'route' => 'admin.assessments.group_permissions.index', 'icon' => 'bi bi-diagram-3', 'can' => 'list-group-permission', 'match' => 'admin/assessments/group_permissions*'],
+            ['label' => 'Permissions', 'route' => 'admin.assessments.permissions.index', 'icon' => 'bi bi-key', 'can' => 'list-permission', 'match' => 'admin/assessments/permissions*'],
+        ]],
+        ['header' => 'System'],
+        ['label' => 'Settings', 'route' => 'admin.settings.index', 'icon' => 'bi bi-gear', 'can' => 'manage-settings', 'match' => 'admin/settings*'],
+        ['label' => 'Activity Log', 'route' => 'admin.activity-logs.index', 'icon' => 'bi bi-clock-history', 'can' => 'list-activity', 'match' => 'admin/activity-logs*'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Permission gating
     |--------------------------------------------------------------------------
     | When enabled, the Route::crud() macro wraps each action in a

@@ -161,8 +161,11 @@ The `--access` kit now ships a complete admin shell beyond the access screens:
 - **Settings** (`/admin/settings`) — grouped key-value app settings with a `Setting::get('key')` helper
   (cached), gated by the `manage-settings` permission. Seeded with `app_name`, `support_email`, etc.
 - **Dashboard** — stat-card widgets (Users / Roles / Permissions / Group Permissions counts).
-- **Auto-sidebar** — `admin-core:make` injects the new resource's nav link automatically (idempotent),
-  so you never hand-edit the sidebar.
+- **Dynamic, permission-aware sidebar** — the menu is a data array in `config('admin-core.menu')`, rendered
+  by `<x-admin-core::sidebar-menu />`. Each item is dropped automatically when the user lacks its `can`
+  permission or its `route` doesn't exist (so menus for un-installed features vanish on their own), and
+  empty section headers are pruned. `admin-core:make` appends the new resource there — no hand-editing
+  Blade. (Older installs with the static sidebar still work: the generator falls back to injecting the link.)
 - **Show / detail view** — every resource gets a read-only `show` page + a View button in the table.
 
 ### Every list comes with export, import & bulk delete

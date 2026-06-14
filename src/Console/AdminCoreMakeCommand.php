@@ -294,7 +294,7 @@ class AdminCoreMakeCommand extends Command
 
         $this->createPermissions($kebab, $plural);
         if ($web) {
-            $this->registerSidebarLink($plural, $snakePlural);
+            $this->registerMenuItem($plural, $snakePlural, $kebab);
         }
 
         $this->newLine();
@@ -313,10 +313,36 @@ class AdminCoreMakeCommand extends Command
     }
 
     /**
-     * Inject a nav link at the `{{-- admin-core:menu --}}` marker in the sidebar
-     * partial (or the minimal layout). Idempotent; silently skips if no marker.
+     * Register the resource in the sidebar. Preferred: append a data entry to the
+     * `menu` array in config/admin-core.php (rendered + permission-filtered by the
+     * admin-core::sidebar-menu component). Falls back to injecting Blade into the
+     * static sidebar for installs that predate the data-driven menu. Idempotent.
      */
-    private function registerSidebarLink(string $plural, string $snakePlural): void
+    private function registerMenuItem(string $plural, string $snakePlural, string $kebab): void
+    {
+        $label = \Illuminate\Support\Str::headline($plural);
+        $route = "admin.{$snakePlural}.index";
+        $config = config_path('admin-core.php');
+
+        if (File::exists($config)) {
+            $contents = File::get($config);
+            if (str_contains($contents, '// admin-core:menu')) {
+                if (str_contains($contents, "'{$route}'")) {
+                    return; // already in the menu — idempotent
+                }
+                $entry = "['label' => '{$label}', 'route' => '{$route}', 'icon' => 'bi bi-circle', 'can' => 'list-{$kebab}', 'match' => 'admin/{$snakePlural}*'],";
+                File::put($config, str_replace('// admin-core:menu', $entry . "\n        // admin-core:menu", $contents));
+                $this->line('  <info>menu</info> added "' . $label . '" to config/admin-core.php (run config:clear if you cache config)');
+
+                return;
+            }
+        }
+
+        $this->injectSidebarBladeLink($label, $snakePlural);
+    }
+
+    /** Legacy path: inject a nav `<li>` at the `{{-- admin-core:menu --}}` marker in the static sidebar. */
+    private function injectSidebarBladeLink(string $label, string $snakePlural): void
     {
         $partial = resource_path('views/backend/partials/sidebar.blade.php');
         $layout = resource_path('views/backend/layouts/app.blade.php');
@@ -333,7 +359,6 @@ class AdminCoreMakeCommand extends Command
             return;
         }
 
-        $label = \Illuminate\Support\Str::headline($plural);
         $themed = str_contains($contents, 'ac-nav'); // custom theme sidebar vs minimal layout
 
         $link = $themed
