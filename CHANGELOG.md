@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v1.28.7
+
+- **`password` fields are now write-only in the UI.** They were rendered as an index-table column (the
+  bcrypt hash sent to the browser via the DataTables JSON) and a detail-view row. They now appear **only**
+  in the form (to set the value) — skipped in the table header, DataTable columns and show view, by both
+  `admin-core:make` and `admin-core:field`. The filter-tabs column index correctly skips the hidden column.
+  (The getData JSON was already covered by the model's `$hidden` from v1.28.5.)
+
 ## v1.28.6
 
 - **Security: the activity log no longer records password hashes named anything but `password`.**

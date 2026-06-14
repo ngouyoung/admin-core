@@ -411,6 +411,12 @@ it('scaffolds the extended field types (time / url / slug / json / password)', f
         ->toContain('type="password"')
         ->toContain('json_encode(');
 
+    // password is write-only: it has a form input (above) but is NOT shown in the index
+    // table, the DataTable columns, or the detail view (no bcrypt hash on display).
+    expect(File::get(resource_path('views/backend/pages/articles/partials/thead.blade.php')))->not->toContain('Secret');
+    expect(File::get(resource_path('views/backend/pages/articles/partials/scripts.blade.php')))->not->toContain("data: 'secret'");
+    expect(File::get(resource_path('views/backend/pages/articles/show.blade.php')))->not->toContain('$object->secret');
+
     // Clean up Article (not part of the standard gizmo target set).
     foreach ([
         app_path('Models/Article.php'),
@@ -568,6 +574,22 @@ it('infers fields from the existing model when adding a channel without --fields
         ->toContain("\$searchable = ['title']")                         // not qty / open_at / status
         ->toContain("\$sortable = ['title', 'status', 'qty', 'open_at', 'created_at']")
         ->toContain("\$filterable = ['status', 'category_id']");
+});
+
+it('points filter-tabs at the enum column counting only displayed columns (password is skipped)', function () {
+    // Order: title(col 1), secret(write-only, NO column), status(enum). The enum's real
+    // DataTable column is 2 (checkbox 0, title 1, status 2) — not 3 as a raw field index.
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'title:string, secret:password, status:enum:new|paid',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $index = File::get(resource_path('views/backend/pages/gizmos/index.blade.php'));
+    expect($index)->toContain('filter-tabs')->toContain(':column="2"');
+
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/scripts.blade.php')))
+        ->not->toContain("data: 'secret'");           // password is not a table column
 });
 
 it('omits filter tabs when there is no enum field', function () {

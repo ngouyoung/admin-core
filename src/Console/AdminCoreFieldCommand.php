@@ -299,14 +299,18 @@ class AdminCoreFieldCommand extends Command
         $this->line('  <info>patched</info> ' . $this->relative($path));
     }
 
-    /** Insert new <th> cells before the Actions column. */
+    /** Insert new <th> cells before the Actions column (write-only fields like password are skipped). */
     private function patchThead(string $path, array $fields, FieldSet $fs): void
     {
         if (! File::exists($path)) {
             return;
         }
 
-        $cells = implode("\n", array_map(fn ($f) => $fs->fieldTh($f), $fields));
+        $shown = array_filter($fields, fn ($f) => $fs->isDisplayed($f));
+        if (! $shown) {
+            return;
+        }
+        $cells = implode("\n", array_map(fn ($f) => $fs->fieldTh($f), $shown));
         $contents = File::get($path);
         $patched = preg_replace('/(\n\s*<th>Actions<\/th>)/', "\n{$cells}$1", $contents, 1);
 
@@ -316,14 +320,18 @@ class AdminCoreFieldCommand extends Command
         }
     }
 
-    /** Insert new DataTable columns before the actions column. */
+    /** Insert new DataTable columns before the actions column (write-only fields like password are skipped). */
     private function patchScripts(string $path, array $fields, FieldSet $fs): void
     {
         if (! File::exists($path)) {
             return;
         }
 
-        $cols = implode("\n", array_map(fn ($f) => $fs->fieldColumn($f), $fields));
+        $shown = array_filter($fields, fn ($f) => $fs->isDisplayed($f));
+        if (! $shown) {
+            return;
+        }
+        $cols = implode("\n", array_map(fn ($f) => $fs->fieldColumn($f), $shown));
         $contents = File::get($path);
         $patched = preg_replace("/(\n\s*\{data: 'actions')/", "\n{$cols}$1", $contents, 1);
 

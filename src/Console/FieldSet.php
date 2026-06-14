@@ -933,11 +933,19 @@ BLADE;
 
     // ---- Index table -------------------------------------------------
 
+    /** Whether a field is shown in the index table / show view. Passwords are write-only. */
+    public function isDisplayed(array $f): bool
+    {
+        return $f['type'] !== 'password';
+    }
+
     public function thead(): string
     {
         $cells = ['    <th style="width:1%"><input type="checkbox" id="check-all"></th>'];
         foreach ($this->fields as $f) {
-            $cells[] = $this->fieldTh($f);
+            if ($this->isDisplayed($f)) {
+                $cells[] = $this->fieldTh($f);
+            }
         }
         $cells[] = '    <th>Actions</th>';
 
@@ -957,7 +965,9 @@ BLADE;
         $pk = $this->uuid ? 'uuid' : 'id';
         $cols = ["                {data: '{$pk}', name: '{$pk}', orderable: false, searchable: false, className: 'text-center', render: (d) => '<input type=\"checkbox\" class=\"row-check\" value=\"' + d + '\">'},"];
         foreach ($this->fields as $f) {
-            $cols[] = $this->fieldColumn($f);
+            if ($this->isDisplayed($f)) {
+                $cols[] = $this->fieldColumn($f);
+            }
         }
         $cols[] = "                {data: 'actions', orderable: false, searchable: false},";
 
@@ -988,16 +998,20 @@ BLADE;
      */
     public function filterTabs(string $tableId): string
     {
-        $index = null;
+        // Count only the columns actually rendered before the enum (a write-only
+        // password column is skipped, so a raw field-position index would be off by one).
+        $index = 1; // first data column — the leading checkbox is column 0
         $enumClass = null;
-        foreach (array_values($this->fields) as $i => $f) {
+        foreach ($this->fields as $f) {
             if ($f['type'] === 'enum') {
-                $index = $i + 1; // +1 for the leading checkbox column
                 $enumClass = $this->enumClass($f);
                 break;
             }
+            if ($this->isDisplayed($f)) {
+                $index++;
+            }
         }
-        if ($index === null) {
+        if ($enumClass === null) {
             return '';
         }
 
@@ -1049,6 +1063,9 @@ BLADE;
     {
         $rows = [];
         foreach ($this->fields as $f) {
+            if (! $this->isDisplayed($f)) {
+                continue; // password is write-only — never render its hash on the detail page
+            }
             $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']);
             $value = match ($f['type']) {
                 'foreign' => "{{ \$object->{$f['relation']}?->name }}",
