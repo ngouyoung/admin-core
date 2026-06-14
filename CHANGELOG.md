@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.2.0
+
+- **Multi-portal menus.** The sidebar now supports more than one portal (admin + merchant + …):
+  - **Named menus** — define extra menus under `config('admin-core.menus.<name>')` and render one with
+    `<x-admin-core::sidebar-menu menu="merchant" />`.
+  - **Guard-aware filtering** — pass the portal's auth guard, `<x-admin-core::sidebar-menu menu="merchant"
+    guard="merchant" />`, so the `can` permission checks run against *that* portal's user (not the default
+    guard). Single-guard apps are unaffected — `guard` defaults to the current guard.
+  - **`admin-core:make … --menu=merchant`** registers the resource in that named menu (at its
+    `// admin-core:menu:<name>` marker) instead of the default.
+  - The default-menu marker is matched with a word boundary, so generating into the default menu no longer
+    touches a named menu's marker.
+
 ## v2.1.0
 
 - **Dynamic, permission-aware sidebar menu.** The sidebar is now driven by a `menu` array in

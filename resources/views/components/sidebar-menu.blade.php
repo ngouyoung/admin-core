@@ -1,16 +1,22 @@
-{{-- Data-driven, permission-aware sidebar menu. Renders config('admin-core.menu')
-     (filtered by Ngos\AdminCore\Support\Sidebar), or a passed :items array.
+{{--
+     Data-driven, permission-aware sidebar menu. Renders config('admin-core.menu') by
+     default, a named menu config('admin-core.menus.NAME') via the `menu` prop, or a
+     passed :items array. For a separate-guard portal, pass the portal's `guard` so the
+     permission checks run against the right user. Usage (in a ul.ac-nav):
 
-       <ul class="ac-nav">
-           <x-admin-core::sidebar-menu />
-       </ul>
+       x-admin-core::sidebar-menu
+       x-admin-core::sidebar-menu menu="merchant" guard="merchant"
 
      Items the user can't access — by permission or because the route doesn't exist —
      are dropped, and empty section headers with them. Treeview children render
-     recursively. --}}
-@props(['items' => null, 'nested' => false])
+     recursively.
+--}}
+@props(['items' => null, 'menu' => null, 'guard' => null, 'nested' => false])
 
-@php($list = $items ?? \Ngos\AdminCore\Support\Sidebar::items())
+@php($list = $items ?? \Ngos\AdminCore\Support\Sidebar::items(
+    $menu !== null ? config('admin-core.menus.' . $menu, []) : config('admin-core.menu', []),
+    $guard,
+))
 
 @foreach ($list as $item)
     @if (isset($item['header']))

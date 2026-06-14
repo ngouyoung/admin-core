@@ -22,6 +22,7 @@ class AdminCoreMakeCommand extends Command
                             {--tests : Also generate a CRUD feature test (best paired with --migration)}
                             {--api : Also generate a JSON API (resource + controller + apiResource routes)}
                             {--api-only : Generate ONLY the JSON API (no web controller/views/routes) — add the web channel later by re-running without it}
+                            {--menu= : Register the sidebar link in a named portal menu (config admin-core.menus.NAME) instead of the default}
                             {--force : Overwrite existing files}';
 
     protected $description = 'Scaffold a full admin-core CRUD resource (model, service, controller, requests, routes, views, permissions).';
@@ -294,7 +295,7 @@ class AdminCoreMakeCommand extends Command
 
         $this->createPermissions($kebab, $plural);
         if ($web) {
-            $this->registerMenuItem($plural, $snakePlural, $kebab);
+            $this->registerMenuItem($plural, $snakePlural, $kebab, $this->option('menu'));
         }
 
         $this->newLine();
@@ -318,21 +319,37 @@ class AdminCoreMakeCommand extends Command
      * admin-core::sidebar-menu component). Falls back to injecting Blade into the
      * static sidebar for installs that predate the data-driven menu. Idempotent.
      */
-    private function registerMenuItem(string $plural, string $snakePlural, string $kebab): void
+    private function registerMenuItem(string $plural, string $snakePlural, string $kebab, ?string $menu = null): void
     {
         $label = \Illuminate\Support\Str::headline($plural);
         $route = "admin.{$snakePlural}.index";
         $config = config_path('admin-core.php');
+        // Named portals append at `// admin-core:menu:<name>`; the default menu at `// admin-core:menu`.
+        // The default marker is a *prefix* of the named ones, so match it with a boundary
+        // (not followed by `:` or a word char) to avoid clobbering `…:merchant`.
+        $marker = $menu !== null ? "// admin-core:menu:{$menu}" : '// admin-core:menu';
+        $markerRe = $menu !== null
+            ? '/\/\/ admin-core:menu:' . preg_quote($menu, '/') . '\b/'
+            : '/\/\/ admin-core:menu(?![:\w])/';
 
         if (File::exists($config)) {
             $contents = File::get($config);
-            if (str_contains($contents, '// admin-core:menu')) {
+            if (preg_match($markerRe, $contents)) {
                 if (str_contains($contents, "'{$route}'")) {
                     return; // already in the menu — idempotent
                 }
                 $entry = "['label' => '{$label}', 'route' => '{$route}', 'icon' => 'bi bi-circle', 'can' => 'list-{$kebab}', 'match' => 'admin/{$snakePlural}*'],";
-                File::put($config, str_replace('// admin-core:menu', $entry . "\n        // admin-core:menu", $contents));
+                $contents = preg_replace_callback($markerRe, fn () => $entry . "\n        {$marker}", $contents, 1);
+                File::put($config, $contents);
                 $this->line('  <info>menu</info> added "' . $label . '" to config/admin-core.php (run config:clear if you cache config)');
+
+                return;
+            }
+
+            if ($menu !== null) {
+                // Asked for a named portal menu but its marker is missing — don't silently
+                // fall back to the default menu/sidebar; tell the user where to add it.
+                $this->warn("  menu: no `{$marker}` marker in config/admin-core.php — add the resource to the '{$menu}' menu by hand, or add the marker inside config('admin-core.menus.{$menu}').");
 
                 return;
             }

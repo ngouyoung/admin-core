@@ -25,14 +25,20 @@ use Illuminate\Support\Facades\Route;
  */
 class Sidebar
 {
-    /** The visible, filtered menu tree. */
-    public static function items(?array $items = null): array
+    /**
+     * The visible, filtered menu tree.
+     *
+     * @param  array<int, array<string, mixed>>|null  $items  Defaults to config('admin-core.menu').
+     * @param  string|null  $guard  Auth guard whose user the `can` checks run against (multi-portal:
+     *                              e.g. 'merchant'). Null = the application's default guard.
+     */
+    public static function items(?array $items = null, ?string $guard = null): array
     {
-        return self::prune(self::filter($items ?? config('admin-core.menu', [])));
+        return self::prune(self::filter($items ?? config('admin-core.menu', []), $guard));
     }
 
     /** @param array<int, array<string, mixed>> $items */
-    private static function filter(array $items): array
+    private static function filter(array $items, ?string $guard): array
     {
         $out = [];
 
@@ -43,7 +49,7 @@ class Sidebar
             }
 
             if (isset($item['children'])) {
-                $children = self::filter($item['children']);
+                $children = self::filter($item['children'], $guard);
                 if ($children !== []) {
                     $item['children'] = $children;
                     $out[] = $item;
@@ -51,7 +57,7 @@ class Sidebar
                 continue;
             }
 
-            if (self::visible($item)) {
+            if (self::visible($item, $guard)) {
                 $out[] = $item;
             }
         }
@@ -59,15 +65,15 @@ class Sidebar
         return $out;
     }
 
-    /** A single (leaf) item is visible when its route exists and its permission passes. */
-    private static function visible(array $item): bool
+    /** A single (leaf) item is visible when its route exists and its permission passes (for the given guard). */
+    private static function visible(array $item, ?string $guard): bool
     {
         if (isset($item['route']) && ! Route::has($item['route'])) {
             return false;
         }
 
         if (! empty($item['can']) && config('admin-core.permission.enabled')) {
-            return (bool) auth()->user()?->can($item['can']);
+            return (bool) auth()->guard($guard)->user()?->can($item['can']);
         }
 
         return true;

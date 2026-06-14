@@ -12,6 +12,29 @@ npm install && npm run build
 
 ---
 
+## → v2.2.0 — Multi-portal menus (named menus + guard-aware)
+
+No breaking change — additive. To give a second portal (merchant, vendor, …) its own sidebar:
+
+```php
+// config/admin-core.php
+'menus' => [
+    'merchant' => [
+        ['label' => 'Storefront', 'route' => 'merchant.dashboard', 'icon' => 'bi bi-shop', 'match' => 'merchant'],
+        // admin-core:menu:merchant      ← admin-core:make --menu=merchant appends here
+    ],
+],
+```
+
+```blade
+{{-- the merchant portal's layout --}}
+<ul class="ac-nav"><x-admin-core::sidebar-menu menu="merchant" guard="merchant" /></ul>
+```
+
+Pass `guard` when the portal authenticates on a **separate guard** (its own user table), so the menu's
+`can` checks ask the right user. If both portals share one guard (admin/merchant are just permission sets),
+omit `guard`. Generate into a portal's menu with `php artisan admin-core:make Order --menu=merchant`.
+
 ## → v2.1.0 — Dynamic, permission-aware sidebar menu
 
 No breaking change — opt in. The sidebar can now be driven by a `menu` array in `config/admin-core.php`

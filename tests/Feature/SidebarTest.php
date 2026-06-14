@@ -68,6 +68,30 @@ it('prunes a treeview whose children are all hidden, keeps one with a visible ch
         ->and($items[0]['children'])->toHaveCount(1);
 });
 
+it('filters against the given guard, not just the default one (multi-portal)', function () {
+    config([
+        'admin-core.permission.enabled' => true,
+        'auth.guards.merchant' => ['driver' => 'session', 'provider' => 'users'],
+    ]);
+    Gate::define('list-thing', fn ($u) => true);
+    $this->actingAs(new \Illuminate\Foundation\Auth\User); // logged into the DEFAULT (web) guard only
+
+    $menu = [['label' => 'Thing', 'route' => 'admin.widgets.index', 'can' => 'list-thing']];
+
+    // Default guard: the acting user can → visible. Merchant guard: nobody's logged in → hidden.
+    expect(collect(Sidebar::items($menu))->pluck('label')->all())->toBe(['Thing'])
+        ->and(collect(Sidebar::items($menu, 'merchant'))->pluck('label')->all())->toBe([]);
+});
+
+it('renders a named portal menu via the menu prop', function () {
+    config(['admin-core.menus.merchant' => [
+        ['label' => 'Storefront', 'route' => 'admin.widgets.index', 'icon' => 'bi bi-shop', 'match' => 'merchant'],
+    ]]);
+
+    expect(Blade::render('<x-admin-core::sidebar-menu menu="merchant" />'))
+        ->toContain('Storefront')->toContain('ac-nav-item');
+});
+
 it('renders the sidebar-menu component, omitting hidden items', function () {
     config(['admin-core.menu' => [
         ['label' => 'Widgets', 'route' => 'admin.widgets.index', 'icon' => 'bi bi-box', 'match' => 'admin/widgets*'],

@@ -59,6 +59,23 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Extra portals (named menus) — multi-portal
+    |--------------------------------------------------------------------------
+    | A second admin area (merchant, vendor, reseller, …) renders its own menu with
+    | <x-admin-core::sidebar-menu menu="merchant" guard="merchant" />. Pass the portal's
+    | auth `guard` so the `can` checks run against that portal's user. Each named menu
+    | keeps its own `// admin-core:menu:<name>` marker, which `admin-core:make
+    | Order --menu=merchant` appends to. Uncomment and tailor to your portals:
+    */
+    'menus' => [
+        // 'merchant' => [
+        //     ['label' => 'Dashboard', 'route' => 'merchant.dashboard', 'icon' => 'bi bi-shop', 'match' => 'merchant'],
+        //     // admin-core:menu:merchant
+        // ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Permission gating
     |--------------------------------------------------------------------------
     | When enabled, the Route::crud() macro wraps each action in a
