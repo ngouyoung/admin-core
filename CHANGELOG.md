@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.0.0
+
+First major release — a stabilisation cut after the v1.28.x fix series. **One breaking change:**
+
+- **Removed the deprecated `CrudController` / `CrudService` aliases** (deprecated since v1.19.0). Extend
+  `WebController` / `BaseService` instead — see UPGRADING. Resources generated on v1.19.0+ already do.
+
+Everything else — config, routes, the `admin-core:make` / `:field` / `:install` commands, generated output,
+the JSON API, CSV import/export, audit log, and all the v1.28.x correctness/security fixes — is unchanged.
+If you're already on v1.28.7 and don't reference the removed aliases, upgrading is a no-op.
+
 ## v1.28.7
 
 - **`password` fields are now write-only in the UI.** They were rendered as an index-table column (the
