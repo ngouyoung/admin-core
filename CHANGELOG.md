@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.9.5
+
+- **Fix: `install --access` now adds the `HasRoles` trait to non-default User models.** The class-body
+  patch matched the trait line by the exact string `use HasFactory, Notifiable;`, so a User with extra or
+  reordered traits (Sanctum's `use HasApiTokens, HasFactory, Notifiable;`, Jetstream, etc.) had `HasRoles` /
+  `HasPublicUuid` **imported but never applied** — silently breaking roles/permissions, and the re-run guard
+  then skipped it. The trait line is now matched flexibly (works with any extra traits or order), and if it
+  still can't be found the installer warns you to add `use HasRoles, HasPublicUuid;` by hand instead of
+  failing silently. If a prior install left your User model with the import but no class `use`, add it now.
+
 ## v2.9.4
 
 - **Audit log now records restores.** `LogsActivity` logged `created`/`updated`/`deleted` but not `restored`,

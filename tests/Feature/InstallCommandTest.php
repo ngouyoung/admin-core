@@ -112,6 +112,47 @@ it('is idempotent — re-running does not double-wire', function () {
         ->and(substr_count(File::get(base_path('bootstrap/app.php')), '>>> admin-core:middleware'))->toBe(1);
 });
 
+it('adds the HasRoles trait to a User model with extra/reordered traits (Sanctum/Jetstream)', function () {
+    File::ensureDirectoryExists(app_path('Models'));
+    $userPath = app_path('Models/User.php');
+    $original = File::exists($userPath) ? File::get($userPath) : null;
+
+    // A non-default trait line (extra trait, different order) — the old exact-match skipped these.
+    File::put($userPath, <<<'PHP'
+    <?php
+
+    namespace App\Models;
+
+    use Laravel\Sanctum\HasApiTokens;
+    use Illuminate\Database\Eloquent\Factories\HasFactory;
+    use Illuminate\Foundation\Auth\User as Authenticatable;
+    use Illuminate\Notifications\Notifiable;
+
+    class User extends Authenticatable
+    {
+        use HasApiTokens, HasFactory, Notifiable;
+    }
+    PHP);
+
+    // Call the private patcher directly with a buffered output wired in.
+    $command = new \Ngos\AdminCore\Console\AdminCoreInstallCommand();
+    $command->setLaravel(app());
+    (fn ($o) => $this->output = $o)->call(
+        $command,
+        new \Illuminate\Console\OutputStyle(new \Symfony\Component\Console\Input\ArrayInput([]), new \Symfony\Component\Console\Output\BufferedOutput()),
+    );
+    $m = new ReflectionMethod($command, 'addHasRolesTrait');
+    $m->setAccessible(true);
+    $m->invoke($command);
+
+    expect(File::get($userPath))
+        ->toContain('use HasApiTokens, HasFactory, Notifiable, HasRoles, HasPublicUuid;') // applied in the class body
+        ->toContain('use Spatie\Permission\Traits\HasRoles;')                            // import added
+        ->toContain('use Illuminate\Notifications\Notifiable;');                          // FQCN import left intact
+
+    $original === null ? File::delete($userPath) : File::put($userPath, $original);
+});
+
 it('scaffolds Passport API auth with --api-auth', function () {
     $this->artisan('admin-core:install', ['--api-auth' => true])->assertSuccessful();
 

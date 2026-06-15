@@ -357,10 +357,24 @@ PHP;
             $contents,
             1,
         );
-        $contents = preg_replace('/(use HasFactory, Notifiable)(;)/', '$1, HasRoles, HasPublicUuid$2', $contents, 1);
+
+        // Append to the in-class `use … Notifiable …;` trait line. Match it flexibly (indented use,
+        // short names → no backslash) so a User with extra traits (Sanctum/Passport/Jetstream) or a
+        // different order still works — the old exact `use HasFactory, Notifiable;` match silently
+        // skipped those, leaving the traits imported but never applied.
+        $contents = preg_replace(
+            '/(\n[ \t]+use\s+[A-Za-z0-9_,\s]*\bNotifiable\b[A-Za-z0-9_,\s]*?)(;)/',
+            '$1, HasRoles, HasPublicUuid$2',
+            $contents,
+            1,
+            $applied,
+        );
 
         File::put($model, $contents);
-        $this->line('  <info>updated</info> app/Models/User.php (added HasRoles trait)');
+
+        $applied
+            ? $this->line('  <info>updated</info> app/Models/User.php (added HasRoles trait)')
+            : $this->warn('  added the imports to app/Models/User.php, but could not find the trait line — add `use HasRoles, HasPublicUuid;` inside the User class by hand.');
     }
 
     private function publishSpatieConfig(): void
