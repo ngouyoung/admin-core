@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.10.0
+
+- **Portal resources now render in their portal's layout.** A `--portal=merchant` resource's views hardcoded
+  `@extends('backend.layouts.app')`, so they rendered inside the **admin** layout (admin sidebar/menu) instead
+  of the merchant one. They now extend `<portal>.layout`. The portal layout was also completed to host a full
+  CRUD page: it yields `contents` (was the singular `content`, which didn't match the resource views), renders
+  the `success` flash, adds a `@stack('scripts')` (so DataTables init runs), and loads the built admin-core
+  bundle (jQuery/DataTables/select2/SweetAlert) when present — falling back to CDN Bootstrap otherwise. Admin
+  (non-portal) resources are unchanged.
+  **Existing portals:** re-scaffold the layout (delete `resources/views/<portal>/layout.blade.php` and re-run
+  `admin-core:portal <name>`), or rename its `@yield('content')` → `@yield('contents')` and add
+  `@stack('scripts')` so resources generated into it render.
+
 ## v2.9.6
 
 - **Fix: breadcrumb "Dashboard" link follows the current portal.** `<x-admin-core::page-header>` hardcoded the

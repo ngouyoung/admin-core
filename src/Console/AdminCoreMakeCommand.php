@@ -62,6 +62,9 @@ class AdminCoreMakeCommand extends Command
         $routeNs = $portal ? "{$portal}." : config('admin-core.route.name_prefix', 'admin.');
         $routePrefixLine = $portal ? "\n        \$this->routePrefix = '{$routeNs}';" : '';
         $moduleDir = $portal ? 'routes/' . Str::studly($portal) . '/Modules' : 'routes/Web/Backend/Modules';
+        // A portal resource extends that portal's layout (merchant.layout) so it renders inside the
+        // portal chrome (its sidebar/guard), not the admin layout.
+        $layoutView = $portal ? "{$portal}.layout" : 'backend.layouts.app';
 
         // Adding a channel to an EXISTING resource? Infer the fields from its model so
         // you don't have to re-type --fields just to scaffold the API (or web) side —
@@ -180,6 +183,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_CRUD_GUARD__' => $crudGuardArg,
             '__AC_PERM_GUARD__' => $permSuffix,
             '__AC_RNS__' => $routeNs,
+            '__AC_LAYOUT__' => $layoutView,
             '__AC_ROUTE_PREFIX__' => $routePrefixLine,
             '__AC_PK__' => $fields->primaryKey(),
             '__AC_MODEL_TRAITS__' => $fields->modelTraits(),

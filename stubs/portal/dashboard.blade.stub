@@ -2,7 +2,7 @@
 
 @section('title', '__Portal__ Dashboard')
 
-@section('content')
+@section('contents')
     <h1 class="h3 mb-3">Welcome, {{ auth('__portal__')->user()->name }}</h1>
     <p class="text-muted">
         This is the <strong>__Portal__</strong> portal. Generate resources into it with

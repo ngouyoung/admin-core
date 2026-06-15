@@ -101,6 +101,10 @@ it('scaffolds a full resource with valid, token-free PHP', function () {
     $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
     expect($migration)->toContain("Schema::create('gizmos'")->toContain("'name'")->toContain("'price'");
 
+    // A non-portal resource renders in the admin layout.
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->toContain("@extends('backend.layouts.app')");
+
     // The request authorize() honours config('admin-core.permission.enabled') just like the routes do,
     // so disabling permissions (the documented escape hatch) doesn't 403 every create/update.
     expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
@@ -616,10 +620,17 @@ it('routes a resource into a portal with --portal (dir + route-names + controlle
     expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
         ->toContain("\$this->routePrefix = 'merchant.';");
 
-    // Views use merchant.* route-names (no admin.* leakage).
+    // Views use merchant.* route-names (no admin.* leakage)…
     expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
         ->toContain("route('merchant.gizmos.create')")
         ->not->toContain("route('admin.gizmos");
+
+    // …and render inside the merchant portal layout, not the admin one.
+    foreach (['index', 'create', 'edit', 'show'] as $view) {
+        expect(File::get(resource_path("views/backend/pages/gizmos/{$view}.blade.php")))
+            ->toContain("@extends('merchant.layout')")
+            ->not->toContain("@extends('backend.layouts.app')");
+    }
 
     File::deleteDirectory(base_path('routes/Merchant'));
 });

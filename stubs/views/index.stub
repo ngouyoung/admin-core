@@ -1,4 +1,4 @@
-@extends('backend.layouts.app')
+@extends('__AC_LAYOUT__')
 
 @section('title', 'DummyClasses')
 
