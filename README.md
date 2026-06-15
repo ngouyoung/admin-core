@@ -405,8 +405,9 @@ It generates an `add_…_to_products_table` migration and **surgically patches**
 and the `booted()` slug-derive hook), the store/update requests (validation rules + the `prepareForValidation()`
 hook for `json`/`password`), the form / table-header / DataTable-script / detail (show) views, and the factory
 — adding *just* those fields. Same `--fields` DSL (so `status:enum:a|b` also creates the backed
-enum class). **Fields that already exist are detected and skipped** (by `$fillable`), so re-running is safe
-— pass a mix of old and new and only the new ones are added:
+enum class). **Fields that already exist are detected and skipped** — by the model's `$fillable` *and* the
+real DB column (so a column that isn't in `$fillable` is still caught, never producing a duplicate-column
+migration). Re-running is safe — pass a mix of old and new and only the new ones are added:
 
 ```bash
 php artisan admin-core:field Product "status:enum:a|b, paid_at:datetime?"

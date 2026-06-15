@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.6.6
+
+- **`admin-core:field` can no longer produce a duplicate-column migration.** Its idempotency check was
+  `$fillable`-only, so a column that exists on the table but isn't in `$fillable` (a system field, a
+  hand-added column, or fillable drift) slipped through — the generated `add_…` migration then failed on
+  `migrate` with *Duplicate column name* (SQLSTATE 42S21/1060). It now also checks `Schema::hasColumn`, so an
+  existing column is skipped regardless of `$fillable`.
+
 ## v2.6.5
 
 - **Fix: a guest hitting `/admin` got a 500 instead of being redirected to login.** Two causes, both fixed:

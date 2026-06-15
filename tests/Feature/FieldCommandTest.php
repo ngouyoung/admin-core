@@ -1,6 +1,8 @@
 <?php
 
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
 
 /*
  * `admin-core:field` adds fields to an EXISTING resource — migration + model +
@@ -207,6 +209,27 @@ it('skips relation/upload fields (they need the full generator), adding the scal
     // No belongsTo relation was bolted on (that's the whole reason we skip it).
     expect($model)->not->toContain('belongsTo');
     expect(glob(database_path('migrations/*_add_sku_to_gizmos_table.php')))->toHaveCount(1);
+});
+
+it('skips a field whose column already exists in the DB but not in $fillable (no duplicate-column migration)', function () {
+    makeGizmo(); // model $fillable = [name, price]; create migration not run
+
+    // The table exists with a column that is NOT in the model's $fillable (drift / hand-added).
+    Schema::create('gizmos', function (Blueprint $t) {
+        $t->id();
+        $t->string('name');
+        $t->string('legacy_code');
+        $t->timestamps();
+    });
+
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'legacy_code:string'])
+        ->expectsOutputToContain('already exists — skipped: legacy_code')
+        ->assertSuccessful();
+
+    // No add-migration was written — so `php artisan migrate` can't hit a duplicate column.
+    expect(glob(database_path('migrations/*_add_legacy_code_to_gizmos_table.php')))->toBeEmpty();
+
+    Schema::dropIfExists('gizmos');
 });
 
 it('skips fields that already exist (idempotent), adding only the new one', function () {

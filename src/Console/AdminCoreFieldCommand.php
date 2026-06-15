@@ -48,12 +48,20 @@ class AdminCoreFieldCommand extends Command
         }
 
         // Drop fields that already exist (idempotent — never duplicate a column/rule/input).
+        // We check BOTH the model's $fillable AND the real DB column: a column can exist
+        // without being fillable (a system field, a hand-added column, or fillable drift),
+        // and adding it again would write an add-migration that fails with SQLSTATE[42S21]
+        // "Duplicate column" on migrate.
         $existing = $this->modelFillable($model);
         $newTokens = [];
         $skipped = [];
         foreach (array_filter(array_map('trim', explode(',', $this->argument('fields')))) as $token) {
             $fieldName = trim(explode(':', $token)[0]);
-            in_array($fieldName, $existing, true) ? $skipped[] = $fieldName : $newTokens[] = $token;
+            if (in_array($fieldName, $existing, true) || $this->columnExists($snakePlural, $fieldName)) {
+                $skipped[] = $fieldName;
+            } else {
+                $newTokens[] = $token;
+            }
         }
 
         foreach ($skipped as $name) {
@@ -116,6 +124,16 @@ class AdminCoreFieldCommand extends Command
     {
         try {
             return \Illuminate\Support\Facades\Schema::hasTable($table);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    /** Whether the column already exists on the table — so we never write a duplicate-column migration. */
+    private function columnExists(string $table, string $column): bool
+    {
+        try {
+            return \Illuminate\Support\Facades\Schema::hasColumn($table, $column);
         } catch (\Throwable) {
             return false;
         }
