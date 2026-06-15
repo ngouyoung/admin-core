@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.7.1
+
+- **Fix: notifications pagination rendered unstyled.** The notifications page paginated with the
+  framework-default paginator, which emits **Tailwind** markup — broken in this Bootstrap 5 theme. It now
+  renders Laravel's bundled `pagination::bootstrap-5` view, so the pager is styled out of the box (no global
+  `Paginator::useBootstrapFive()` call, so your app's own pagination is left untouched).
+
 ## v2.7.0
 
 - **In-app notifications.** `--access` now ships a notifications system on Laravel's database notifications:
