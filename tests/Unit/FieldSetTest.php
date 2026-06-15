@@ -43,6 +43,19 @@ it('renders a boolean as a checkbox with a hidden 0 fallback (so it can be unche
     expect(strpos($form, 'value="0"'))->toBeLessThan(strpos($form, 'type="checkbox"'));
 });
 
+it('renders boolean and date columns in the list (not raw true/false or ISO strings)', function () {
+    $f = fs('active:boolean, published_at:datetime?, born_on:date?');
+
+    expect($f->getDataColumns())
+        ->toContain("editColumn('active'") // Yes/No badge, not raw true/false
+        ->toContain('Yes')->toContain('No')
+        ->toContain("editColumn('published_at'")->toContain("format('Y-m-d H:i')")
+        ->toContain("editColumn('born_on'")->toContain("format('Y-m-d')");
+
+    // The boolean cell emits HTML, so it must be whitelisted as a raw column.
+    expect($f->rawColumns())->toContain("'active'");
+});
+
 it('builds a foreign key with belongsTo + exists + eager load', function () {
     $f = fs('category_id:foreign');
     expect($f->migrationColumns())->toContain("foreignId('category_id')");

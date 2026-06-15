@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.8.4
+
+- **Typed list columns now render cleanly.** In a generated DataTable, `boolean` columns showed a raw
+  `true`/`false` (while the detail page already showed "Yes/No") and `date`/`datetime` columns showed a raw
+  ISO string. Generated lists now render booleans as a Yes/No badge and dates as `Y-m-d` / `Y-m-d H:i`
+  (sorting/searching still use the underlying column). Affects newly generated resources.
+
 ## v2.8.3
 
 - **Fix: a generated `boolean` checkbox couldn't be turned off.** An unchecked HTML checkbox submits nothing,

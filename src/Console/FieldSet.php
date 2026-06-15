@@ -1050,6 +1050,17 @@ BLADE;
             if ($f['type'] === 'enum') {
                 $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\$row->{$f['name']}->value) . '</span>' : '')";
             }
+            if ($f['type'] === 'boolean') {
+                // Match the show view's Yes/No rather than leaking a raw true/false into the list.
+                $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')";
+            }
+            if ($f['type'] === 'date') {
+                // The column is cast to Carbon; without this it serialises to a raw ISO string.
+                $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d'))";
+            }
+            if ($f['type'] === 'datetime') {
+                $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))";
+            }
             if ($f['type'] === 'image') {
                 $lines[] = "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . asset('storage/' . \$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')";
             }
@@ -1092,7 +1103,7 @@ BLADE;
             $raw[] = "'name'";
         }
         foreach ($this->fields as $f) {
-            if (in_array($f['type'], ['belongsToMany', 'image', 'file', 'enum'], true)) {
+            if (in_array($f['type'], ['belongsToMany', 'image', 'file', 'enum', 'boolean'], true)) {
                 $raw[] = "'{$f['name']}'";
             }
         }
