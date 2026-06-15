@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.8.0
+
+- **Ready-made `AdminNotification`.** Fire an in-app alert in one line without writing a Notification class:
+  `$user->notify(new Ngos\AdminCore\Notifications\AdminNotification(title: …, message: …, url: …, icon: …, extra: [...]))`.
+  It targets the `database` channel and feeds the bell + notifications page directly. Hosts that need
+  mail/broadcast/queued can still write their own — the UI only needs `toArray()` to return
+  `title`/`message`/`url`/`icon`.
+
 ## v2.7.1
 
 - **Fix: notifications pagination rendered unstyled.** The notifications page paginated with the

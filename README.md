@@ -471,22 +471,29 @@ changing the name; single-guard apps never touch any of this.
 bar (`<x-admin-core::notifications-bell />`) with an unread badge and a recent-list dropdown, a full
 **notifications page** at `/admin/notifications`, and mark-read / mark-all-read / delete.
 
-Send one to any user — the notification's `toArray()` returns the fields the UI renders:
+**Send one in a single line** — no notification class to write — with the bundled `AdminNotification`:
 
 ```php
-$user->notify(new \App\Notifications\OrderShipped($order));
+use Ngos\AdminCore\Notifications\AdminNotification;
 
-// in the notification class:
+$user->notify(new AdminNotification(
+    title:   'Order shipped',
+    message: "Order #{$order->id} is on its way.",
+    url:     route('admin.orders.show', $order), // followed when the row is clicked
+    icon:    'bi-truck',                          // any Bootstrap icon (optional)
+    extra:   ['order_id' => $order->id],          // optional extra payload keys
+));
+```
+
+Need mail/broadcast/queued, or richer logic? Write your own `Notification` instead — the UI only needs
+`toArray()` to return `title` / `message` / `url` / `icon`:
+
+```php
 public function via($notifiable): array { return ['database']; }
 
 public function toArray($notifiable): array
 {
-    return [
-        'title'   => 'Order shipped',
-        'message' => "Order #{$this->order->id} is on its way.",
-        'url'     => route('admin.orders.show', $this->order), // followed when clicked
-        'icon'    => 'bi-truck',                                // any Bootstrap icon
-    ];
+    return ['title' => 'Order shipped', 'message' => '…', 'url' => '…', 'icon' => 'bi-truck'];
 }
 ```
 

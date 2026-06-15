@@ -5,8 +5,8 @@
 
        <x-admin-core::notifications-bell />
 
-     Send one with:  $user->notify(new YourNotification);  where toArray() returns
-     ['title' => …, 'message' => …, 'url' => …, 'icon' => 'bi-bell'].
+     Send one in a line:  $user->notify(new Ngos\AdminCore\Notifications\AdminNotification(
+         title: 'Order shipped', message: '…', url: route(…), icon: 'bi-truck'));
 --}}
 @php($acUser = auth()->user())
 @if ($acUser

@@ -4,6 +4,7 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
+use Ngos\AdminCore\Notifications\AdminNotification;
 use Ngos\AdminCore\Tests\Fixtures\NotifiableUser;
 
 /*
@@ -80,6 +81,29 @@ it('marks all the user\'s notifications read', function () {
     $this->actingAs($user)->post(route('admin.notifications.readAll'))->assertRedirect();
 
     expect(DB::table('notifications')->whereNull('read_at')->count())->toBe(0);
+});
+
+it('AdminNotification stores title/message/url/icon (+extra) as a database notification', function () {
+    $user = NotifiableUser::create(['name' => 'A']);
+
+    $user->notify(new AdminNotification(
+        title: 'Shipped',
+        message: 'On its way',
+        url: '/admin/orders/1',
+        icon: 'bi-truck',
+        extra: ['order_id' => 7],
+    ));
+
+    $row = DB::table('notifications')->where('notifiable_id', $user->getKey())->first();
+    expect($row)->not->toBeNull()
+        ->and($row->type)->toBe(AdminNotification::class)
+        ->and(json_decode((string) $row->data, true))->toMatchArray([
+            'title' => 'Shipped',
+            'message' => 'On its way',
+            'url' => '/admin/orders/1',
+            'icon' => 'bi-truck',
+            'order_id' => 7, // extra is merged into the payload
+        ]);
 });
 
 it('deletes a notification', function () {
