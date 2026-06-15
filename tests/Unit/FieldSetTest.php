@@ -33,6 +33,16 @@ it('builds an enum select backed by a generated enum class', function () {
     ]);
 });
 
+it('renders a boolean as a checkbox with a hidden 0 fallback (so it can be unchecked on edit)', function () {
+    $form = fs('active:boolean')->formFields();
+
+    // Hidden 0 must come *before* the checkbox so the checkbox's 1 wins when checked,
+    // and the field is always submitted (an unchecked checkbox sends nothing on its own).
+    expect($form)->toContain('<input type="hidden" name="active" value="0">')
+        ->toContain('type="checkbox" name="active"');
+    expect(strpos($form, 'value="0"'))->toBeLessThan(strpos($form, 'type="checkbox"'));
+});
+
 it('builds a foreign key with belongsTo + exists + eager load', function () {
     $f = fs('category_id:foreign');
     expect($f->migrationColumns())->toContain("foreignId('category_id')");

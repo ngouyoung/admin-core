@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.8.3
+
+- **Fix: a generated `boolean` checkbox couldn't be turned off.** An unchecked HTML checkbox submits nothing,
+  so unchecking a boolean on edit sent no value and the column kept its old `true`. Generated forms now
+  emit a hidden `value="0"` just before the checkbox (the checkbox's `1` still wins when checked), so a
+  boolean can actually be unchecked. Affects newly generated resources; for an existing form add
+  `<input type="hidden" name="<col>" value="0">` immediately before the checkbox (or regenerate the view).
+
 ## v2.8.2
 
 - **Fix: `query()` scope now covers the trash, restore, force-delete and reorder paths too.** `BaseService`

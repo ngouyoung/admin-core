@@ -832,7 +832,10 @@ PHP;
 
         $control = match ($f['type']) {
             'text' => "<textarea name=\"{$col}\" id=\"{$col}\" rows=\"3\" class=\"form-control {$err}\"{$ro}>{{ {$old} }}</textarea>",
-            'boolean' => "<div class=\"form-check\">\n            <input type=\"checkbox\" name=\"{$col}\" id=\"{$col}\" value=\"1\" class=\"form-check-input {$err}\" {{ {$old} ? 'checked' : '' }}>\n        </div>",
+            // The hidden 0 makes an *unchecked* box still submit the field (browsers send nothing for
+            // an unchecked checkbox) — otherwise you could never turn a boolean off on edit. The checkbox
+            // comes after it with the same name, so when checked its "1" wins.
+            'boolean' => "<input type=\"hidden\" name=\"{$col}\" value=\"0\">\n        <div class=\"form-check\">\n            <input type=\"checkbox\" name=\"{$col}\" id=\"{$col}\" value=\"1\" class=\"form-check-input {$err}\" {{ {$old} ? 'checked' : '' }}>\n        </div>",
             'integer' => "<input type=\"number\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
             'decimal' => "<input type=\"number\" step=\"0.01\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
             'date' => "<input type=\"date\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
