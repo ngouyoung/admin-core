@@ -8,7 +8,9 @@ class StoreDummyClassRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('create-dummy-model');
+        // Mirror the route gating: when permission checks are disabled
+        // (config('admin-core.permission.enabled') = false) this opens up too.
+        return ! config('admin-core.permission.enabled') || $this->user()->can('create-dummy-model');
     }
 
     public function rules(): array

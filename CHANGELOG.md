@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.9.1
+
+- **Fix: disabling permissions no longer 403s every create/update.** `config('admin-core.permission.enabled')
+  => false` is the documented way to run without permission middleware, and the routes honour it — but a
+  generated resource's `StoreRequest`/`UpdateRequest` `authorize()` still called `$this->user()->can(...)`
+  unconditionally, so without permissions set up every write was rejected. The generated `authorize()` now
+  mirrors the routes: `! config('admin-core.permission.enabled') || $this->user()->can('create-x')`. Affects
+  newly generated resources; existing ones can apply the same one-line change to their request `authorize()`.
+
 ## v2.9.0
 
 - **Consistent icons across generated pages.** The generated CRUD views, the `class.php` icon defaults, the

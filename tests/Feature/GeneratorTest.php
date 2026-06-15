@@ -100,6 +100,13 @@ it('scaffolds a full resource with valid, token-free PHP', function () {
 
     $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
     expect($migration)->toContain("Schema::create('gizmos'")->toContain("'name'")->toContain("'price'");
+
+    // The request authorize() honours config('admin-core.permission.enabled') just like the routes do,
+    // so disabling permissions (the documented escape hatch) doesn't 403 every create/update.
+    expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
+        ->toContain("! config('admin-core.permission.enabled') || \$this->user()->can('create-gizmo')")
+        ->and(File::get(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php')))
+        ->toContain("! config('admin-core.permission.enabled') || \$this->user()->can('edit-gizmo')");
 });
 
 it('generates a migration that actually runs', function () {

@@ -8,7 +8,9 @@ class UpdateDummyClassRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->can('edit-dummy-model');
+        // Mirror the route gating: when permission checks are disabled
+        // (config('admin-core.permission.enabled') = false) this opens up too.
+        return ! config('admin-core.permission.enabled') || $this->user()->can('edit-dummy-model');
     }
 
     public function rules(): array
