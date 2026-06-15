@@ -1,7 +1,7 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const Table = $('#dummyModels_table').DataTable({
-            ajax: {url: '{{ route('admin.dummyModels.getData') }}', type: 'GET'},
+            ajax: {url: '{{ route('__AC_RNS__dummyModels.getData') }}', type: 'GET'},
             columns: [
 __AC_COLS__
             ],
@@ -31,7 +31,7 @@ __AC_COLS__
             }).then((result) => {
                 if (result.value) {
                     $.ajax({
-                        type: 'POST', url: '{{ route('admin.dummyModels.bulkDelete') }}',
+                        type: 'POST', url: '{{ route('__AC_RNS__dummyModels.bulkDelete') }}',
                         data: {ids: ids},
                         success: function () {
                             Table.ajax.reload(null, false);

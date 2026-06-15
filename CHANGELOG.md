@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.4.0
+
+- **`admin-core:make --portal=merchant` — generate a resource *into* a portal, end-to-end.** One flag now
+  routes everything to the portal, not just permissions:
+  - route module → `routes/Merchant/Modules/` (so the portal's route group owns it);
+  - route-names → `merchant.*` (views/scripts/tests) and the controller redirects too — `WebController`
+    gained an overridable `$routePrefix`;
+  - menu → `config('admin-core.menus.merchant')`; guard → `merchant` (permissions + gates).
+  - `--menu` / `--guard` remain as low-level overrides; `--portal` is the one-flag way.
+- **Fixes the v2.3.0 half-gap:** `--guard` alone gated permissions but left the route mounted under the
+  admin group (`admin.*`), so it 403'd. A portal resource now mounts under its own group and resolves.
+
 ## v2.3.0
 
 - **Guard-aware permissions — completes the multi-portal story.** `admin-core:make Order --guard=merchant`

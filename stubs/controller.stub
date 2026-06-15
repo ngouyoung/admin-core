@@ -12,7 +12,7 @@ class DummyClassController extends WebController
     public function __construct(DummyClassService $service)
     {
         $this->viewPath = 'dummyModels.';
-        $this->routeBase = 'dummyModels.';
+        $this->routeBase = 'dummyModels.';__AC_ROUTE_PREFIX__
         $this->service = $service;
         $this->storeRequest = StoreDummyClassRequest::class;
         $this->updateRequest = UpdateDummyClassRequest::class;

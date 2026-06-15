@@ -12,6 +12,21 @@ npm install && npm run build
 
 ---
 
+## → v2.4.0 — One-flag portal resources (`--portal`)
+
+No breaking change. Prefer `--portal` over juggling `--menu` + `--guard`: it also mounts the routes in the
+portal, which `--guard` alone did not.
+
+```bash
+php artisan admin-core:make Order --portal=merchant
+```
+
+Generates the route module into `routes/Merchant/Modules/` with `merchant.order.*` route-names, sets the
+controller's `routePrefix` to `merchant.`, adds the item to `config('admin-core.menus.merchant')`, and gates
+on the `merchant` guard. The portal's route group (see `admin-core:portal`, or wire it yourself) must glob
+`routes/Merchant/Modules/*.php` inside a `->name('merchant.')->prefix('merchant')` group. Plain admin
+resources are unchanged — omit `--portal`.
+
 ## → v2.3.0 — Guard-aware permissions (separate-guard portals)
 
 No breaking change — opt in per resource with `--guard`. For a portal on its **own** auth guard (separate

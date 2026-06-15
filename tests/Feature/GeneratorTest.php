@@ -592,6 +592,31 @@ it('points filter-tabs at the enum column counting only displayed columns (passw
         ->not->toContain("data: 'secret'");           // password is not a table column
 });
 
+it('routes a resource into a portal with --portal (dir + route-names + controller prefix + guard)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--portal' => 'merchant',
+    ])->assertSuccessful();
+
+    // The route module lands in the portal's Modules dir, gated by the merchant guard.
+    expect(File::exists(base_path('routes/Merchant/Modules/gizmos.php')))->toBeTrue()
+        ->and(File::get(base_path('routes/Merchant/Modules/gizmos.php')))
+            ->toContain("Route::crud('gizmo', GizmoController::class, 'merchant')")
+            ->toContain('permission:list-gizmo,merchant');
+
+    // Controller redirects resolve inside the merchant route group, not admin.
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->toContain("\$this->routePrefix = 'merchant.';");
+
+    // Views use merchant.* route-names (no admin.* leakage).
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->toContain("route('merchant.gizmos.create')")
+        ->not->toContain("route('admin.gizmos");
+
+    File::deleteDirectory(base_path('routes/Merchant'));
+});
+
 it('scopes the route gates to a guard with --guard (multi-portal), default stays clean', function () {
     // A merchant-portal resource: the crud macro + every permission gate carry the guard.
     $this->artisan('admin-core:make', [

@@ -7,7 +7,7 @@
         <div class="col-sm-6"><h3 class="mb-0">DummyClasses — Trash</h3></div>
         <div class="col-sm-6">
             <ol class="breadcrumb float-sm-end">
-                <li class="breadcrumb-item"><a href="{{ route('admin.dummyModels.index') }}">DummyClasses</a></li>
+                <li class="breadcrumb-item"><a href="{{ route('__AC_RNS__dummyModels.index') }}">DummyClasses</a></li>
                 <li class="breadcrumb-item active">Trash</li>
             </ol>
         </div>
@@ -17,7 +17,7 @@
 @section('contents')
     <div class="card">
         <div class="card-header">
-            <a href="{{ route('admin.dummyModels.index') }}" class="{{ config('class.button.back') }}">
+            <a href="{{ route('__AC_RNS__dummyModels.index') }}" class="{{ config('class.button.back') }}">
                 <i class="{{ config('class.icon.back') }}"></i> Back
             </a>
         </div>
@@ -32,13 +32,13 @@
                         <td class="text-capitalize">{{ $item->name ?? $item->id }}</td>
                         <td>{{ $item->deleted_at }}</td>
                         <td>
-                            <form action="{{ route('admin.dummyModels.restore', $item->id) }}" method="POST" class="d-inline">
+                            <form action="{{ route('__AC_RNS__dummyModels.restore', $item->id) }}" method="POST" class="d-inline">
                                 @csrf @method('PUT')
                                 <button class="btn btn-sm btn-success" data-bs-toggle="tooltip" title="Restore">
                                     <i class="fas fa-trash-restore"></i>
                                 </button>
                             </form>
-                            <form action="{{ route('admin.dummyModels.forceDelete', $item->id) }}" method="POST"
+                            <form action="{{ route('__AC_RNS__dummyModels.forceDelete', $item->id) }}" method="POST"
                                   class="d-inline" onsubmit="return confirm('Permanently delete this record?')">
                                 @csrf @method('DELETE')
                                 <button class="{{ config('class.button.delete') }}" data-bs-toggle="tooltip" title="Delete permanently">

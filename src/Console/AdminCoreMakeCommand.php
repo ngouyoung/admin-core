@@ -24,6 +24,7 @@ class AdminCoreMakeCommand extends Command
                             {--api-only : Generate ONLY the JSON API (no web controller/views/routes) — add the web channel later by re-running without it}
                             {--menu= : Register the sidebar link in a named portal menu (config admin-core.menus.NAME) instead of the default}
                             {--guard= : Auth guard for the permissions + route gates (multi-portal, e.g. merchant). Defaults to the app guard.}
+                            {--portal= : Generate the resource INTO a portal (created by admin-core:portal): routes under routes/Portal/Modules with NAME. route-names, its guard + menu. Implies --guard/--menu=NAME.}
                             {--force : Overwrite existing files}';
 
     protected $description = 'Scaffold a full admin-core CRUD resource (model, service, controller, requests, routes, views, permissions).';
@@ -45,13 +46,22 @@ class AdminCoreMakeCommand extends Command
         $audit = $this->option('audit') || (bool) config('admin-core.generator.audit', false);
         $sortable = (bool) $this->option('sortable');
 
-        // Multi-portal: --guard scopes this resource's permissions + route gates to a non-default
-        // guard (e.g. merchant). $guard is used for permission creation; the suffix/arg are only
-        // emitted when the guard is explicitly given, so default-guard resources stay clean.
-        $guardOpt = $this->option('guard');
+        // Multi-portal. --portal=merchant is the one-flag way: it routes the resource INTO that
+        // portal (its Modules dir, `merchant.` route-names, the controller's route prefix, its
+        // menu) AND scopes permissions/gates to its guard. --guard/--menu remain low-level
+        // overrides. $guard is used for permission creation; the route suffix/arg are only
+        // emitted when a non-default guard is in play, so plain admin resources stay clean.
+        $portal = $this->option('portal') ? Str::kebab($this->option('portal')) : null;
+        $guardOpt = $this->option('guard') ?: $portal;
+        $menuName = $this->option('menu') ?: $portal;
         $guard = $guardOpt ?: config('admin-core.permission.guard', config('auth.defaults.guard', 'web'));
         $permSuffix = $guardOpt ? ",{$guardOpt}" : '';
         $crudGuardArg = $guardOpt ? ", '{$guardOpt}'" : '';
+        // Route-name prefix + module dir: a portal resource lives under `merchant.` in
+        // routes/Merchant/Modules; otherwise the configured admin prefix + the admin dir.
+        $routeNs = $portal ? "{$portal}." : config('admin-core.route.name_prefix', 'admin.');
+        $routePrefixLine = $portal ? "\n        \$this->routePrefix = '{$routeNs}';" : '';
+        $moduleDir = $portal ? 'routes/' . Str::studly($portal) . '/Modules' : 'routes/Web/Backend/Modules';
 
         // Adding a channel to an EXISTING resource? Infer the fields from its model so
         // you don't have to re-type --fields just to scaffold the API (or web) side —
@@ -169,6 +179,8 @@ class AdminCoreMakeCommand extends Command
             '__AC_HIDDEN__' => $fields->hidden(),
             '__AC_CRUD_GUARD__' => $crudGuardArg,
             '__AC_PERM_GUARD__' => $permSuffix,
+            '__AC_RNS__' => $routeNs,
+            '__AC_ROUTE_PREFIX__' => $routePrefixLine,
             '__AC_PK__' => $fields->primaryKey(),
             '__AC_MODEL_TRAITS__' => $fields->modelTraits(),
             '__AC_MODEL_USES__' => $fields->modelUses(),
@@ -231,7 +243,7 @@ class AdminCoreMakeCommand extends Command
         if ($web) {
             $files += [
                 'controller.stub' => app_path("Http/Controllers/Backend/{$class}Controller.php"),
-                'routes.stub' => base_path("routes/Web/Backend/Modules/{$snakePlural}.php"),
+                'routes.stub' => base_path("{$moduleDir}/{$snakePlural}.php"),
                 'views/index.stub' => resource_path("views/backend/pages/{$snakePlural}/index.blade.php"),
                 'views/show.stub' => resource_path("views/backend/pages/{$snakePlural}/show.blade.php"),
                 'views/create.stub' => resource_path("views/backend/pages/{$snakePlural}/create.blade.php"),
@@ -308,7 +320,7 @@ class AdminCoreMakeCommand extends Command
 
         $this->createPermissions($kebab, $plural, $guard);
         if ($web) {
-            $this->registerMenuItem($plural, $snakePlural, $kebab, $this->option('menu'));
+            $this->registerMenuItem($plural, $snakePlural, $kebab, $menuName, $routeNs);
         }
 
         $this->newLine();
@@ -332,10 +344,10 @@ class AdminCoreMakeCommand extends Command
      * admin-core::sidebar-menu component). Falls back to injecting Blade into the
      * static sidebar for installs that predate the data-driven menu. Idempotent.
      */
-    private function registerMenuItem(string $plural, string $snakePlural, string $kebab, ?string $menu = null): void
+    private function registerMenuItem(string $plural, string $snakePlural, string $kebab, ?string $menu = null, string $routeNs = 'admin.'): void
     {
         $label = \Illuminate\Support\Str::headline($plural);
-        $route = "admin.{$snakePlural}.index";
+        $route = "{$routeNs}{$snakePlural}.index";
         $config = config_path('admin-core.php');
         // Named portals append at `// admin-core:menu:<name>`; the default menu at `// admin-core:menu`.
         // The default marker is a *prefix* of the named ones, so match it with a boundary
@@ -351,7 +363,8 @@ class AdminCoreMakeCommand extends Command
                 if (str_contains($contents, "'{$route}'")) {
                     return; // already in the menu — idempotent
                 }
-                $entry = "['label' => '{$label}', 'route' => '{$route}', 'icon' => 'bi bi-circle', 'can' => 'list-{$kebab}', 'match' => 'admin/{$snakePlural}*'],";
+                $urlPrefix = rtrim($routeNs, '.');
+                $entry = "['label' => '{$label}', 'route' => '{$route}', 'icon' => 'bi bi-circle', 'can' => 'list-{$kebab}', 'match' => '{$urlPrefix}/{$snakePlural}*'],";
                 $contents = preg_replace_callback($markerRe, fn () => $entry . "\n        {$marker}", $contents, 1);
                 File::put($config, $contents);
                 $this->line('  <info>menu</info> added "' . $label . '" to config/admin-core.php (run config:clear if you cache config)');

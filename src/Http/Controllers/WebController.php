@@ -26,8 +26,15 @@ abstract class WebController extends BaseController
     /** Blade dot-path under config('admin-core.views.path_prefix'), e.g. 'assessments.users.' */
     protected string $viewPath = '';
 
-    /** Route-name base under config('admin-core.route.name_prefix'), e.g. 'assessments.users.' */
+    /** Route-name base under the route prefix, e.g. 'assessments.users.' */
     protected string $routeBase = '';
+
+    /**
+     * Route-name prefix. Defaults to config('admin-core.route.name_prefix') ('admin.'); a
+     * resource generated for another portal sets it explicitly (e.g. 'merchant.') so its
+     * redirects resolve inside that portal's route group rather than the admin one.
+     */
+    protected ?string $routePrefix = null;
 
     protected function view(string $file, array $data = [])
     {
@@ -36,7 +43,7 @@ abstract class WebController extends BaseController
 
     protected function routeName(string $action): string
     {
-        return config('admin-core.route.name_prefix') . $this->routeBase . $action;
+        return ($this->routePrefix ?? config('admin-core.route.name_prefix')) . $this->routeBase . $action;
     }
 
     protected function toIndex(): RedirectResponse

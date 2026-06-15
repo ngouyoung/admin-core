@@ -3,18 +3,18 @@
 @section('title', 'Edit DummyClass')
 
 @section('contents')
-    <x-admin-core::page-header title="Edit DummyClass" parent="DummyClasses" :parent-url="route('admin.dummyModels.index')" />
+    <x-admin-core::page-header title="Edit DummyClass" parent="DummyClasses" :parent-url="route('__AC_RNS__dummyModels.index')" />
 
     <div class="card">
         <div class="card-body">
-            <form action="{{ route('admin.dummyModels.update', $object->getRouteKey()) }}" method="POST"__AC_ENCTYPE__>
+            <form action="{{ route('__AC_RNS__dummyModels.update', $object->getRouteKey()) }}" method="POST"__AC_ENCTYPE__>
                 @csrf
                 @method('PUT')
                 @include('backend.pages.dummyModels.partials.form')
                 <div class="row">
                     <div class="col-md-8 offset-md-2">
                         <button type="submit" class="{{ config('class.button.update') }}">Update</button>
-                        <a href="{{ route('admin.dummyModels.index') }}" class="{{ config('class.button.cancel') }}">Cancel</a>
+                        <a href="{{ route('__AC_RNS__dummyModels.index') }}" class="{{ config('class.button.cancel') }}">Cancel</a>
                     </div>
                 </div>
             </form>

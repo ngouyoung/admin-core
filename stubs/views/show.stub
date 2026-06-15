@@ -3,13 +3,13 @@
 @section('title', 'DummyClass')
 
 @section('contents')
-    <x-admin-core::page-header title="DummyClass" parent="DummyClasses" :parent-url="route('admin.dummyModels.index')">
+    <x-admin-core::page-header title="DummyClass" parent="DummyClasses" :parent-url="route('__AC_RNS__dummyModels.index')">
         <x-slot:actions>
-            <a href="{{ route('admin.dummyModels.index') }}" class="{{ config('class.button.back') }}">
+            <a href="{{ route('__AC_RNS__dummyModels.index') }}" class="{{ config('class.button.back') }}">
                 <i class="{{ config('class.icon.back') }}"></i> Back
             </a>
             @can('edit-dummy-model')
-                <a href="{{ route('admin.dummyModels.edit', $object->getRouteKey()) }}" class="{{ config('class.button.edit') }}">
+                <a href="{{ route('__AC_RNS__dummyModels.edit', $object->getRouteKey()) }}" class="{{ config('class.button.edit') }}">
                     <i class="{{ config('class.icon.edit') }}"></i> Edit
                 </a>
             @endcan

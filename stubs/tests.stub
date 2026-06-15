@@ -43,8 +43,8 @@ class DummyClassTest extends TestCase
     {
         DummyClass::factory()->create();
 
-        $this->actingAs($this->actor())->get(route('admin.dummyModels.index'))->assertOk();
-        $this->actingAs($this->actor())->getJson(route('admin.dummyModels.getData'))->assertOk();
+        $this->actingAs($this->actor())->get(route('__AC_RNS__dummyModels.index'))->assertOk();
+        $this->actingAs($this->actor())->getJson(route('__AC_RNS__dummyModels.getData'))->assertOk();
     }
 
     public function test_store_persists_a_record(): void
@@ -52,7 +52,7 @@ class DummyClassTest extends TestCase
         $payload = DummyClass::factory()->make()->toArray();
 __AC_TEST_FILES__
         $this->actingAs($this->actor())
-            ->post(route('admin.dummyModels.store'), $payload)
+            ->post(route('__AC_RNS__dummyModels.store'), $payload)
             ->assertRedirect();
 
         $this->assertSame(1, DummyClass::count());
@@ -65,11 +65,11 @@ __AC_TEST_FILES__
         $payload = DummyClass::factory()->make()->toArray();
 __AC_TEST_FILES__
         $this->actingAs($this->actor())
-            ->put(route('admin.dummyModels.update', $object->getRouteKey()), $payload)
+            ->put(route('__AC_RNS__dummyModels.update', $object->getRouteKey()), $payload)
             ->assertRedirect();
 
         $this->actingAs($this->actor())
-            ->delete(route('admin.dummyModels.delete', $object->getRouteKey()))
+            ->delete(route('__AC_RNS__dummyModels.delete', $object->getRouteKey()))
             ->assertRedirect();
 
         $this->__AC_TEST_DELETE_ASSERT__;
@@ -82,7 +82,7 @@ __AC_TEST_FILES__
         }
 
         $this->actingAs($this->actor([]))
-            ->get(route('admin.dummyModels.index'))
+            ->get(route('__AC_RNS__dummyModels.index'))
             ->assertForbidden();
     }
 }

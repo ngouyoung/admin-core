@@ -6,7 +6,7 @@
     <x-admin-core::page-header title="DummyClasses">
         <x-slot:actions>
             @can('create-dummy-model')
-                <a href="{{ route('admin.dummyModels.create') }}" class="{{ config('class.button.create') }}">
+                <a href="{{ route('__AC_RNS__dummyModels.create') }}" class="{{ config('class.button.create') }}">
                     <i class="{{ config('class.icon.create') }}"></i> Add New
                 </a>
             @endcan
@@ -15,7 +15,7 @@
 
 __AC_FILTER_TABS__    <div class="card">
         <div class="card-header d-flex flex-wrap gap-1 align-items-center">
-            <a href="{{ route('admin.dummyModels.export') }}" class="btn btn-sm btn-outline-secondary">
+            <a href="{{ route('__AC_RNS__dummyModels.export') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-file-csv"></i> Export
             </a>
             @can('create-dummy-model')
@@ -42,7 +42,7 @@ __AC_SORT_PANEL__
     @can('create-dummy-model')
         <div class="modal fade" id="importModal" tabindex="-1" aria-hidden="true">
             <div class="modal-dialog">
-                <form action="{{ route('admin.dummyModels.import') }}" method="POST" enctype="multipart/form-data" class="modal-content">
+                <form action="{{ route('__AC_RNS__dummyModels.import') }}" method="POST" enctype="multipart/form-data" class="modal-content">
                     @csrf
                     <div class="modal-header">
                         <h5 class="modal-title">Import DummyClasses</h5>
