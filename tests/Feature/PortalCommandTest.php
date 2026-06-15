@@ -11,6 +11,20 @@ afterEach(function () {
     // Always remove the temp config fixture (a leftover breaks other suites via mergeConfigFrom).
     File::delete(config_path('admin-core.php'));
 
+    // The portal command writes a guard/provider into config/auth.php — strip the test ones,
+    // or they linger in the testbench config and confuse later runs / static analysis.
+    $auth = config_path('auth.php');
+    if (File::exists($auth)) {
+        $cleaned = preg_replace(
+            "/^\s*'(shop|shops|depot|depots)' => \[.*\],\n/m",
+            '',
+            File::get($auth),
+        );
+        if (is_string($cleaned)) {
+            File::put($auth, $cleaned);
+        }
+    }
+
     foreach (['Shop', 'Depot'] as $p) {
         $snake = \Illuminate\Support\Str::snake($p);
         File::delete(app_path("Models/{$p}.php"));

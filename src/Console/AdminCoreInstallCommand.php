@@ -34,6 +34,10 @@ class AdminCoreInstallCommand extends Command
 
         if ($access) {
             $this->copyStub('dashboard.blade.php.stub', resource_path('views/backend/dashboard.blade.php'));
+            // Notifications table (skip if the app — or a previous run — already has one).
+            if (! glob(database_path('migrations/*_create_notifications_table.php'))) {
+                $this->copyStub('notifications_table.php.stub', database_path('migrations/0001_01_01_000021_create_notifications_table.php'));
+            }
             $this->newLine();
             $this->info('Installing admin theme + access module…');
             $this->newLine();
@@ -118,16 +122,35 @@ class AdminCoreInstallCommand extends Command
         }
 
         if (str_contains($contents = File::get($web), 'admin-core:routes')) {
+            $changed = false;
+
             // Already wired. If this is now an --access install but the admin group isn't behind
             // `auth` (e.g. a minimal install came first), add it — otherwise a guest reaches the
             // dashboard and the user-aware layout 500s instead of redirecting to login.
             if ($this->option('access') && str_contains($contents, "Route::group(['prefix' => 'admin'")) {
-                File::put($web, str_replace(
+                $contents = str_replace(
                     "Route::group(['prefix' => 'admin'",
                     "Route::group(['middleware' => ['auth'], 'prefix' => 'admin'",
                     $contents,
-                ));
+                );
                 $this->line('  <info>updated</info> routes/web.php (admin route group now requires auth)');
+                $changed = true;
+            }
+
+            // Add the notification routes to an existing --access group (so re-running adopts the feature).
+            if ($this->option('access') && ! str_contains($contents, 'Route::adminCoreNotifications')) {
+                $contents = preg_replace(
+                    "/(Route::view\('\/', 'backend\.dashboard'\)->name\('dashboard'\);)/",
+                    "$1\n    Route::adminCoreNotifications();",
+                    $contents,
+                    1,
+                );
+                $this->line('  <info>updated</info> routes/web.php (added the notification routes)');
+                $changed = true;
+            }
+
+            if ($changed) {
+                File::put($web, $contents);
             } else {
                 $this->line('  <comment>exists</comment>  admin-core route group already in routes/web.php');
             }
@@ -136,12 +159,14 @@ class AdminCoreInstallCommand extends Command
         }
 
         $middleware = $this->option('access') ? "'middleware' => ['auth'], " : '';
+        // The notification routes need an authenticated user, so wire them only with --access.
+        $notifications = $this->option('access') ? "\n    Route::adminCoreNotifications();" : '';
 
         $block = <<<PHP
 
 // >>> admin-core:routes (managed by admin-core:install — do not edit the markers)
 Route::group([{$middleware}'prefix' => 'admin', 'as' => 'admin.'], function () {
-    Route::view('/', 'backend.dashboard')->name('dashboard');
+    Route::view('/', 'backend.dashboard')->name('dashboard');{$notifications}
 
     foreach (glob(base_path('routes/Web/Backend/Modules/*.php')) ?: [] as \$module) {
         require \$module;

@@ -12,6 +12,7 @@ use Ngos\AdminCore\Console\AdminCorePortalCommand;
 use Ngos\AdminCore\Console\AdminCoreReinstallCommand;
 use Ngos\AdminCore\Console\AdminCoreUninstallCommand;
 use Ngos\AdminCore\Console\AdminCoreVersionCommand;
+use Ngos\AdminCore\Http\Controllers\NotificationController;
 
 class AdminCoreServiceProvider extends ServiceProvider
 {
@@ -19,6 +20,7 @@ class AdminCoreServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/admin-core.php', 'admin-core');
         $this->registerCrudMacro();
+        $this->registerNotificationsMacro();
     }
 
     public function boot(): void
@@ -93,6 +95,25 @@ class AdminCoreServiceProvider extends ServiceProvider
                     Route::delete('ajaxDelete/{id}', 'ajaxDelete')->name('ajaxDelete');
                 });
             });
+        });
+    }
+
+    /**
+     * Route::adminCoreNotifications() — the current user's in-app notification routes
+     * (admin.notifications.index/read/readAll/destroy). Call it inside your admin route group.
+     */
+    protected function registerNotificationsMacro(): void
+    {
+        Route::macro('adminCoreNotifications', function () {
+            Route::controller(NotificationController::class)
+                ->prefix('notifications')
+                ->name('notifications.')
+                ->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('{id}/read', 'read')->name('read');
+                    Route::post('read-all', 'readAll')->name('readAll');
+                    Route::delete('{id}', 'destroy')->name('destroy');
+                });
         });
     }
 }

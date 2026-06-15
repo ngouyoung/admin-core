@@ -21,6 +21,7 @@ clean, branded **Bootstrap 5** theme.
   [reorder](#drag-to-reorder---sortable) · [soft-deletes](#soft-deletes--extras) · [audit](#audit-trail---audit)
 - [JSON API](#json-api---api) · [API token auth](#api-auth--token-login-admin-coreinstall---api-auth)
 - [Multi-portal](#multi-portal) — a separate-guard merchant/vendor area
+- [Notifications](#notifications) — in-app bell + notifications page
 - [UI & theme](#ui-components--theme) · [Config & commands](#lifecycle-commands)
 
 > Want the layer map? [`ARCHITECTURE.md`](ARCHITECTURE.md) — web + JSON API over one shared service, plus a
@@ -463,6 +464,35 @@ changing the name; single-guard apps never touch any of this.
 > **One guard, not separate logins?** If admin and merchant are the *same* users with different roles, skip
 > `--portal`/`--guard` entirely and just give each area a named menu — see
 > [`config('admin-core.menus')`](#ui-components--theme).
+
+## Notifications
+
+`--access` installs an in-app notification system on Laravel's database notifications: a **bell** in the top
+bar (`<x-admin-core::notifications-bell />`) with an unread badge and a recent-list dropdown, a full
+**notifications page** at `/admin/notifications`, and mark-read / mark-all-read / delete.
+
+Send one to any user — the notification's `toArray()` returns the fields the UI renders:
+
+```php
+$user->notify(new \App\Notifications\OrderShipped($order));
+
+// in the notification class:
+public function via($notifiable): array { return ['database']; }
+
+public function toArray($notifiable): array
+{
+    return [
+        'title'   => 'Order shipped',
+        'message' => "Order #{$this->order->id} is on its way.",
+        'url'     => route('admin.orders.show', $this->order), // followed when clicked
+        'icon'    => 'bi-truck',                                // any Bootstrap icon
+    ];
+}
+```
+
+The bell renders only where the routes exist (`Route::adminCoreNotifications()`, added to the admin group by
+`--access`) and the user is `Notifiable` — so it's safe everywhere. **Existing installs:** re-run
+`php artisan admin-core:install --access` to add the table, route and bell, then `php artisan migrate`.
 
 ## Lifecycle commands
 

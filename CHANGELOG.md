@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.7.0
+
+- **In-app notifications.** `--access` now ships a notifications system on Laravel's database notifications:
+  - a `<x-admin-core::notifications-bell />` component for the top bar (unread badge + recent dropdown),
+  - a notifications page (`/admin/notifications`) with mark-read / mark-all-read / delete,
+  - a `Route::adminCoreNotifications()` macro and a `NotificationController` (queries the notifications table
+    directly, so it works for any Notifiable user/guard), and the `notifications` table migration.
+  - Send one with `$user->notify(...)` where `toArray()` returns `title` / `message` / `url` / `icon`.
+  - The bell renders only when the routes exist and the user is Notifiable. **Existing installs:** re-run
+    `admin-core:install --access` to add the table/route/bell (it now patches an already-wired admin group).
+
 ## v2.6.6
 
 - **`admin-core:field` can no longer produce a duplicate-column migration.** Its idempotency check was
