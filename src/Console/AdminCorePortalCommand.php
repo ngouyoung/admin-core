@@ -35,6 +35,8 @@ class AdminCorePortalCommand extends Command
             'login.blade.stub' => resource_path("views/{$name}/auth/login.blade.php"),
             'layout.blade.stub' => resource_path("views/{$name}/layout.blade.php"),
             'dashboard.blade.stub' => resource_path("views/{$name}/dashboard.blade.php"),
+            'factory.stub' => database_path("factories/{$studly}Factory.php"),
+            'seeder.stub' => database_path("seeders/{$studly}Seeder.php"),
         ];
         // One create migration only (re-running never duplicates it).
         if (! glob(base_path("database/migrations/*_create_{$table}_table.php"))) {
@@ -57,7 +59,7 @@ class AdminCorePortalCommand extends Command
         $this->registerPortalConfig($name);
         $this->wirePortalRoutes($name, $studly);
 
-        $this->nextSteps($name, $studly);
+        $this->nextSteps($name, $studly, $table);
 
         return self::SUCCESS;
     }
@@ -174,15 +176,15 @@ PHP;
         $this->line("  <info>updated</info> routes/web.php (added the '{$name}' portal route group)");
     }
 
-    private function nextSteps(string $name, string $studly): void
+    private function nextSteps(string $name, string $studly, string $table): void
     {
         $this->newLine();
         $this->info("Portal '{$name}' scaffolded.");
         $this->line('  Next:');
-        $this->line("  1. <info>php artisan migrate</info>   (creates the {$studly} table)");
-        $this->line("  2. Create a {$studly} to log in with (tinker/seeder), and a '{$name}-admin' role on the '{$name}' guard if you use permissions.");
-        $this->line("  3. Generate resources into it: <info>php artisan admin-core:make Order --portal={$name}</info>");
-        $this->line("  4. Visit <info>/{$name}/login</info>.");
+        $this->line("  1. <info>php artisan migrate</info>   (creates the {$table} table)");
+        $this->line("  2. <info>php artisan db:seed --class={$studly}Seeder</info>   (a {$name}@example.com / password account + the '{$name}-admin' super role)");
+        $this->line("  3. Generate resources into it: <info>php artisan admin-core:make Order --portal={$name}</info> then re-run the seeder to grant the new permissions.");
+        $this->line("  4. Sign in at <info>/{$name}/login</info>.");
     }
 
     private function stub(string $name): string

@@ -14,12 +14,15 @@ npm install && npm run build
 
 ## → v2.5.0 — One-command portals (`admin-core:portal`)
 
-No breaking change — new command. Stand up a whole second portal in one go:
+No breaking change — new command. Stand up a whole second portal in one go (since v2.6.0, with a
+factory + seeder so you can log in immediately):
 
 ```bash
 php artisan admin-core:portal merchant
 php artisan migrate
+php artisan db:seed --class=MerchantSeeder      # merchant@example.com / password + merchant-admin super role
 php artisan admin-core:make Order --portal=merchant
+php artisan db:seed --class=MerchantSeeder      # re-run to grant the new resource's permissions
 ```
 
 It scaffolds the guard-scoped `Merchant` model + migration, a login + dashboard, a portal layout with the

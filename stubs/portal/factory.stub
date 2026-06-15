@@ -1,0 +1,21 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Models\__Portal__;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/** @extends Factory<__Portal__> */
+class __Portal__Factory extends Factory
+{
+    protected $model = __Portal__::class;
+
+    public function definition(): array
+    {
+        return [
+            'name' => fake()->name(),
+            'email' => fake()->unique()->safeEmail(),
+            'password' => 'password', // hashed by the model's 'hashed' cast
+        ];
+    }
+}

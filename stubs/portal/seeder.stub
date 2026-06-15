@@ -1,0 +1,30 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\__Portal__;
+use Illuminate\Database\Seeder;
+
+class __Portal__Seeder extends Seeder
+{
+    public function run(): void
+    {
+        // A default account to sign in with — change the password before production.
+        $user = __Portal__::firstOrCreate(
+            ['email' => '__portal__@example.com'],
+            ['name' => '__Portal__ Admin', 'password' => 'password'],
+        );
+
+        // Full access via a super role on the __portal__ guard (Spatie scopes by guard).
+        // Uses Spatie's configured models (so a custom Role/Permission — e.g. with a uuid — is honoured).
+        // Re-run after admin-core:make --portal=__portal__ to pick up new permissions.
+        if (config('admin-core.permission.enabled')) {
+            $roleModel = config('permission.models.role', \Spatie\Permission\Models\Role::class);
+            $permModel = config('permission.models.permission', \Spatie\Permission\Models\Permission::class);
+
+            $role = $roleModel::firstOrCreate(['name' => '__portal__-admin', 'guard_name' => '__portal__']);
+            $role->syncPermissions($permModel::where('guard_name', '__portal__')->get());
+            $user->assignRole($role);
+        }
+    }
+}

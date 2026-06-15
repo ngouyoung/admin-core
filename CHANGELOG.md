@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.6.0
+
+- **`admin-core:portal` now scaffolds a factory + seeder, so the portal is loggable out of the box.** After
+  `admin-core:portal merchant && php artisan migrate && php artisan db:seed --class=MerchantSeeder` you can
+  sign in at `/merchant/login` with `merchant@example.com` / `password` — the seeder creates that account
+  **and** a `merchant-admin` super role (on the `merchant` guard) granted every `merchant`-guard permission.
+  Re-run the seeder after `admin-core:make … --portal=merchant` to grant the new permissions. The seeder
+  resolves the Role/Permission classes via `config('permission.models.*')`, so custom models (e.g. uuid-keyed)
+  are honoured. Previously the portal scaffolded but had no user/role — you couldn't actually log in.
+
 ## v2.5.0
 
 - **New `admin-core:portal <name>` — scaffold a whole separate-guard portal in one command.** Stands up a

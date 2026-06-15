@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\File;
 
 afterEach(function () {
     File::delete(app_path('Models/Shop.php'));
+    File::delete(database_path('factories/ShopFactory.php'));
+    File::delete(database_path('seeders/ShopSeeder.php'));
     File::deleteDirectory(app_path('Http/Controllers/Shop'));
     File::deleteDirectory(resource_path('views/shop'));
     File::deleteDirectory(base_path('routes/Shop'));
@@ -42,6 +44,15 @@ it('scaffolds a separate-guard portal (model + login + dashboard)', function () 
 
     // A create migration for the portal's user table.
     expect(glob(database_path('migrations/*_create_shops_table.php')))->not->toBeEmpty();
+
+    // A seeder that makes the portal loggable out of the box: a default account + a
+    // guard-scoped super role granted that guard's permissions.
+    expect(File::get(database_path('seeders/ShopSeeder.php')))
+        ->toContain("'shop@example.com'")
+        ->toContain("'name' => 'shop-admin'")
+        ->toContain("'guard_name' => 'shop'")
+        ->toContain("where('guard_name', 'shop')");
+    expect(File::exists(database_path('factories/ShopFactory.php')))->toBeTrue();
 });
 
 it('is idempotent — existing portal files are skipped on a re-run', function () {
