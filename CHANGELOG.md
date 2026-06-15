@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.9.2
+
+- **Fix: `admin-core:field` now renders added boolean/date/enum columns in the list.** Adding a field to an
+  existing resource patched the model, requests, form, header and JS column — but never the controller's
+  `getData()`. So a later-added `boolean` showed a raw `true`/`false`, a `date` a raw ISO string, and an
+  `enum` an unstyled value, unlike a generated one. The command now also patches `getData()` (the
+  server-side renderer + `rawColumns`), so an added field looks identical to one created up front. Affects
+  fields added via `admin-core:field`.
+
 ## v2.9.1
 
 - **Fix: disabling permissions no longer 403s every create/update.** `config('admin-core.permission.enabled')

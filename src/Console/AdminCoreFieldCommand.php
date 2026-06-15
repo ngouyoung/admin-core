@@ -106,6 +106,7 @@ class AdminCoreFieldCommand extends Command
         $this->patchForm(resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"), $fs->formFields());
         $this->patchThead(resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"), $fields, $fs);
         $this->patchScripts(resource_path("views/backend/pages/{$snakePlural}/partials/scripts.blade.php"), $fields, $fs);
+        $this->patchController(app_path("Http/Controllers/Backend/{$class}Controller.php"), $fs, $fields);
         $this->patchShow(resource_path("views/backend/pages/{$snakePlural}/show.blade.php"), $fs->showRows());
         $this->patchFactory(database_path("factories/{$class}Factory.php"), $fs->factoryDefinition());
         $this->patchApiResource($class, $fs);
@@ -356,6 +357,60 @@ class AdminCoreFieldCommand extends Command
         if ($patched !== null && $patched !== $contents) {
             File::put($path, $patched);
             $this->line('  <info>patched</info> ' . $this->relative($path));
+        }
+    }
+
+    /**
+     * Patch the controller's getData(): add each new field's server-side renderer (Yes/No, formatted
+     * date, status badge, …) before the actions column, and whitelist HTML-emitting cells in rawColumns —
+     * so a field added later renders in the list exactly like a generated one (not a raw true/false/ISO).
+     */
+    private function patchController(string $path, FieldSet $fs, array $fields): void
+    {
+        if (! File::exists($path)) {
+            return;
+        }
+
+        $contents = File::get($path);
+        $before = $contents;
+
+        // 1. Insert the new renderers just before the actions column. preg_replace_callback (not
+        //    preg_replace) so the inserted "$row" closures aren't read as backreferences.
+        $cols = implode("\n", array_filter(array_map(fn ($f) => $fs->fieldDataColumn($f), $fields)));
+        if (trim($cols) !== '') {
+            $patched = preg_replace_callback(
+                "/(\n[ \t]*->addColumn\('actions')/",
+                fn ($m) => "\n" . $cols . $m[1],
+                $contents,
+                1,
+            );
+            if ($patched !== null) {
+                $contents = $patched;
+            }
+        }
+
+        // 2. Add HTML-emitting cells to rawColumns (boolean/enum — relations/uploads are skipped upstream).
+        $raw = [];
+        foreach ($fields as $f) {
+            if (in_array($f['type'], ['enum', 'boolean'], true)) {
+                $raw[] = "'{$f['name']}'";
+            }
+        }
+        if ($raw) {
+            $patched = preg_replace_callback(
+                '/(->rawColumns\(\[)([^\]]*)(\]\))/',
+                fn ($m) => $m[1] . ($m[2] === '' ? '' : rtrim($m[2]) . ', ') . implode(', ', $raw) . $m[3],
+                $contents,
+                1,
+            );
+            if ($patched !== null) {
+                $contents = $patched;
+            }
+        }
+
+        if ($contents !== $before) {
+            File::put($path, $contents);
+            $this->line('  <info>patched</info> ' . $this->relative($path) . ' (getData columns)');
         }
     }
 

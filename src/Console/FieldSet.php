@@ -1041,35 +1041,33 @@ BLADE;
             $lines[] = "            ->editColumn('name', fn (\$row) => '<span class=\"text-capitalize\">' . e(\$row->name) . '</span>')";
         }
         foreach ($this->fields as $f) {
-            if ($f['type'] === 'foreign') {
-                $lines[] = "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}?->name)";
-            }
-            if ($f['type'] === 'belongsToMany') {
-                $lines[] = "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(\$i->name ?? \$i->id) . '</span>')->implode(' '))";
-            }
-            if ($f['type'] === 'enum') {
-                $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\$row->{$f['name']}->value) . '</span>' : '')";
-            }
-            if ($f['type'] === 'boolean') {
-                // Match the show view's Yes/No rather than leaking a raw true/false into the list.
-                $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')";
-            }
-            if ($f['type'] === 'date') {
-                // The column is cast to Carbon; without this it serialises to a raw ISO string.
-                $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d'))";
-            }
-            if ($f['type'] === 'datetime') {
-                $lines[] = "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))";
-            }
-            if ($f['type'] === 'image') {
-                $lines[] = "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . asset('storage/' . \$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')";
-            }
-            if ($f['type'] === 'file') {
-                $lines[] = "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<a href=\"' . asset('storage/' . \$row->{$f['name']}) . '\" target=\"_blank\">file</a>' : '')";
+            if ($line = $this->fieldDataColumn($f)) {
+                $lines[] = $line;
             }
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * The getData() addColumn/editColumn line for one field, or null when the cell needs no
+     * server-side render. Shared by the generator and `admin-core:field` so a field added later
+     * renders in the list exactly like a generated one (Yes/No, formatted date, status badge, …).
+     */
+    public function fieldDataColumn(array $f): ?string
+    {
+        return match ($f['type']) {
+            'foreign' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}?->name)",
+            'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(\$i->name ?? \$i->id) . '</span>')->implode(' '))",
+            // Match the show view's status badge / Yes-No / formatted date rather than leaking a raw value.
+            'enum' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\$row->{$f['name']}->value) . '</span>' : '')",
+            'boolean' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')",
+            'date' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d'))",
+            'datetime' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))",
+            'image' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . asset('storage/' . \$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')",
+            'file' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<a href=\"' . asset('storage/' . \$row->{$f['name']}) . '\" target=\"_blank\">file</a>' : '')",
+            default => null,
+        };
     }
 
     /** Read-only detail rows for the show view. */

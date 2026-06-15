@@ -72,6 +72,12 @@ it('adds new fields across migration, model, requests, views and factory', funct
         ->toContain("{data: 'status', name: 'status'}")
         ->toContain("{data: 'note', name: 'note'}");
 
+    // Controller getData: the enum gains its status-badge renderer + a rawColumns entry, so a field
+    // added later renders in the list like a generated one (not a raw value). text needs neither.
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->toContain("->editColumn('status', fn (\$row) => \$row->status")
+        ->toMatch("/->rawColumns\(\[[^\]]*'status'[^\]]*\]\)/");
+
     // Show (detail) view: a row per new field, above the Created/timestamps row.
     $show = File::get(resource_path('views/backend/pages/gizmos/show.blade.php'));
     expect($show)
@@ -83,6 +89,23 @@ it('adds new fields across migration, model, requests, views and factory', funct
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))->toContain('name="status"');
     expect(File::get(database_path('factories/GizmoFactory.php')))->toContain('GizmoStatus::cases()');
     expect(File::exists(app_path('Enums/GizmoStatus.php')))->toBeTrue();
+});
+
+it('renders an added boolean/date in the list (patches the controller getData, like the generator)', function () {
+    makeGizmo();
+
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'active:boolean, born_on:date?'])
+        ->assertSuccessful();
+
+    $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    expect($controller)
+        ->toContain("->editColumn('active', fn (\$row) => \$row->active") // Yes/No badge, not raw true/false
+        ->toContain("->editColumn('born_on', fn (\$row) => \$row->born_on?->format('Y-m-d'))")
+        ->toMatch("/->rawColumns\(\[[^\]]*'active'[^\]]*\]\)/"); // boolean cell emits HTML
+
+    // Generated PHP stays valid after the surgical patch.
+    expect(\Illuminate\Support\Facades\Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')))->successful())
+        ->toBeTrue();
 });
 
 it('adds the Rule import when a unique field is added to a request that lacked it', function () {
