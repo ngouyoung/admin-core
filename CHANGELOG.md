@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.6.1
+
+- **Fix: `admin-core:portal` now writes the per-guard super-role config correctly.** Two bugs in the
+  `config('admin-core.permission.guards')` wiring: the idempotency check matched the *menu* entry the
+  command also adds (`'merchant' => [`), so the guards entry was skipped — on any real config the super-role
+  config wasn't written **at all**; and the insertion only handled an empty `guards => []`, so a **second**
+  portal couldn't be added. Now keyed on the guards entry specifically and handles empty *and* populated
+  arrays, so multiple portals wire cleanly. (The seeder already granted access, so portals still worked;
+  this makes the `--portal` auto-grant config correct too.)
+
 ## v2.6.0
 
 - **`admin-core:portal` now scaffolds a factory + seeder, so the portal is loggable out of the box.** After

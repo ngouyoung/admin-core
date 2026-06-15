@@ -8,14 +8,20 @@ use Illuminate\Support\Facades\File;
  */
 
 afterEach(function () {
-    File::delete(app_path('Models/Shop.php'));
-    File::delete(database_path('factories/ShopFactory.php'));
-    File::delete(database_path('seeders/ShopSeeder.php'));
-    File::deleteDirectory(app_path('Http/Controllers/Shop'));
-    File::deleteDirectory(resource_path('views/shop'));
-    File::deleteDirectory(base_path('routes/Shop'));
-    foreach (glob(database_path('migrations/*_create_shops_table.php')) ?: [] as $m) {
-        File::delete($m);
+    // Always remove the temp config fixture (a leftover breaks other suites via mergeConfigFrom).
+    File::delete(config_path('admin-core.php'));
+
+    foreach (['Shop', 'Depot'] as $p) {
+        $snake = \Illuminate\Support\Str::snake($p);
+        File::delete(app_path("Models/{$p}.php"));
+        File::delete(database_path("factories/{$p}Factory.php"));
+        File::delete(database_path("seeders/{$p}Seeder.php"));
+        File::deleteDirectory(app_path("Http/Controllers/{$p}"));
+        File::deleteDirectory(resource_path("views/{$snake}"));
+        File::deleteDirectory(base_path("routes/{$p}"));
+        foreach (glob(database_path("migrations/*_create_{$snake}s_table.php")) ?: [] as $m) {
+            File::delete($m);
+        }
     }
 });
 
@@ -53,6 +59,23 @@ it('scaffolds a separate-guard portal (model + login + dashboard)', function () 
         ->toContain("'guard_name' => 'shop'")
         ->toContain("where('guard_name', 'shop')");
     expect(File::exists(database_path('factories/ShopFactory.php')))->toBeTrue();
+});
+
+it('wires multiple portals into the config (menu marker + per-guard super role)', function () {
+    $cfg = config_path('admin-core.php');
+    File::put($cfg, "<?php\n\nreturn [\n    'menus' => [\n    ],\n    'permission' => [\n        'enabled' => true,\n        'guards' => [],\n    ],\n];\n");
+
+    $this->artisan('admin-core:portal', ['name' => 'shop'])->assertSuccessful();
+    $this->artisan('admin-core:portal', ['name' => 'depot'])->assertSuccessful();
+
+    expect(File::get($cfg))
+        ->toContain('// admin-core:menu:shop')
+        ->toContain('// admin-core:menu:depot')
+        ->toContain("'shop' => ['super_role' => 'shop-admin']")     // first portal
+        ->toContain("'depot' => ['super_role' => 'depot-admin']");  // second portal — was the bug
+
+    // the edited config must still be valid PHP (cleanup runs in afterEach)
+    expect(is_array(require $cfg))->toBeTrue();
 });
 
 it('is idempotent — existing portal files are skipped on a re-run', function () {

@@ -117,9 +117,19 @@ class AdminCorePortalCommand extends Command
             $contents = preg_replace('/(\x27menus\x27 => \[\n)/', '$1' . $block, $contents, 1);
         }
 
-        // Give the portal a super role on its own guard (Spatie requires same-guard).
-        if (! str_contains($contents, "'{$name}' => [") && preg_match('/(\x27guards\x27 => \[)\]/', $contents)) {
-            $contents = preg_replace('/(\x27guards\x27 => \[)\]/', "$1['{$name}' => ['super_role' => '{$name}-admin']]", $contents, 1);
+        // Give the portal a super role on its own guard (Spatie requires same-guard). Handle
+        // both an empty `'guards' => []` (first portal — normalise to multi-line) and an already
+        // populated `'guards' => [` block (2nd+ portal — insert another entry), so multiple
+        // portals all wire correctly.
+        // Idempotency must key on the guards *entry* specifically — the menu block above also
+        // adds `'<name>' => [`, which would otherwise make us think the guard is already wired.
+        if (! str_contains($contents, "'{$name}' => ['super_role'")) {
+            $entry = "            '{$name}' => ['super_role' => '{$name}-admin'],\n";
+            if (preg_match('/\x27guards\x27 => \[\]/', $contents)) {
+                $contents = preg_replace('/(\x27guards\x27 => \[)\]/', "\$1\n{$entry}        ]", $contents, 1);
+            } elseif (preg_match('/\x27guards\x27 => \[\n/', $contents)) {
+                $contents = preg_replace('/(\x27guards\x27 => \[\n)/', "\$1{$entry}", $contents, 1);
+            }
         }
 
         if ($contents === $original) {
