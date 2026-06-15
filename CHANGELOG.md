@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.9.3
+
+- **Fix: date/datetime fields now load their value on the edit form.** The inputs rendered
+  `value="{{ old('col', $object?->col) }}"`, but the cast makes `$object->col` a Carbon whose string form
+  (`Y-m-d H:i:s`) is rejected by `<input type="date">` (wants `Y-m-d`) and `type="datetime-local"` (wants
+  `Y-m-d\TH:i`) — so the field showed **empty** when editing an existing record. The value is now formatted
+  to each input's shape (`old()` already holds the right shape after a validation error). Affects newly
+  generated / `admin-core:field`-added date/datetime fields; for an existing form, format the default, e.g.
+  `old('col', $object?->col?->format('Y-m-d'))`.
+
 ## v2.9.2
 
 - **Fix: `admin-core:field` now renders added boolean/date/enum columns in the list.** Adding a field to an

@@ -56,6 +56,17 @@ it('renders boolean and date columns in the list (not raw true/false or ISO stri
     expect($f->rawColumns())->toContain("'active'");
 });
 
+it('formats date/datetime form values to the shape the HTML inputs parse (so they load on edit)', function () {
+    $form = fs('born_on:date?, start_at:datetime?')->formFields();
+
+    // A raw Carbon ("Y-m-d H:i:s") is rejected by these inputs; format to Y-m-d / Y-m-d\TH:i.
+    expect($form)
+        ->toContain('type="date"')
+        ->toContain("old('born_on', \$object?->born_on?->format('Y-m-d'))")
+        ->toContain('type="datetime-local"')
+        ->toContain("old('start_at', \$object?->start_at?->format('Y-m-d\\TH:i'))");
+});
+
 it('builds a foreign key with belongsTo + exists + eager load', function () {
     $f = fs('category_id:foreign');
     expect($f->migrationColumns())->toContain("foreignId('category_id')");
