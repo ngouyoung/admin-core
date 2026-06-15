@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.10.1
+
+- **Clearer error when API auth isn't configured.** The `--api-auth` login proxy returned a generic
+  `401 "credentials are incorrect"` for *any* `/oauth/token` failure — so a missing Passport password client
+  (a common setup miss) looked like a wrong password. `login()` now checks the client config up front and, if
+  absent, returns an actionable message: run `php artisan passport:client --password` and set
+  `PASSPORT_PASSWORD_CLIENT_ID` / `PASSPORT_PASSWORD_CLIENT_SECRET`. Affects newly scaffolded `--api-auth`.
+
 ## v2.10.0
 
 - **Portal resources now render in their portal's layout.** A `--portal=merchant` resource's views hardcoded

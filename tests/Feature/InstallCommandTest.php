@@ -159,7 +159,10 @@ it('scaffolds Passport API auth with --api-auth', function () {
     // Controller + provider published, provider registered.
     expect(File::get(app_path('Http/Controllers/Api/AuthController.php')))
         ->toContain('class AuthController')
-        ->toContain("Request::create('/oauth/token', 'POST'");
+        ->toContain("Request::create('/oauth/token', 'POST'")
+        // Guards the common misconfig: a missing password client returns a clear error, not a misleading 401.
+        ->toContain('API auth is not configured')
+        ->toContain('password_client_id');
     expect(File::get(app_path('Providers/ApiAuthServiceProvider.php')))
         ->toContain('Passport::enablePasswordGrant()')
         ->toContain('tokensExpireIn');

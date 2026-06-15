@@ -25,6 +25,16 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        // Fail loudly when the password client isn't wired up — otherwise Passport returns
+        // invalid_client and the generic 401 below would mislead you into thinking the email/
+        // password were wrong. Run `php artisan passport:client --password` and set the env vars.
+        if (! config('admin-core.api.password_client_id') || ! config('admin-core.api.password_client_secret')) {
+            return response()->json([
+                'message' => 'API auth is not configured: run `php artisan passport:client --password` and set '
+                    . 'PASSPORT_PASSWORD_CLIENT_ID / PASSPORT_PASSWORD_CLIENT_SECRET in .env.',
+            ], 500);
+        }
+
         // Dispatch the password grant in-process (no nested HTTP call to self).
         $tokenRequest = Request::create('/oauth/token', 'POST', [
             'grant_type' => 'password',
