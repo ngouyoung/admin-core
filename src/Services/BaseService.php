@@ -13,9 +13,10 @@ use Illuminate\Database\Eloquent\Model;
  * controllers, jobs, commands or tests, and signals "not found" with a native
  * ModelNotFoundException (→ 404) rather than a magic string.
  *
- * query() is the single read chokepoint — find/update/delete all flow through it,
- * so a single query() override in a host base service (e.g. a tenant_id scope)
- * covers every list, lookup, update and delete across the admin and the API.
+ * query() is the single read chokepoint — find, update, delete, trash, restore,
+ * force-delete and reorder all flow through it, so a single query() override in a
+ * host base service (e.g. a tenant_id scope) covers every read AND write across the
+ * admin and the API — you can't reach a row outside your scope by any path.
  */
 abstract class BaseService
 {
@@ -56,19 +57,25 @@ abstract class BaseService
 
     public function trashedQuery(array|string|null $relation = null): Builder
     {
-        $query = $relation ? $this->model->with($relation) : $this->model->newQuery();
-
-        return $query->onlyTrashed();
+        // Route through query() so a query() override (e.g. a tenant scope) also covers the trash view.
+        return $this->query($relation)->onlyTrashed();
     }
 
     public function restore(int|string $id): void
     {
-        $this->model->onlyTrashed()->where($this->model->getRouteKeyName(), $id)->firstOrFail()->restore();
+        $this->findTrashed($id)->restore();
     }
 
     public function forceDelete(int|string $id): void
     {
-        $this->model->onlyTrashed()->where($this->model->getRouteKeyName(), $id)->firstOrFail()->forceDelete();
+        $this->findTrashed($id)->forceDelete();
+    }
+
+    /** Look up a soft-deleted record by route key, honouring any query() scope (so you can't
+        restore/force-delete a record outside your scope — e.g. another tenant's). */
+    protected function findTrashed(int|string $id): Model
+    {
+        return $this->query()->onlyTrashed()->where($this->model->getRouteKeyName(), $id)->firstOrFail();
     }
 
     /** Persist a new order: each (route-key) id's `sort` becomes its 1-based position. */
@@ -76,7 +83,8 @@ abstract class BaseService
     {
         $key = $this->model->getRouteKeyName();
         foreach (array_values($ids) as $position => $id) {
-            $this->model->newQuery()->where($key, $id)->update(['sort' => $position + 1]);
+            // Scoped through query() so a reorder can't write `sort` onto rows outside the scope.
+            $this->query()->where($key, $id)->update(['sort' => $position + 1]);
         }
     }
 }

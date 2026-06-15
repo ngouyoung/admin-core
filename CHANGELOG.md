@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.8.2
+
+- **Fix: `query()` scope now covers the trash, restore, force-delete and reorder paths too.** `BaseService`
+  promises that one `query()` override (e.g. a `tenant_id` scope) gates every read and write — but
+  `trashedQuery()`, `restore()`, `forceDelete()` and `reorder()` queried the bare model, bypassing it. A
+  scoped service could therefore list, restore, force-delete or reorder rows **outside its scope** (e.g.
+  another tenant's soft-deleted records). They now all route through `query()`, so the scope holds on every
+  path. No API change; override `query()` exactly as before.
+
 ## v2.8.1
 
 - **Create / update / delete now confirm.** Those actions (and soft-delete restore/force-delete) previously

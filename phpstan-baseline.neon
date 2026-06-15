@@ -25,13 +25,13 @@ parameters:
 			path: src/Http/Controllers/WebController.php
 
 		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\<Illuminate\\Database\\Eloquent\\Model\>\:\:onlyTrashed\(\)\.$#'
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Builder\:\:onlyTrashed\(\)\.$#'
 			identifier: method.notFound
-			count: 1
+			count: 2
 			path: src/Services/BaseService.php
 
 		-
-			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:onlyTrashed\(\)\.$#'
+			message: '#^Call to an undefined method Illuminate\\Database\\Eloquent\\Model\:\:restore\(\)\.$#'
 			identifier: method.notFound
-			count: 2
+			count: 1
 			path: src/Services/BaseService.php
