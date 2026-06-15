@@ -166,12 +166,13 @@ The `--access` kit now ships a complete admin shell beyond the access screens:
   permission or its `route` doesn't exist (so menus for un-installed features vanish on their own), and
   empty section headers are pruned. `admin-core:make` appends the new resource there — no hand-editing
   Blade. (Older installs with the static sidebar still work: the generator falls back to injecting the link.)
-- **Multi-portal** — a second portal (merchant, vendor, …) gets its own `config('admin-core.menus.<name>')`,
-  rendered with `<x-admin-core::sidebar-menu menu="merchant" guard="merchant" />`. The `guard` makes the
-  menu's permission checks run against *that* portal's user. Generate straight into a portal **on its own
-  auth guard** with `admin-core:make Order --menu=merchant --guard=merchant` — permissions are created on
-  the `merchant` guard and the routes gate on it (`permission:list-order,merchant`), so menu, permissions
-  and routes all agree. Single-guard apps just omit `--guard`. See UPGRADING for the per-guard super-role config.
+- **Multi-portal** — stand up a second portal (merchant, vendor, …) **in one command**:
+  `php artisan admin-core:portal merchant` scaffolds its own-guard user model + migration, login + dashboard,
+  route group, and menu/permission config. Then `admin-core:make Order --portal=merchant` generates straight
+  into it: routes under `routes/Merchant/Modules` with `merchant.*` names, permissions + gates on the
+  `merchant` guard, and a `menus.merchant` entry rendered by `<x-admin-core::sidebar-menu menu="merchant"
+  guard="merchant" />` (filtered against that portal's user). Single-guard apps just don't use it — nothing
+  changes. See UPGRADING for details.
 - **Show / detail view** — every resource gets a read-only `show` page + a View button in the table.
 
 ### Every list comes with export, import & bulk delete

@@ -1,0 +1,24 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Spatie\Permission\Traits\HasRoles;
+
+class __Portal__ extends Authenticatable
+{
+    use HasFactory, HasRoles;
+
+    /** Scope this model's roles/permissions to the portal's guard (Spatie). */
+    protected string $guard_name = '__portal__';
+
+    protected $fillable = ['name', 'email', 'password'];
+
+    protected $hidden = ['password', 'remember_token'];
+
+    protected function casts(): array
+    {
+        return ['password' => 'hashed'];
+    }
+}

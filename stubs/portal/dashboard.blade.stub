@@ -1,0 +1,12 @@
+@extends('__portal__.layout')
+
+@section('title', '__Portal__ Dashboard')
+
+@section('content')
+    <h1 class="h3 mb-3">Welcome, {{ auth('__portal__')->user()->name }}</h1>
+    <p class="text-muted">
+        This is the <strong>__Portal__</strong> portal. Generate resources into it with
+        <code>php artisan admin-core:make Order --portal=__portal__</code> — they appear in the
+        menu and routes above, scoped to the <code>__portal__</code> guard.
+    </p>
+@endsection

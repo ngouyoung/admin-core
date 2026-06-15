@@ -12,6 +12,23 @@ npm install && npm run build
 
 ---
 
+## → v2.5.0 — One-command portals (`admin-core:portal`)
+
+No breaking change — new command. Stand up a whole second portal in one go:
+
+```bash
+php artisan admin-core:portal merchant
+php artisan migrate
+php artisan admin-core:make Order --portal=merchant
+```
+
+It scaffolds the guard-scoped `Merchant` model + migration, a login + dashboard, a portal layout with the
+merchant menu, and wires `config/auth.php` (guard + provider), `routes/web.php` (the `merchant` route group
+globbing `routes/Merchant/Modules`), and `config/admin-core.php` (the `menus.merchant` + super-role config).
+Then log in at `/merchant/login`. **Note:** the config wiring needs the current published config — if
+`config/admin-core.php` predates v2.2, the command tells you to re-publish (or add the menu by hand). For
+full sidebar styling, publish the admin-core theme (`npm run build`); the scaffold uses Bootstrap via CDN.
+
 ## → v2.4.0 — One-flag portal resources (`--portal`)
 
 No breaking change. Prefer `--portal` over juggling `--menu` + `--guard`: it also mounts the routes in the

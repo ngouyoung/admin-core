@@ -8,6 +8,7 @@ use Illuminate\Support\ServiceProvider;
 use Ngos\AdminCore\Console\AdminCoreFieldCommand;
 use Ngos\AdminCore\Console\AdminCoreInstallCommand;
 use Ngos\AdminCore\Console\AdminCoreMakeCommand;
+use Ngos\AdminCore\Console\AdminCorePortalCommand;
 use Ngos\AdminCore\Console\AdminCoreReinstallCommand;
 use Ngos\AdminCore\Console\AdminCoreUninstallCommand;
 use Ngos\AdminCore\Console\AdminCoreVersionCommand;
@@ -29,6 +30,7 @@ class AdminCoreServiceProvider extends ServiceProvider
                 AdminCoreInstallCommand::class,
                 AdminCoreMakeCommand::class,
                 AdminCoreFieldCommand::class,
+                AdminCorePortalCommand::class,
                 AdminCoreReinstallCommand::class,
                 AdminCoreUninstallCommand::class,
                 AdminCoreVersionCommand::class,

@@ -1,0 +1,14 @@
+<?php
+
+namespace App\Http\Controllers\__Portal__;
+
+use App\Http\Controllers\Controller;
+use Illuminate\View\View;
+
+class DashboardController extends Controller
+{
+    public function index(): View
+    {
+        return view('__portal__.dashboard');
+    }
+}

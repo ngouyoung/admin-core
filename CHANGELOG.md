@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.5.0
+
+- **New `admin-core:portal <name>` — scaffold a whole separate-guard portal in one command.** Stands up a
+  second admin area (merchant, vendor, …) end-to-end:
+  - a guard-scoped user model (`App\Models\Merchant`, `$guard_name`, hashed/hidden password) + migration;
+  - a working login (guard-aware `LoginController` + standalone login view) and a guarded dashboard;
+  - a portal layout that renders the portal's permission-filtered menu (`<x-admin-core::sidebar-menu
+    menu="merchant" guard="merchant" />`);
+  - registers the `merchant` guard + `merchants` provider in `config/auth.php`, a `routes/web.php` route
+    group (`prefix/name 'merchant'`, `auth:merchant`, globbing `routes/Merchant/Modules/*.php`), and the
+    `menus.merchant` + per-guard super-role config.
+  - Then `admin-core:make Order --portal=merchant` (v2.4.0) generates straight into it. Idempotent.
+
 ## v2.4.0
 
 - **`admin-core:make --portal=merchant` — generate a resource *into* a portal, end-to-end.** One flag now
