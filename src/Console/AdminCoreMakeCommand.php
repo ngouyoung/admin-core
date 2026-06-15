@@ -345,14 +345,14 @@ class AdminCoreMakeCommand extends Command
 
                 return;
             }
+        }
 
-            if ($menu !== null) {
-                // Asked for a named portal menu but its marker is missing — don't silently
-                // fall back to the default menu/sidebar; tell the user where to add it.
-                $this->warn("  menu: no `{$marker}` marker in config/admin-core.php — add the resource to the '{$menu}' menu by hand, or add the marker inside config('admin-core.menus.{$menu}').");
+        // A named portal menu lives in config only — never fall back to the default Blade
+        // sidebar (that would put the resource in the wrong portal). Tell the user instead.
+        if ($menu !== null) {
+            $this->warn("  menu: couldn't add to the '{$menu}' menu — add a `{$marker}` marker inside config('admin-core.menus.{$menu}') in config/admin-core.php (publish the config first if it's missing).");
 
-                return;
-            }
+            return;
         }
 
         $this->injectSidebarBladeLink($label, $snakePlural);

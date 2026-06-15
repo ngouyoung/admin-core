@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.2.1
+
+- **Fix: `admin-core:make --menu=<name>` no longer leaks into the default sidebar.** When the named menu
+  couldn't be found (config not published, or no `// admin-core:menu:<name>` marker), the resource silently
+  fell through to the default Blade sidebar injection — putting it in the wrong portal. It now warns and
+  leaves the default sidebar untouched. The default menu (no `--menu`) still falls back as before.
+
 ## v2.2.0
 
 - **Multi-portal menus.** The sidebar now supports more than one portal (admin + merchant + …):
