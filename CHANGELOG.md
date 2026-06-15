@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.9.4
+
+- **Audit log now records restores.** `LogsActivity` logged `created`/`updated`/`deleted` but not `restored`,
+  so un-deleting a soft-deleted record left no trace ("who recovered this?" was unanswerable). It now logs a
+  `restored` entry too. This lives in the package trait, so existing audited resources pick it up on update —
+  no regeneration needed. (The hook is inert on models without SoftDeletes.)
+
 ## v2.9.3
 
 - **Fix: date/datetime fields now load their value on the edit form.** The inputs rendered

@@ -11,6 +11,7 @@ beforeEach(function () {
         $table->id();
         $table->string('name');
         $table->string('secret')->nullable();
+        $table->softDeletes();
         $table->timestamps();
     });
 
@@ -37,6 +38,9 @@ it('logs created, updated and deleted activity', function () {
 
     $widget->delete();
     expect(ActivityLog::where('description', 'deleted')->count())->toBe(1);
+
+    $widget->restore();
+    expect(ActivityLog::where('description', 'restored')->count())->toBe(1); // un-delete is audited too
 });
 
 it('never logs a password/hashed column (even when not named "password")', function () {

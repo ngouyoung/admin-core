@@ -3,11 +3,13 @@
 namespace Ngos\AdminCore\Tests\Fixtures;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Ngos\AdminCore\Concerns\LogsActivity;
 
 class AuditedWidget extends Model
 {
     use LogsActivity;
+    use SoftDeletes;
 
     protected $table = 'widgets';
 

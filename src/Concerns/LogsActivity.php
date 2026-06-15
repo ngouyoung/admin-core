@@ -20,6 +20,9 @@ trait LogsActivity
         static::created(fn ($model) => $model->recordActivity('created'));
         static::updated(fn ($model) => $model->recordActivity('updated'));
         static::deleted(fn ($model) => $model->recordActivity('deleted'));
+        // 'restored' only ever fires for SoftDeletes models; harmless (never dispatched) otherwise.
+        // Without it, un-deleting a record left no audit trail.
+        static::restored(fn ($model) => $model->recordActivity('restored'));
     }
 
     public function recordActivity(string $description): void
