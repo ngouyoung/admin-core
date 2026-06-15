@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Sign in | {{ setting('app_name', config('app.name')) }}</title>
-    @vite(['resources/js/app.js'])
+    {{-- Load the built theme when available; don't crash on a fresh install before `npm run build`. --}}
+    @if (file_exists(public_path('hot')) || file_exists(public_path('build/manifest.json')))
+        @vite(['resources/js/app.js'])
+    @endif
 </head>
 <body>
 <div class="ac-auth">

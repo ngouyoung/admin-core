@@ -23,7 +23,12 @@
         })();
     </script>
 
-    @vite(['resources/js/app.js'])
+    {{-- Load the built theme when it's available (Vite dev server running, or `npm run build` done);
+         otherwise render without it instead of throwing ViteManifestNotFoundException on a fresh
+         install. Run `npm install && npm run build` for the full admin-core theme. --}}
+    @if (file_exists(public_path('hot')) || file_exists(public_path('build/manifest.json')))
+        @vite(['resources/js/app.js'])
+    @endif
     @stack('style')
 </head>
 <body>

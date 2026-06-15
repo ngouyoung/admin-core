@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.6.2
+
+- **Fix: a fresh `admin-core:install --access` no longer crashes with `ViteManifestNotFoundException`.** The
+  published layout + login hard-called `@vite(['resources/js/app.js'])`, so the first page load threw before
+  `npm run build` had run (e.g. when the install's build step was declined or non-interactive). The views now
+  emit `@vite` only when the assets are available (the Vite dev-server `hot` file or a built
+  `public/build/manifest.json`), and render without the theme otherwise. Run `npm install && npm run build`
+  for the full styling.
+
 ## v2.6.1
 
 - **Fix: `admin-core:portal` now writes the per-guard super-role config correctly.** Two bugs in the
