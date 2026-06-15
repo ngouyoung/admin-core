@@ -117,8 +117,21 @@ class AdminCoreInstallCommand extends Command
             return;
         }
 
-        if (str_contains(File::get($web), 'admin-core:routes')) {
-            $this->line('  <comment>exists</comment>  admin-core route group already in routes/web.php');
+        if (str_contains($contents = File::get($web), 'admin-core:routes')) {
+            // Already wired. If this is now an --access install but the admin group isn't behind
+            // `auth` (e.g. a minimal install came first), add it — otherwise a guest reaches the
+            // dashboard and the user-aware layout 500s instead of redirecting to login.
+            if ($this->option('access') && str_contains($contents, "Route::group(['prefix' => 'admin'")) {
+                File::put($web, str_replace(
+                    "Route::group(['prefix' => 'admin'",
+                    "Route::group(['middleware' => ['auth'], 'prefix' => 'admin'",
+                    $contents,
+                ));
+                $this->line('  <info>updated</info> routes/web.php (admin route group now requires auth)');
+            } else {
+                $this->line('  <comment>exists</comment>  admin-core route group already in routes/web.php');
+            }
+
             return;
         }
 

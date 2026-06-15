@@ -9,14 +9,17 @@
         <span class="ac-brand-text">{{ setting('app_name', config('app.name')) }}</span>
     </a>
 
-    <a href="{{ route('admin.profile.index') }}" class="ac-user">
-        <img src="{{ auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : $avatarFallback }}"
-             onerror="this.onerror=null;this.src='{{ $avatarFallback }}'" alt="avatar">
-        <span class="ac-user-meta">
-            <span class="ac-user-name d-block">{{ auth()->user()->name }}</span>
-            <span class="ac-user-role">{{ auth()->user()->getRoleNames()->first() ?? 'Member' }}</span>
-        </span>
-    </a>
+    @auth
+        @php($acUser = auth()->user())
+        <a href="{{ route('admin.profile.index') }}" class="ac-user">
+            <img src="{{ $acUser->avatar ? asset('storage/' . $acUser->avatar) : $avatarFallback }}"
+                 onerror="this.onerror=null;this.src='{{ $avatarFallback }}'" alt="avatar">
+            <span class="ac-user-meta">
+                <span class="ac-user-name d-block">{{ $acUser->name }}</span>
+                <span class="ac-user-role">{{ method_exists($acUser, 'getRoleNames') ? ($acUser->getRoleNames()->first() ?? 'Member') : 'Member' }}</span>
+            </span>
+        </a>
+    @endauth
 
     {{-- Data-driven, permission-aware menu — edit the `menu` array in config/admin-core.php.
          Items the user can't reach (a `can` permission they lack, or a `route` that doesn't

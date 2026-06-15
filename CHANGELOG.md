@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.6.5
+
+- **Fix: a guest hitting `/admin` got a 500 instead of being redirected to login.** Two causes, both fixed:
+  - the sidebar's user block read `auth()->user()->name`/`->avatar`/`->getRoleNames()` directly, so it
+    threw on a null user — it's now wrapped in `@auth` (and guards `getRoleNames`);
+  - `admin-core:install --access` only added the `auth` middleware to the admin route group on the *first*
+    wiring, so a "minimal install, then `--access`" left the group public — the user-aware layout then 500'd
+    for guests. Install now also adds `auth` to an existing admin group on a re-run, so guests redirect to
+    `/login` as intended.
+
 ## v2.6.4
 
 - **Column show/hide ("Columns") now lists only real data columns.** The DataTables colvis button had no
