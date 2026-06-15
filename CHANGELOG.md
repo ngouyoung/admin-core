@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.6.4
+
+- **Column show/hide ("Columns") now lists only real data columns.** The DataTables colvis button had no
+  exclusion, so the menu included the select-all checkbox (a blank entry) and the Actions column — and hiding
+  Actions stranded the row controls. The checkbox (first) and Actions (last) columns are now marked `.noVis`
+  and excluded via the colvis `columns: ':not(.noVis)'` selector. Rebuild the theme (`npm run build`).
+
 ## v2.6.3
 
 - **`admin-core:install --access` now silences Bootstrap's SCSS deprecation-warning flood in

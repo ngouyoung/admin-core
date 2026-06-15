@@ -46,6 +46,13 @@ if ($.fn.dataTable) {
         // arrow next to the checkbox. Let the server return its natural order;
         // users can still click any real column header to sort.
         order: [],
+        // Keep the select-all checkbox (first) and the Actions column (last) out of the
+        // Columns show/hide menu — they're not data, and hiding Actions would strand the
+        // row controls. The `.noVis` class drives the colvis `:not(.noVis)` selector below.
+        columnDefs: [
+            { targets: 0, className: 'noVis' },
+            { targets: -1, className: 'noVis' },
+        ],
         // Clean toolbar: a "Columns" (show/hide) button + search on top, info +
         // rows-per-page + paging on the bottom (matches the page-header style).
         layout: {
@@ -54,6 +61,7 @@ if ($.fn.dataTable) {
                     extend: 'colvis',
                     text: '<i class="bi bi-layout-three-columns me-1"></i>Columns',
                     className: 'btn btn-sm btn-outline-secondary',
+                    columns: ':not(.noVis)', // only real data columns are toggleable
                 }],
             },
             topEnd: 'search',
