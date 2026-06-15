@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.9.6
+
+- **Fix: breadcrumb "Dashboard" link follows the current portal.** `<x-admin-core::page-header>` hardcoded the
+  crumb to `admin.dashboard`, so a multi-portal page (e.g. merchant) linked to the *admin* dashboard — wrong
+  guard/area — or showed no crumb when admin wasn't installed. It now targets the current portal's dashboard,
+  derived from the route name (`merchant.products.index` → `merchant.dashboard`), and accepts a
+  `:dashboard="'x.dashboard'"` override. Admin pages are unchanged. Ships in the package component, so it
+  applies on update.
+
 ## v2.9.5
 
 - **Fix: `install --access` now adds the `HasRoles` trait to non-default User models.** The class-body
