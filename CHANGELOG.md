@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.6.3
+
+- **`admin-core:install --access` now silences Bootstrap's SCSS deprecation-warning flood in
+  `npm run build`.** The install deliberately doesn't replace your `vite.config.js` (it carries your own
+  plugins/Tailwind) — but that meant the kit's `quietDeps` setting never applied, so building admin-core's
+  Bootstrap SCSS printed hundreds of Sass deprecation warnings. Install now **injects** a
+  `css.preprocessorOptions.scss { quietDeps: true, silenceDeprecations: […] }` block into the existing
+  `vite.config.js` (idempotent; warns if it can't). The warnings were always harmless — the build succeeds —
+  but the output is now clean.
+
 ## v2.6.2
 
 - **Fix: a fresh `admin-core:install --access` no longer crashes with `ViteManifestNotFoundException`.** The

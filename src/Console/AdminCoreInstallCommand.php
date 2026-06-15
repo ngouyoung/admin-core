@@ -194,8 +194,10 @@ PHP;
 
         // JS / SCSS sources. admin-core's app.js overwrites the framework default;
         // the host's own vite.config builds it (and keeps Laravel's app.css/Tailwind
-        // welcome page working), so we deliberately do NOT touch vite.config.js.
+        // welcome page working), so we deliberately do NOT replace vite.config.js —
+        // we only inject the SCSS quietDeps so the Bootstrap build stays warning-free.
         $this->copyTree("$fe/resources", resource_path(), force: true);
+        $this->ensureViteQuietDeps();
 
         $this->mergePackageJson("$fe/package.json.stub");
 
@@ -222,6 +224,44 @@ PHP;
 
         File::put($pkgPath, json_encode($host, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
         $this->line('  <info>updated</info> package.json (merged theme / DataTables / select2 deps)');
+    }
+
+    /**
+     * Inject a `css.preprocessorOptions.scss.quietDeps` block into the host's vite.config.js so
+     * Bootstrap 5's legacy-Sass deprecation warnings don't flood `npm run build`. We don't replace
+     * the file (it carries the host's own plugins/Tailwind); we only add the setting if it's absent.
+     */
+    private function ensureViteQuietDeps(): void
+    {
+        $vite = base_path('vite.config.js');
+        if (! File::exists($vite)) {
+            $this->warn('  vite.config.js not found — add a css.preprocessorOptions.scss { quietDeps: true } block to silence Bootstrap SCSS warnings.');
+
+            return;
+        }
+
+        $contents = File::get($vite);
+        if (str_contains($contents, 'quietDeps')) {
+            $this->line('  <comment>exists</comment>  scss quietDeps already in vite.config.js');
+
+            return;
+        }
+
+        $block = "    css: {\n"
+            . "        preprocessorOptions: {\n"
+            . "            // admin-core's Bootstrap SCSS uses legacy Sass APIs — silence those dep warnings.\n"
+            . "            scss: { quietDeps: true, silenceDeprecations: ['import', 'global-builtin', 'color-functions', 'if-function'] },\n"
+            . "        },\n"
+            . "    },\n";
+
+        $patched = preg_replace('/(defineConfig\(\{\n)/', '$1' . $block, $contents, 1);
+
+        if ($patched !== null && $patched !== $contents) {
+            File::put($vite, $patched);
+            $this->line('  <info>updated</info> vite.config.js (silence Bootstrap SCSS deprecation warnings)');
+        } else {
+            $this->warn('  couldn\'t edit vite.config.js — add a css.preprocessorOptions.scss { quietDeps: true } block by hand to silence Bootstrap SCSS warnings.');
+        }
     }
 
     // ------------------------------------------------------------------
