@@ -263,10 +263,17 @@ class AdminCoreMakeCommand extends Command
         }
 
         if ($this->option('tests')) {
-            if ($web) {
-                $files['tests.stub'] = base_path("tests/Feature/{$class}Test.php");
-            } else {
+            if (! $web) {
                 $this->warn('Skipped --tests: the generated feature test drives the web routes (re-run without --api-only to add them).');
+            } elseif ($guardOpt) {
+                // The scaffold authenticates a default App\Models\User on the web guard; a guard/portal
+                // resource is gated on '{$guardOpt}' (and a portal has its own user model), so the test
+                // would 403. We can't know the portal's user factory — point the user at writing it.
+                $this->warn("Skipped --tests: the generated test assumes the default admin user on the web guard. "
+                    . "A '{$guardOpt}'-guard resource needs a test using that guard's user model + "
+                    . "actingAs(\$user, '{$guardOpt}') and permissions on the '{$guardOpt}' guard — write it by hand.");
+            } else {
+                $files['tests.stub'] = base_path("tests/Feature/{$class}Test.php");
             }
         }
 

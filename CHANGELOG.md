@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.10.2
+
+- **No more red generated test for portal/guard resources.** `--tests` emitted a feature test that
+  authenticates a default `App\Models\User` on the `web` guard — correct for an admin resource, but a
+  `--guard`/`--portal` resource is gated on a different guard (and a portal has its own user model), so that
+  test 403s. `--tests` now skips for guard-scoped resources with a message pointing you at writing one that
+  uses the right guard's user + `actingAs($user, '<guard>')`. Default admin resources still get the test
+  (verified passing out of the box).
+
 ## v2.10.1
 
 - **Clearer error when API auth isn't configured.** The `--api-auth` login proxy returned a generic

@@ -635,6 +635,21 @@ it('routes a resource into a portal with --portal (dir + route-names + controlle
     File::deleteDirectory(base_path('routes/Merchant'));
 });
 
+it('skips --tests for a portal/guard resource (the scaffold assumes the default guard) and warns', function () {
+    // The default-guard case (a test file IS generated) is covered above; here a guard-scoped
+    // resource must NOT emit the web-guard test that would 403, and should explain why.
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--portal' => 'merchant',
+        '--tests' => true,
+    ])->expectsOutputToContain('Skipped --tests')->assertSuccessful();
+
+    expect(File::exists(base_path('tests/Feature/GizmoTest.php')))->toBeFalse();
+
+    File::deleteDirectory(base_path('routes/Merchant'));
+});
+
 it('scopes the route gates to a guard with --guard (multi-portal), default stays clean', function () {
     // A merchant-portal resource: the crud macro + every permission gate carry the guard.
     $this->artisan('admin-core:make', [
