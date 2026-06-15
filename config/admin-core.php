@@ -91,6 +91,13 @@ return [
         // admin-core:make grants each new resource's permissions to this role so
         // it's usable immediately (no AccessSeeder re-run). Set null to disable.
         'super_role' => 'admin',
+        // Default guard for generated permissions + route gates. `admin-core:make --guard=…`
+        // overrides per resource (multi-portal). Spatie scopes permissions by guard.
+        'guard' => 'web',
+        // Per-guard overrides for separate-portal guards. Spatie requires the super role to
+        // be on the same guard as the permission, so a portal can name its own:
+        //   'guards' => ['merchant' => ['super_role' => 'merchant-admin']],
+        'guards' => [],
     ],
 
     /*

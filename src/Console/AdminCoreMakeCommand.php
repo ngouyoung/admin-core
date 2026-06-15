@@ -23,6 +23,7 @@ class AdminCoreMakeCommand extends Command
                             {--api : Also generate a JSON API (resource + controller + apiResource routes)}
                             {--api-only : Generate ONLY the JSON API (no web controller/views/routes) — add the web channel later by re-running without it}
                             {--menu= : Register the sidebar link in a named portal menu (config admin-core.menus.NAME) instead of the default}
+                            {--guard= : Auth guard for the permissions + route gates (multi-portal, e.g. merchant). Defaults to the app guard.}
                             {--force : Overwrite existing files}';
 
     protected $description = 'Scaffold a full admin-core CRUD resource (model, service, controller, requests, routes, views, permissions).';
@@ -43,6 +44,14 @@ class AdminCoreMakeCommand extends Command
 
         $audit = $this->option('audit') || (bool) config('admin-core.generator.audit', false);
         $sortable = (bool) $this->option('sortable');
+
+        // Multi-portal: --guard scopes this resource's permissions + route gates to a non-default
+        // guard (e.g. merchant). $guard is used for permission creation; the suffix/arg are only
+        // emitted when the guard is explicitly given, so default-guard resources stay clean.
+        $guardOpt = $this->option('guard');
+        $guard = $guardOpt ?: config('admin-core.permission.guard', config('auth.defaults.guard', 'web'));
+        $permSuffix = $guardOpt ? ",{$guardOpt}" : '';
+        $crudGuardArg = $guardOpt ? ", '{$guardOpt}'" : '';
 
         // Adding a channel to an EXISTING resource? Infer the fields from its model so
         // you don't have to re-type --fields just to scaffold the API (or web) side —
@@ -66,9 +75,10 @@ class AdminCoreMakeCommand extends Command
 
         $sortRoutes = $sortable ? sprintf(
             "\n    Route::post('reorder', [%sController::class, 'reorder'])->name('reorder')\n"
-            . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:edit-%s' : []);",
+            . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:edit-%s%s' : []);",
             $class,
             $kebab,
+            $permSuffix,
         ) : '';
 
         // --sortable adds a "Sort" toggle button + a drag-and-drop panel to the
@@ -131,7 +141,7 @@ class AdminCoreMakeCommand extends Command
         // tokens) because strtr does not re-scan replaced text.
         $softRoutes = $soft ? sprintf(
             "\n    Route::controller(%sController::class)\n"
-            . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:delete-%s' : [])\n"
+            . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:delete-%s%s' : [])\n"
             . "        ->group(function () {\n"
             . "            Route::get('trash', 'trash')->name('trash');\n"
             . "            Route::put('restore/{id}', 'restore')->name('restore');\n"
@@ -139,6 +149,7 @@ class AdminCoreMakeCommand extends Command
             . "        });",
             $class,
             $kebab,
+            $permSuffix,
         ) : '';
 
         $trashLink = $soft ? sprintf(
@@ -156,6 +167,8 @@ class AdminCoreMakeCommand extends Command
             'dummy-model' => $kebab,
             '__AC_FILLABLE__' => $fields->fillable(),
             '__AC_HIDDEN__' => $fields->hidden(),
+            '__AC_CRUD_GUARD__' => $crudGuardArg,
+            '__AC_PERM_GUARD__' => $permSuffix,
             '__AC_PK__' => $fields->primaryKey(),
             '__AC_MODEL_TRAITS__' => $fields->modelTraits(),
             '__AC_MODEL_USES__' => $fields->modelUses(),
@@ -293,7 +306,7 @@ class AdminCoreMakeCommand extends Command
             $this->line('  <info>created</info> ' . $this->relative($target));
         }
 
-        $this->createPermissions($kebab, $plural);
+        $this->createPermissions($kebab, $plural, $guard);
         if ($web) {
             $this->registerMenuItem($plural, $snakePlural, $kebab, $this->option('menu'));
         }
@@ -527,7 +540,7 @@ class AdminCoreMakeCommand extends Command
         return $cases[1] ? implode('|', $cases[1]) : null;
     }
 
-    private function createPermissions(string $kebab, string $plural): void
+    private function createPermissions(string $kebab, string $plural, string $guard = 'web'): void
     {
         if (! config('admin-core.permission.enabled') || ! Schema::hasTable('permissions')) {
             return;
@@ -537,7 +550,7 @@ class AdminCoreMakeCommand extends Command
         $names = array_map(fn ($action) => "{$action}-{$kebab}", ['list', 'create', 'edit', 'delete']);
 
         foreach ($names as $name) {
-            $model::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
+            $model::firstOrCreate(['name' => $name, 'guard_name' => $guard]);
         }
 
         // File the permissions under a "{Plural} Management" group so the Role-edit
@@ -562,17 +575,20 @@ class AdminCoreMakeCommand extends Command
                 }
                 $groupId = DB::table('group_permissions')->insertGetId($row);
             }
-            DB::table('permissions')->whereIn('name', $names)->update(['group_id' => $groupId]);
+            DB::table('permissions')->whereIn('name', $names)->where('guard_name', $guard)->update(['group_id' => $groupId]);
             $grouped = " under '{$groupName}'";
         }
 
         // Grant the new permissions to the super role so the resource works right
-        // away — no need to re-run AccessSeeder after every admin-core:make.
+        // away — no need to re-run AccessSeeder after every admin-core:make. The role must
+        // be on the SAME guard as the permissions, or Spatie throws GuardDoesNotMatch — so a
+        // non-default guard can name its own super role via permission.guards.<guard>.super_role.
         $granted = '';
-        $roleName = config('admin-core.permission.super_role', 'admin');
+        $roleName = config("admin-core.permission.guards.{$guard}.super_role")
+            ?? config('admin-core.permission.super_role', 'admin');
         if ($roleName && Schema::hasTable('roles')) {
             $roleModel = config('admin-core.permission.role_model', \Spatie\Permission\Models\Role::class);
-            $role = $roleModel::where('name', $roleName)->first();
+            $role = $roleModel::where('name', $roleName)->where('guard_name', $guard)->first();
             if ($role) {
                 $role->givePermissionTo($names);
                 $granted = " (granted to '{$roleName}')";

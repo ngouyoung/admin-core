@@ -168,8 +168,10 @@ The `--access` kit now ships a complete admin shell beyond the access screens:
   Blade. (Older installs with the static sidebar still work: the generator falls back to injecting the link.)
 - **Multi-portal** — a second portal (merchant, vendor, …) gets its own `config('admin-core.menus.<name>')`,
   rendered with `<x-admin-core::sidebar-menu menu="merchant" guard="merchant" />`. The `guard` makes the
-  permission checks run against *that* portal's user, so admin and merchant menus stay correctly separated
-  even with different auth guards. Target a portal when generating: `admin-core:make Order --menu=merchant`.
+  menu's permission checks run against *that* portal's user. Generate straight into a portal **on its own
+  auth guard** with `admin-core:make Order --menu=merchant --guard=merchant` — permissions are created on
+  the `merchant` guard and the routes gate on it (`permission:list-order,merchant`), so menu, permissions
+  and routes all agree. Single-guard apps just omit `--guard`. See UPGRADING for the per-guard super-role config.
 - **Show / detail view** — every resource gets a read-only `show` page + a View button in the table.
 
 ### Every list comes with export, import & bulk delete

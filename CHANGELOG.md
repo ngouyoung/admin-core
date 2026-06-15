@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.3.0
+
+- **Guard-aware permissions — completes the multi-portal story.** `admin-core:make Order --guard=merchant`
+  now scopes the whole resource to a separate auth guard:
+  - permissions are created with `guard_name = merchant`;
+  - the generated routes gate on that guard — `Route::crud('order', …, 'merchant')` and
+    `permission:list-order,merchant` on every action (incl. soft-delete/sort/import/export), so Spatie
+    checks the merchant guard rather than the default;
+  - the auto-grant targets a **same-guard** super role (`config('admin-core.permission.guards.merchant.super_role')`,
+    falling back to the global one), avoiding Spatie's `GuardDoesNotMatch`.
+  - New config: `permission.guard` (default guard, `web`) and `permission.guards.<name>` (per-portal overrides).
+  - Pairs with the v2.2.0 `<x-admin-core::sidebar-menu menu="merchant" guard="merchant" />` so the menu **and**
+    the permissions/routes agree on the guard. Omit `--guard` and nothing changes — single-guard apps unaffected.
+
 ## v2.2.1
 
 - **Fix: `admin-core:make --menu=<name>` no longer leaks into the default sidebar.** When the named menu

@@ -592,6 +592,31 @@ it('points filter-tabs at the enum column counting only displayed columns (passw
         ->not->toContain("data: 'secret'");           // password is not a table column
 });
 
+it('scopes the route gates to a guard with --guard (multi-portal), default stays clean', function () {
+    // A merchant-portal resource: the crud macro + every permission gate carry the guard.
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--guard' => 'merchant',
+        '--soft-deletes' => true,
+    ])->assertSuccessful();
+
+    expect(File::get(base_path('routes/Web/Backend/Modules/gizmos.php')))
+        ->toContain("Route::crud('gizmo', GizmoController::class, 'merchant')")
+        ->toContain("'permission:list-gizmo,merchant'")
+        ->toContain("'permission:create-gizmo,merchant'")
+        ->toContain("'permission:delete-gizmo,merchant'");   // incl. the soft-delete group
+
+    cleanupGizmo();
+
+    // No --guard → no guard arg, no suffix (unchanged behaviour).
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+    expect(File::get(base_path('routes/Web/Backend/Modules/gizmos.php')))
+        ->toContain("Route::crud('gizmo', GizmoController::class)")
+        ->toContain("'permission:list-gizmo'")
+        ->not->toContain(',merchant');
+});
+
 it('omits filter tabs when there is no enum field', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

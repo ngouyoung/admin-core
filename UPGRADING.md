@@ -12,6 +12,29 @@ npm install && npm run build
 
 ---
 
+## → v2.3.0 — Guard-aware permissions (separate-guard portals)
+
+No breaking change — opt in per resource with `--guard`. For a portal on its **own** auth guard (separate
+user table, e.g. a `merchant` guard), generate with:
+
+```bash
+php artisan admin-core:make Order --menu=merchant --guard=merchant
+```
+
+That creates the permissions with `guard_name = merchant`, gates the generated routes on the merchant guard
+(`Route::crud('order', …, 'merchant')` + `permission:list-order,merchant`), and grants them to a merchant-guard
+super role. Tell the package that role per guard:
+
+```php
+// config/admin-core.php → permission
+'guard'  => 'web',                                    // default guard
+'guards' => ['merchant' => ['super_role' => 'merchant-admin']],
+```
+
+Mount the generated route module under your merchant route group (`auth:merchant`), and render its menu with
+`<x-admin-core::sidebar-menu menu="merchant" guard="merchant" />`. **Single-guard apps**: omit `--guard` —
+behaviour is unchanged.
+
 ## → v2.2.0 — Multi-portal menus (named menus + guard-aware)
 
 No breaking change — additive. To give a second portal (merchant, vendor, …) its own sidebar:

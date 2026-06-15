@@ -54,14 +54,18 @@ class AdminCoreServiceProvider extends ServiceProvider
      */
     protected function registerCrudMacro(): void
     {
-        Route::macro('crud', function (string $resource, string $controller) {
+        Route::macro('crud', function (string $resource, string $controller, ?string $authGuard = null) {
             $enabled = config('admin-core.permission.enabled');
+
+            // For a non-default guard (multi-portal), Spatie's permission middleware must be
+            // told the guard (`permission:list-x,merchant`) — otherwise it checks the default.
+            $suffix = $authGuard ? ',' . $authGuard : '';
 
             $permission = fn (string $action) => 'permission:' . str_replace(
                 ['{action}', '{resource}'],
                 [$action, $resource],
                 config('admin-core.permission.pattern')
-            );
+            ) . $suffix;
 
             $guard = function (string $action, Closure $routes) use ($enabled, $permission) {
                 $enabled
