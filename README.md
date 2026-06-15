@@ -1,69 +1,101 @@
 # ngos/admin-core
 
-A reusable, config-driven **admin CRUD core** for Laravel 13 + Bootstrap 5, with a custom branded admin theme.
+Build a full Laravel admin panel fast. **One command scaffolds a CRUD resource** — model, migration,
+controller, form requests, Blade views, permissions and a searchable/sortable/exportable DataTable — on a
+clean, branded **Bootstrap 5** theme.
 
-It gives you a thin, conventional CRUD skeleton — abstract `WebController` + `BaseService`, a
-`Route::crud()` route macro, and an `admin-core:make` resource generator — so every backend table
-in your app is built the same way, with permission gating and yajra DataTables wired in.
+- **One generator.** `admin-core:make Product` → a complete, permission-gated admin screen.
+- **Batteries included** (all opt-in flags): login + users/roles/permissions, CSV import/export, soft-deletes,
+  audit log, a JSON API, and a dynamic, permission-aware sidebar.
+- **Multi-portal.** Stand up a second portal (merchant, vendor…) on its own auth guard in one command.
+- **Thin & conventional.** Generated code lives in *your* `App\` namespace and extends a small base
+  (`WebController` + `BaseService`) — no magic, easy to read and edit.
 
-> **New here?** Read [`ARCHITECTURE.md`](ARCHITECTURE.md) — a one-page map of the layers (web + JSON API
-> over one shared service) and a "where do I put X?" cheat sheet.
+## Contents
 
-- **Blade + Bootstrap 5 + jQuery DataTables.** No Livewire. jQuery only for plugins.
-- **Config-driven.** Route-name prefix, view-path prefix, permission pattern and pagination all in `config/admin-core.php`.
-- **Permission-aware.** Each CRUD action is gated by `permission:{action}-{resource}` (spatie/laravel-permission).
+- [Quickstart](#quickstart) — a working admin + your first resource
+- [Installation](#installation) (minimal vs `--access`)
+- [Generating a resource](#generating-a-resource) → [field types](#generating-fields-too---fields) ·
+  [add a field later](#adding-a-field-later-admin-corefield)
+- What every list gets: [export / import / bulk-delete](#every-list-comes-with-export-import--bulk-delete) ·
+  [reorder](#drag-to-reorder---sortable) · [soft-deletes](#soft-deletes--extras) · [audit](#audit-trail---audit)
+- [JSON API](#json-api---api) · [API token auth](#api-auth--token-login-admin-coreinstall---api-auth)
+- [Multi-portal](#multi-portal) — a separate-guard merchant/vendor area
+- [UI & theme](#ui-components--theme) · [Config & commands](#lifecycle-commands)
+
+> Want the layer map? [`ARCHITECTURE.md`](ARCHITECTURE.md) — web + JSON API over one shared service, plus a
+> "where do I put X?" cheat sheet.
+
+## Quickstart
+
+A working, authenticated admin in two steps.
+
+**1. Install** (scaffolds login + users/roles/permissions + the theme, then builds assets and seeds an admin):
+
+```bash
+composer require ngos/admin-core
+php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
+php artisan admin-core:install --access --build --seed
+```
+
+Log in at **`/login`** with **`admin@example.com` / `password`**.
+
+**2. Generate your first resource:**
+
+```bash
+php artisan admin-core:make Product --migration \
+    --fields="name:string, price:decimal, status:enum:draft|published"
+php artisan migrate
+```
+
+Visit **`/admin/products`** — full CRUD with search, sort, status filter-tabs and CSV export, permissions
+already granted to the admin role. That's the whole loop; everything below is detail.
+
+> **No styling?** The theme needs a front-end build. The `--build` flag above runs it; otherwise run
+> `npm install && npm run build` yourself. (The admin still renders without it — just unstyled.)
 
 ## Requirements
 
-- PHP ^8.3
-- Laravel ^13
+- PHP ^8.3, Laravel ^13
 - `spatie/laravel-permission` ^8, `yajra/laravel-datatables-oracle` ^13 (pulled in automatically)
 
 ## Installation
 
+There are two levels. **Most people want `--access`** (the Quickstart above) — a working, authenticated admin.
+
+### Minimal — just the CRUD engine
+
 ```bash
-composer require ngos/admin-core
 php artisan admin-core:install
 ```
 
-`admin-core:install` scaffolds the host-side glue the generated pages depend on (idempotent — safe to re-run, `--force` to overwrite):
+Scaffolds only the glue generated pages need (idempotent; `--force` to overwrite). You bring your own auth:
 
 | Published | Purpose |
 |---|---|
-| `config/admin-core.php` | route/view/permission/pagination conventions |
+| `config/admin-core.php` | route / view / permission / pagination / menu conventions |
 | `config/class.php` | CSS-class map for tables/buttons/icons |
-| `resources/views/backend/layouts/app.blade.php` | self-contained CDN starter layout (jQuery, DataTables, Bootstrap 5, SweetAlert2, toastr, CSRF) |
+| `resources/views/backend/layouts/app.blade.php` | self-contained CDN starter layout |
 | `resources/views/backend/dashboard.blade.php` | minimal dashboard so `admin.dashboard` resolves |
 | `routes/Web/Backend/Modules/` | auto-loaded folder for generated resource routes |
-| `routes/web.php` | an `admin` route group + module loader (added once, marked `admin-core:routes`) |
+| `routes/web.php` | an `admin` route group + module loader (marked `admin-core:routes`) |
 
-Then finish the spatie setup:
+### Full access module (`--access`) — login + users/roles/permissions
 
 ```bash
 php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
-php artisan migrate
+php artisan admin-core:install --access --build --seed   # or drop --build/--seed to do them yourself
 ```
 
-### Full access module (login + users/roles/permissions)
+On top of the minimal install, `--access` adds (all in *your* `App\` namespace, yours to edit):
 
-Want a working authenticated admin out of the box? Pass `--access`:
+- **Auth** — a session `LoginController` + login view + `/login` `/logout`; the `admin` route group is `auth`-gated.
+- **Users / Roles / Permissions** screens built on the CRUD core, with role/permission assignment.
+- `App\Models\Role` / `App\Models\Permission` (extending spatie), `HasRoles` on `App\Models\User`, the sidebar,
+  and an `AccessSeeder` (an `admin` role with every permission + the `admin@example.com` user).
+- The themed front-end kit (`--build` runs `npm install && npm run build`).
 
-```bash
-php artisan admin-core:install --access
-php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
-php artisan migrate
-php artisan db:seed --class=Database\\Seeders\\AccessSeeder
-```
-
-This additionally scaffolds (all in your `App\` namespace, yours to edit):
-
-- **Auth** — a minimal session `LoginController` + login view + `/login` `/logout` routes; the `admin` route group is wrapped in `auth`.
-- **Users / Roles / Permissions** management screens (controllers, services, form requests, Blade views) built on the CRUD core, with role/permission assignment.
-- `App\Models\Role` / `App\Models\Permission` (extending spatie), the `HasRoles` trait added to `App\Models\User`, sidebar links, and an `AccessSeeder` that creates an `admin` role with every permission plus an admin user.
-
-Log in at `/login` with **`admin@example.com` / `password`**. (`admin-core:make` auto-grants each new resource's permissions to the `admin` role, so there's nothing to re-seed.)
-
-Prefer a single command? `admin-core:install --access --build --seed` also runs `npm install && npm run build` and migrates + seeds the admin user for you.
+`admin-core:make` auto-grants each new resource's permissions to the `admin` role, so there's nothing to re-seed.
 
 ## Generating a resource
 
@@ -398,6 +430,38 @@ value-setter), so it **skips them with a note** — add those by regenerating wi
 
 > Patching assumes the views/model still match the generated shape; heavily hand-edited files may need a
 > manual touch-up (it never duplicates, so a re-run won't hurt).
+
+## Multi-portal
+
+Need a second admin area — a **merchant** or **vendor** portal with its own login, separate from your
+staff admin? One command scaffolds the whole thing:
+
+```bash
+php artisan admin-core:portal merchant
+php artisan migrate
+php artisan db:seed --class=MerchantSeeder   # creates merchant@example.com / password + a full-access role
+```
+
+You get, all on a separate `merchant` auth guard (its own users, its own login):
+
+- `App\Models\Merchant` (guard-scoped) + migration, a login + dashboard, and a factory + seeder;
+- a `merchant` route group at `/merchant/*` (login, dashboard, and its own module folder);
+- the guard + provider in `config/auth.php`, and the menu + super-role entries in `config/admin-core.php`.
+
+Log in at **`/merchant/login`**. Then generate resources straight **into** the portal:
+
+```bash
+php artisan admin-core:make Order --portal=merchant
+php artisan db:seed --class=MerchantSeeder   # re-run to grant the new resource's permissions
+```
+
+`--portal=merchant` routes everything to that portal — routes under `/merchant` with `merchant.*` names,
+permissions on the `merchant` guard, and the link added to the merchant sidebar. Add more portals by
+changing the name; single-guard apps never touch any of this.
+
+> **One guard, not separate logins?** If admin and merchant are the *same* users with different roles, skip
+> `--portal`/`--guard` entirely and just give each area a named menu — see
+> [`config('admin-core.menus')`](#ui-components--theme).
 
 ## Lifecycle commands
 
