@@ -46,9 +46,26 @@ abstract class WebController extends BaseController
         return ($this->routePrefix ?? config('admin-core.route.name_prefix')) . $this->routeBase . $action;
     }
 
-    protected function toIndex(): RedirectResponse
+    protected function toIndex(?string $message = null): RedirectResponse
     {
-        return redirect()->route($this->routeName('index'));
+        $redirect = redirect()->route($this->routeName('index'));
+
+        return $message === null ? $redirect : $redirect->with('success', $message);
+    }
+
+    /**
+     * Flash message shown after a write action. Override per resource to customise or
+     * translate, e.g. `return __("users.{$action}");` — the layout renders session('success').
+     */
+    protected function message(string $action): string
+    {
+        return match ($action) {
+            'created' => 'Created successfully.',
+            'updated' => 'Updated successfully.',
+            'deleted' => 'Deleted successfully.',
+            'restored' => 'Restored successfully.',
+            default => 'Done.',
+        };
     }
 
     public function index()
@@ -66,7 +83,7 @@ abstract class WebController extends BaseController
         $data = app($this->storeRequest)->validated();
         DB::transaction(fn () => $this->service->create($data));
 
-        return $this->toIndex();
+        return $this->toIndex($this->message('created'));
     }
 
     public function show(int|string $id)
@@ -84,14 +101,14 @@ abstract class WebController extends BaseController
         $data = app($this->updateRequest)->validated();
         DB::transaction(fn () => $this->service->update($id, $data));
 
-        return $this->toIndex();
+        return $this->toIndex($this->message('updated'));
     }
 
     public function delete(int|string $id): RedirectResponse
     {
         $this->service->delete($id);
 
-        return $this->toIndex();
+        return $this->toIndex($this->message('deleted'));
     }
 
     public function ajaxDelete(int|string $id): JsonResponse
@@ -255,14 +272,14 @@ abstract class WebController extends BaseController
     {
         $this->service->restore($id);
 
-        return redirect()->route($this->routeName('trash'));
+        return redirect()->route($this->routeName('trash'))->with('success', $this->message('restored'));
     }
 
     public function forceDelete(int|string $id): RedirectResponse
     {
         $this->service->forceDelete($id);
 
-        return redirect()->route($this->routeName('trash'));
+        return redirect()->route($this->routeName('trash'))->with('success', $this->message('deleted'));
     }
 
     /** Persist a drag-and-drop reorder (resources generated with --sortable). */

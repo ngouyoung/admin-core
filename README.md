@@ -224,6 +224,16 @@ Generated index screens ship these out of the box:
 All live on the base `WebController` (`export()` / `import()` / `bulkDelete()`), plus a single DataTables
 search box (server-side via yajra), so they apply to every resource.
 
+Create / update / delete (and restore) flash a `success` message that the layout renders automatically.
+Customise or translate it by overriding one method on the generated controller:
+
+```php
+protected function message(string $action): string
+{
+    return __("products.{$action}"); // $action is created|updated|deleted|restored
+}
+```
+
 ### Drag-to-reorder (`--sortable`)
 
 ```bash

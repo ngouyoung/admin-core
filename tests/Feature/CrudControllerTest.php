@@ -15,9 +15,10 @@ beforeEach(function () {
     });
 });
 
-it('stores a record and redirects to index', function () {
+it('stores a record and redirects to index with a success flash', function () {
     $this->post('/admin/widgets', ['name' => 'Alpha'])
-        ->assertRedirect(route('admin.widgets.index'));
+        ->assertRedirect(route('admin.widgets.index'))
+        ->assertSessionHas('success', 'Created successfully.'); // user sees confirmation, not a silent redirect
 
     expect(Widget::where('name', 'Alpha')->exists())->toBeTrue();
 });
@@ -31,7 +32,9 @@ it('validates store input', function () {
 it('updates a record', function () {
     $widget = Widget::create(['name' => 'Old']);
 
-    $this->put("/admin/widgets/update/{$widget->id}", ['name' => 'New'])->assertRedirect();
+    $this->put("/admin/widgets/update/{$widget->id}", ['name' => 'New'])
+        ->assertRedirect()
+        ->assertSessionHas('success');
 
     expect($widget->fresh()->name)->toBe('New');
 });
@@ -39,7 +42,9 @@ it('updates a record', function () {
 it('deletes a record', function () {
     $widget = Widget::create(['name' => 'Bye']);
 
-    $this->delete("/admin/widgets/delete/{$widget->id}")->assertRedirect();
+    $this->delete("/admin/widgets/delete/{$widget->id}")
+        ->assertRedirect()
+        ->assertSessionHas('success');
 
     expect(Widget::find($widget->id))->toBeNull();
 });

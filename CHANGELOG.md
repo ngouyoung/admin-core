@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.8.1
+
+- **Create / update / delete now confirm.** Those actions (and soft-delete restore/force-delete) previously
+  redirected silently — only import/bulk-delete flashed a message. They now flash a `success` message the
+  layout already renders, so every write gives feedback out of the box. Customise or translate it by
+  overriding `message(string $action)` on the controller (`$action` = `created|updated|deleted|restored`).
+
 ## v2.8.0
 
 - **Ready-made `AdminNotification`.** Fire an in-app alert in one line without writing a Notification class:
