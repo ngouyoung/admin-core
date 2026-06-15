@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.9.0
+
+- **Consistent icons across generated pages.** The generated CRUD views, the `class.php` icon defaults, the
+  install layout and the sortable/trash/menu markup still used FontAwesome (`fas fa-*`) while the rest of the
+  UI (row-action kebab, components) used Bootstrap Icons — so e.g. a show page's Edit icon didn't match the
+  list's. Those are now Bootstrap Icons too (`bi bi-*`). FontAwesome stays bundled in the `--access` kit, so
+  any `fas fa-*` you add keeps working. Affects newly generated resources / fresh installs.
+
 ## v2.8.4
 
 - **Typed list columns now render cleanly.** In a generated DataTable, `boolean` columns showed a raw

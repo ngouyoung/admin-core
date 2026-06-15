@@ -35,7 +35,7 @@
                             <form action="{{ route('__AC_RNS__dummyModels.restore', $item->id) }}" method="POST" class="d-inline">
                                 @csrf @method('PUT')
                                 <button class="btn btn-sm btn-success" data-bs-toggle="tooltip" title="Restore">
-                                    <i class="fas fa-trash-restore"></i>
+                                    <i class="bi bi-arrow-counterclockwise"></i>
                                 </button>
                             </form>
                             <form action="{{ route('__AC_RNS__dummyModels.forceDelete', $item->id) }}" method="POST"

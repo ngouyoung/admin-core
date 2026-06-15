@@ -31,7 +31,7 @@
         <ul class="nav nav-pills flex-column gap-1">
             <li class="nav-item">
                 <a href="{{ route('admin.dashboard') }}" class="nav-link text-white">
-                    <i class="fas fa-gauge me-2"></i> Dashboard
+                    <i class="bi bi-speedometer2 me-2"></i> Dashboard
                 </a>
             </li>
             {{-- admin-core:menu --}}

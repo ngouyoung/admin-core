@@ -95,7 +95,7 @@ class AdminCoreMakeCommand extends Command
         // normal DataTable index (the table stays; sorting is an opt-in mode).
         $sortButton = $sortable
             ? "\n            <button type=\"button\" id=\"toggle-sort\" class=\"btn btn-sm btn-outline-primary\">\n"
-                . "                <i class=\"fas fa-arrows-alt\"></i> Sort\n            </button>"
+                . "                <i class=\"bi bi-grip-vertical\"></i> Sort\n            </button>"
             : '';
 
         $sortPanel = $sortable ? str_replace(
@@ -129,8 +129,8 @@ class AdminCoreMakeCommand extends Command
                                 const sorting = panel.classList.toggle('d-none') === false;
                                 $('#__SNAKE___table_wrapper').toggle(!sorting);
                                 btn.innerHTML = sorting
-                                    ? '<i class="fas fa-check"></i> Done'
-                                    : '<i class="fas fa-arrows-alt"></i> Sort';
+                                    ? '<i class="bi bi-check-lg"></i> Done'
+                                    : '<i class="bi bi-grip-vertical"></i> Sort';
                             });
                         }
                         if (list.nestable) {
@@ -164,7 +164,7 @@ class AdminCoreMakeCommand extends Command
 
         $trashLink = $soft ? sprintf(
             "\n            <a href=\"{{ route('admin.%s.trash') }}\" class=\"btn btn-sm btn-secondary\">\n"
-            . "                <i class=\"fas fa-trash\"></i> Trash\n"
+            . "                <i class=\"bi bi-trash\"></i> Trash\n"
             . '            </a>',
             $snakePlural,
         ) : '';
@@ -412,7 +412,7 @@ class AdminCoreMakeCommand extends Command
                 . "                </li>\n                {{-- admin-core:menu --}}"
             : "<li class=\"nav-item\">\n"
                 . "                <a href=\"{{ {$route} }}\" class=\"nav-link text-white\">\n"
-                . "                    <i class=\"fas fa-circle me-2\"></i> {$label}\n"
+                . "                    <i class=\"bi bi-circle me-2\"></i> {$label}\n"
                 . "                </a>\n"
                 . "            </li>\n            {{-- admin-core:menu --}}";
 

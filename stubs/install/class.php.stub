@@ -22,10 +22,10 @@ return [
     ],
     'icon' => [
         'view' => '',
-        'create' => 'fas fa-plus-circle',
-        'edit' => 'fas fa-pencil-alt',
-        'delete' => 'fas fa-trash-alt',
-        'change-password' => 'fas fa-sync',
-        'back' => 'fas fa-arrow-alt-circle-left',
+        'create' => 'bi bi-plus-circle',
+        'edit' => 'bi bi-pencil',
+        'delete' => 'bi bi-trash',
+        'change-password' => 'bi bi-arrow-repeat',
+        'back' => 'bi bi-arrow-left-circle',
     ],
 ];

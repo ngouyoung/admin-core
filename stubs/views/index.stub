@@ -16,11 +16,11 @@
 __AC_FILTER_TABS__    <div class="card">
         <div class="card-header d-flex flex-wrap gap-1 align-items-center">
             <a href="{{ route('__AC_RNS__dummyModels.export') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="fas fa-file-csv"></i> Export
+                <i class="bi bi-filetype-csv"></i> Export
             </a>
             @can('create-dummy-model')
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">
-                    <i class="fas fa-file-import"></i> Import
+                    <i class="bi bi-upload"></i> Import
                 </button>
             @endcan__AC_TRASH_LINK____AC_SORT_BUTTON__
             @can('delete-dummy-model')
@@ -55,7 +55,7 @@ __AC_SORT_PANEL__
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-sm btn-primary"><i class="fas fa-file-import"></i> Import</button>
+                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> Import</button>
                     </div>
                 </form>
             </div>
