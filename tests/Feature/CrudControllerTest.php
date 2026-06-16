@@ -187,6 +187,30 @@ it('encodes array/enum values for CSV export instead of writing "Array"', functi
         ->and($exporter->cell(false))->toBe('0');
 });
 
+it('drops image/file columns on import (a CSV cannot carry a file) and still imports the row', function () {
+    // A controller whose store rules include an image column, routed for import.
+    $controller = new class(new Ngos\AdminCore\Tests\Fixtures\WidgetService(new Widget)) extends \Ngos\AdminCore\Http\Controllers\WebController {
+        public function __construct($service)
+        {
+            $this->service = $service;
+            $this->routeBase = 'imgwidgets.';
+            $this->storeRequest = \Ngos\AdminCore\Tests\Fixtures\StoreWidgetImageRequest::class;
+        }
+    };
+    app()->instance('ac-img-controller', $controller);
+    \Illuminate\Support\Facades\Route::middleware('web')->post('admin/imgwidgets/import', fn (\Illuminate\Http\Request $r) => app('ac-img-controller')->import($r))->name('admin.imgwidgets.import');
+
+    // Exported shape: a row carrying a stored image PATH (not a file). Without the fix the `image`
+    // rule rejects the path and the row is skipped; with it, the column is dropped and the row imports.
+    $csv = "name,photo\nAlpha,products/old-pic.jpg\n";
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);
+
+    $this->post('admin/imgwidgets/import', ['file' => $file])->assertRedirect();
+
+    // The row imported (the image path didn't fail validation and skip it); photo wasn't written.
+    expect(Widget::where('name', 'Alpha')->exists())->toBeTrue();
+});
+
 it('reorders records by sort position', function () {
     $a = Widget::create(['name' => 'a']);
     $b = Widget::create(['name' => 'b']);

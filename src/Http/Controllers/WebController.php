@@ -213,6 +213,10 @@ abstract class WebController extends BaseController
 
         $model = $this->service->query()->getModel();
         $rules = (new $this->storeRequest)->rules();
+        // A CSV can't carry an uploaded file, so drop image/file columns from validation: the exported
+        // path string would fail the `image`/`file` rule, and the service ignores non-UploadedFile values
+        // anyway. validated() then omits them, so they're not imported and the record keeps its file.
+        $rules = array_filter($rules, fn ($r) => ! (is_array($r) && (in_array('image', $r, true) || in_array('file', $r, true))));
         $fillable = $model->getFillable();
         // Columns the model casts to array/json — their cells are decoded back from the
         // JSON string the export wrote, so a round-tripped json field imports as an array.

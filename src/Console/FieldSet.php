@@ -696,7 +696,8 @@ PHP;
                     $rules = [$required, "'date'"];
                     break;
                 case 'time':
-                    $rules = [$required, "'date_format:H:i'"];
+                    // Accept both the form's H:i and the H:i:s a TIME column exports, so a CSV round-trips.
+                    $rules = [$required, "'date_format:H:i,H:i:s'"];
                     break;
                 case 'email':
                     $rules = [$required, "'email'", "'max:255'"];

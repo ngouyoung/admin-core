@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.5
+
+- **More CSV round-trip fixes (time + file columns).**
+  - A `time` field's rule was `date_format:H:i`, but a TIME column exports as `H:i:s` — so re-importing an
+    exported time was rejected. The rule now accepts `H:i,H:i:s` (the form posts `H:i`, the export gives
+    `H:i:s`; both validate). Affects newly generated resources.
+  - On import, `image`/`file` columns are now dropped before validation: a CSV can't carry an upload, so the
+    exported path string would fail the `image`/`file` rule and skip the whole row. Now the column is ignored
+    (the record keeps its existing file) and the rest of the row imports. Lives on the shared `WebController`,
+    so existing resources get it on update.
+
 ## v2.11.4
 
 - **Fix: a `false` boolean now round-trips through CSV export/import.** `fputcsv` renders PHP `false` as an

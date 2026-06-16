@@ -404,7 +404,7 @@ it('scaffolds the extended field types (time / url / slug / json / password)', f
     $store = File::get(app_path('Http/Requests/Article/StoreArticleRequest.php'));
     expect($store)
         ->toContain("'website' => ['required', 'url', 'max:255']")
-        ->toContain("'start_at' => ['required', 'date_format:H:i']")
+        ->toContain("'start_at' => ['required', 'date_format:H:i,H:i:s']")
         ->toContain("'alpha_dash'")
         ->toContain("'secret' => ['required', 'string', 'min:8']")
         ->toContain('json_decode($this->meta, true)'); // JSON textarea decoded before validation

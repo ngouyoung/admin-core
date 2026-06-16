@@ -14,6 +14,11 @@ it('defaults to a single name string field', function () {
     expect($f->storeRules())->toContain("'name' => ['required', 'string', 'max:255']");
 });
 
+it('accepts both H:i and H:i:s for a time field (so an exported TIME round-trips on import)', function () {
+    // A TIME column exports as H:i:s; the form posts H:i. The rule must accept both.
+    expect(fs('start:time')->storeRules())->toContain("'date_format:H:i,H:i:s'");
+});
+
 it('builds a nullable decimal', function () {
     $f = fs('price:decimal?');
     expect($f->migrationColumns())->toContain("\$table->decimal('price', 10, 2)->nullable();");
