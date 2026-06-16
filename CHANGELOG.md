@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.9
+
+- **Fix the dashboard's getting-started text.** The default dashboard told you to add a generated resource to
+  the sidebar by editing `layouts/app.blade.php` — outdated since the menu became data-driven. `admin-core:make`
+  now auto-registers the resource in `config('admin-core.menu')` and routes it, so the text now says to just
+  migrate and visit the page. Affects newly installed dashboards.
+
 ## v2.11.8
 
 - **`autocomplete` on the password forms.** The login, profile change-password and user create/edit forms now
