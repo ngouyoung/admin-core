@@ -91,11 +91,17 @@ class AdminCoreUninstallCommand extends Command
             return;
         }
 
+        // Remove the two imports admin-core added…
         $contents = str_replace("\nuse Spatie\\Permission\\Traits\\HasRoles;", '', $contents);
-        $contents = preg_replace('/(use HasFactory, Notifiable), HasRoles;/', '$1;', $contents, 1);
+        $contents = str_replace("\nuse Ngos\\AdminCore\\Concerns\\HasPublicUuid;", '', $contents);
+        // …then strip both traits from the class `use …;` line, whatever order/other traits sit there.
+        // (install adds them with a leading comma: `…Notifiable, HasRoles, HasPublicUuid;`.) The old
+        // exact-match `…Notifiable, HasRoles;` never matched once HasPublicUuid was also added, leaving
+        // the model using HasRoles with no import — a fatal "Trait not found".
+        $contents = preg_replace('/,\s*(HasRoles|HasPublicUuid)\b/', '', $contents);
 
         File::put($model, $contents);
-        $this->line('  <info>reverted</info> HasRoles trait on app/Models/User.php');
+        $this->line('  <info>reverted</info> HasRoles / HasPublicUuid traits on app/Models/User.php');
     }
 
     // ------------------------------------------------------------------

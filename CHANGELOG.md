@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.10.5
+
+- **Fix: `uninstall` left the User model broken.** `revertHasRoles` removed the `HasRoles` *import* but its
+  class-body removal matched only the exact `…Notifiable, HasRoles;` — which never matched, because install
+  writes `…Notifiable, HasRoles, HasPublicUuid;`. So uninstall left the model `use`-ing `HasRoles` with no
+  import (a fatal "Trait not found"), and never removed `HasPublicUuid`. It now strips both traits and both
+  imports regardless of order/other traits (Sanctum, Jetstream, …), leaving a clean `use HasFactory,
+  Notifiable;`.
+
 ## v2.10.4
 
 - **Readable enum labels everywhere.** Enum values rendered with `ucfirst()` (form select, filter tabs) or
