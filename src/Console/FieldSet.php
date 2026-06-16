@@ -1161,7 +1161,24 @@ BLADE;
                 $deleteBody .= "\n        if (\$model->{$f['name']}) {\n            Storage::disk('public')->delete(\$model->{$f['name']});\n        }";
             }
         }
-        $delete = $deleteBody === '' ? '' : <<<PHP
+        if ($deleteBody === '') {
+            $delete = '';
+        } elseif ($this->softDeletes) {
+            // Soft-delete resource: drop the stored file only on a *permanent* (force) delete — so a
+            // soft-deleted record keeps its file and can be restored intact. (find() reads only
+            // non-trashed rows, hence findTrashed() here.)
+            $delete = <<<PHP
+
+
+    public function forceDelete(int|string \$id): void
+    {
+        \$model = \$this->findTrashed(\$id);{$deleteBody}
+        \$model->forceDelete();
+    }
+PHP;
+        } else {
+            // No soft deletes: delete() is permanent, so clean up the file there.
+            $delete = <<<PHP
 
 
     public function delete(int|string \$id): void
@@ -1170,6 +1187,7 @@ BLADE;
         \$model->delete();
     }
 PHP;
+        }
 
         return <<<PHP
 

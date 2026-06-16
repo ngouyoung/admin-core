@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.10.7
+
+- **Fix: soft-deleting a record no longer destroys its uploaded file.** A generated service with an
+  `image`/`file` field deleted the stored file inside `delete()` — but for a `--soft-deletes` resource that's
+  a *soft* delete, so the file vanished from disk while the row was only trashed (restore → broken image),
+  and a later permanent delete left the file orphaned. For soft-deletable resources the file is now removed in
+  `forceDelete()` instead, so a soft delete keeps the file (restorable) and only a permanent delete clears it.
+  Non-soft-delete resources are unchanged. Affects newly generated `--soft-deletes` + file resources.
+
 ## v2.10.6
 
 - **`uninstall` now cleans up `routes/api.php` too.** It stripped the `admin-core` blocks from `routes/web.php`
