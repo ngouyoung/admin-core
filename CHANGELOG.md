@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.4
+
+- **Fix: a `false` boolean now round-trips through CSV export/import.** `fputcsv` renders PHP `false` as an
+  empty cell, and the import's `boolean` rule rejects `""` (it accepts `0`/`1`/`'0'`/`'1'`) — so exporting a
+  row with a false boolean and re-importing it skipped that row. The export now writes booleans as `1`/`0`.
+  Lives on the shared `WebController`, so existing resources pick it up on update.
+
 ## v2.11.3
 
 - **CSV export includes readable relation names.** A generated resource's export dumped the raw `category_id`

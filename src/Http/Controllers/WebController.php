@@ -180,6 +180,12 @@ abstract class WebController extends BaseController
             $value = $value->value;
         }
 
+        // Booleans: write 1/0. fputcsv renders false as an empty cell, which the import's
+        // boolean rule then rejects (it accepts 0/1/'0'/'1', never ''), so a false wouldn't round-trip.
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
         // json/array-cast columns come back as arrays — encode them, or fputcsv hits
         // "Array to string conversion" and writes a literal "Array". Round-trips via import.
         if (is_array($value)) {

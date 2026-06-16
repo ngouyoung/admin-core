@@ -181,7 +181,10 @@ it('encodes array/enum values for CSV export instead of writing "Array"', functi
     expect($exporter->cell(['k' => 'v', 'n' => 2]))->toBe('{"k":"v","n":2}')
         ->and($exporter->cell([]))->toBe('[]')
         ->and($exporter->cell('plain'))->toBe('plain')
-        ->and($exporter->cell(null))->toBeNull();
+        ->and($exporter->cell(null))->toBeNull()
+        // Booleans export as 1/0 (not ''), so a false round-trips through the import boolean rule.
+        ->and($exporter->cell(true))->toBe('1')
+        ->and($exporter->cell(false))->toBe('0');
 });
 
 it('reorders records by sort position', function () {
