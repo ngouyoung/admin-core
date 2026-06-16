@@ -983,15 +983,17 @@ BLADE;
     /** The DataTables `columns:` entry for one field (reused when inserting a column later). */
     public function fieldColumn(array $f): string
     {
-        // A belongsTo column carries a `name`, so it's searchable + orderable via the
-        // filterColumn/orderColumn (whereHas / correlated subquery on the related `name`).
+        // belongsTo: searchable + sortable by the related name (filterColumn + orderColumn below).
         if ($f['type'] === 'foreign') {
             return "                {data: '{$f['relation']}', name: '{$f['relation']}'},";
         }
-        if (in_array($f['type'], ['belongsToMany', 'image', 'file'], true)) {
-            $key = $f['type'] === 'belongsToMany' ? $f['relation'] : $f['name'];
-
-            return "                {data: '{$key}', orderable: false, searchable: false},";
+        // belongsToMany: searchable by the related name (whereHas); not orderable — sorting a
+        // multi-value relation is ambiguous.
+        if ($f['type'] === 'belongsToMany') {
+            return "                {data: '{$f['relation']}', name: '{$f['relation']}', orderable: false},";
+        }
+        if (in_array($f['type'], ['image', 'file'], true)) {
+            return "                {data: '{$f['name']}', orderable: false, searchable: false},";
         }
 
         return "                {data: '{$f['name']}', name: '{$f['name']}'},";
@@ -1072,7 +1074,8 @@ BLADE;
     {
         return match ($f['type']) {
             'foreign' => $this->foreignDataColumn($f),
-            'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(\$i->name ?? \$i->id) . '</span>')->implode(' '))",
+            'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(\$i->name ?? \$i->id) . '</span>')->implode(' '))\n"
+                . "            ->filterColumn('{$f['relation']}', fn (\$q, \$keyword) => \$q->whereHas('{$f['relation']}', fn (\$rq) => \$rq->where('name', 'like', \"%{\$keyword}%\")))",
             // Match the show view's status badge / Yes-No / formatted date rather than leaking a raw value.
             'enum' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\\Illuminate\\Support\\Str::headline(\$row->{$f['name']}->value)) . '</span>' : '')",
             'boolean' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')",

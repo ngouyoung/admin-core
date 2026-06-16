@@ -159,6 +159,18 @@ it('handles belongsToMany with a pivot migration and sync', function () {
     expect($f->serviceBody())->toContain('->sync(');
 });
 
+it('makes a belongsToMany list column searchable by the related name (not sortable)', function () {
+    $f = fs('tags:belongsToMany');
+
+    // Searchable (name + no searchable:false) but not orderable (multi-value relation).
+    expect($f->columnsJs())->toContain("{data: 'tags', name: 'tags', orderable: false}");
+
+    // Search wires a whereHas on the related name; no orderColumn (sorting a m2m is ambiguous).
+    expect($f->getDataColumns())
+        ->toContain("->filterColumn('tags', fn (\$q, \$keyword) => \$q->whereHas('tags'")
+        ->not->toContain("->orderColumn('tags'");
+});
+
 it('builds a field-aware factory definition', function () {
     $f = fs('name:string, price:decimal?');
     expect($f->factoryDefinition())->toContain("'name' => fake()->name()");

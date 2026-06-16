@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.2
+
+- **`belongsToMany` columns are searchable by the related name too.** Completing v2.11.0: a generated
+  many-to-many column (e.g. a product's tags) is now matched by the global search box (`filterColumn` →
+  `whereHas` on the related `name`). It stays non-sortable — ordering rows by a multi-value relation is
+  ambiguous. Same `name`-column assumption as the display. Affects newly generated resources.
+
 ## v2.11.1
 
 - **Fix: the JSON API list no longer N+1s on relations.** A generated `Resource` exposes `category` via
