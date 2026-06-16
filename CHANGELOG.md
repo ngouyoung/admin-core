@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.7
+
+- **Login is now rate-limited.** The access-kit login accepted unlimited password attempts (brute-forceable).
+  It now throttles 5 failed attempts per email+IP, then locks out for a short window (cleared on a successful
+  login) — the same pattern Laravel Breeze uses. Affects newly installed access modules.
+
 ## v2.11.6
 
 - **Validate the profile avatar upload.** `updateAvatar` accepted any base64 string and stored whatever it
