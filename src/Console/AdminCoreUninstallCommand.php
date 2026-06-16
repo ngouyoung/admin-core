@@ -55,6 +55,15 @@ class AdminCoreUninstallCommand extends Command
             }
         }
 
+        // routes/api.php: the Passport auth routes (point at the AuthController we purge) and the
+        // `--api` module loader. Left behind, the auth block would reference a deleted controller.
+        $api = base_path('routes/api.php');
+        foreach (['admin-core:api-auth', 'admin-core:api-modules'] as $marker) {
+            if ($this->stripBlock($api, $marker)) {
+                $this->line("  <info>removed</info> {$marker} block from routes/api.php");
+            }
+        }
+
         if ($this->stripBlock(base_path('bootstrap/app.php'), 'admin-core:middleware')) {
             $this->line('  <info>removed</info> permission middleware alias from bootstrap/app.php');
         }

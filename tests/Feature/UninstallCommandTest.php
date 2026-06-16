@@ -9,6 +9,40 @@ use Illuminate\Support\Facades\File;
  * no longer imports (which would be a fatal "Trait not found").
  */
 
+it('strips the api-auth + api-modules blocks from routes/api.php (host content preserved)', function () {
+    $api = base_path('routes/api.php');
+    $original = File::exists($api) ? File::get($api) : null;
+    File::ensureDirectoryExists(dirname($api));
+    File::put($api, <<<'PHP'
+    <?php
+
+    use Illuminate\Support\Facades\Route;
+
+    Route::get('health', fn () => 'ok'); // host's own route — must survive
+
+    // >>> admin-core:api-auth
+    Route::post('login', [App\Http\Controllers\Api\AuthController::class, 'login']);
+    // <<< admin-core:api-auth
+
+    // >>> admin-core:api-modules
+    foreach (glob(__DIR__ . '/Api/Modules/*.php') ?: [] as $m) { require $m; }
+    // <<< admin-core:api-modules
+    PHP);
+
+    $command = new \Ngos\AdminCore\Console\AdminCoreUninstallCommand();
+    $strip = new ReflectionMethod($command, 'stripBlock');
+    $strip->invoke($command, $api, 'admin-core:api-auth');
+    $strip->invoke($command, $api, 'admin-core:api-modules');
+
+    expect(File::get($api))
+        ->not->toContain('admin-core:api-auth')
+        ->not->toContain('admin-core:api-modules')
+        ->not->toContain('AuthController')          // no reference to the purged controller
+        ->toContain("Route::get('health'");          // the host's own route is preserved
+
+    $original === null ? File::delete($api) : File::put($api, $original);
+});
+
 it('reverts HasRoles/HasPublicUuid cleanly (no dangling trait or import)', function () {
     File::ensureDirectoryExists(app_path('Models'));
     $userPath = app_path('Models/User.php');

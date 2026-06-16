@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.10.6
+
+- **`uninstall` now cleans up `routes/api.php` too.** It stripped the `admin-core` blocks from `routes/web.php`
+  and `bootstrap/app.php` but never touched `routes/api.php`, leaving the `admin-core:api-auth` block (which
+  points at the `AuthController` that `--purge` deletes) and the `admin-core:api-modules` loader behind. Both
+  marker blocks are now removed on uninstall; your own routes in the file are preserved.
+
 ## v2.10.5
 
 - **Fix: `uninstall` left the User model broken.** `revertHasRoles` removed the `HasRoles` *import* but its
