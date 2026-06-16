@@ -545,7 +545,17 @@ The `--access` kit ships a custom Bootstrap-5 theme (no AdminLTE) plus reusable 
   — a label→value summary card (right-aligned tabular numbers, negatives in red, `'strong' => true` for totals).
 - **Customize drawer** (palette icon in the topbar): theme (light/dark/system), accent colour, density,
   layout (sidebar/top-nav), container (fluid/boxed) and direction (LTR/RTL) — persisted in `localStorage`.
-- **Row actions** render as a kebab (⋯) menu; add resource-specific items via the 3rd arg of `actions()`.
+- **Row actions** render as a kebab (⋯) menu (View / Edit / Delete). Add your own items — an "Approve"
+  button, a "Change password" link — via the 3rd arg of `actions()` in the generated controller's
+  `getData()`. Each item is `['label' => …, 'url' => …]` plus optional `icon` / `can` (a permission that
+  gates it) / `class`; they render above Edit/Delete:
+
+  ```php
+  ->addColumn('actions', fn ($row) => $this->actions($row, 'order', [
+      ['label' => 'Approve', 'url' => route('admin.orders.approve', $row->getRouteKey()),
+       'icon' => 'bi bi-check2-circle', 'can' => 'edit-order'],
+  ]))
+  ```
 
 Re-skin the whole thing from the `--ac-*` CSS tokens / SCSS variables at the top of `resources/sass/app.scss`.
 
