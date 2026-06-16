@@ -12,7 +12,7 @@
     if ($tabs === null) {
         $tabs = ['' => 'All'];
         foreach (($enum ? $enum::cases() : []) as $case) {
-            $tabs[$case->value] = ucfirst($case->value);
+            $tabs[$case->value] = \Illuminate\Support\Str::headline($case->value);
         }
     }
 @endphp

@@ -876,7 +876,7 @@ BLADE;
 
         return "<select name=\"{$f['name']}\" id=\"{$f['name']}\" class=\"form-select {$err}\">\n"
             . "            @foreach ({$enumClass}::cases() as \$case)\n"
-            . "                <option value=\"{{ \$case->value }}\" @selected({$selected} === \$case->value)>{{ ucfirst(\$case->value) }}</option>\n"
+            . "                <option value=\"{{ \$case->value }}\" @selected({$selected} === \$case->value)>{{ \\Illuminate\\Support\\Str::headline(\$case->value) }}</option>\n"
             . "            @endforeach\n        </select>";
     }
 
@@ -1063,7 +1063,7 @@ BLADE;
             'foreign' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}?->name)",
             'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(\$i->name ?? \$i->id) . '</span>')->implode(' '))",
             // Match the show view's status badge / Yes-No / formatted date rather than leaking a raw value.
-            'enum' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\$row->{$f['name']}->value) . '</span>' : '')",
+            'enum' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\\Illuminate\\Support\\Str::headline(\$row->{$f['name']}->value)) . '</span>' : '')",
             'boolean' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')",
             'date' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d'))",
             'datetime' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))",
@@ -1088,7 +1088,7 @@ BLADE;
                 'image' => "@if(\$object->{$f['name']})<img src=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
-                'enum' => "@if(\$object->{$f['name']})<span class=\"ac-status\" data-status=\"{{ \$object->{$f['name']}->value }}\">{{ \$object->{$f['name']}->value }}</span>@endif",
+                'enum' => "@if(\$object->{$f['name']})<span class=\"ac-status\" data-status=\"{{ \$object->{$f['name']}->value }}\">{{ \\Illuminate\\Support\\Str::headline(\$object->{$f['name']}->value) }}</span>@endif",
                 default => "{{ \$object->{$f['name']} }}",
             };
             $rows[] = "            <tr>\n                <th style=\"width:220px\">{$label}</th>\n                <td>{$value}</td>\n            </tr>";

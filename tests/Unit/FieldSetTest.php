@@ -67,6 +67,18 @@ it('formats date/datetime form values to the shape the HTML inputs parse (so the
         ->toContain("old('start_at', \$object?->start_at?->format('Y-m-d\\TH:i'))");
 });
 
+it('labels enum values with Str::headline (multi-word reads cleanly) across form, list and show', function () {
+    $f = fs('state:enum:draft|in_progress')->setClass('Order');
+
+    // Form select, list editColumn and show row all render the human label (in_progress -> "In Progress"),
+    // not ucfirst("in_progress") = "In_progress" or the raw value — while data-status stays the raw value.
+    expect($f->formFields())->toContain('Str::headline($case->value)')->not->toContain('ucfirst(');
+    expect($f->getDataColumns())->toContain('Str::headline($row->state->value)')
+        ->toContain("data-status=\"' . e(\$row->state->value)"); // CSS hook stays raw
+    expect($f->showRows())->toContain('Str::headline($object->state->value)')
+        ->toContain('data-status="{{ $object->state->value }}"');
+});
+
 it('builds a foreign key with belongsTo + exists + eager load', function () {
     $f = fs('category_id:foreign');
     expect($f->migrationColumns())->toContain("foreignId('category_id')");

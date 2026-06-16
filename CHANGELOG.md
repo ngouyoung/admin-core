@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.10.4
+
+- **Readable enum labels everywhere.** Enum values rendered with `ucfirst()` (form select, filter tabs) or
+  raw (`list`/`show` badges), so a multi-word value like `in_progress` showed as `In_progress` / `in_progress`
+  — and inconsistently between screens. All four now use `Str::headline()` → "In Progress", consistently,
+  while `data-status` keeps the raw value so your status CSS is unaffected. The filter-tabs component ships
+  this on update; generated form/list/show pick it up for newly generated resources.
+
 ## v2.10.3
 
 - **`--api` resources now actually load.** `make … --api` wrote the route file to `routes/Api/Modules/`, but
