@@ -56,6 +56,9 @@ class ProfileController extends Controller
         $binary = base64_decode($image, true);
 
         abort_if($binary === false, 422, 'Invalid image data.');
+        abort_if(strlen($binary) > 5 * 1024 * 1024, 422, 'Image too large (max 5 MB).');
+        // Make sure it's actually an image, not arbitrary bytes posted as a fake avatar.
+        abort_if(@getimagesizefromstring($binary) === false, 422, 'The avatar must be a valid image.');
 
         $user = Auth::user();
         if ($user->avatar) {

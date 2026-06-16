@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.6
+
+- **Validate the profile avatar upload.** `updateAvatar` accepted any base64 string and stored whatever it
+  decoded to as the user's `.jpg` — so arbitrary (non-image) bytes could be saved, unbounded in size. It now
+  rejects data that isn't a real image (`getimagesizefromstring`) and caps it at 5 MB. Affects newly installed
+  access modules. (Verified the password update is already safe — Laravel's `hashed` cast doesn't re-hash an
+  already-hashed value, so there's no double-hash.)
+
 ## v2.11.5
 
 - **More CSV round-trip fixes (time + file columns).**
