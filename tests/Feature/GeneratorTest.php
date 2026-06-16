@@ -500,7 +500,9 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         // List-query whitelists derived from the fields: name searchable, category filterable.
         ->toContain("protected array \$searchable = ['name']")
         ->toContain("protected array \$sortable = ['name', 'created_at']")
-        ->toContain("protected array \$filterable = ['category_id']");
+        ->toContain("protected array \$filterable = ['category_id']")
+        // Eager-load the relation on the list so the resource's $this->category?->name doesn't N+1.
+        ->toContain("protected array \$with = ['category']");
 
     // Sanctum-gated apiResource routes under api.gizmos.*, each action permission-gated
     // by the same permission as the web admin (delete → delete-gizmo, etc.).

@@ -23,6 +23,9 @@ class DummyClassApiController extends ApiController
     /** ?filter[col]=value may exact-match these. */
     protected array $filterable = [__AC_API_FILTERABLE__];
 
+    /** Eager-loaded on the list so exposing a relation doesn't N+1. */
+    protected array $with = [__AC_API_WITH__];
+
     public function __construct(DummyClassService $service)
     {
         $this->service = $service;

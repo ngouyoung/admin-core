@@ -1,7 +1,9 @@
 <?php
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Ngos\AdminCore\Services\BaseService;
 use Ngos\AdminCore\Tests\Fixtures\RelCategory;
 use Ngos\AdminCore\Tests\Fixtures\RelGadget;
 
@@ -39,6 +41,24 @@ it('searches the list by the related name (the generated filterColumn body)', fu
         ->pluck('name');
 
     expect($matched)->toContain('Pixel')->not->toContain('Earbuds');
+});
+
+it('eager-loads the relation via $with so the API list does not N+1', function () {
+    // The base ApiController::index does $this->service->query($this->with); prove that path
+    // eager-loads (relations resolved in one extra query, not one per row).
+    $service = new class(new RelGadget) extends BaseService {
+        public function __construct(RelGadget $model)
+        {
+            $this->model = $model;
+        }
+    };
+
+    DB::flushQueryLog();
+    DB::enableQueryLog();
+    $service->query(['category'])->get()->each(fn ($g) => $g->category?->name); // touch the relation
+
+    // 1 query for gadgets + 1 to eager-load their categories = 2 (without $with it would be 1 + N).
+    expect(DB::getQueryLog())->toHaveCount(2);
 });
 
 it('sorts the list by the related name (the generated orderColumn subquery)', function () {

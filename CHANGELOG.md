@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.1
+
+- **Fix: the JSON API list no longer N+1s on relations.** A generated `Resource` exposes `category` via
+  `$this->category?->name`, but `ApiController::index` queried without eager-loading — so listing N records
+  fired N extra relation queries (the web DataTable already eager-loads; the API didn't). `ApiController` now
+  has a `$with` array it eager-loads on the list, and the generator populates it from the resource's
+  belongsTo/belongsToMany relations. Hand-written API controllers are unaffected (`$with` defaults to `[]`).
+
 ## v2.11.0
 
 - **Search & sort the list by a related name.** A generated `belongsTo` column was display-only

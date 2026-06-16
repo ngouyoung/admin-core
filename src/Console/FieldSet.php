@@ -1034,12 +1034,18 @@ BLADE;
 
     public function eager(): string
     {
-        $relations = collect($this->fields)
+        $relations = $this->apiWith();
+
+        return $relations === '' ? '$relation' : "[{$relations}]";
+    }
+
+    /** Relation names (belongsTo + belongsToMany) as a quoted, comma-separated list for an array literal. */
+    public function apiWith(): string
+    {
+        return collect($this->fields)
             ->whereIn('type', ['foreign', 'belongsToMany'])
             ->map(fn ($f) => "'{$f['relation']}'")
             ->implode(', ');
-
-        return $relations === '' ? '$relation' : "[{$relations}]";
     }
 
     public function getDataColumns(): string

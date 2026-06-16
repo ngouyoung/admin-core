@@ -224,6 +224,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_API_SEARCHABLE__' => $fields->apiSearchable(),
             '__AC_API_SORTABLE__' => $fields->apiSortable(),
             '__AC_API_FILTERABLE__' => $fields->apiFilterable(),
+            '__AC_API_WITH__' => $fields->apiWith(),
         ];
 
         // Channels: web (default), api (--api adds it, --api-only swaps to it). The

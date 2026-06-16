@@ -31,9 +31,12 @@ abstract class ApiController extends BaseController
     /** Columns `?filter[col]=value` may exact-match. Whitelist — anything else is ignored. */
     protected array $filterable = [];
 
+    /** Relations to eager-load on the list, so a resource exposing a relation doesn't N+1. */
+    protected array $with = [];
+
     public function index(Request $request): AnonymousResourceCollection
     {
-        $query = $this->service->query();
+        $query = $this->service->query($this->with);
         $this->applyFilters($query, $request);
         $this->applySearch($query, $request);
         $this->applySort($query, $request);
