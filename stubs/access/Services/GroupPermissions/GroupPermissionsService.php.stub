@@ -30,7 +30,8 @@ class GroupPermissionsService extends BaseService
     {
         $childSort = 1;
         foreach ($childData as $child) {
-            $this->model->find((int) $child['id'])->update([
+            // Nullsafe: a stale tree (a group deleted elsewhere mid-drag) shouldn't 500 the reorder.
+            $this->model->find((int) $child['id'])?->update([
                 'parent_id' => (int) $parentId,
                 'sort' => $childSort,
             ]);
@@ -44,7 +45,7 @@ class GroupPermissionsService extends BaseService
     public function updateSort($hierarchy): bool
     {
         foreach ($hierarchy as $key => $group) {
-            $this->model->find((int) $group['id'])->update([
+            $this->model->find((int) $group['id'])?->update([
                 'parent_id' => null,
                 'sort' => $key + 1,
             ]);

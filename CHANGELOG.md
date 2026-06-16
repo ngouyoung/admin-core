@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.10
+
+- **Group-permission reorder is resilient to a stale tree.** Dragging the permission tree resolved each node
+  with `find($id)->update(...)`; if a group had been deleted elsewhere mid-drag, the missing id 500'd the
+  whole reorder. The lookups are now nullsafe (`?->update`), so a vanished node is skipped and the rest of the
+  reorder still applies. Affects newly installed access modules.
+
 ## v2.11.9
 
 - **Fix the dashboard's getting-started text.** The default dashboard told you to add a generated resource to
