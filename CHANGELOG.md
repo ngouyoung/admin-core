@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.10.3
+
+- **`--api` resources now actually load.** `make … --api` wrote the route file to `routes/Api/Modules/`, but
+  the loader that `require`s those files was only ever added by `install --api-auth`. So generating an API
+  resource for a Sanctum / custom-auth API (no Passport) left `/api/<resource>` 404ing despite the "API
+  routes are loaded…" message. `--api` now wires the module loader into `routes/api.php` itself (idempotent,
+  same marker as the installer); if `routes/api.php` doesn't exist yet it tells you to run `php artisan
+  install:api` instead of silently doing nothing.
+
 ## v2.10.2
 
 - **No more red generated test for portal/guard resources.** `--tests` emitted a feature test that

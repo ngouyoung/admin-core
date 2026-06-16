@@ -333,6 +333,9 @@ class AdminCoreMakeCommand extends Command
         if ($web) {
             $this->registerMenuItem($plural, $snakePlural, $kebab, $menuName, $routeNs);
         }
+        if ($api) {
+            $this->ensureApiModulesLoaded();
+        }
 
         $this->newLine();
         $this->info("Resource '{$class}' scaffolded.");
@@ -347,6 +350,40 @@ class AdminCoreMakeCommand extends Command
             : "  Run <info>php artisan migrate</info> — API routes are loaded from routes/Api/Modules and gated by the {$kebab} permissions.");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Make sure routes/api.php loads the generated API modules. Without this an `--api` resource's
+     * route file in routes/Api/Modules just sits there (only `install --api-auth` wired the loader),
+     * so /api/<resource> 404s. Uses the same marker as the installer, so it stays idempotent across
+     * both. If routes/api.php doesn't exist yet, point the user at enabling API routing first.
+     */
+    private function ensureApiModulesLoaded(): void
+    {
+        $api = base_path('routes/api.php');
+
+        if (! File::exists($api)) {
+            $this->warn('  --api: routes/api.php not found — run `php artisan install:api` (or '
+                . '`php artisan admin-core:install --api-auth`); the modules in routes/Api/Modules then load automatically.');
+
+            return;
+        }
+
+        if (str_contains(File::get($api), 'Api/Modules')) {
+            return; // loader already present (a prior --api resource or --api-auth)
+        }
+
+        File::append($api, <<<'PHP'
+
+// >>> admin-core:api-modules
+// API modules generated with `admin-core:make … --api`.
+foreach (glob(__DIR__ . '/Api/Modules/*.php') ?: [] as $apiModule) {
+    require $apiModule;
+}
+// <<< admin-core:api-modules
+
+PHP);
+        $this->line('  <info>wired</info> routes/api.php to load API modules from routes/Api/Modules');
     }
 
     /**

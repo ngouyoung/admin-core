@@ -513,6 +513,40 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         ->toContain("->middleware(\$gate('list'))");
 });
 
+it('wires routes/api.php to load the generated API modules with --api (idempotent)', function () {
+    $api = base_path('routes/api.php');
+    File::ensureDirectoryExists(dirname($api));
+    File::put($api, "<?php\n\nuse Illuminate\\Support\\Facades\\Route;\n");
+
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--api' => true])
+        ->assertSuccessful();
+
+    // The module loader is appended, so /api/gizmos actually resolves (was only wired by --api-auth).
+    expect(File::get($api))
+        ->toContain('>>> admin-core:api-modules')
+        ->toContain("glob(__DIR__ . '/Api/Modules/*.php')");
+
+    // Re-running --api doesn't add the loader a second time.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--api' => true, '--force' => true])
+        ->assertSuccessful();
+    expect(substr_count(File::get($api), '>>> admin-core:api-modules'))->toBe(1);
+
+    File::delete($api);
+    File::deleteDirectory(base_path('routes/Api'));
+});
+
+it('warns (does not silently fail) when --api is used but routes/api.php is absent', function () {
+    expect(File::exists(base_path('routes/api.php')))->toBeFalse(); // testbench has none
+
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--api' => true])
+        ->expectsOutputToContain('routes/api.php not found')
+        ->assertSuccessful();
+
+    expect(File::exists(base_path('routes/api.php')))->toBeFalse(); // not created behind your back
+
+    File::deleteDirectory(base_path('routes/Api'));
+});
+
 it('generates only the API channel with --api-only (no web files, no sidebar link)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
