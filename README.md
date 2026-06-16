@@ -222,7 +222,10 @@ Generated index screens ship these out of the box:
   chosen rows in one request (`bulkDelete` route, gated by `delete-*`).
 
 All live on the base `WebController` (`export()` / `import()` / `bulkDelete()`), plus a single DataTables
-search box (server-side via yajra), so they apply to every resource.
+search box (server-side via yajra), so they apply to every resource. A `belongsTo` column is searchable and
+sortable by the **related record's name** out of the box (the search box matches it via `whereHas`, and the
+column sorts via a correlated subquery) — it assumes the related model has a `name` column, the same
+assumption used to display it.
 
 Create / update / delete (and restore) flash a `success` message that the layout renders automatically.
 Customise or translate it by overriding one method on the generated controller:

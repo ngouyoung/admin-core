@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.0
+
+- **Search & sort the list by a related name.** A generated `belongsTo` column was display-only
+  (`searchable: false`, `orderable: false`). It's now searchable via the global box (`filterColumn` →
+  `whereHas` on the related `name`) and sortable (`orderColumn` → a correlated subquery on the related
+  `name`) — so you can find/order products by their category, etc. Assumes the related model has a `name`
+  column, the same assumption the form select and list/show display already make. Affects newly generated
+  resources (and the `belongsToMany`/image/file columns stay display-only as before).
+
 ## v2.10.7
 
 - **Fix: soft-deleting a record no longer destroys its uploaded file.** A generated service with an

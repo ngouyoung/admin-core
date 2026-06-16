@@ -983,8 +983,13 @@ BLADE;
     /** The DataTables `columns:` entry for one field (reused when inserting a column later). */
     public function fieldColumn(array $f): string
     {
-        if (in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file'], true)) {
-            $key = in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name'];
+        // A belongsTo column carries a `name`, so it's searchable + orderable via the
+        // filterColumn/orderColumn (whereHas / correlated subquery on the related `name`).
+        if ($f['type'] === 'foreign') {
+            return "                {data: '{$f['relation']}', name: '{$f['relation']}'},";
+        }
+        if (in_array($f['type'], ['belongsToMany', 'image', 'file'], true)) {
+            $key = $f['type'] === 'belongsToMany' ? $f['relation'] : $f['name'];
 
             return "                {data: '{$key}', orderable: false, searchable: false},";
         }
@@ -1060,7 +1065,7 @@ BLADE;
     public function fieldDataColumn(array $f): ?string
     {
         return match ($f['type']) {
-            'foreign' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}?->name)",
+            'foreign' => $this->foreignDataColumn($f),
             'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(\$i->name ?? \$i->id) . '</span>')->implode(' '))",
             // Match the show view's status badge / Yes-No / formatted date rather than leaking a raw value.
             'enum' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\\Illuminate\\Support\\Str::headline(\$row->{$f['name']}->value)) . '</span>' : '')",
@@ -1071,6 +1076,23 @@ BLADE;
             'file' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<a href=\"' . asset('storage/' . \$row->{$f['name']}) . '\" target=\"_blank\">file</a>' : '')",
             default => null,
         };
+    }
+
+    /**
+     * getData() lines for a belongsTo column: display the related name, make the global search match it
+     * (filterColumn → whereHas on the related `name`), and make the column sortable by that name
+     * (orderColumn → a correlated subquery). Assumes the related model has a `name` column — the same
+     * assumption the form select and the list/show display already make.
+     */
+    private function foreignDataColumn(array $f): string
+    {
+        $rel = $f['relation'];
+        $relModel = '\\App\\Models\\' . $f['relModel'];
+        $relTable = Str::plural(Str::snake($f['relModel']));
+
+        return "            ->addColumn('{$rel}', fn (\$row) => \$row->{$rel}?->name)\n"
+            . "            ->filterColumn('{$rel}', fn (\$q, \$keyword) => \$q->whereHas('{$rel}', fn (\$rq) => \$rq->where('name', 'like', \"%{\$keyword}%\")))\n"
+            . "            ->orderColumn('{$rel}', fn (\$q, \$dir) => \$q->orderBy({$relModel}::select('name')->whereColumn('{$relTable}.id', '{$this->table}.{$f['name']}'), \$dir))";
     }
 
     /** Read-only detail rows for the show view. */

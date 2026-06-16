@@ -87,6 +87,20 @@ it('builds a foreign key with belongsTo + exists + eager load', function () {
     expect($f->eager())->toContain("'category'");
 });
 
+it('makes a belongsTo list column searchable and sortable by the related name', function () {
+    $f = fs('category_id:foreign'); // table = products
+
+    // JS column carries a name and is no longer searchable:false (so the global search + sort reach it).
+    expect($f->columnsJs())->toContain("{data: 'category', name: 'category'}");
+
+    // getData wires the search (whereHas on the related name) and sort (correlated subquery).
+    expect($f->getDataColumns())
+        ->toContain("->filterColumn('category', fn (\$q, \$keyword) => \$q->whereHas('category'")
+        ->toContain("->where('name', 'like', \"%{\$keyword}%\")")
+        ->toContain("->orderColumn('category'")
+        ->toContain("\\App\\Models\\Category::select('name')->whereColumn('categories.id', 'products.category_id')");
+});
+
 it('handles a unique field with the Rule import on update', function () {
     $f = fs('slug:string^');
     expect($f->migrationColumns())->toContain('->unique();');
