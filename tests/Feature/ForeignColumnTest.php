@@ -3,6 +3,7 @@
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Ngos\AdminCore\Http\Controllers\WebController;
 use Ngos\AdminCore\Services\BaseService;
 use Ngos\AdminCore\Tests\Fixtures\RelCategory;
 use Ngos\AdminCore\Tests\Fixtures\RelGadget;
@@ -35,6 +36,29 @@ afterEach(function () {
     Schema::dropIfExists('rel_categories');
 });
 
+it('global search matches the related name end-to-end via yajra (OR, not AND, with other columns)', function () {
+    // DataTables global-search request for "Phon" — matches the CATEGORY "Phones", not the gadget name.
+    request()->merge([
+        'draw' => 1, 'start' => 0, 'length' => 10,
+        'search' => ['value' => 'Phon', 'regex' => 'false'],
+        'columns' => [
+            ['data' => 'name', 'name' => 'name', 'searchable' => 'true', 'orderable' => 'true', 'search' => ['value' => '', 'regex' => 'false']],
+            ['data' => 'category', 'name' => 'category', 'searchable' => 'true', 'orderable' => 'false', 'search' => ['value' => '', 'regex' => 'false']],
+        ],
+    ]);
+
+    $json = \Yajra\DataTables\Facades\DataTables::of(RelGadget::query())
+        ->addColumn('category', fn ($r) => $r->category?->name)
+        ->filterColumn('category', fn ($q, $kw) => $q->whereHas('category', fn ($c) => $c->where('name', 'like', "%{$kw}%")))
+        ->make(true)
+        ->getData(true);
+
+    // If yajra AND-ed the relation filter, "Phon" (no gadget name match) would return nothing.
+    // OR semantics → Pixel (category Phones) matches via the relation; Earbuds (Audio) does not.
+    $names = collect($json['data'])->pluck('name');
+    expect($names)->toContain('Pixel')->not->toContain('Earbuds');
+});
+
 it('searches the list by the related name (the generated filterColumn body)', function () {
     $matched = RelGadget::query()
         ->whereHas('category', fn ($rq) => $rq->where('name', 'like', '%Phon%'))
@@ -59,6 +83,35 @@ it('eager-loads the relation via $with so the API list does not N+1', function (
 
     // 1 query for gadgets + 1 to eager-load their categories = 2 (without $with it would be 1 + N).
     expect(DB::getQueryLog())->toHaveCount(2);
+});
+
+it('appends the related name to the CSV export, next to the FK id', function () {
+    $service = new class(new RelGadget) extends BaseService {
+        public function __construct(RelGadget $model)
+        {
+            $this->model = $model;
+        }
+    };
+    $controller = new class($service) extends WebController {
+        public function __construct($service)
+        {
+            $this->service = $service;
+            $this->routeBase = 'gadgets.';
+            $this->exportRelations = ['category'];
+        }
+    };
+
+    $response = $controller->export();
+    ob_start();
+    $response->sendContent();
+    $csv = ob_get_clean();
+
+    // The header carries the related name column alongside the FK id, and rows show the category names.
+    expect($csv)
+        ->toContain('category_id')   // the FK still exported (so the file round-trips on import)
+        ->toContain('category')      // …plus a readable name column
+        ->toContain('Phones')
+        ->toContain('Audio');
 });
 
 it('sorts the list by the related name (the generated orderColumn subquery)', function () {

@@ -172,6 +172,10 @@ class AdminCoreMakeCommand extends Command
             $snakePlural,
         ) : '';
 
+        // Append the related name to CSV exports for each belongsTo (readable next to the FK id).
+        $exportRelations = $fields->exportRelations();
+        $exportRelationsLine = $exportRelations === '' ? '' : "\n        \$this->exportRelations = [{$exportRelations}];";
+
         $replace = [
             'DummyClasses' => $plural,
             'DummyClass' => $class,
@@ -185,6 +189,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_RNS__' => $routeNs,
             '__AC_LAYOUT__' => $layoutView,
             '__AC_ROUTE_PREFIX__' => $routePrefixLine,
+            '__AC_EXPORT_RELATIONS__' => $exportRelationsLine,
             '__AC_PK__' => $fields->primaryKey(),
             '__AC_MODEL_TRAITS__' => $fields->modelTraits(),
             '__AC_MODEL_USES__' => $fields->modelUses(),

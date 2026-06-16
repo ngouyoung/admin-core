@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.3
+
+- **CSV export includes readable relation names.** A generated resource's export dumped the raw `category_id`
+  — opaque in a spreadsheet. It now appends a `category` column (the related `name`) for each belongsTo,
+  **next to** the FK id, so the export is readable yet still round-trips: the name column isn't fillable, so
+  re-importing the file ignores it and uses the FK. Controlled by a generated `$exportRelations` on the
+  controller (override to change); resources without a belongsTo are unaffected.
+
 ## v2.11.2
 
 - **`belongsToMany` columns are searchable by the related name too.** Completing v2.11.0: a generated

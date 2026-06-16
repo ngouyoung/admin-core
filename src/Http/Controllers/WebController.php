@@ -123,10 +123,20 @@ abstract class WebController extends BaseController
         return DataTables::of($this->service->query($relation));
     }
 
-    /** Stream every row to a CSV download (all table columns). */
+    /**
+     * belongsTo relations whose related `name` is appended to the CSV export as a readable column
+     * (e.g. `category` next to `category_id`). Kept alongside the FK so a round-tripped export still
+     * imports — the name column isn't fillable, so import ignores it. Generated from the resource's
+     * foreign keys; override to change.
+     *
+     * @var array<int, string>
+     */
+    protected array $exportRelations = [];
+
+    /** Stream every row to a CSV download (all table columns, plus a readable name per relation). */
     public function export(): StreamedResponse
     {
-        $rows = $this->service->query()->get();
+        $rows = $this->service->query($this->exportRelations ?: null)->get();
         // Never export password hashes: drop anything the model marks $hidden, plus any
         // `hashed`-cast column (covers models that predate the generated $hidden).
         $model = $this->service->query()->getModel();
@@ -137,16 +147,21 @@ abstract class WebController extends BaseController
         $columns = $rows->isEmpty()
             ? []
             : array_values(array_diff(array_keys($rows->first()->getAttributes()), $secret));
+        $relations = $this->exportRelations;
         $name = trim(str_replace('.', '-', $this->routeBase), '-') . '-' . now()->format('Ymd-His') . '.csv';
 
-        return response()->streamDownload(function () use ($rows, $columns) {
+        return response()->streamDownload(function () use ($rows, $columns, $relations) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel renders accented/non-ASCII text correctly
             // escape: '' = RFC-4180 quoting (double the quotes, no backslash escaping); also
             // silences PHP 8.4's "the $escape parameter must be provided" deprecation.
-            fputcsv($out, $columns, escape: '');
+            fputcsv($out, array_merge($columns, $relations), escape: '');
             foreach ($rows as $row) {
-                fputcsv($out, array_map(fn ($c) => $this->csvCell($row->getAttribute($c)), $columns), escape: '');
+                $cells = array_map(fn ($c) => $this->csvCell($row->getAttribute($c)), $columns);
+                foreach ($relations as $relation) {
+                    $cells[] = $this->csvCell($row->{$relation}?->name);
+                }
+                fputcsv($out, $cells, escape: '');
             }
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);

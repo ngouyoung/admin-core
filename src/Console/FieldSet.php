@@ -1050,6 +1050,15 @@ BLADE;
             ->implode(', ');
     }
 
+    /** belongsTo relation names (single-value) as a quoted list — the CSV export's readable name columns. */
+    public function exportRelations(): string
+    {
+        return collect($this->fields)
+            ->where('type', 'foreign')
+            ->map(fn ($f) => "'{$f['relation']}'")
+            ->implode(', ');
+    }
+
     public function getDataColumns(): string
     {
         $lines = [];

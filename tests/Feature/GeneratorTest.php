@@ -490,6 +490,10 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         ->toContain("'category' => \$this->category?->name")
         ->not->toContain("'secret'");
 
+    // The web controller appends the belongsTo's related name to the CSV export.
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->toContain("\$this->exportRelations = ['category'];");
+
     // Thin API controller: the CRUD actions live on the base ApiController, the
     // generated class just wires the service, resource and form requests.
     expect(File::get(app_path('Http/Controllers/Api/GizmoApiController.php')))
@@ -655,6 +659,10 @@ it('routes a resource into a portal with --portal (dir + route-names + controlle
     // Controller redirects resolve inside the merchant route group, not admin.
     expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
         ->toContain("\$this->routePrefix = 'merchant.';");
+
+    // No foreign field here → no exportRelations line is emitted.
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->not->toContain('exportRelations');
 
     // Views use merchant.* route-names (no admin.* leakage)…
     expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
