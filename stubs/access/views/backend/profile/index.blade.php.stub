@@ -56,11 +56,11 @@
                     <form action="{{ route('admin.profile.password') }}" method="POST">
                         @csrf @method('PUT')
                         <div class="mb-3"><label class="form-label">Current password</label>
-                            <input type="password" name="current_password" class="form-control @error('current_password') is-invalid @enderror"></div>
+                            <input type="password" name="current_password" autocomplete="current-password" class="form-control @error('current_password') is-invalid @enderror"></div>
                         <div class="mb-3"><label class="form-label">New password</label>
-                            <input type="password" name="password" class="form-control @error('password') is-invalid @enderror"></div>
+                            <input type="password" name="password" autocomplete="new-password" class="form-control @error('password') is-invalid @enderror"></div>
                         <div class="mb-3"><label class="form-label">Confirm</label>
-                            <input type="password" name="password_confirmation" class="form-control"></div>
+                            <input type="password" name="password_confirmation" autocomplete="new-password" class="form-control"></div>
                         <button class="btn btn-primary">Update password</button>
                     </form>
                 </div>

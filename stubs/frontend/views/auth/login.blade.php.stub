@@ -30,12 +30,12 @@
             @csrf
             <div class="mb-3">
                 <label class="form-label">Email</label>
-                <input type="email" name="email" value="{{ old('email') }}"
+                <input type="email" name="email" value="{{ old('email') }}" autocomplete="username"
                        class="form-control form-control-lg" placeholder="you@example.com" required autofocus>
             </div>
             <div class="mb-3">
                 <label class="form-label">Password</label>
-                <input type="password" name="password" class="form-control form-control-lg" placeholder="••••••••" required>
+                <input type="password" name="password" autocomplete="current-password" class="form-control form-control-lg" placeholder="••••••••" required>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div class="form-check">

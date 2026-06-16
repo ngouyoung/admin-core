@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.8
+
+- **`autocomplete` on the password forms.** The login, profile change-password and user create/edit forms now
+  set the right `autocomplete` hints (`username` / `current-password` / `new-password`), so password managers
+  fill and save correctly and the forms meet the WCAG "identify input purpose" guideline. Affects newly
+  installed access modules.
+
 ## v2.11.7
 
 - **Login is now rate-limited.** The access-kit login accepted unlimited password attempts (brute-forceable).
