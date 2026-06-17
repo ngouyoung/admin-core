@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.14
+
+- **`--api-auth` now tells you how to finish the Passport setup.** Installing API auth scaffolded the
+  Passport-based controller/provider/routes but said nothing about the required one-time setup, so `/api/login`
+  silently didn't work. It now prints the exact steps (`composer require laravel/passport` if missing,
+  `migrate`, `passport:keys`, `passport:client --password`, and the two `.env` vars). Also added a `suggest`
+  entry for `laravel/passport` so the optional dependency is discoverable on Packagist. (The provider already
+  guards `class_exists(Passport)`, so a missing Passport never fatals.)
+
 ## v2.11.13
 
 - **Leaner Composer dist.** Added a `.gitattributes` with `export-ignore` so the tarball `composer require`

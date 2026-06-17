@@ -39,6 +39,9 @@
         "spatie/laravel-permission": "^8.0",
         "yajra/laravel-datatables-oracle": "^13.0"
     },
+    "suggest": {
+        "laravel/passport": "Required for `admin-core:install --api-auth` — OAuth2 (password grant) API auth for a decoupled front-end"
+    },
     "autoload": {
         "psr-4": {
             "Ngos\\AdminCore\\": "src/"

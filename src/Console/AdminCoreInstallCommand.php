@@ -411,6 +411,17 @@ PHP;
             File::put($dir . '/.gitkeep', '');
             $this->line('  <info>created</info> routes/Api/Modules/');
         }
+
+        // The scaffolding needs Passport — spell out the remaining one-time setup so /api/login works.
+        $this->newLine();
+        $this->warn('  Finish API auth setup (Laravel Passport):');
+        if (! class_exists(\Laravel\Passport\Passport::class)) {
+            $this->line('    composer require laravel/passport');
+        }
+        $this->line('    php artisan migrate                     # Passport tables');
+        $this->line('    php artisan passport:keys               # OAuth keys (skip if already present)');
+        $this->line('    php artisan passport:client --password  # create the password-grant client, then set');
+        $this->line('    PASSPORT_PASSWORD_CLIENT_ID / PASSPORT_PASSWORD_CLIENT_SECRET in .env');
     }
 
     /** Add a provider class to bootstrap/providers.php (idempotent). */
