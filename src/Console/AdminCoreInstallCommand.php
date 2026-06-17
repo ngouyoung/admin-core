@@ -327,6 +327,46 @@ PHP;
         $this->appendAuthRoutes("$a/routes/auth.php.stub");
         $this->addHasRolesTrait();
         $this->publishSpatieConfig();
+        $this->useAccessPermissionModels();
+    }
+
+    /**
+     * The --access kit publishes App\Models\{Permission,Role} (uuid-aware, with the group_id FK) and a
+     * permissions table whose `uuid` is NOT NULL. So the generator must create permission rows through
+     * THOSE models, not the plain Spatie ones the package config defaults to — otherwise the first
+     * `admin-core:make` inserts a permission with no uuid and the NOT NULL constraint fails. Repoint the
+     * published config's permission/role models at the App ones.
+     */
+    private function useAccessPermissionModels(): void
+    {
+        $config = config_path('admin-core.php');
+        if (! File::exists($config)) {
+            return;
+        }
+
+        $contents = File::get($config);
+        $patched = self::repointPermissionModels($contents);
+
+        if ($patched === $contents) {
+            $this->line('  <comment>exists</comment>  config/admin-core.php already uses the App permission models');
+            return;
+        }
+
+        File::put($config, $patched);
+        $this->line('  <info>updated</info> config/admin-core.php (permission models → App\\Models\\{Permission,Role})');
+    }
+
+    /**
+     * Repoint the config's Spatie permission/role models at the uuid-aware App\Models ones the --access
+     * kit publishes. Pure (no IO) so the contract is unit-testable.
+     */
+    public static function repointPermissionModels(string $config): string
+    {
+        return str_replace(
+            ['\\Spatie\\Permission\\Models\\Permission::class', '\\Spatie\\Permission\\Models\\Role::class'],
+            ['\\App\\Models\\Permission::class', '\\App\\Models\\Role::class'],
+            $config,
+        );
     }
 
     private function appendAuthRoutes(string $stub): void

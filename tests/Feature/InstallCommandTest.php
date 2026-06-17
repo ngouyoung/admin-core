@@ -95,6 +95,32 @@ it('wires the admin route group into routes/web.php', function () {
         ->toContain("'as' => 'admin.'");
 });
 
+it('repoints the permission models at the uuid-aware App\\Models classes for --access', function () {
+    // Precondition: the shipped default is the plain Spatie model (correct for a minimal install).
+    $default = File::get(__DIR__ . '/../../config/admin-core.php');
+    expect($default)
+        ->toContain('\\Spatie\\Permission\\Models\\Permission::class')
+        ->toContain('\\Spatie\\Permission\\Models\\Role::class');
+
+    // --access publishes uuid-aware App\Models\{Permission,Role} + a NOT NULL permissions.uuid, so the
+    // generator must create permissions through those — otherwise the first admin-core:make crashes.
+    $patched = \Ngos\AdminCore\Console\AdminCoreInstallCommand::repointPermissionModels($default);
+    expect($patched)
+        ->toContain('\\App\\Models\\Permission::class')
+        ->toContain('\\App\\Models\\Role::class')
+        ->not->toContain('\\Spatie\\Permission\\Models\\Permission::class')
+        ->not->toContain('\\Spatie\\Permission\\Models\\Role::class');
+});
+
+it('keeps permissions.group_id nullable so a permission can be created before its group (no FK crash on a fresh DB)', function () {
+    // group_id with a hard default(1) + FK meant any permission created before the "All" group exists
+    // (a fresh test DB, the transient firstOrCreate in admin-core:make) violated the FK. Must be nullable.
+    $stub = File::get(__DIR__ . '/../../stubs/access/database/migrations/0001_01_01_000011_create_permission_tables.php.stub');
+    expect($stub)
+        ->toContain("\$table->unsignedBigInteger('group_id')->nullable()")
+        ->not->toContain('->default(1)');
+});
+
 it('registers the permission middleware alias in bootstrap/app.php', function () {
     $this->artisan('admin-core:install')->assertSuccessful();
 

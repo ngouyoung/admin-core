@@ -26,7 +26,7 @@ return new class extends Migration
         Schema::create($tableNames['permissions'], static function (Blueprint $table) {
             $table->bigIncrements('id'); // permission id
             $table->uuid('uuid')->unique(); // public key
-            $table->unsignedBigInteger('group_id')->default(1)->index();
+            $table->unsignedBigInteger('group_id')->nullable()->index();
             $table->string('name');
             $table->string('guard_name');
             $table->timestamps();

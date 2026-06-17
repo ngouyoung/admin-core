@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.18.2
+
+Two blockers found by building a real app on the package from scratch (fresh Laravel 13 + `install --access`).
+
+- **Fix: the first `admin-core:make` crashed on a fresh `--access` install.** `--access` publishes uuid-aware
+  `App\Models\{Permission,Role}` and a permissions table with a NOT NULL `uuid`, but the published config left
+  `permission.model` pointing at the plain Spatie model — so the generator's `createPermissions()` inserted a
+  permission with no uuid and hit a NOT NULL violation. `install --access` now repoints the published config at
+  the `App\Models` classes (the AccessSeeder already used them). Minimal installs keep the Spatie default.
+- **Fix: `admin-core:make --tests` generated tests that failed on a fresh `--access` app.** The permissions
+  table set `group_id` to `default(1)` with a FK to `group_permissions`; in a fresh `RefreshDatabase` test DB
+  (no seeded groups) every permission insert defaulted `group_id=1` and violated the FK. `group_id` is now
+  **nullable** (no hard default) — `createPermissions`/`AccessSeeder` still assign the real group, so seeded
+  permissions stay grouped (verified), but ad-hoc/transient creation no longer needs a pre-existing group.
+
 ## v2.18.1
 
 - **Internal cleanup (no behavior change).** The generated belongsTo sort subquery (`foreignDataColumn`)
