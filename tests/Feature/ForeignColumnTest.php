@@ -99,6 +99,14 @@ it('exports only the chosen columns via ?columns[] (field picker), whitelisted',
         ->and($csv)->toContain('Pixel');
 });
 
+it('still writes the column header when the table is empty (streamed lazily, no row needed)', function () {
+    RelGadget::query()->delete();
+    $csv = trim(preg_replace('/^\xEF\xBB\xBF/', '', exportCsv(gadgetExportController())));
+
+    // The header is derived from the schema, not a fetched row, so an empty export is not blank.
+    expect($csv)->toBe('id,name,category_id,category,tags');
+});
+
 it('global search matches the related name end-to-end via yajra (OR, not AND, with other columns)', function () {
     // DataTables global-search request for "Phon" — matches the CATEGORY "Phones", not the gadget name.
     request()->merge([

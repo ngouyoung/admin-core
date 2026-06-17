@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.17.2
+
+- **Export streams lazily (code-review fix).** `WebController::export()` called `->get()`, loading the
+  **entire table into memory** before streaming — on a large table that exhausts memory and defeats the
+  point of `streamDownload`. It now streams with `->lazy()` (1k chunks, eager-loading the chosen relations
+  per chunk), so memory stays flat regardless of row count. Output is byte-for-byte identical.
+- **Fix: empty table now exports a header.** Columns are derived from the table schema instead of the first
+  fetched row, so exporting an empty resource yields the proper header row (`id,name,…`) instead of a blank
+  file — and no row has to be materialised just to learn the column names.
+
 ## v2.17.1
 
 - **Complete the field-type catalog (code-review fix).** The catalog behind `--list-fields` and the v2.15.0

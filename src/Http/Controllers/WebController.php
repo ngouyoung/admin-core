@@ -6,6 +6,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\DataTables;
@@ -141,7 +142,6 @@ abstract class WebController extends BaseController
      */
     public function export(Request $request): StreamedResponse
     {
-        $rows = $this->service->query($this->exportRelations ?: null)->get();
         // Never export password hashes: drop anything the model marks $hidden, plus any
         // `hashed`-cast column (covers models that predate the generated $hidden).
         $model = $this->service->query()->getModel();
@@ -149,9 +149,9 @@ abstract class WebController extends BaseController
             $model->getHidden(),
             array_keys(array_filter($model->getCasts(), fn ($cast) => $cast === 'hashed')),
         );
-        $columns = $rows->isEmpty()
-            ? []
-            : array_values(array_diff(array_keys($rows->first()->getAttributes()), $secret));
+        // Columns come from the schema, not a fetched row, so the header is correct even on an
+        // empty table and we never have to materialise a row just to learn the column names.
+        $columns = array_values(array_diff(Schema::getColumnListing($model->getTable()), $secret));
         $relations = $this->exportRelations;
 
         // Field picker: limit to the requested columns/relations (intersect = whitelist).
@@ -163,13 +163,15 @@ abstract class WebController extends BaseController
 
         $name = trim(str_replace('.', '-', $this->routeBase), '-') . '-' . now()->format('Ymd-His') . '.csv';
 
-        return response()->streamDownload(function () use ($rows, $columns, $relations) {
+        return response()->streamDownload(function () use ($columns, $relations) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel renders accented/non-ASCII text correctly
             // escape: '' = RFC-4180 quoting (double the quotes, no backslash escaping); also
             // silences PHP 8.4's "the $escape parameter must be provided" deprecation.
             fputcsv($out, array_merge($columns, $relations), escape: '');
-            foreach ($rows as $row) {
+            // Stream lazily (eager-loading the chosen relations per 1k chunk) so a large table
+            // exports with flat memory instead of loading every row up front.
+            $this->service->query($relations ?: null)->lazy()->each(function ($row) use ($out, $columns, $relations) {
                 $cells = array_map(fn ($c) => $this->csvCell($row->getAttribute($c)), $columns);
                 foreach ($relations as $relation) {
                     $related = $row->{$relation};
@@ -179,7 +181,7 @@ abstract class WebController extends BaseController
                         : $this->csvCell($related?->name);
                 }
                 fputcsv($out, $cells, escape: '');
-            }
+            });
             fclose($out);
         }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
     }
