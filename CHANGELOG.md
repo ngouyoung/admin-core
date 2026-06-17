@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.13
+
+- **Leaner Composer dist.** Added a `.gitattributes` with `export-ignore` so the tarball `composer require`
+  downloads no longer ships the package's own `tests/` (~30 files), `.github/`, PHPStan config/baseline,
+  `phpunit.xml.dist` and `RELEASING.md` — only the runtime code (`src`, `stubs`, `config`, `resources`) plus
+  docs. Smaller install for every consumer; no functional change.
+
 ## v2.11.12
 
 - **Declare all the `illuminate/*` components actually used.** `src/` imports concrete classes from
