@@ -634,9 +634,12 @@ PHP);
             'boolean' => 'true / false toggle',
             'date' => 'date',
             'datetime' => 'date + time',
+            'time' => 'time of day',
             'email' => 'email address',
+            'url' => 'web address',
             'enum' => 'fixed set of choices — enum:draft|published',
             'slug' => 'unique URL key (auto from name)',
+            'json' => 'structured data (JSON ↔ array)',
             'image' => 'uploaded image (stored path)',
             'file' => 'uploaded file (stored path)',
             'foreign' => 'belongsTo another table (a *_id column)',
@@ -657,12 +660,15 @@ PHP);
         $this->table(
             ['Modifier', 'Meaning'],
             [
-                ['?', 'nullable / optional        (price:decimal?)'],
-                ['^', 'unique                     (slug:string^)'],
-                ['#', 'plain database index       (status:string#)'],
+                ['?', 'nullable / optional             (price:decimal?)'],
+                ['^', 'unique                          (slug:string^)'],
+                ['#', 'plain database index            (status:string#)'],
+                ['~', 'write-once: set on create, locked on edit  (sku:string^~)'],
+                ['@', 'system: set by trusted code only, never in the form  (owner_id:integer@)'],
             ],
         );
 
+        $this->line(' Special types: <comment>password</comment> (hashed), <comment>auth</comment> (current user id), <comment>sku</comment> (auto code) — see the README.');
         $this->line(' Example: <comment>--fields="name:string^, price:decimal?, status:enum:draft|published, category_id:foreign"</comment>');
     }
 

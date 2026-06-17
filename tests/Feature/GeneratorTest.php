@@ -839,10 +839,15 @@ it('normalises a foreign field name to the *_id convention in the interactive bu
     expect(File::get($migration))->toContain("\$table->foreignId('category_id')");
 });
 
-it('prints the field-type catalog with --list-fields and generates nothing', function () {
+it('prints the full field-type catalog with --list-fields and generates nothing', function () {
     $this->artisan('admin-core:make', ['--list-fields' => true])
         ->expectsOutputToContain('belongsToMany')
         ->expectsOutputToContain('enum:draft|published')
+        // The catalog must be complete — these real DSL types were missing before.
+        ->expectsOutputToContain('time of day')
+        ->expectsOutputToContain('web address')
+        ->expectsOutputToContain('structured data')
+        ->expectsOutputToContain('write-once')
         ->assertSuccessful();
 
     expect(File::exists(app_path('Models/Gizmo.php')))->toBeFalse();

@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.17.1
+
+- **Complete the field-type catalog (code-review fix).** The catalog behind `--list-fields` and the v2.15.0
+  interactive builder listed 14 types but the DSL supports more — `time`, `url` and `json` were fully
+  handled by the generator yet missing from the menu/reference (so `--list-fields` under-reported what the
+  DSL accepts and you couldn't pick them interactively). Added all three. `--list-fields` now also documents
+  the `~` (write-once) and `@` (system) modifiers and points to the `password`/`auth`/`sku` special types.
+
 ## v2.17.0
 
 - **Themed date picker (Air Datepicker).** Generated `date`/`datetime` fields now render as a
