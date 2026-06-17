@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.18.1
+
+- **Internal cleanup (no behavior change).** The generated belongsTo sort subquery (`foreignDataColumn`)
+  re-derived the related table name with a different expression than `parse()` already stored on the field;
+  it now reuses the single canonical `relTable`, so the sort subquery and the `exists:` rule can never drift
+  apart if that derivation is ever changed. Output is identical for all real inputs (verified by the
+  existing foreign-column tests).
+
 ## v2.18.0
 
 - **Error log retention.** The `error_logs` table no longer grows unbounded — `ErrorLog` is now

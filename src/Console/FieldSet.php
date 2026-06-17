@@ -1142,7 +1142,9 @@ BLADE;
     {
         $rel = $f['relation'];
         $relModel = '\\App\\Models\\' . $f['relModel'];
-        $relTable = Str::plural(Str::snake($f['relModel']));
+        // The canonical relTable, computed once in parse(); re-deriving it here risked diverging from the
+        // `exists:` rule for irregular plurals (e.g. the order subquery and the rule naming different tables).
+        $relTable = $f['relTable'];
 
         return "            ->addColumn('{$rel}', fn (\$row) => \$row->{$rel}?->name)\n"
             . "            ->filterColumn('{$rel}', fn (\$q, \$keyword) => \$q->whereHas('{$rel}', fn (\$rq) => \$rq->where('name', 'like', \"%{\$keyword}%\")))\n"
