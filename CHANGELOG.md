@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.18.3
+
+- **Fix: the Dashboard sidebar item never highlighted as active.** The dashboard route lives at `/admin`, but
+  its menu `match` was `'admin/dashboard'`, which `request()->is()` can never match — so every page highlighted
+  its own nav item except the dashboard. Changed the default to `'admin'` (an exact match, so it lights on
+  `/admin` without bleeding onto child pages). Found by serving a real app and walking the pages.
+
 ## v2.18.2
 
 Two blockers found by building a real app on the package from scratch (fresh Laravel 13 + `install --access`).

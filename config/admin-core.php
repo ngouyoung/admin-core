@@ -43,7 +43,7 @@ return [
     | (Run `php artisan config:clear` after generating if you cache config.)
     */
     'menu' => [
-        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'bi bi-speedometer2', 'match' => 'admin/dashboard'],
+        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'icon' => 'bi bi-speedometer2', 'match' => 'admin'],
         // admin-core:menu
         ['header' => 'Access'],
         ['label' => 'Assessments', 'icon' => 'bi bi-people', 'match' => 'admin/assessments/*', 'children' => [

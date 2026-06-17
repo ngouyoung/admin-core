@@ -102,3 +102,17 @@ it('renders the sidebar-menu component, omitting hidden items', function () {
 
     expect($html)->toContain('Widgets')->toContain('ac-nav-item')->not->toContain('Ghost');
 });
+
+it('marks an item active by an exact match — the dashboard at /admin highlights, deeper paths do not', function () {
+    // The Dashboard route lives at /admin, so its match must be 'admin' (no wildcard) — 'admin/dashboard'
+    // would never highlight, and 'admin*' would wrongly stay lit on every child page.
+    config(['admin-core.menu' => [
+        ['label' => 'Dashboard', 'route' => 'admin.widgets.index', 'icon' => 'bi bi-speedometer2', 'match' => 'admin'],
+    ]]);
+
+    app()->instance('request', Illuminate\Http\Request::create('admin', 'GET'));
+    expect(Blade::render('<x-admin-core::sidebar-menu />'))->toContain('ac-nav-link active');
+
+    app()->instance('request', Illuminate\Http\Request::create('admin/widgets', 'GET'));
+    expect(Blade::render('<x-admin-core::sidebar-menu />'))->not->toContain('ac-nav-link active');
+});
