@@ -61,15 +61,17 @@ it('renders boolean and date columns in the list (not raw true/false or ISO stri
     expect($f->rawColumns())->toContain("'active'");
 });
 
-it('formats date/datetime form values to the shape the HTML inputs parse (so they load on edit)', function () {
+it('renders date/datetime as Air Datepicker text inputs, value-formatted to the shape it + the date rule parse', function () {
     $form = fs('born_on:date?, start_at:datetime?')->formFields();
 
-    // A raw Carbon ("Y-m-d H:i:s") is rejected by these inputs; format to Y-m-d / Y-m-d\TH:i.
+    // Themed picker (theme.js attaches to .js-datepicker, mode from data-adp), not the native input.
+    // A raw Carbon ("Y-m-d H:i:s") wouldn't round-trip; format to Y-m-d / Y-m-d H:i.
     expect($form)
-        ->toContain('type="date"')
+        ->toContain('class="form-control js-datepicker @error(\'born_on\') is-invalid @enderror" autocomplete="off" data-adp="date"')
         ->toContain("old('born_on', \$object?->born_on?->format('Y-m-d'))")
-        ->toContain('type="datetime-local"')
-        ->toContain("old('start_at', \$object?->start_at?->format('Y-m-d\\TH:i'))");
+        ->toContain('data-adp="datetime"')
+        ->toContain("old('start_at', \$object?->start_at?->format('Y-m-d H:i'))")
+        ->not->toContain('type="datetime-local"');
 });
 
 it('labels enum values with Str::headline (multi-word reads cleanly) across form, list and show', function () {

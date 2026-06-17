@@ -839,11 +839,14 @@ PHP;
             'boolean' => "<input type=\"hidden\" name=\"{$col}\" value=\"0\">\n        <div class=\"form-check\">\n            <input type=\"checkbox\" name=\"{$col}\" id=\"{$col}\" value=\"1\" class=\"form-check-input {$err}\" {{ {$old} ? 'checked' : '' }}>\n        </div>",
             'integer' => "<input type=\"number\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
             'decimal' => "<input type=\"number\" step=\"0.01\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
-            // Format the Carbon value to the exact shape each HTML input parses (Y-m-d / Y-m-d\TH:i) —
-            // its default __toString ("Y-m-d H:i:s") is rejected, so the value wouldn't load on edit.
-            // old() (after a validation error) already holds the correctly-shaped submitted string.
-            'date' => "<input type=\"date\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ old('{$col}', \$object?->{$col}?->format('Y-m-d')) }}\"{$ro}>",
-            'datetime' => "<input type=\"datetime-local\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ old('{$col}', \$object?->{$col}?->format('Y-m-d\\TH:i')) }}\"{$ro}>",
+            // date/datetime are enhanced by Air Datepicker (theme.js attaches to .js-datepicker, reading
+            // data-adp for the mode) — a Bootstrap-themed calendar instead of the unstyled native picker.
+            // They stay plain text inputs so they degrade gracefully without JS, and the value is formatted
+            // to the exact shape the picker + the 'date' validation rule parse (Y-m-d / Y-m-d H:i); its
+            // Carbon __toString ("Y-m-d H:i:s") would otherwise not round-trip. old() already holds the
+            // submitted string after a validation error. (time keeps the native picker — calendar-less.)
+            'date' => "<input type=\"text\" name=\"{$col}\" id=\"{$col}\" class=\"form-control js-datepicker {$err}\" autocomplete=\"off\" data-adp=\"date\" value=\"{{ old('{$col}', \$object?->{$col}?->format('Y-m-d')) }}\"{$ro}>",
+            'datetime' => "<input type=\"text\" name=\"{$col}\" id=\"{$col}\" class=\"form-control js-datepicker {$err}\" autocomplete=\"off\" data-adp=\"datetime\" value=\"{{ old('{$col}', \$object?->{$col}?->format('Y-m-d H:i')) }}\"{$ro}>",
             'time' => "<input type=\"time\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
             'email' => "<input type=\"email\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
             'url' => "<input type=\"url\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",

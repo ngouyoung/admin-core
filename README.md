@@ -135,8 +135,8 @@ php artisan admin-core:make Product --migration --fields="\
 | `integer` | `integer` | number | `integer` |
 | `decimal` | `decimal(10,2)` | number (step) | `numeric` |
 | `boolean` | `boolean` default 0 | checkbox | `boolean` |
-| `date` / `datetime` | `date` / `dateTime` | date / datetime-local | `date` |
-| `time` | `time` | time | `date_format:H:i` |
+| `date` / `datetime` | `date` / `dateTime` | Air Datepicker (themed calendar / + time) | `date` |
+| `time` | `time` | native time | `date_format:H:i` |
 | `email` | `string` | email | `email` |
 | `url` | `string` | url | `url,max:255` |
 | `enum:a\|b\|c` | `string` | `<select>` from cases | `Rule::enum` (generated backed enum) |
@@ -152,6 +152,12 @@ The model also gets a `casts()` method (`boolean`, `date`, `datetime`, `decimal:
 `password → hashed`, `enum → its backed enum class`). A `slug` left blank is derived from `name` in the
 `creating` hook; a `json` field round-trips through a textarea (decoded in `prepareForValidation`, stored
 via the array cast); a blank `password` on **update** is dropped so the existing hash is preserved.
+
+**Date inputs use a themed calendar.** `date`/`datetime` fields render as [Air Datepicker](https://air-datepicker.com)
+text inputs (`--access` bundles it) — a Bootstrap-themed calendar (with a time picker for `datetime`) that
+matches your accent and flips with dark mode, instead of the unstyled native picker. The submitted value
+keeps the `Y-m-d` / `Y-m-d H:i` shape the `date` rule and the model cast expect. The bundle auto-attaches it
+to any `.js-datepicker` input on load; for a modal/AJAX-loaded form, call `window.acInitDatepickers(formEl)`.
 
 **Enums are code, not schema.** `status:enum:draft|published` generates `App\Enums\ProductStatus` (a
 string-backed PHP enum) as the **single source of truth**: validation uses `Rule::enum`, the model casts

@@ -1,0 +1,48 @@
+// ---------------------------------------------------------------------------
+// Air Datepicker — a Bootstrap-themed calendar for the generated date/datetime
+// inputs (admin-core:make … date:/datetime:). Attaches to any `.js-datepicker`
+// text input; the `data-adp` attribute picks the mode:
+//   data-adp="date"      → calendar only          (value: yyyy-MM-dd)
+//   data-adp="datetime"  → calendar + time picker (value: yyyy-MM-dd HH:mm)
+// The value formats match what the model casts to + the 'date' validation rule
+// accept, so edits round-trip. Themed to your Bootstrap palette in app.scss.
+// ---------------------------------------------------------------------------
+import AirDatepicker from 'air-datepicker';
+import localeEn from 'air-datepicker/locale/en';
+
+function optionsFor(mode) {
+    const base = { locale: localeEn, autoClose: true, position: 'bottom left', dateFormat: 'yyyy-MM-dd' };
+
+    if (mode === 'datetime') {
+        return { ...base, timepicker: true, autoClose: false, timeFormat: 'HH:mm' };
+    }
+
+    return base;
+}
+
+// Parse the input's current value (yyyy-MM-dd or yyyy-MM-dd HH:mm) into a Date,
+// forcing local midnight on a date-only string so it can't shift a day across
+// timezones. Returns null when empty/unparseable.
+function parseValue(value) {
+    const v = value.trim();
+    if (!v) return null;
+    const iso = v.includes(' ') ? v.replace(' ', 'T') : `${v}T00:00`;
+    const date = new Date(iso);
+    return isNaN(date.getTime()) ? null : date;
+}
+
+// Enhance every .js-datepicker under `root` once. Exposed as window.acInitDatepickers
+// so a modal / AJAX-loaded form can re-run it on its own freshly-inserted inputs.
+function initDatepickers(root = document) {
+    root.querySelectorAll('input.js-datepicker').forEach((el) => {
+        if (el.dataset.adpReady) return; // idempotent — never double-init
+        el.dataset.adpReady = '1';
+
+        const dp = new AirDatepicker(el, optionsFor(el.dataset.adp || 'date'));
+        const current = parseValue(el.value); // pre-select the stored value on edit
+        if (current) dp.selectDate(current, { silent: true });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => initDatepickers());
+window.acInitDatepickers = initDatepickers;

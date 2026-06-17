@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.17.0
+
+- **Themed date picker (Air Datepicker).** Generated `date`/`datetime` fields now render as a
+  Bootstrap-themed calendar (with a time picker for `datetime`) instead of the browser's unstyled native
+  input. The `--access` bundle ships [Air Datepicker](https://air-datepicker.com) (~tiny, zero-dep), and its
+  `--adp-*` variables are mapped onto the theme tokens (`--ac-accent`, `--ac-surface`, `--ac-border`, …) so
+  the calendar matches your accent **and flips with dark mode** for free.
+  - **How it's wired.** `date`/`datetime` are now plain `.js-datepicker` text inputs carrying `data-adp`
+    (`date` | `datetime`); a new `resources/js/datepicker.js` auto-attaches the picker on load (idempotent)
+    and is exposed as `window.acInitDatepickers(root)` for modal/AJAX-loaded forms. The stored value keeps
+    the `Y-m-d` / `Y-m-d H:i` shape the `date` validation rule + the model cast already expect — edits
+    round-trip, and it degrades to a normal text field without JS. `time` keeps the native picker.
+  - Wiring published by `admin-core:install --access`: `air-datepicker` dependency, the CSS/JS imports in
+    `app.js`, the new `datepicker.js`, and the theme mapping in `app.scss`. (Re-run install or `npm install`
+    + build to pick it up.) Verified building the host bundle.
+
 ## v2.16.0
 
 - **`admin-core:make --list-fields`.** Prints the field types and modifiers the `--fields` DSL accepts
