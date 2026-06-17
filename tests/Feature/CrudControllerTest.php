@@ -87,6 +87,18 @@ it('exports a csv', function () {
     expect($response->streamedContent())->toStartWith("\xEF\xBB\xBF");
 });
 
+it('downloads a blank import template of the importable columns (no hashed/secret)', function () {
+    $response = $this->get(route('admin.widgets.importTemplate'));
+
+    $response->assertOk();
+    expect($response->headers->get('content-type'))->toContain('text/csv');
+
+    $csv = trim(preg_replace('/^\xEF\xBB\xBF/', '', $response->streamedContent())); // strip BOM
+    // Header row of fillable columns so the user knows what to fill; the hashed `secret` is excluded.
+    expect($csv)->toBe('name,status,photo')
+        ->and($csv)->not->toContain('secret'); // never expose the hashed column, even as a header
+});
+
 it('imports rows from a csv', function () {
     $csv = "name\nImported A\nImported B\n";
     $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);

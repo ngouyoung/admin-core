@@ -42,6 +42,7 @@ abstract class TestCase extends Orchestra
                 Route::controller(WidgetController::class)->group(function () {
                     Route::get('show/{id}', 'show')->name('show');
                     Route::get('export', 'export')->name('export');
+                    Route::get('import-template', 'importTemplate')->name('importTemplate');
                     Route::post('import', 'import')->name('import');
                     Route::post('bulkDelete', 'bulkDelete')->name('bulkDelete');
                     Route::post('reorder', 'reorder')->name('reorder');

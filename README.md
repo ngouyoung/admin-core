@@ -214,10 +214,11 @@ Generated index screens ship these out of the box:
 
 - **Export** — an `Export` button streams the table to CSV (`export` route, gated by `list-*`). The output
   is injection-safe (formula cells are neutralised) and leads with a UTF-8 BOM so Excel reads it correctly.
-- **Import** — an `Import` button opens a modal to upload a CSV (same shape as Export). Each row is
-  validated against the resource's store rules; only fillable columns are kept (so a round-tripped export
-  with `id`/`uuid`/timestamps imports cleanly), invalid rows are skipped and reported (`import` route,
-  gated by `create-*`).
+- **Import** — an `Import` button opens a modal to upload a CSV (same shape as Export). The modal links a
+  **blank template** (`importTemplate` route) — a header-only CSV of the importable columns (fillable, minus
+  password/file columns) so users don't have to guess the fields. Each row is validated against the resource's
+  store rules; only fillable columns are kept (so a round-tripped export with `id`/`uuid`/timestamps imports
+  cleanly), invalid rows are skipped and reported (`import` route, gated by `create-*`).
 - **Bulk delete** — a select-all checkbox column + a "Delete selected" button that soft/hard-deletes the
   chosen rows in one request (`bulkDelete` route, gated by `delete-*`).
 

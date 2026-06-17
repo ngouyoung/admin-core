@@ -11,6 +11,8 @@ Route::group(['prefix' => 'dummyModels', 'as' => 'dummyModels.'], function () {
             ->middleware(config('admin-core.permission.enabled') ? 'permission:list-dummy-model__AC_PERM_GUARD__' : []);
         Route::get('export', 'export')->name('export')
             ->middleware(config('admin-core.permission.enabled') ? 'permission:list-dummy-model__AC_PERM_GUARD__' : []);
+        Route::get('import-template', 'importTemplate')->name('importTemplate')
+            ->middleware(config('admin-core.permission.enabled') ? 'permission:create-dummy-model__AC_PERM_GUARD__' : []);
         Route::post('import', 'import')->name('import')
             ->middleware(config('admin-core.permission.enabled') ? 'permission:create-dummy-model__AC_PERM_GUARD__' : []);
         Route::post('bulkDelete', 'bulkDelete')->name('bulkDelete')

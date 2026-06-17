@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.12.0
+
+- **Import: download a blank template.** Users importing a CSV had no way to know which fields to fill (the
+  modal just said "match the Export shape" — useless on an empty table). The import modal now links a
+  **Download template** button: a header-only CSV of the importable columns — the model's fillable columns
+  minus password/`hashed` and image/file columns (which a CSV can't carry), i.e. exactly what `import()`
+  accepts. New `importTemplate` route + `WebController::importTemplate()`; gated like import (`create-*`).
+  Affects newly generated resources.
+
 ## v2.11.17
 
 - **Revert v2.11.16 (redundant).** `theme.js` already sets `responsive: true` in the global DataTables

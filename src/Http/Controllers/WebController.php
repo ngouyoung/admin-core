@@ -273,6 +273,35 @@ abstract class WebController extends BaseController
         return back()->with('success', $message);
     }
 
+    /**
+     * Download a blank CSV (header row only) of the columns a user can actually import, so they
+     * don't have to guess the fields. It lists the model's fillable columns minus password/hashed
+     * ones and any image/file column (a CSV can't carry a file — same exclusions import() applies).
+     */
+    public function importTemplate(): StreamedResponse
+    {
+        $model = $this->service->query()->getModel();
+        $rules = (new $this->storeRequest)->rules();
+        $secret = array_merge(
+            $model->getHidden(),
+            array_keys(array_filter($model->getCasts(), fn ($cast) => $cast === 'hashed')),
+        );
+        // image/file columns can't be imported from a CSV, so leave them out of the template.
+        $files = array_keys(array_filter(
+            $rules,
+            fn ($r) => is_array($r) && (in_array('image', $r, true) || in_array('file', $r, true)),
+        ));
+        $columns = array_values(array_diff($model->getFillable(), $secret, $files));
+        $name = trim(str_replace('.', '-', $this->routeBase), '-') . '-import-template.csv';
+
+        return response()->streamDownload(function () use ($columns) {
+            $out = fopen('php://output', 'w');
+            fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM (Excel)
+            fputcsv($out, $columns, escape: '');
+            fclose($out);
+        }, $name, ['Content-Type' => 'text/csv; charset=UTF-8']);
+    }
+
     /** Delete every selected row (soft delete if the model uses SoftDeletes). */
     public function bulkDelete(Request $request): JsonResponse
     {

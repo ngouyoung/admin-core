@@ -49,7 +49,9 @@ __AC_SORT_PANEL__
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                        <p class="text-muted small mb-2">Upload a CSV whose header row matches the column names — the same shape as Export. Invalid rows are skipped and reported.</p>
+                        <p class="text-muted small mb-2">Not sure which columns to use?
+                            <a href="{{ route('__AC_RNS__dummyModels.importTemplate') }}"><i class="bi bi-download"></i> Download a blank template</a>,
+                            fill in the rows and upload it. (Same shape as Export; invalid rows are skipped and reported.)</p>
                         <input type="file" name="file" accept=".csv,.txt" class="form-control @error('file') is-invalid @enderror" required>
                         @error('file')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
