@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.16
+
+- **Tables are responsive on mobile now.** The `datatables.net-responsive-bs5` plugin was already bundled
+  (imported in `app.js`) but no table init enabled it, so on narrow screens lists overflowed instead of
+  collapsing columns into an expandable row. Every generated list and the access-kit tables
+  (users/roles/permissions/activity) now set `responsive: true`. No desktop change; mobile just works.
+  Affects newly generated resources / installed access modules.
+
 ## v2.11.15
 
 - **Remove duplicate Passport guidance.** v2.11.14 added Passport setup steps to the `--api-auth` install

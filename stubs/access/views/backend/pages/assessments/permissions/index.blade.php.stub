@@ -28,6 +28,7 @@
             $('#permissions_table').DataTable({
                 ajax: {url: '{{ route('admin.assessments.permissions.getData') }}', type: 'GET'},
                 pageLength: {{ (int) config('admin-core.pagination', 10) }},
+                responsive: true,
                 columns: [
                     {data: 'name', name: 'name'},
                     {data: 'group', orderable: false, searchable: false},

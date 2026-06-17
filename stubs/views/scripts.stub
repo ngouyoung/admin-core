@@ -3,6 +3,7 @@
         const Table = $('#dummyModels_table').DataTable({
             ajax: {url: '{{ route('__AC_RNS__dummyModels.getData') }}', type: 'GET'},
             pageLength: {{ (int) config('admin-core.pagination', 10) }},
+            responsive: true,
             columns: [
 __AC_COLS__
             ],
