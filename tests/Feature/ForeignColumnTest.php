@@ -7,6 +7,7 @@ use Ngos\AdminCore\Http\Controllers\WebController;
 use Ngos\AdminCore\Services\BaseService;
 use Ngos\AdminCore\Tests\Fixtures\RelCategory;
 use Ngos\AdminCore\Tests\Fixtures\RelGadget;
+use Ngos\AdminCore\Tests\Fixtures\RelTag;
 
 /*
  * Proves the queries the generator emits for a searchable/sortable belongsTo list column actually
@@ -25,15 +26,77 @@ beforeEach(function () {
         $t->unsignedBigInteger('category_id');
     });
 
+    Schema::create('rel_tags', function (Blueprint $t) {
+        $t->id();
+        $t->string('name');
+    });
+    Schema::create('rel_gadget_tag', function (Blueprint $t) {
+        $t->unsignedBigInteger('gadget_id');
+        $t->unsignedBigInteger('tag_id');
+    });
+
     $phones = RelCategory::create(['name' => 'Phones']);
     $audio = RelCategory::create(['name' => 'Audio']);
-    RelGadget::create(['name' => 'Pixel', 'category_id' => $phones->id]);
+    $pixel = RelGadget::create(['name' => 'Pixel', 'category_id' => $phones->id]);
     RelGadget::create(['name' => 'Earbuds', 'category_id' => $audio->id]);
+    $red = RelTag::create(['name' => 'red']);
+    $new = RelTag::create(['name' => 'new']);
+    $pixel->tags()->attach([$red->id, $new->id]);
 });
 
 afterEach(function () {
+    Schema::dropIfExists('rel_gadget_tag');
+    Schema::dropIfExists('rel_tags');
     Schema::dropIfExists('rel_gadgets');
     Schema::dropIfExists('rel_categories');
+});
+
+/** A controller over RelGadget exporting both relations, optionally limited to ?columns[]. */
+function gadgetExportController(): WebController
+{
+    $service = new class(new RelGadget) extends BaseService {
+        public function __construct(RelGadget $model)
+        {
+            $this->model = $model;
+        }
+    };
+
+    return new class($service) extends WebController {
+        public function __construct($service)
+        {
+            $this->service = $service;
+            $this->routeBase = 'gadgets.';
+            $this->exportRelations = ['category', 'tags'];
+        }
+    };
+}
+
+function exportCsv(WebController $controller, array $query = []): string
+{
+    $response = $controller->export(\Illuminate\Http\Request::create('/export', 'GET', $query));
+    ob_start();
+    $response->sendContent();
+
+    return ob_get_clean();
+}
+
+it('exports belongsTo name and belongsToMany joined names', function () {
+    $csv = exportCsv(gadgetExportController());
+
+    // Header carries both relation columns; Pixel's row shows its category and joined tags.
+    expect($csv)
+        ->toContain('category')->toContain('tags')
+        ->toContain('Phones')                 // belongsTo: the related name
+        ->toMatch('/"?red, new"?|"?new, red"?/'); // belongsToMany: related names joined
+});
+
+it('exports only the chosen columns via ?columns[] (field picker), whitelisted', function () {
+    $csv = trim(preg_replace('/^\xEF\xBB\xBF/', '', exportCsv(gadgetExportController(), ['columns' => ['name', 'tags']])));
+    $header = strtok($csv, "\n");
+
+    // Only the requested name + tags columns; category (not requested) and id are excluded.
+    expect($header)->toBe('name,tags')
+        ->and($csv)->toContain('Pixel');
 });
 
 it('global search matches the related name end-to-end via yajra (OR, not AND, with other columns)', function () {
@@ -86,25 +149,7 @@ it('eager-loads the relation via $with so the API list does not N+1', function (
 });
 
 it('appends the related name to the CSV export, next to the FK id', function () {
-    $service = new class(new RelGadget) extends BaseService {
-        public function __construct(RelGadget $model)
-        {
-            $this->model = $model;
-        }
-    };
-    $controller = new class($service) extends WebController {
-        public function __construct($service)
-        {
-            $this->service = $service;
-            $this->routeBase = 'gadgets.';
-            $this->exportRelations = ['category'];
-        }
-    };
-
-    $response = $controller->export();
-    ob_start();
-    $response->sendContent();
-    $csv = ob_get_clean();
+    $csv = exportCsv(gadgetExportController());
 
     // The header carries the related name column alongside the FK id, and rows show the category names.
     expect($csv)

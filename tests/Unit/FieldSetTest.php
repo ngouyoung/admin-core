@@ -164,6 +164,22 @@ it('handles belongsToMany with a pivot migration and sync', function () {
     expect($f->serviceBody())->toContain('->sync(');
 });
 
+it('includes belongsTo + belongsToMany in the export relations, and lists export-picker fields', function () {
+    $f = fs('name:string, category_id:foreign, tags:belongsToMany');
+
+    // Both relation kinds get a readable export column (belongsTo name + m2m joined names).
+    expect($f->exportRelations())->toContain("'category'")->toContain("'tags'");
+
+    // The field picker offers id + the value columns + relation names + timestamps; never the m2m as a column.
+    $picker = $f->exportFields();
+    expect($picker)->toHaveKeys(['id', 'name', 'category_id', 'category', 'tags', 'created_at', 'updated_at']);
+});
+
+it('keeps password columns out of the export field picker', function () {
+    expect(fs('name:string, secret:password')->exportFields())
+        ->toHaveKey('name')->not->toHaveKey('secret');
+});
+
 it('makes a belongsToMany list column searchable by the related name (not sortable)', function () {
     $f = fs('tags:belongsToMany');
 

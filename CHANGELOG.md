@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.13.0
+
+- **Export: pick fields + export belongsToMany.** Two requested improvements to CSV export:
+  - **Field picker** — the Export button is now a dropdown with a checkbox per column (id, fields, relation
+    names, timestamps). Export only what you tick; leave all checked for everything. It's a plain GET form
+    (`?columns[]=`), no JS, and `export()` whitelists the requested columns against the real ones so nothing
+    hidden can leak.
+  - **belongsToMany export** — many-to-many relations now export too, as the related names joined (e.g. a
+    `tags` column = "red, blue"), alongside the existing belongsTo name export. `export()` is now
+    Collection-aware (joins m2m, single name for belongsTo). Affects newly generated resources.
+
 ## v2.12.0
 
 - **Import: download a blank template.** Users importing a CSV had no way to know which fields to fill (the

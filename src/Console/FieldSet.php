@@ -1051,13 +1051,45 @@ BLADE;
             ->implode(', ');
     }
 
-    /** belongsTo relation names (single-value) as a quoted list — the CSV export's readable name columns. */
+    /**
+     * Relation names appended to the CSV export as readable columns — belongsTo (the related name) and
+     * belongsToMany (the related names joined). Eager-loaded by export() and rendered per type there.
+     */
     public function exportRelations(): string
     {
         return collect($this->fields)
-            ->where('type', 'foreign')
+            ->whereIn('type', ['foreign', 'belongsToMany'])
             ->map(fn ($f) => "'{$f['relation']}'")
             ->implode(', ');
+    }
+
+    /**
+     * Columns offered in the Export field-picker, as `value => Label`. The scalar columns a user cares
+     * about (no password) plus the relation-name columns; id + timestamps round it out. The picker is
+     * the menu — export() still whitelists whatever is actually requested.
+     *
+     * @return array<string, string>
+     */
+    public function exportFields(): array
+    {
+        $fields = ['id' => 'ID'];
+        foreach ($this->fields as $f) {
+            if ($f['type'] === 'belongsToMany') {
+                $fields[$f['relation']] = $this->label($f['relation']); // e.g. tags (joined names)
+                continue;
+            }
+            if (! $this->isColumn($f) || ! empty($f['system']) || $f['type'] === 'password') {
+                continue; // skip non-columns, system fields and never-exported password columns
+            }
+            $fields[$f['name']] = $this->label($f['name']); // name, price, status, category_id, …
+            if ($f['type'] === 'foreign') {
+                $fields[$f['relation']] = $this->label($f['relation']); // category (related name)
+            }
+        }
+        $fields['created_at'] = 'Created at';
+        $fields['updated_at'] = 'Updated at';
+
+        return $fields;
     }
 
     public function getDataColumns(): string

@@ -175,6 +175,12 @@ class AdminCoreMakeCommand extends Command
         // Append the related name to CSV exports for each belongsTo (readable next to the FK id).
         $exportRelations = $fields->exportRelations();
         $exportRelationsLine = $exportRelations === '' ? '' : "\n        \$this->exportRelations = [{$exportRelations}];";
+        // Export field-picker checkboxes (all checked → export everything; uncheck to narrow).
+        $exportFieldChecks = collect($fields->exportFields())
+            ->map(fn ($label, $col) => "                        <div class=\"form-check\">"
+                . "<input class=\"form-check-input\" type=\"checkbox\" name=\"columns[]\" value=\"{$col}\" id=\"exp-{$col}\" checked>"
+                . "<label class=\"form-check-label\" for=\"exp-{$col}\">{$label}</label></div>")
+            ->implode("\n");
 
         $replace = [
             'DummyClasses' => $plural,
@@ -190,6 +196,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_LAYOUT__' => $layoutView,
             '__AC_ROUTE_PREFIX__' => $routePrefixLine,
             '__AC_EXPORT_RELATIONS__' => $exportRelationsLine,
+            '__AC_EXPORT_FIELDS__' => $exportFieldChecks,
             '__AC_PK__' => $fields->primaryKey(),
             '__AC_MODEL_TRAITS__' => $fields->modelTraits(),
             '__AC_MODEL_USES__' => $fields->modelUses(),

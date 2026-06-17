@@ -15,9 +15,19 @@
 
 __AC_FILTER_TABS__    <div class="card">
         <div class="card-header d-flex flex-wrap gap-1 align-items-center">
-            <a href="{{ route('__AC_RNS__dummyModels.export') }}" class="btn btn-sm btn-outline-secondary">
-                <i class="bi bi-filetype-csv"></i> Export
-            </a>
+            <div class="dropdown d-inline-block">
+                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">
+                    <i class="bi bi-filetype-csv"></i> Export
+                </button>
+                {{-- A GET form: the checked columns become ?columns[] and the export streams just those. --}}
+                <form action="{{ route('__AC_RNS__dummyModels.export') }}" method="GET" class="dropdown-menu p-3" style="min-width: 240px;">
+                    <p class="small text-muted mb-2">Columns to export (leave all checked for everything):</p>
+                    <div style="max-height: 260px; overflow-y: auto;">
+__AC_EXPORT_FIELDS__
+                    </div>
+                    <button type="submit" class="btn btn-sm btn-primary w-100 mt-2"><i class="bi bi-download"></i> Download CSV</button>
+                </form>
+            </div>
             @can('create-dummy-model')
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">
                     <i class="bi bi-upload"></i> Import

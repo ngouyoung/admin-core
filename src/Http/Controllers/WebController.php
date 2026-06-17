@@ -133,8 +133,13 @@ abstract class WebController extends BaseController
      */
     protected array $exportRelations = [];
 
-    /** Stream every row to a CSV download (all table columns, plus a readable name per relation). */
-    public function export(): StreamedResponse
+    /**
+     * Stream rows to a CSV download. By default every table column plus a readable name per relation
+     * (belongsTo → the related name; belongsToMany → the related names joined). Pass `?columns[]=` to
+     * export only a chosen subset (the field picker on the Export button) — whitelisted against the real
+     * columns/relations, so a bad value can never leak a hidden one.
+     */
+    public function export(Request $request): StreamedResponse
     {
         $rows = $this->service->query($this->exportRelations ?: null)->get();
         // Never export password hashes: drop anything the model marks $hidden, plus any
@@ -148,6 +153,14 @@ abstract class WebController extends BaseController
             ? []
             : array_values(array_diff(array_keys($rows->first()->getAttributes()), $secret));
         $relations = $this->exportRelations;
+
+        // Field picker: limit to the requested columns/relations (intersect = whitelist).
+        $requested = array_values(array_filter((array) $request->query('columns', []), 'is_string'));
+        if ($requested) {
+            $columns = array_values(array_intersect($columns, $requested));
+            $relations = array_values(array_intersect($relations, $requested));
+        }
+
         $name = trim(str_replace('.', '-', $this->routeBase), '-') . '-' . now()->format('Ymd-His') . '.csv';
 
         return response()->streamDownload(function () use ($rows, $columns, $relations) {
@@ -159,7 +172,11 @@ abstract class WebController extends BaseController
             foreach ($rows as $row) {
                 $cells = array_map(fn ($c) => $this->csvCell($row->getAttribute($c)), $columns);
                 foreach ($relations as $relation) {
-                    $cells[] = $this->csvCell($row->{$relation}?->name);
+                    $related = $row->{$relation};
+                    // belongsToMany → a Collection of related models (join their names); belongsTo → one model.
+                    $cells[] = $related instanceof \Illuminate\Support\Collection
+                        ? $this->csvCell($related->map(fn ($i) => $i->name ?? $i->getKey())->implode(', '))
+                        : $this->csvCell($related?->name);
                 }
                 fputcsv($out, $cells, escape: '');
             }

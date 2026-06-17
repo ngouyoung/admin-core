@@ -212,8 +212,11 @@ The `--access` kit now ships a complete admin shell beyond the access screens:
 
 Generated index screens ship these out of the box:
 
-- **Export** — an `Export` button streams the table to CSV (`export` route, gated by `list-*`). The output
-  is injection-safe (formula cells are neutralised) and leads with a UTF-8 BOM so Excel reads it correctly.
+- **Export** — an `Export` button (a dropdown with a **checkbox per field**) streams the chosen columns to
+  CSV (`export` route + `?columns[]=`, gated by `list-*`; leave all checked for everything). Relations are
+  included as readable columns — **belongsTo** as the related name (next to the FK) and **belongsToMany** as
+  the related names joined (e.g. `tags` = "red, blue"). The output is injection-safe (formula cells are
+  neutralised) and leads with a UTF-8 BOM so Excel reads it correctly.
 - **Import** — an `Import` button opens a modal to upload a CSV (same shape as Export). The modal links a
   **blank template** (`importTemplate` route) — a header-only CSV of the importable columns (fillable, minus
   password/file columns) so users don't have to guess the fields. Each row is validated against the resource's
