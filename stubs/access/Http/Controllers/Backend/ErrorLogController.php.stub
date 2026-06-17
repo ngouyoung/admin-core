@@ -1,0 +1,49 @@
+<?php
+
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Str;
+use Illuminate\View\View;
+use Ngos\AdminCore\Models\ErrorLog;
+use Yajra\DataTables\Facades\DataTables;
+
+class ErrorLogController extends Controller
+{
+    public function index(): View
+    {
+        return view('backend.error_logs.index');
+    }
+
+    public function getData()
+    {
+        return DataTables::of(ErrorLog::query()->latest())
+            ->editColumn('type', fn ($log) => '<span class="badge text-bg-danger">' . e(class_basename($log->type)) . '</span>')
+            ->editColumn('message', fn ($log) => e(Str::limit($log->message, 120)))
+            ->addColumn('when', fn ($log) => $log->created_at?->diffForHumans())
+            ->addColumn('actions', fn ($log) => '<a href="' . route('admin.error-logs.show', $log->id)
+                . '" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye"></i></a>')
+            ->rawColumns(['type', 'actions'])
+            ->make(true);
+    }
+
+    public function show(int|string $id): View
+    {
+        return view('backend.error_logs.show', ['log' => ErrorLog::findOrFail($id)]);
+    }
+
+    public function destroy(int|string $id): RedirectResponse
+    {
+        ErrorLog::whereKey($id)->delete();
+
+        return redirect()->route('admin.error-logs.index')->with('success', 'Error deleted.');
+    }
+
+    public function clear(): RedirectResponse
+    {
+        ErrorLog::query()->delete();
+
+        return back()->with('success', 'Error log cleared.');
+    }
+}

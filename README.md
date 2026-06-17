@@ -6,7 +6,7 @@ clean, branded **Bootstrap 5** theme.
 
 - **One generator.** `admin-core:make Product` → a complete, permission-gated admin screen.
 - **Batteries included** (all opt-in flags): login + users/roles/permissions, CSV import/export, soft-deletes,
-  audit log, a JSON API, and a dynamic, permission-aware sidebar.
+  audit log, error log, a JSON API, and a dynamic, permission-aware sidebar.
 - **Multi-portal.** Stand up a second portal (merchant, vendor…) on its own auth guard in one command.
 - **Thin & conventional.** Generated code lives in *your* `App\` namespace and extends a small base
   (`WebController` + `BaseService`) — no magic, easy to read and edit.
@@ -18,7 +18,8 @@ clean, branded **Bootstrap 5** theme.
 - [Generating a resource](#generating-a-resource) → [field types](#generating-fields-too---fields) ·
   [add a field later](#adding-a-field-later-admin-corefield)
 - What every list gets: [export / import / bulk-delete](#every-list-comes-with-export-import--bulk-delete) ·
-  [reorder](#drag-to-reorder---sortable) · [soft-deletes](#soft-deletes--extras) · [audit](#audit-trail---audit)
+  [reorder](#drag-to-reorder---sortable) · [soft-deletes](#soft-deletes--extras) · [audit](#audit-trail---audit) ·
+  [error log](#error-log)
 - [JSON API](#json-api---api) · [API token auth](#api-auth--token-login-admin-coreinstall---api-auth)
 - [Multi-portal](#multi-portal) — a separate-guard merchant/vendor area
 - [Notifications](#notifications) — in-app bell + notifications page
@@ -269,6 +270,18 @@ use Ngos\AdminCore\Concerns\LogsActivity;
 
 class Order extends Model { use LogsActivity; }
 ```
+
+### Error log
+
+The `--access` kit ships an **Error Log**: unhandled exceptions are written to an `error_logs` table
+(type, message, `file:line`, stack trace, URL/method, user) and browsable at `admin/error-logs`
+(gated by `view-error-log`) with a per-row detail view, delete, and "Clear all". Capture is wired by
+a `reportable` callback the package registers on the framework's exception handler — **no
+`bootstrap/app.php` edit needed**. It's deliberately quiet: expected exceptions (validation, auth,
+404 and other 4xx `HttpException`s) are skipped, only genuine faults (5xx / uncaught) are recorded,
+and capture is fully defensive — if the table is missing or anything throws while logging, it no-ops
+rather than masking the original error. The `error_logs` migration is published by
+`admin-core:install --access`.
 
 ### Soft deletes & extras
 

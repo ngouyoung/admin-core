@@ -38,6 +38,10 @@ class AdminCoreInstallCommand extends Command
             if (! glob(database_path('migrations/*_create_notifications_table.php'))) {
                 $this->copyStub('notifications_table.php.stub', database_path('migrations/0001_01_01_000021_create_notifications_table.php'));
             }
+            // Error log table — the reportable callback (registered by the provider) writes here.
+            if (! glob(database_path('migrations/*_create_error_logs_table.php'))) {
+                $this->copyStub('error_logs_table.php.stub', database_path('migrations/0001_01_01_000022_create_error_logs_table.php'));
+            }
             $this->newLine();
             $this->info('Installing admin theme + access module…');
             $this->newLine();

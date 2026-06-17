@@ -26,6 +26,7 @@ class AdminCoreServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'admin-core');
+        $this->registerErrorLogging();
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -49,6 +50,23 @@ class AdminCoreServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__ . '/../resources/views' => resource_path('views/vendor/admin-core'),
             ], 'admin-core-views');
+        }
+    }
+
+    /**
+     * Capture reported exceptions into the error_logs table (viewable in the admin). Registered as a
+     * reportable callback here so no bootstrap/app.php edit is needed; it returns nothing, so the app's
+     * normal logging still runs, and {@see ErrorLog::capture()} no-ops when the table isn't installed.
+     */
+    protected function registerErrorLogging(): void
+    {
+        $handler = $this->app[\Illuminate\Contracts\Debug\ExceptionHandler::class];
+
+        // The concrete Foundation handler exposes reportable(); guard so a custom handler can't fatal.
+        if ($handler instanceof \Illuminate\Foundation\Exceptions\Handler) {
+            $handler->reportable(function (\Throwable $e): void {
+                \Ngos\AdminCore\Models\ErrorLog::capture($e);
+            });
         }
     }
 

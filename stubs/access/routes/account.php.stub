@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Backend\ActivityLogController;
+use App\Http\Controllers\Backend\ErrorLogController;
 use App\Http\Controllers\Backend\ProfileController;
 use App\Http\Controllers\Backend\SettingController;
 use Illuminate\Support\Facades\Route;
@@ -28,4 +29,16 @@ Route::group([
 ], function () {
     Route::get('/', [ActivityLogController::class, 'index'])->name('index');
     Route::get('getData', [ActivityLogController::class, 'getData'])->name('getData');
+});
+
+Route::group([
+    'prefix' => 'error-logs',
+    'as' => 'error-logs.',
+    'middleware' => config('admin-core.permission.enabled') ? 'permission:view-error-log' : [],
+], function () {
+    Route::get('/', [ErrorLogController::class, 'index'])->name('index');
+    Route::get('getData', [ErrorLogController::class, 'getData'])->name('getData');
+    Route::post('clear', [ErrorLogController::class, 'clear'])->name('clear');
+    Route::get('{id}', [ErrorLogController::class, 'show'])->name('show');
+    Route::delete('{id}', [ErrorLogController::class, 'destroy'])->name('destroy');
 });

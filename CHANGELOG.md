@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.14.0
+
+- **Error log.** New `--access` feature: unhandled exceptions are now captured to an `error_logs` table and
+  browsable at `admin/error-logs` (gated by a new `view-error-log` permission) — a DataTable of
+  time/type/message/URL with a per-row detail view (full message, `file:line`, stack trace, URL/method,
+  user), plus delete and "Clear all". Previously the kit only had an *audit* log (who changed what); there
+  was no record of faults.
+  - **Zero-config capture.** A `reportable` callback registered on the framework exception handler by the
+    package's provider — **no `bootstrap/app.php` edit**. Defensive by construction: if the `error_logs`
+    table is absent or anything throws mid-log it no-ops, never masking the original exception.
+  - **Quiet by default.** Expected exceptions are ignored (validation, authentication, authorization,
+    `ModelNotFound`, 404 and every other 4xx `HttpException`); only genuine faults (5xx / uncaught) are
+    recorded. Messages/traces are length-capped and the user id is stored as a string (guard-agnostic).
+  - Wiring: new `error_logs` migration published by `admin-core:install --access`; `Error Log` sidebar entry
+    under **System**; `view-error-log` granted to the seeded `admin` role.
+
 ## v2.13.0
 
 - **Export: pick fields + export belongsToMany.** Two requested improvements to CSV export:

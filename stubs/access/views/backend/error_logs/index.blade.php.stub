@@ -1,0 +1,53 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Error Log')
+
+@section('breadcrumb')
+    <div class="row">
+        <div class="col-sm-6"><h3 class="mb-0">Error Log</h3></div>
+        <div class="col-sm-6 text-sm-end">
+            <form action="{{ route('admin.error-logs.clear') }}" method="POST" class="d-inline"
+                  onsubmit="return confirm('Delete all error log entries?')">
+                @csrf
+                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Clear all</button>
+            </form>
+        </div>
+    </div>
+@endsection
+
+@section('contents')
+    <div class="card">
+        <div class="card-body">
+            <table class="{{ config('class.table') }}" id="error_table">
+                <thead>
+                <tr>
+                    <th>When</th>
+                    <th>Type</th>
+                    <th>Message</th>
+                    <th>URL</th>
+                    <th></th>
+                </tr>
+                </thead>
+            </table>
+        </div>
+    </div>
+@endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            $('#error_table').DataTable({
+                ajax: {url: '{{ route('admin.error-logs.getData') }}', type: 'GET'},
+                pageLength: {{ (int) config('admin-core.pagination', 10) }},
+                order: [[0, 'desc']],
+                columns: [
+                    {data: 'when', name: 'created_at'},
+                    {data: 'type', name: 'type'},
+                    {data: 'message', name: 'message'},
+                    {data: 'url', name: 'url'},
+                    {data: 'actions', orderable: false, searchable: false},
+                ],
+            });
+        });
+    </script>
+@endpush

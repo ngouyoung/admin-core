@@ -55,6 +55,7 @@ return [
         ['header' => 'System'],
         ['label' => 'Settings', 'route' => 'admin.settings.index', 'icon' => 'bi bi-gear', 'can' => 'manage-settings', 'match' => 'admin/settings*'],
         ['label' => 'Activity Log', 'route' => 'admin.activity-logs.index', 'icon' => 'bi bi-clock-history', 'can' => 'list-activity', 'match' => 'admin/activity-logs*'],
+        ['label' => 'Error Log', 'route' => 'admin.error-logs.index', 'icon' => 'bi bi-bug', 'can' => 'view-error-log', 'match' => 'admin/error-logs*'],
     ],
 
     /*

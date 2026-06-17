@@ -1,0 +1,40 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Error')
+
+@section('breadcrumb')
+    <div class="row">
+        <div class="col-sm-6"><h3 class="mb-0">Error</h3></div>
+        <div class="col-sm-6 text-sm-end">
+            <a href="{{ route('admin.error-logs.index') }}" class="btn btn-sm btn-info"><i class="bi bi-arrow-left-circle"></i> Back</a>
+            <form action="{{ route('admin.error-logs.destroy', $log->id) }}" method="POST" class="d-inline">
+                @csrf @method('DELETE')
+                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
+            </form>
+        </div>
+    </div>
+@endsection
+
+@section('contents')
+    <div class="card mb-3">
+        <div class="card-body">
+            <table class="table table-bordered mb-0">
+                <tbody>
+                <tr><th style="width:140px">Type</th><td><code>{{ $log->type }}</code></td></tr>
+                <tr><th>Message</th><td>{{ $log->message }}</td></tr>
+                <tr><th>File</th><td><code>{{ $log->file }}</code></td></tr>
+                <tr><th>URL</th><td>{{ $log->method }} {{ $log->url }}</td></tr>
+                <tr><th>User</th><td>{{ $log->user_id ?? '—' }}</td></tr>
+                <tr><th>When</th><td>{{ $log->created_at }} ({{ $log->created_at?->diffForHumans() }})</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><strong>Stack trace</strong></div>
+        <div class="card-body p-0">
+            <pre class="mb-0 p-3 small" style="max-height:60vh; overflow:auto;">{{ $log->trace }}</pre>
+        </div>
+    </div>
+@endsection
