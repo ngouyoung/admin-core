@@ -399,8 +399,12 @@ class AdminCoreMakeCommand extends Command
         $api = base_path('routes/api.php');
 
         if (! File::exists($api)) {
-            $this->warn('  --api: routes/api.php not found — run `php artisan install:api` (or '
-                . '`php artisan admin-core:install --api-auth`); the modules in routes/Api/Modules then load automatically.');
+            // install:api creates a *bare* routes/api.php — it doesn't wire the module loader, and nothing
+            // back-fills it later. So be explicit: enable API routing, then re-run to wire the loader.
+            $this->warn('  --api: no routes/api.php yet (Laravel 11+ omits it). Run `php artisan install:api` '
+                . 'to enable API routing, then re-run this command to load routes/Api/Modules — or run '
+                . '`php artisan admin-core:install --api-auth`, which wires both. (Sanctum auth also needs the '
+                . 'HasApiTokens trait on App\\Models\\User.)');
 
             return;
         }

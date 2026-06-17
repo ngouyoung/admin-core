@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.18.4
+
+- **Fix: misleading `--api` guidance sent users to a dead end.** Generating a resource with `--api` before
+  `routes/api.php` exists (Laravel 11+ omits it) printed "run `install:api` … the modules then load
+  automatically" — but `install:api` writes a *bare* `api.php` with no module loader, so `/api/<resource>`
+  stayed 404 and nothing back-filled it. The message now says exactly what works: run `install:api`, then
+  **re-run the make** to wire `routes/Api/Modules` (or use `admin-core:install --api-auth`, which does both),
+  and notes that Sanctum auth needs `HasApiTokens` on `App\Models\User`. Found by building a real `--api`
+  resource end to end (the full CRUD works once those are wired — verified 200/201/200/200/200).
+
 ## v2.18.3
 
 - **Fix: the Dashboard sidebar item never highlighted as active.** The dashboard route lives at `/admin`, but

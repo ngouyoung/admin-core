@@ -544,8 +544,11 @@ it('wires routes/api.php to load the generated API modules with --api (idempoten
 it('warns (does not silently fail) when --api is used but routes/api.php is absent', function () {
     expect(File::exists(base_path('routes/api.php')))->toBeFalse(); // testbench has none
 
+    // The guidance must be actionable — point at install:api AND loading the modules (the old "load
+    // automatically" wording sent users to a dead end). Assert wrap-safe contiguous tokens.
     $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--api' => true])
-        ->expectsOutputToContain('routes/api.php not found')
+        ->expectsOutputToContain('install:api')
+        ->expectsOutputToContain('routes/Api/Modules')
         ->assertSuccessful();
 
     expect(File::exists(base_path('routes/api.php')))->toBeFalse(); // not created behind your back
