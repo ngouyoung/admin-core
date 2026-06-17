@@ -27,6 +27,7 @@
         document.addEventListener("DOMContentLoaded", function () {
             const Table = $('#roles_table').DataTable({
                 ajax: {url: '{{ route('admin.assessments.roles.getData') }}', type: 'GET'},
+                pageLength: {{ (int) config('admin-core.pagination', 10) }},
                 columns: [
                     {data: 'name', name: 'name'},
                     {data: 'permissions', orderable: false, searchable: false},

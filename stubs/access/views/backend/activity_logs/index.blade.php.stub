@@ -28,6 +28,7 @@
         document.addEventListener("DOMContentLoaded", function () {
             $('#activity_table').DataTable({
                 ajax: {url: '{{ route('admin.activity-logs.getData') }}', type: 'GET'},
+                pageLength: {{ (int) config('admin-core.pagination', 10) }},
                 order: [[0, 'desc']],
                 columns: [
                     {data: 'when', name: 'created_at'},

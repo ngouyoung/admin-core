@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.11
+
+- **`pagination` config now actually sets the page length.** `config('admin-core.pagination')` (default 50)
+  is documented as the "default DataTables page length", but nothing read it — every list used DataTables'
+  built-in default of 10. It's now wired into the `pageLength` of every generated list and the access-kit
+  tables (users/roles/permissions/activity), so changing the config changes the rows-per-page. Affects newly
+  generated resources / installed access modules.
+
 ## v2.11.10
 
 - **Group-permission reorder is resilient to a stale tree.** Dragging the permission tree resolved each node
