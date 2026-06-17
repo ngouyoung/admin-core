@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.15
+
+- **Remove duplicate Passport guidance.** v2.11.14 added Passport setup steps to the `--api-auth` install
+  output — but `nextSteps()` already prints them (more completely, including the `api` guard config and the
+  `HasApiTokens` trait), so the steps showed twice and the new copy was the less-complete one. Reverted that
+  block; the guidance now prints once. (The `composer.json` `suggest: laravel/passport` from v2.11.14 stays —
+  that part was a genuine addition.)
+
 ## v2.11.14
 
 - **`--api-auth` now tells you how to finish the Passport setup.** Installing API auth scaffolded the
