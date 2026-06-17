@@ -108,6 +108,12 @@ php artisan admin-core:make Product --migration
 Generates the model, service, controller, form requests, a route module, the Blade views, and the
 `list/create/edit/delete-product` permissions. Visit `/admin/products`.
 
+Run it for a **new** resource **without** `--fields` and it prompts you for them interactively — enter a
+name, pick a type from the menu, answer nullable/unique, repeat until you leave the name blank — then
+generates from your answers. (You don't have to know the `--fields` DSL below to get started; pass
+`--fields` to skip the prompts, and non-interactive runs — CI, scripts — just scaffold the default
+`name` field.)
+
 ### Generating fields too (`--fields`)
 
 Pass a field list and the generator fills in the **migration columns, `$fillable`, validation rules,

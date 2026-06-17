@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.15.0
+
+- **Interactive generator (prompt for missing fields).** `admin-core:make Product` on a brand-new resource
+  with no `--fields` now builds the field list interactively instead of scaffolding a bare `name` column —
+  enter a field name, pick a type from a labelled menu (string/text/integer/decimal/boolean/date/datetime/
+  email/enum/slug/image/file/foreign/belongsToMany), answer nullable/unique, repeat until you leave the
+  name blank. Your answers are assembled into the `--fields` DSL and generation proceeds as usual. You no
+  longer have to know the DSL to get started — easier first contact, in the same spirit as Laravel's own
+  `make:*` prompts.
+  - **Nothing else changes.** Passing `--fields` skips the prompts; adding a channel to an existing model
+    still infers fields from it; and **non-interactive runs (tests, CI, scripts) are untouched** — with no
+    TTY the builder is skipped and you get the previous single default `name` field. Foreign fields are
+    nudged to the `*_id` belongsTo convention as you go.
+
 ## v2.14.0
 
 - **Error log.** New `--access` feature: unhandled exceptions are now captured to an `error_logs` table and

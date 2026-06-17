@@ -78,6 +78,13 @@ class AdminCoreMakeCommand extends Command
             }
         }
 
+        // Brand-new resource with no --fields and nothing to infer: build the field list
+        // interactively (Laravel-style prompt-for-missing-input). A no-op in non-interactive
+        // runs (tests/CI/scripts), which fall through to FieldSet's single default `name` field.
+        if (trim((string) $fieldsDsl) === '' && ! File::exists(app_path("Models/{$class}.php"))) {
+            $fieldsDsl = $this->promptForFields($class) ?: $fieldsDsl;
+        }
+
         $fields = (new FieldSet($fieldsDsl))
             ->setTable($snakePlural)
             ->setUuid($uuid)
@@ -535,6 +542,80 @@ PHP);
         }
 
         return implode(', ', $tokens); // always ≥1 token here ($names was non-empty)
+    }
+
+    /**
+     * Build the --fields DSL interactively when none was given for a brand-new resource. Mirrors how
+     * Laravel's own generators prompt for missing input: enter a name, pick a type, answer
+     * nullable/unique, repeat until the name is left blank. Returns the assembled DSL — or '' in a
+     * non-interactive run (tests/CI/scripts) or when nothing is added, so the caller keeps the existing
+     * behaviour (FieldSet's single default `name` field).
+     */
+    private function promptForFields(string $class): string
+    {
+        if (! $this->input->isInteractive()) {
+            return '';
+        }
+
+        // key = DSL type token, value = the human description shown in the menu.
+        $types = [
+            'string' => 'short text (VARCHAR)',
+            'text' => 'long text',
+            'integer' => 'whole number',
+            'decimal' => 'money / 2-decimal number',
+            'boolean' => 'true / false toggle',
+            'date' => 'date',
+            'datetime' => 'date + time',
+            'email' => 'email address',
+            'enum' => 'fixed set of choices',
+            'slug' => 'unique URL key (auto from name)',
+            'image' => 'uploaded image',
+            'file' => 'uploaded file',
+            'foreign' => 'belongsTo another table',
+            'belongsToMany' => 'many-to-many relation',
+        ];
+
+        $this->info("No --fields given — building {$class} interactively (leave the name blank to finish).");
+
+        $tokens = [];
+        while (true) {
+            $name = $this->ask('Field name' . ($tokens === [] ? '' : ' (blank to finish)'));
+            $name = is_string($name) ? trim($name) : '';
+            if ($name === '') {
+                break;
+            }
+
+            $type = $this->choice("Type for \"{$name}\"", $types, 'string');
+            $type = is_string($type) ? $type : 'string';
+
+            // belongsTo keys off a *_id column — nudge the name to the convention.
+            if ($type === 'foreign' && ! str_ends_with($name, '_id')) {
+                $name .= '_id';
+                $this->line("  <comment>↳ foreign key →</comment> <info>{$name}</info>");
+            }
+
+            $spec = $type;
+            if ($type === 'enum') {
+                $opts = $this->ask('Choices (separate with |), e.g. draft|published');
+                $opts = is_string($opts) ? str_replace([', ', ',', ' '], '|', trim($opts)) : '';
+                $spec = 'enum:' . trim($opts, '|');
+            }
+
+            // Modifiers, only where they make sense (slug/m2m are already implicitly handled; a
+            // boolean defaults to false so nullable is meaningless).
+            if (! in_array($type, ['slug', 'boolean', 'belongsToMany'], true) && $this->confirm('Nullable (optional)?', false)) {
+                $spec .= '?';
+            }
+            if (in_array($type, ['string', 'integer', 'email'], true) && $this->confirm('Unique?', false)) {
+                $spec .= '^';
+            }
+
+            $token = "{$name}:{$spec}";
+            $tokens[] = $token;
+            $this->line("  <info>✓ added</info> {$token}");
+        }
+
+        return implode(', ', $tokens);
     }
 
     /** Map one fillable column back to a DSL type from its cast (enum/password) then its migration column type. */

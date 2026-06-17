@@ -801,3 +801,40 @@ it('skips existing files unless --force is given', function () {
     $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--force' => true])->assertSuccessful();
     expect(File::get($model))->not->toContain('hand-edited sentinel')->toContain('class Gizmo');
 });
+
+it('builds the field list interactively when --fields is omitted', function () {
+    // No --fields on a brand-new resource → prompt-for-missing-input: name, type, modifiers, repeat.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--migration' => true])
+        // 1st field → title:string  (not nullable, not unique)
+        ->expectsQuestion('Field name', 'title')
+        ->expectsQuestion('Type for "title"', 'string')
+        ->expectsConfirmation('Nullable (optional)?', 'no')
+        ->expectsConfirmation('Unique?', 'no')
+        // 2nd field → price:decimal?  (nullable; decimal isn't unique-eligible, so no Unique prompt)
+        ->expectsQuestion('Field name (blank to finish)', 'price')
+        ->expectsQuestion('Type for "price"', 'decimal')
+        ->expectsConfirmation('Nullable (optional)?', 'yes')
+        // blank name ends the loop
+        ->expectsQuestion('Field name (blank to finish)', '')
+        ->assertSuccessful();
+
+    $migration = collect(glob(database_path('migrations/*_create_gizmos_table.php')))->first();
+    expect(File::get($migration))
+        ->toContain("\$table->string('title')")
+        ->toContain("\$table->decimal('price', 10, 2)->nullable()");
+    // The assembled DSL drove the model too.
+    expect(File::get(app_path('Models/Gizmo.php')))->toContain("'title', 'price'");
+});
+
+it('normalises a foreign field name to the *_id convention in the interactive builder', function () {
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--migration' => true])
+        // "category" + foreign → renamed to category_id (belongsTo); not nullable
+        ->expectsQuestion('Field name', 'category')
+        ->expectsQuestion('Type for "category"', 'foreign')
+        ->expectsConfirmation('Nullable (optional)?', 'no')
+        ->expectsQuestion('Field name (blank to finish)', '')
+        ->assertSuccessful();
+
+    $migration = collect(glob(database_path('migrations/*_create_gizmos_table.php')))->first();
+    expect(File::get($migration))->toContain("\$table->foreignId('category_id')");
+});
