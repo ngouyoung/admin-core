@@ -27,6 +27,7 @@ class AdminCoreServiceProvider extends ServiceProvider
     {
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'admin-core');
         $this->registerErrorLogging();
+        $this->registerErrorLogPruning();
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -68,6 +69,22 @@ class AdminCoreServiceProvider extends ServiceProvider
                 \Ngos\AdminCore\Models\ErrorLog::capture($e);
             });
         }
+    }
+
+    /**
+     * Prune captured errors past their retention window. Registered against the scheduler (resolved only
+     * by schedule:run/list, so it costs nothing on a normal request); needs the app's scheduler cron.
+     * A retention of 0 disables it. On demand: `model:prune --model="Ngos\AdminCore\Models\ErrorLog"`.
+     */
+    protected function registerErrorLogPruning(): void
+    {
+        if ((int) config('admin-core.error_log.retention_days', 30) <= 0) {
+            return;
+        }
+
+        $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function ($schedule): void {
+            $schedule->command('model:prune', ['--model' => [\Ngos\AdminCore\Models\ErrorLog::class]])->daily();
+        });
     }
 
     /**

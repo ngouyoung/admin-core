@@ -110,6 +110,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Error log retention (--access)
+    |--------------------------------------------------------------------------
+    | Captured exceptions older than this many days are pruned. The package
+    | registers a daily `model:prune` for the ErrorLog model, so this needs the
+    | app's scheduler running (`schedule:run` via cron). Set to 0 to keep errors
+    | forever (no pruning). You can also prune on demand:
+    |   php artisan model:prune --model="Ngos\AdminCore\Models\ErrorLog"
+    */
+    'error_log' => [
+        'retention_days' => 30,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | API (--api)
     |--------------------------------------------------------------------------
     | Resources generated with --api expose a JSON API (JsonResource + apiResource

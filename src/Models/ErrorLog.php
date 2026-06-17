@@ -5,6 +5,8 @@ namespace Ngos\AdminCore\Models;
 use Closure;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +23,25 @@ use Throwable;
  */
 class ErrorLog extends Model
 {
+    use MassPrunable;
+
     protected $guarded = [];
+
+    /**
+     * Rows older than `admin-core.error_log.retention_days` are pruned by `model:prune` (the package
+     * schedules it daily — see AdminCoreServiceProvider). MassPrunable = one DELETE, no model events.
+     * A retention of 0 (or less) disables pruning by matching nothing.
+     *
+     * @return Builder<static>
+     */
+    public function prunable(): Builder
+    {
+        $days = (int) config('admin-core.error_log.retention_days', 30);
+
+        return $days > 0
+            ? static::query()->where('created_at', '<=', now()->subDays($days))
+            : static::query()->whereRaw('1 = 0');
+    }
 
     /**
      * Record a reported exception. Fully defensive — it must never raise a second error:

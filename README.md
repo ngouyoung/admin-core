@@ -296,6 +296,11 @@ and capture is fully defensive — if the table is missing or anything throws wh
 rather than masking the original error. The `error_logs` migration is published by
 `admin-core:install --access`.
 
+The log self-trims: rows older than `config('admin-core.error_log.retention_days')` (default **30**) are
+pruned by a daily `model:prune` the package schedules for you (needs the app's scheduler cron running). Set
+it to `0` to keep errors forever, or prune on demand with
+`php artisan model:prune --model="Ngos\AdminCore\Models\ErrorLog"`.
+
 ### Soft deletes & extras
 
 Every `admin-core:make` also generates a **Factory** (field-aware fake data), a **Seeder**, and a

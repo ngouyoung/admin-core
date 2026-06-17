@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.18.0
+
+- **Error log retention.** The `error_logs` table no longer grows unbounded — `ErrorLog` is now
+  `MassPrunable`, and the package registers a daily `model:prune` for it, so captured errors older than
+  `config('admin-core.error_log.retention_days')` (default **30**) are trimmed automatically (needs the
+  app's scheduler cron). Set `retention_days` to `0` to keep errors forever, or prune on demand with
+  `php artisan model:prune --model="Ngos\AdminCore\Models\ErrorLog"`. The schedule registers via
+  `callAfterResolving(Schedule::class)`, so it costs nothing on a normal request and is skipped entirely
+  when retention is 0.
+
 ## v2.17.2
 
 - **Export streams lazily (code-review fix).** `WebController::export()` called `->get()`, loading the

@@ -59,3 +59,27 @@ it('never throws — no-ops when the table is missing', function () {
 
     expect(Schema::hasTable('error_logs'))->toBeFalse();
 });
+
+it('prunes errors older than the retention window, keeping recent ones', function () {
+    config()->set('admin-core.error_log.retention_days', 30);
+
+    ErrorLog::create(['type' => 'A', 'message' => 'recent']);
+    $old = ErrorLog::create(['type' => 'B', 'message' => 'old']);
+    ErrorLog::whereKey($old->id)->update(['created_at' => now()->subDays(40)]);
+
+    (new ErrorLog)->pruneAll();
+
+    expect(ErrorLog::count())->toBe(1)
+        ->and(ErrorLog::first()->message)->toBe('recent');
+});
+
+it('keeps every error when retention is 0 (pruning disabled)', function () {
+    config()->set('admin-core.error_log.retention_days', 0);
+
+    $old = ErrorLog::create(['type' => 'B', 'message' => 'old']);
+    ErrorLog::whereKey($old->id)->update(['created_at' => now()->subDays(400)]);
+
+    (new ErrorLog)->pruneAll();
+
+    expect(ErrorLog::count())->toBe(1);
+});
