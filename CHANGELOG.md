@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.17
+
+- **Revert v2.11.16 (redundant).** `theme.js` already sets `responsive: true` in the global DataTables
+  defaults (`$.fn.dataTable.defaults`), so tables were *already* responsive on mobile — v2.11.16's per-table
+  `responsive: true` just duplicated the default and its premise ("never activated") was wrong. Removed the
+  duplication. (Tables remain responsive via the global default; the `pageLength`-from-config wiring in
+  v2.11.11 stays — that one genuinely overrides the global `pageLength: 10` with `config('admin-core.pagination')`.)
+
 ## v2.11.16
 
 - **Tables are responsive on mobile now.** The `datatables.net-responsive-bs5` plugin was already bundled

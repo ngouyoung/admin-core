@@ -3,7 +3,6 @@
         const Table = $('#users_table').DataTable({
             ajax: {url: '{{ route('admin.assessments.users.getData') }}', type: 'GET'},
             pageLength: {{ (int) config('admin-core.pagination', 10) }},
-            responsive: true,
             columns: [
                 {data: 'name', name: 'name'},
                 {data: 'email', name: 'email'},
