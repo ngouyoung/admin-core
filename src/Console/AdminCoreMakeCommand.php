@@ -11,8 +11,9 @@ use Spatie\Permission\PermissionRegistrar;
 
 class AdminCoreMakeCommand extends Command
 {
-    protected $signature = 'admin-core:make {name : The resource name, e.g. Product}
+    protected $signature = 'admin-core:make {name? : The resource name, e.g. Product}
                             {--fields= : Field DSL, e.g. "name:string, price:decimal?, category_id:foreign"}
+                            {--list-fields : Print the field types + modifiers the --fields DSL accepts, then exit}
                             {--uuid : Use a UUID primary key (and UUID foreign keys)}
                             {--no-uuid : Force an auto-increment key even if config enables uuid}
                             {--soft-deletes : Add soft deletes + a trash/restore screen}
@@ -31,7 +32,22 @@ class AdminCoreMakeCommand extends Command
 
     public function handle(): int
     {
-        $class = Str::studly(Str::singular($this->argument('name')));
+        // `--list-fields` is a reference lookup, not a generation — print the DSL catalog and stop
+        // (so it works without a resource name).
+        if ($this->option('list-fields')) {
+            $this->showFieldTypes();
+
+            return self::SUCCESS;
+        }
+
+        $name = $this->argument('name');
+        if (! is_string($name) || trim($name) === '') {
+            $this->error('Missing the resource name, e.g. `admin-core:make Product`. (Run with --list-fields to see the field types.)');
+
+            return self::FAILURE;
+        }
+
+        $class = Str::studly(Str::singular($name));
         $plural = Str::plural($class);
         $camel = Str::camel($class);
         $snakePlural = Str::snake(Str::pluralStudly($class));
@@ -557,23 +573,7 @@ PHP);
             return '';
         }
 
-        // key = DSL type token, value = the human description shown in the menu.
-        $types = [
-            'string' => 'short text (VARCHAR)',
-            'text' => 'long text',
-            'integer' => 'whole number',
-            'decimal' => 'money / 2-decimal number',
-            'boolean' => 'true / false toggle',
-            'date' => 'date',
-            'datetime' => 'date + time',
-            'email' => 'email address',
-            'enum' => 'fixed set of choices',
-            'slug' => 'unique URL key (auto from name)',
-            'image' => 'uploaded image',
-            'file' => 'uploaded file',
-            'foreign' => 'belongsTo another table',
-            'belongsToMany' => 'many-to-many relation',
-        ];
+        $types = $this->fieldTypeCatalog();
 
         $this->info("No --fields given — building {$class} interactively (leave the name blank to finish).");
 
@@ -616,6 +616,54 @@ PHP);
         }
 
         return implode(', ', $tokens);
+    }
+
+    /**
+     * The field types the `--fields` DSL accepts — DSL token => human description. Single source of
+     * truth shared by the interactive builder's menu and `--list-fields`.
+     *
+     * @return array<string, string>
+     */
+    private function fieldTypeCatalog(): array
+    {
+        return [
+            'string' => 'short text (VARCHAR)',
+            'text' => 'long text',
+            'integer' => 'whole number',
+            'decimal' => 'money / 2-decimal number',
+            'boolean' => 'true / false toggle',
+            'date' => 'date',
+            'datetime' => 'date + time',
+            'email' => 'email address',
+            'enum' => 'fixed set of choices — enum:draft|published',
+            'slug' => 'unique URL key (auto from name)',
+            'image' => 'uploaded image (stored path)',
+            'file' => 'uploaded file (stored path)',
+            'foreign' => 'belongsTo another table (a *_id column)',
+            'belongsToMany' => 'many-to-many relation (aliases: m2m, manyToMany)',
+        ];
+    }
+
+    /** Print the `--fields` DSL catalog (types, modifiers, an example) — the `--list-fields` reference. */
+    private function showFieldTypes(): void
+    {
+        $this->info('admin-core:make --fields — supported types');
+        $this->table(
+            ['Type', 'Description'],
+            collect($this->fieldTypeCatalog())->map(fn ($desc, $type) => [$type, $desc])->values()->all(),
+        );
+
+        $this->info('Modifiers (append to a type)');
+        $this->table(
+            ['Modifier', 'Meaning'],
+            [
+                ['?', 'nullable / optional        (price:decimal?)'],
+                ['^', 'unique                     (slug:string^)'],
+                ['#', 'plain database index       (status:string#)'],
+            ],
+        );
+
+        $this->line(' Example: <comment>--fields="name:string^, price:decimal?, status:enum:draft|published, category_id:foreign"</comment>');
     }
 
     /** Map one fillable column back to a DSL type from its cast (enum/password) then its migration column type. */

@@ -112,7 +112,8 @@ Run it for a **new** resource **without** `--fields` and it prompts you for them
 name, pick a type from the menu, answer nullable/unique, repeat until you leave the name blank — then
 generates from your answers. (You don't have to know the `--fields` DSL below to get started; pass
 `--fields` to skip the prompts, and non-interactive runs — CI, scripts — just scaffold the default
-`name` field.)
+`name` field.) Prefer to write the DSL by hand? `php artisan admin-core:make --list-fields` prints every
+type and modifier it accepts.
 
 ### Generating fields too (`--fields`)
 

@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.16.0
+
+- **`admin-core:make --list-fields`.** Prints the field types and modifiers the `--fields` DSL accepts
+  (a table of the 14 types with descriptions, the `?`/`^`/`#` modifiers, and an example) then exits — no
+  resource name required. The DSL is now self-documenting at the terminal instead of only in the README,
+  and the catalog is a single source of truth shared with the v2.15.0 interactive builder's menu. Running
+  `admin-core:make` with no name now fails with a one-line hint (pointing at `--list-fields`) rather than a
+  raw Symfony "Not enough arguments" error.
+
 ## v2.15.0
 
 - **Interactive generator (prompt for missing fields).** `admin-core:make Product` on a brand-new resource
