@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.11.12
+
+- **Declare all the `illuminate/*` components actually used.** `src/` imports concrete classes from
+  `illuminate/notifications` (`DatabaseNotification`, `Notification`) and calls the `Validator`
+  (`illuminate/validation`) and `File` (`illuminate/filesystem`) services, but those three weren't in
+  `require`. They're always present inside a full Laravel app (so nothing broke), but a published package
+  should declare its real dependencies — added them at `^13.0`. No runtime change.
+
 ## v2.11.11
 
 - **`pagination` config now actually sets the page length.** `config('admin-core.pagination')` (default 50)
