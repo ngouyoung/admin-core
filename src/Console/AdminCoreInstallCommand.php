@@ -624,12 +624,13 @@ PHP;
             $this->newLine();
             $this->line('<options=bold>API auth — finish the Passport setup (it cannot be installed by an artisan command):</>');
             $this->line('  1. <info>composer require laravel/passport</info>');
-            $this->line('  2. <info>php artisan migrate</info>                          # oauth tables');
-            $this->line('  3. <info>php artisan passport:keys</info>                    # this env\'s keys (git-ignored)');
-            $this->line('  4. <info>php artisan passport:client --password --name="API" --provider=users</info>');
+            $this->line('  2. <info>php artisan vendor:publish --tag=passport-migrations</info>  # Passport 12+ ships but no longer auto-loads them');
+            $this->line('  3. <info>php artisan migrate</info>                          # oauth tables');
+            $this->line('  4. <info>php artisan passport:keys</info>                    # this env\'s keys (git-ignored)');
+            $this->line('  5. <info>php artisan passport:client --password --name="API" --provider=users</info>');
             $this->line('     → put the printed id/secret in .env as <info>PASSPORT_PASSWORD_CLIENT_ID</info> / <info>PASSPORT_PASSWORD_CLIENT_SECRET</info>');
-            $this->line('  5. Add the <info>api</info> guard to <info>config/auth.php</info>: <comment>\'api\' => [\'driver\' => \'passport\', \'provider\' => \'users\']</comment>');
-            $this->line('  6. Add <info>use Laravel\\Passport\\HasApiTokens;</info> (+ the trait) to <info>App\\Models\\User</info>');
+            $this->line('  6. Add the <info>api</info> guard to <info>config/auth.php</info>: <comment>\'api\' => [\'driver\' => \'passport\', \'provider\' => \'users\']</comment>');
+            $this->line('  7. Add <info>use Laravel\\Passport\\HasApiTokens;</info> (+ the trait) to <info>App\\Models\\User</info>');
             $this->line('  Then: <info>POST /api/login</info> {email, password} → access_token; <info>GET /api/me</info> with the Bearer token.');
         }
     }

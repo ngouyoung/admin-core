@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.18.7
+
+- **Fix: `--api-auth` Passport guidance was outdated (silently created no tables).** The printed/README steps
+  said `composer require laravel/passport` → `php artisan migrate # oauth tables`, but Passport 12+ no longer
+  auto-loads its migrations — so `migrate` reported "Nothing to migrate" and the next step
+  (`passport:client`) died with "no such table: oauth_clients". The guidance now inserts
+  `php artisan vendor:publish --tag=passport-migrations` before `migrate`. Verified the full flow end to end
+  on Passport 13: `POST /api/login` issues a JWT, `GET /api/me` with it → 200, no token → 401.
+
 ## v2.18.6
 
 - **Fix: the layout only rendered `success` flash messages.** All three layouts (`--access`, portal, minimal)

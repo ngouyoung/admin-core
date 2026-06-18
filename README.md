@@ -411,9 +411,10 @@ It publishes `Api\AuthController` (`/api/login`, `/api/logout`, `/api/me`) + an 
 ```
 
 Passport can't be pulled in by an artisan command, so the install prints the finishing steps:
-`composer require laravel/passport` → `passport:keys` → `passport:client --password` (put the id/secret in
-`.env` as `PASSPORT_PASSWORD_CLIENT_ID`/`_SECRET`) → add the `api` guard (`driver: passport`) to
-`config/auth.php` → add `Laravel\Passport\HasApiTokens` to `App\Models\User`. Then `POST /api/login`.
+`composer require laravel/passport` → `vendor:publish --tag=passport-migrations` (Passport 12+ no longer
+auto-loads them) → `migrate` (oauth tables) → `passport:keys` → `passport:client --password` (put the
+id/secret in `.env` as `PASSPORT_PASSWORD_CLIENT_ID`/`_SECRET`) → add the `api` guard (`driver: passport`)
+to `config/auth.php` → add `Laravel\Passport\HasApiTokens` to `App\Models\User`. Then `POST /api/login`.
 
 ### Non-enumerable URLs — the hybrid key strategy (`--uuid`)
 
