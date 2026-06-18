@@ -16,7 +16,7 @@ afterEach(function () {
     $auth = config_path('auth.php');
     if (File::exists($auth)) {
         $cleaned = preg_replace(
-            "/^\s*'(shop|shops|depot|depots)' => \[.*\],\n/m",
+            "/^\s*'(shop|shops|depot|depots|merchant|merchants)' => \[.*\],\n/m",
             '',
             File::get($auth),
         );
@@ -25,7 +25,7 @@ afterEach(function () {
         }
     }
 
-    foreach (['Shop', 'Depot'] as $p) {
+    foreach (['Shop', 'Depot', 'Merchant'] as $p) {
         $snake = \Illuminate\Support\Str::snake($p);
         File::delete(app_path("Models/{$p}.php"));
         File::delete(database_path("factories/{$p}Factory.php"));
@@ -90,6 +90,19 @@ it('wires multiple portals into the config (menu marker + per-guard super role)'
 
     // the edited config must still be valid PHP (cleanup runs in afterEach)
     expect(is_array(require $cfg))->toBeTrue();
+});
+
+it('wires a portal named like the config example (merchant) against the REAL published config', function () {
+    // The shipped config carries commented-out 'merchant' examples; matching them with str_contains made
+    // `admin-core:portal merchant` (the first name everyone tries) a silent no-op. Use the real config.
+    File::copy(__DIR__ . '/../../config/admin-core.php', config_path('admin-core.php'));
+
+    $this->artisan('admin-core:portal', ['name' => 'merchant'])->assertSuccessful();
+
+    // The REAL (uncommented, line-start) menu key + super-role were added — not just the existing comments.
+    expect(File::get(config_path('admin-core.php')))
+        ->toMatch('/^[ \t]*\x27merchant\x27 => \[$/m')
+        ->toMatch('/^[ \t]*\x27merchant\x27 => \[\x27super_role\x27 => \x27merchant-admin\x27\]/m');
 });
 
 it('is idempotent — existing portal files are skipped on a re-run', function () {

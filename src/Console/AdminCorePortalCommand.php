@@ -109,7 +109,15 @@ class AdminCorePortalCommand extends Command
 
         $contents = $original = File::get($path);
 
-        if (! str_contains($contents, "// admin-core:menu:{$name}") && preg_match('/(\x27menus\x27 => \[\n)/', $contents)) {
+        // Idempotency must distinguish a REAL (uncommented) entry from the commented-out examples the
+        // published config ships using 'merchant' — matching anywhere (str_contains) made
+        // `admin-core:portal merchant` (the first name everyone tries) collide with its own example and
+        // silently no-op. So match only at the start of a line, after indentation.
+        $q = preg_quote($name, '/');
+        $menuWired = (bool) preg_match('/^[ \t]*\/\/ admin-core:menu:' . $q . '$/m', $contents);
+        $guardWired = (bool) preg_match('/^[ \t]*\x27' . $q . '\x27 => \[\x27super_role\x27/m', $contents);
+
+        if (! $menuWired && preg_match('/(\x27menus\x27 => \[\n)/', $contents)) {
             $block = "        '{$name}' => [\n"
                 . "            ['label' => 'Dashboard', 'route' => '{$name}.dashboard', 'icon' => 'bi bi-speedometer2', 'match' => '{$name}'],\n"
                 . "            // admin-core:menu:{$name}\n"
@@ -121,9 +129,7 @@ class AdminCorePortalCommand extends Command
         // both an empty `'guards' => []` (first portal — normalise to multi-line) and an already
         // populated `'guards' => [` block (2nd+ portal — insert another entry), so multiple
         // portals all wire correctly.
-        // Idempotency must key on the guards *entry* specifically — the menu block above also
-        // adds `'<name>' => [`, which would otherwise make us think the guard is already wired.
-        if (! str_contains($contents, "'{$name}' => ['super_role'")) {
+        if (! $guardWired) {
             $entry = "            '{$name}' => ['super_role' => '{$name}-admin'],\n";
             if (preg_match('/\x27guards\x27 => \[\]/', $contents)) {
                 $contents = preg_replace('/(\x27guards\x27 => \[)\]/', "\$1\n{$entry}        ]", $contents, 1);

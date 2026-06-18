@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.18.5
+
+- **Fix: `admin-core:portal merchant` silently skipped wiring its menu + super-role.** The published config
+  ships commented-out *examples* that use `merchant` as the sample portal name, and the command's idempotency
+  checks used `str_contains` — so they matched those comments and concluded the portal was "already wired,"
+  leaving `config/admin-core.php` untouched (a confusing warning, no menu, no super-role). Since `merchant` is
+  *the* example name everywhere, it's the first name a user tries — so the feature looked broken out of the
+  box. The checks now match only a real, uncommented entry at line-start, so any portal name (including
+  `merchant`) wires correctly and stays idempotent. Found by scaffolding a `merchant` portal in a real app;
+  added a regression test that runs against the actual published config (the old test used a bare fixture
+  with names that couldn't collide).
+
 ## v2.18.4
 
 - **Fix: misleading `--api` guidance sent users to a dead end.** Generating a resource with `--api` before
