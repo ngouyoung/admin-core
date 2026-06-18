@@ -105,12 +105,15 @@ it('scaffolds a full resource with valid, token-free PHP', function () {
     expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
         ->toContain("@extends('backend.layouts.app')");
 
-    // The request authorize() honours config('admin-core.permission.enabled') just like the routes do,
-    // so disabling permissions (the documented escape hatch) doesn't 403 every create/update.
+    // The request defers authorization to the route's permission middleware (guard-correct on web + API);
+    // re-checking with can() here would resolve on the API auth guard and wrongly 403 a web admin's token.
     expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
-        ->toContain("! config('admin-core.permission.enabled') || \$this->user()->can('create-gizmo')")
+        ->toContain('public function authorize(): bool')
+        ->toContain('return true;')
+        ->not->toContain("\$this->user()->can('create-gizmo')")
         ->and(File::get(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php')))
-        ->toContain("! config('admin-core.permission.enabled') || \$this->user()->can('edit-gizmo')");
+        ->toContain('return true;')
+        ->not->toContain("\$this->user()->can('edit-gizmo')");
 });
 
 it('generates a migration that actually runs', function () {
@@ -508,13 +511,15 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         // Eager-load the relation on the list so the resource's $this->category?->name doesn't N+1.
         ->toContain("protected array \$with = ['category']");
 
-    // Sanctum-gated apiResource routes under api.gizmos.*, each action permission-gated
-    // by the same permission as the web admin (delete → delete-gizmo, etc.).
+    // Sanctum-gated apiResource routes under api.gizmos.*, each action gated by the same permission as
+    // the web admin (delete → delete-gizmo, etc.) — via AuthorizeApiPermission, which resolves it on the
+    // web permission guard (not the API auth guard) so a web admin's token is authorized.
     expect(File::get(base_path('routes/Api/Modules/gizmos.php')))
         ->toContain("config('admin-core.api.middleware'")
         ->toContain("->name('api.gizmos.')")
         ->toContain("[GizmoApiController::class, 'index']")
-        ->toContain("'permission:' . \$action . '-gizmo'")
+        ->toContain('use Ngos\AdminCore\Http\Middleware\AuthorizeApiPermission;')
+        ->toContain("AuthorizeApiPermission::class . ':' . \$action . '-gizmo'")
         ->toContain("'destroy'])->name('destroy')->middleware(\$gate('delete'))")
         ->toContain("->middleware(\$gate('list'))");
 });

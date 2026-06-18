@@ -8,9 +8,10 @@ class UpdateDummyClassRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Mirror the route gating: when permission checks are disabled
-        // (config('admin-core.permission.enabled') = false) this opens up too.
-        return ! config('admin-core.permission.enabled') || $this->user()->can('edit-dummy-model');
+        // Authorization is enforced by the route's permission middleware, which resolves the permission on
+        // the back-office guard for both the web and API channels (see AuthorizeApiPermission). Re-checking
+        // with can() here would resolve on the API's auth guard (Passport/Sanctum) and wrongly 403.
+        return true;
     }
 
     public function rules(): array

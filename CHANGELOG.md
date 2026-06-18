@@ -2,6 +2,23 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.19.0
+
+- **Fix: the back-office admin was forbidden (403) from every permission-gated API route over Passport.**
+  The admin authenticated fine (`/api/login`, `/api/me`) but 403'd on every gated resource: `auth:api`
+  switches the active guard to `api`, so both the route's `permission:` middleware *and* the generated
+  FormRequest's `authorize()` resolved permissions on the `api` guard — but the admin's permissions live on
+  `web`. So a working JSON API was effectively unreachable for the seeded admin out of the box.
+  - New **`AuthorizeApiPermission`** middleware resolves the permission on the back-office permission guard
+    (`web` by default), not the request's auth guard — so the same admin's existing permissions authorize
+    the API too. Generated `--api` routes now gate with it (a `--guard=api` resource pins its guard, keeping
+    the multi-portal model intact).
+  - Generated **store/update FormRequests now defer authorization to the route middleware** (`authorize()`
+    returns `true`) instead of re-checking `can()` on the API auth guard — removing the duplicate gate that
+    caused the second 403.
+  - Verified end to end on Passport 13: with a web admin's bearer token, `GET/POST/PUT/DELETE /api/<resource>`
+    all succeed; no token → 401; lacking the permission → 403.
+
 ## v2.18.7
 
 - **Fix: `--api-auth` Passport guidance was outdated (silently created no tables).** The printed/README steps
