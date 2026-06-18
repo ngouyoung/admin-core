@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.18.6
+
+- **Fix: the layout only rendered `success` flash messages.** All three layouts (`--access`, portal, minimal)
+  showed `session('success')` and nothing else — so any controller that flashed `error`/`warning`/`info` was
+  silently swallowed and the user saw nothing. They now render all four levels (success → green, error → red,
+  warning → yellow, info → blue).
+- **Fix: a failed import showed a green "success".** CSV import always flashed `success`, even when every row
+  was rejected — so "Imported 0 row(s). Skipped 3: …" appeared in a green alert. It now flashes by outcome:
+  all rows in → `success`, a partial import → `warning`, nothing imported → `error` (now actually visible,
+  thanks to the layout fix). Found by importing deliberately-bad CSVs in a real app.
+
 ## v2.18.5
 
 - **Fix: `admin-core:portal merchant` silently skipped wiring its menu + super-role.** The published config

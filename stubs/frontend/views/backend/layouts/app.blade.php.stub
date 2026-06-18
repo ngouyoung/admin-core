@@ -40,9 +40,11 @@
         @hasSection('breadcrumb')
             <div class="mb-3">@yield('breadcrumb')</div>
         @endif
-        @if (session('success'))
-            <div class="alert alert-success">{{ session('success') }}</div>
-        @endif
+        @foreach (['success' => 'success', 'error' => 'danger', 'warning' => 'warning', 'info' => 'info'] as $flash => $variant)
+            @if (session($flash))
+                <div class="alert alert-{{ $variant }}">{{ session($flash) }}</div>
+            @endif
+        @endforeach
         @yield('contents')
     </main>
 

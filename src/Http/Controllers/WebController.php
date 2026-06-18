@@ -289,7 +289,15 @@ abstract class WebController extends BaseController
                 . (count($errors) > 5 ? ' …' : '');
         }
 
-        return back()->with('success', $message);
+        // Reflect the outcome in the flash level (the layout renders success/error/warning): all rows in →
+        // success, none in → error, a partial import → warning. (A green "success" on a failed import lied.)
+        $level = match (true) {
+            $errors === [] => 'success',
+            $imported === 0 => 'error',
+            default => 'warning',
+        };
+
+        return back()->with($level, $message);
     }
 
     /**

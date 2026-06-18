@@ -114,12 +114,26 @@ it('skips invalid rows on import, importing the valid ones', function () {
     $csv = "name\nGood\n" . str_repeat('x', 300) . "\n";
     $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);
 
+    // A partial import flashes 'warning' (not a green 'success'), naming what was skipped.
     $this->post('/admin/widgets/import', ['file' => $file])
         ->assertRedirect()
-        ->assertSessionHas('success');
+        ->assertSessionMissing('success')
+        ->assertSessionHas('warning', fn ($m) => str_contains($m, 'Imported 1') && str_contains($m, 'Skipped 1'));
 
     expect(Widget::count())->toBe(1);
     expect(Widget::where('name', 'Good')->exists())->toBeTrue();
+});
+
+it('flashes an error (not success) when an import brings in nothing', function () {
+    $csv = "name\n" . str_repeat('x', 300) . "\n"; // the only row is invalid
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);
+
+    $this->post('/admin/widgets/import', ['file' => $file])
+        ->assertRedirect()
+        ->assertSessionMissing('success')
+        ->assertSessionHas('error', fn ($m) => str_contains($m, 'Imported 0'));
+
+    expect(Widget::count())->toBe(0);
 });
 
 it('ignores a UTF-8 BOM and non-fillable columns on import (round-trips export)', function () {
