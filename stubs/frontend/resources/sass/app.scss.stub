@@ -560,3 +560,13 @@ body.ac-customize-open .ac-customize-backdrop { opacity: 1; visibility: visible;
     .ac-empty-message { margin-bottom: 1rem; }
     .ac-empty-action { margin-top: .5rem; }
 }
+
+// 20. Avatar -----------------------------------------------------------------
+// A round photo, or a coloured initials circle when there's no image (the inline
+// size + background colour are set on the element by the component).
+.ac-avatar { display: inline-block; vertical-align: middle; flex: 0 0 auto; }
+.ac-avatar-initials {
+    display: inline-grid; place-items: center;
+    color: #fff; font-weight: 600; line-height: 1; text-transform: uppercase;
+    user-select: none;
+}

@@ -161,6 +161,42 @@ it('renders skeleton placeholders for text, card and table types', function () {
         ->and(substr_count($table, 'ac-skeleton-line'))->toBe(12); // 4 rows × 3 cols
 });
 
+it('renders content tabs with the first nav item active and the panes', function () {
+    $html = Blade::render(<<<'BLADE'
+        <x-admin-core::tabs :tabs="['profile' => 'Profile', 'security' => 'Security']">
+            <x-admin-core::tab-pane id="profile" active>Profile body</x-admin-core::tab-pane>
+            <x-admin-core::tab-pane id="security">Security body</x-admin-core::tab-pane>
+        </x-admin-core::tabs>
+        BLADE);
+
+    expect($html)
+        ->toContain('nav nav-tabs')
+        ->toContain('data-bs-target="#profile"')
+        ->toContain('data-bs-target="#security"')
+        ->toContain('class="nav-link active"')           // first tab active
+        ->toContain('id="profile"')->toContain('Profile body')
+        ->toContain('tab-pane fade show active')          // first pane active
+        ->toContain('Security body');
+});
+
+it('renders an avatar as an image when src is set, else an initials circle', function () {
+    expect(Blade::render('<x-admin-core::avatar src="/me.jpg" name="Jane Doe" size="48" />'))
+        ->toContain('<img')->toContain('src="/me.jpg"')->toContain('width: 48px');
+
+    // No src → coloured circle with up to two initials.
+    expect(Blade::render('<x-admin-core::avatar name="Jane Doe" />'))
+        ->toContain('ac-avatar-initials')
+        ->toContain('>JD<')
+        ->toContain('background: hsl');
+});
+
+it('renders a badge with a tone and optional pill', function () {
+    expect(Blade::render('<x-admin-core::badge tone="danger" pill>3</x-admin-core::badge>'))
+        ->toContain('badge text-bg-danger')
+        ->toContain('rounded-pill')
+        ->toContain('>3</span>');
+});
+
 it('renders the data-table shell with a toolbar slot and the thead included', function () {
     // A throwaway thead view for the component's @include.
     View::addNamespace('actmp', sys_get_temp_dir());

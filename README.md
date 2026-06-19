@@ -607,6 +607,14 @@ The `--access` kit ships a custom Bootstrap-5 theme (no AdminLTE) plus reusable 
 - **`<x-admin-core::skeleton :lines="3" />`** / `type="card"` / `type="table" :rows="5" :cols="4"` — animated
   loading-skeleton placeholders to show while content loads, then swap for the real thing (shimmer is
   dark-mode aware).
+- **`<x-admin-core::tabs :tabs="['profile' => 'Profile', 'security' => 'Security']">`** with a
+  `<x-admin-core::tab-pane id="profile" active>…</x-admin-core::tab-pane>` per id — Bootstrap content tabs for
+  multi-section pages/forms (`:pills="true"` for the pill style). Distinct from `filter-tabs` (DataTable column
+  search).
+- **`<x-admin-core::avatar :src="$user->avatar_url" :name="$user->name" size="40" />`** — a round photo, or a
+  stable colour + initials circle when there's no image.
+- **`<x-admin-core::badge tone="danger" pill>3</x-admin-core::badge>`** — a small count/label badge
+  (`tone` → Bootstrap `text-bg-*`). For an enum status pill use `status` instead.
 - **Customize drawer** (palette icon in the topbar): theme (light/dark/system), accent colour, density,
   layout (sidebar/top-nav), container (fluid/boxed) and direction (LTR/RTL) — persisted in `localStorage`.
 - **Row actions** render as a kebab (⋯) menu (View / Edit / Delete). Add your own items — an "Approve"

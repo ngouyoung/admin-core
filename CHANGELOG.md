@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.23.0
+
+- **Three more reusable components** — rounding out the library:
+  - **`<x-admin-core::tabs>` + `<x-admin-core::tab-pane>`** — Bootstrap content tabs for multi-section
+    pages/forms (labels as an `id => label` map, one pane per id; `:pills` for the pill style). Distinct from
+    `filter-tabs`, which drives a DataTable column search.
+  - **`<x-admin-core::avatar>`** — a round photo, or a stable colour + initials circle when there's no image.
+  - **`<x-admin-core::badge>`** — a small count/label badge (`tone` → Bootstrap `text-bg-*`, optional `pill`).
+  - New `.ac-avatar` styles ship in the front-end kit's `app.scss`; `tabs`/`badge` reuse stock Bootstrap. All
+    three are covered by render tests and documented in the README. The component library is now 20 primitives.
+
+
 ## v2.22.0
 
 - **Four more reusable UI components** — the structural primitives that were still missing:
