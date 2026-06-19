@@ -73,8 +73,15 @@ class AdminCoreFieldCommand extends Command
         //  - system fields (@/sku/auth) — not mass-assignable, so the $fillable idempotency check
         //    can't track them (re-runs would duplicate) and they need a booted() value-setter.
         // Skip them rather than leave a half-wired resource — point the user at the full generator.
+        try {
+            $parsed = (new FieldSet(implode(', ', $newTokens)))->fields();
+        } catch (\InvalidArgumentException $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
         $needsWiring = array_map(fn ($f) => $f['name'], array_filter(
-            (new FieldSet(implode(', ', $newTokens)))->fields(),
+            $parsed,
             fn ($f) => in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file'], true) || ! empty($f['system']),
         ));
         foreach ($needsWiring as $name) {

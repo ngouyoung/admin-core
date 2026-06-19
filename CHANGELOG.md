@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.19.3
+
+- **Fix: a malformed `--fields` DSL silently corrupted the schema instead of erroring.** Enum values are
+  pipe-separated (`status:enum:draft|published`); writing them comma/parenthesised (`status:enum(a,b,c)`)
+  made the outer comma-split shatter the token, so the values leaked in as their own "fields" — `make` and
+  `admin-core:field` then created real columns named `b` and even `c)` (a literal parenthesis in a column
+  name) and ran the migration without complaint. `FieldSet` now validates every parsed token: the name must
+  be a valid identifier and the type must be one it knows, otherwise it fails with a clear message naming the
+  bad token and the correct enum syntax. `make` / `admin-core:field` surface it as a friendly error and write
+  nothing. Valid DSLs (including the canonical `enum:a|b|c`) are unaffected.
+
+
 ## v2.19.2
 
 - **Fix: `admin-core:uninstall --purge` orphaned the entire `--api-auth` footprint.** `install --api-auth`

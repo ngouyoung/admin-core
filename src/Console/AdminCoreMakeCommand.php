@@ -101,13 +101,19 @@ class AdminCoreMakeCommand extends Command
             $fieldsDsl = $this->promptForFields($class) ?: $fieldsDsl;
         }
 
-        $fields = (new FieldSet($fieldsDsl))
-            ->setTable($snakePlural)
-            ->setUuid($uuid)
-            ->setSoftDeletes($soft)
-            ->setAudit($audit)
-            ->setSortable($sortable)
-            ->setClass($class);
+        try {
+            $fields = (new FieldSet($fieldsDsl))
+                ->setTable($snakePlural)
+                ->setUuid($uuid)
+                ->setSoftDeletes($soft)
+                ->setAudit($audit)
+                ->setSortable($sortable)
+                ->setClass($class);
+        } catch (\InvalidArgumentException $e) {
+            $this->error($e->getMessage());
+
+            return self::FAILURE;
+        }
 
         $sortRoutes = $sortable ? sprintf(
             "\n    Route::post('reorder', [%sController::class, 'reorder'])->name('reorder')\n"

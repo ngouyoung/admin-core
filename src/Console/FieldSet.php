@@ -19,6 +19,17 @@ use Illuminate\Support\Str;
  */
 class FieldSet
 {
+    /**
+     * Every type the DSL accepts (after modifier-stripping + enum/m2m normalisation). A token whose
+     * type isn't here is a typo or malformed syntax — rejecting it turns silent schema corruption
+     * (e.g. a comma'd enum `status:enum(a,b)` leaking columns named `b` and `c)`) into a clear error.
+     */
+    private const TYPES = [
+        'string', 'text', 'integer', 'decimal', 'boolean', 'date', 'datetime', 'time',
+        'email', 'url', 'password', 'slug', 'json', 'image', 'file',
+        'foreign', 'belongsToMany', 'enum', 'auth', 'sku',
+    ];
+
     /** @var array<int, array<string, mixed>> */
     private array $fields;
 
@@ -208,7 +219,26 @@ class FieldSet
                 $spec = 'belongsToMany';
             }
 
-            $fields[] = $this->field($name, $spec ?: 'string', $nullable, $unique, $enum, $writeOnce, $system, $index);
+            $type = $spec ?: 'string';
+
+            // Reject malformed tokens before they reach the migration. The usual culprit is a comma'd or
+            // parenthesised enum (`status:enum(a,b,c)`) — the outer split shatters it, so values arrive as
+            // their own "fields" with names like `c)`. Fail loudly with the right syntax instead.
+            if (! preg_match('/^[a-z_][a-z0-9_]*$/i', $name)) {
+                throw new \InvalidArgumentException(
+                    "admin-core: invalid field name '{$name}' in \"{$token}\". Names must be identifiers "
+                    . '(letters, numbers, underscores). Enum values are pipe-separated, not comma/parenthesised: '
+                    . 'status:enum:draft|published|archived',
+                );
+            }
+            if (! in_array($type, self::TYPES, true)) {
+                throw new \InvalidArgumentException(
+                    "admin-core: unknown field type '{$type}' for '{$name}'. Valid types: "
+                    . implode(', ', self::TYPES) . '. Enum syntax: status:enum:draft|published.',
+                );
+            }
+
+            $fields[] = $this->field($name, $type, $nullable, $unique, $enum, $writeOnce, $system, $index);
         }
 
         return $fields ?: [$this->field('name', 'string')];

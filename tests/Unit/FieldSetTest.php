@@ -19,6 +19,27 @@ it('accepts both H:i and H:i:s for a time field (so an exported TIME round-trips
     expect(fs('start:time')->storeRules())->toContain("'date_format:H:i,H:i:s'");
 });
 
+it('rejects a comma/parenthesised enum instead of silently emitting columns like "c)"', function () {
+    // The outer comma-split shatters `status:enum(a,b,c)` into `status:enum(a`, `b`, `c)` — without the
+    // guard these became real columns (one literally named "c)"). The right syntax is pipe-separated.
+    expect(fn () => fs('name:string, status:enum(a,b,c)'))
+        ->toThrow(InvalidArgumentException::class, "unknown field type 'enum(a'");
+});
+
+it('rejects an invalid field-name identifier', function () {
+    expect(fn () => fs('2bad:string'))
+        ->toThrow(InvalidArgumentException::class, "invalid field name '2bad'");
+});
+
+it('rejects an unknown field type', function () {
+    expect(fn () => fs('price:munny'))
+        ->toThrow(InvalidArgumentException::class, "unknown field type 'munny'");
+});
+
+it('accepts the canonical pipe-separated enum syntax', function () {
+    expect(fn () => fs('status:enum:draft|published|archived'))->not->toThrow(InvalidArgumentException::class);
+});
+
 it('builds a nullable decimal', function () {
     $f = fs('price:decimal?');
     expect($f->migrationColumns())->toContain("\$table->decimal('price', 10, 2)->nullable();");
