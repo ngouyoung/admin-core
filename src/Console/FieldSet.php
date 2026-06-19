@@ -237,11 +237,49 @@ class FieldSet
                     . implode(', ', self::TYPES) . '. Enum syntax: status:enum:draft|published.',
                 );
             }
+            if ($type === 'enum') {
+                $this->assertEnumCases($name, $enum);
+            }
 
             $fields[] = $this->field($name, $type, $nullable, $unique, $enum, $writeOnce, $system, $index);
         }
 
         return $fields ?: [$this->field('name', 'string')];
+    }
+
+    /**
+     * Each enum value becomes a PHP enum case (`case Draft = 'draft';`), so the StudlyCase of the value
+     * must be a legal, unique identifier. Without this a numeric value (`enum:1|2|3`) generates `case 1 = …`
+     * and a colliding pair (`in-progress|in_progress` → `InProgress`) a duplicate case — both fatal PHP that
+     * the scaffolder used to write while reporting success.
+     *
+     * @param  array<int, string>  $values
+     */
+    private function assertEnumCases(string $name, array $values): void
+    {
+        if ($values === []) {
+            throw new \InvalidArgumentException(
+                "admin-core: enum field '{$name}' has no values. Use: {$name}:enum:draft|published|archived",
+            );
+        }
+
+        $seen = [];
+        foreach ($values as $value) {
+            $case = Str::studly($value);
+            if (! preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $case)) {
+                throw new \InvalidArgumentException(
+                    "admin-core: enum value '{$value}' (field '{$name}') can't become a PHP case name. Each "
+                    . 'value must start with a letter and be alphanumeric — for numbers use a prefix, e.g. enum:p1|p2|p3.',
+                );
+            }
+            if (isset($seen[$case])) {
+                throw new \InvalidArgumentException(
+                    "admin-core: enum values '{$seen[$case]}' and '{$value}' (field '{$name}') both map to the "
+                    . "case '{$case}'. Use values that stay distinct after StudlyCase.",
+                );
+            }
+            $seen[$case] = $value;
+        }
     }
 
     private function field(string $name, string $type, bool $nullable = false, bool $unique = false, array $enum = [], bool $writeOnce = false, bool $system = false, bool $index = false): array

@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.19.4
+
+- **Fix: some enum values generated a syntactically broken enum class while reporting success.** Each enum
+  value becomes a PHP enum case (`case Draft = 'draft';`), so the value's StudlyCase must be a legal, unique
+  identifier. Numeric values (`priority:enum:1|2|3` → `case 1 = '1';`), values with punctuation, and pairs
+  that collide after StudlyCase (`in-progress|in_progress` → two `InProgress` cases) all produced an
+  un-parseable `app/Enums/*` class — yet `make`/`admin-core:field` printed "scaffolded" and only fatalled
+  later when the model/validation loaded it. `FieldSet` now validates enum values up front and fails with a
+  clear message (naming the offending value and suggesting a prefix like `enum:p1|p2|p3` for numbers), writing
+  nothing. Also rejects an empty value list (`status:enum:`). Valid enums are unaffected.
+
+
 ## v2.19.3
 
 - **Fix: a malformed `--fields` DSL silently corrupted the schema instead of erroring.** Enum values are

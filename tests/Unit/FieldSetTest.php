@@ -40,6 +40,22 @@ it('accepts the canonical pipe-separated enum syntax', function () {
     expect(fn () => fs('status:enum:draft|published|archived'))->not->toThrow(InvalidArgumentException::class);
 });
 
+it('rejects numeric enum values that would generate an invalid PHP case name', function () {
+    // `enum:1|2|3` used to emit `case 1 = '1';` — a fatal parse error shipped as a "success".
+    expect(fn () => fs('priority:enum:1|2|3'))
+        ->toThrow(InvalidArgumentException::class, "enum value '1'");
+});
+
+it('rejects enum values that collide on the same StudlyCase case name', function () {
+    expect(fn () => fs('state:enum:in-progress|in_progress'))
+        ->toThrow(InvalidArgumentException::class, "both map to the");
+});
+
+it('rejects an enum with no values', function () {
+    expect(fn () => fs('state:enum:'))
+        ->toThrow(InvalidArgumentException::class, 'has no values');
+});
+
 it('builds a nullable decimal', function () {
     $f = fs('price:decimal?');
     expect($f->migrationColumns())->toContain("\$table->decimal('price', 10, 2)->nullable();");
