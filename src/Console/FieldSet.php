@@ -346,6 +346,11 @@ class FieldSet
         return collect($this->fields)->contains(fn ($f) => $f['type'] === 'foreign');
     }
 
+    private function hasEnum(): bool
+    {
+        return collect($this->fields)->contains(fn ($f) => $f['type'] === 'enum');
+    }
+
     private function needsServiceBody(): bool
     {
         return $this->hasFiles() || $this->hasManyToMany();
@@ -942,7 +947,7 @@ BLADE;
         $enumClass = '\\App\\Enums\\' . $this->enumClass($f);
         $selected = "old('{$f['name']}', \$object?->{$f['name']}?->value)";
 
-        return "<select name=\"{$f['name']}\" id=\"{$f['name']}\" class=\"form-select {$err}\">\n"
+        return "<select name=\"{$f['name']}\" id=\"{$f['name']}\" class=\"form-select admin-core-select {$err}\">\n"
             . "            @foreach ({$enumClass}::cases() as \$case)\n"
             . "                <option value=\"{{ \$case->value }}\" @selected({$selected} === \$case->value)>{{ \\Illuminate\\Support\\Str::headline(\$case->value) }}</option>\n"
             . "            @endforeach\n        </select>";
@@ -987,7 +992,9 @@ BLADE;
 
     public function formScripts(): string
     {
-        if (! $this->hasForeign() && ! $this->hasManyToMany()) {
+        // Any <select> the form renders (enum, foreign, many-to-many) carries .admin-core-select,
+        // so it's enhanced with select2 — one consistent dropdown style across every field type.
+        if (! $this->hasForeign() && ! $this->hasManyToMany() && ! $this->hasEnum()) {
             return '';
         }
 

@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.21.1
+
+- **Fix: enum `<select>` fields weren't enhanced with select2.** Foreign-key and many-to-many selects carried
+  `.admin-core-select` (→ select2), but the enum select was a plain Bootstrap `form-select`, and the select2
+  init only fired when the form had a foreign/m2m field — so enum dropdowns looked and behaved differently.
+  The enum select now carries `.admin-core-select` too, and the form's select2 init is emitted whenever the
+  form has any `<select>` (enum, foreign or m2m). Every dropdown is now a consistent select2.
+
+
 ## v2.21.0
 
 - **More reusable Blade components, and the scaffold composes them throughout** (continues v2.20.0):

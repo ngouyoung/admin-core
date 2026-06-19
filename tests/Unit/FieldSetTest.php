@@ -75,6 +75,19 @@ it('builds an enum select backed by a generated enum class', function () {
     ]);
 });
 
+it('enhances every select with select2 — enum included, not just foreign/m2m', function () {
+    // The enum <select> carries .admin-core-select and an enum-only form still emits the
+    // select2 init, so all dropdowns (enum / foreign / many-to-many) look and behave the same.
+    $f = fs('status:enum:draft|published')->setClass('Product');
+    expect($f->formFields())->toContain('class="form-select admin-core-select');
+    expect($f->formScripts())
+        ->toContain(".admin-core-select')")
+        ->toContain('.select2(');
+
+    // A form with no select at all emits no select2 script.
+    expect(fs('name:string')->formScripts())->toBe('');
+});
+
 it('renders a boolean as a checkbox with a hidden 0 fallback (so it can be unchecked on edit)', function () {
     $form = fs('active:boolean')->formFields();
 
