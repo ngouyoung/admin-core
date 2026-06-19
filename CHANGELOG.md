@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.22.0
+
+- **Four more reusable UI components** — the structural primitives that were still missing:
+  - **`<x-admin-core::skeleton>`** — animated loading-skeleton placeholders (`type` text/card/table; shimmer
+    is dark-mode aware) to show while content loads.
+  - **`<x-admin-core::empty-state>`** — a centered "nothing here yet" block (icon + title + message + optional
+    action slot) for empty lists/sections.
+  - **`<x-admin-core::alert>`** — an inline contextual message with a leading icon and optional dismiss
+    (info/success/warning/danger; `error` → danger).
+  - **`<x-admin-core::modal>`** — a reusable Bootstrap modal shell with title/body/footer slots and a `size`.
+  - New `.ac-skeleton` / `.ac-empty` styles ship in the front-end kit's `app.scss` (re-publish/rebuild to pick
+    them up); `alert` and `modal` reuse stock Bootstrap. All four are covered by render tests and documented
+    under "UI components & theme" in the README.
+
+
 ## v2.21.1
 
 - **Fix: enum `<select>` fields weren't enhanced with select2.** Foreign-key and many-to-many selects carried

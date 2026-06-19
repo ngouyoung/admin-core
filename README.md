@@ -597,6 +597,16 @@ The `--access` kit ships a custom Bootstrap-5 theme (no AdminLTE) plus reusable 
 - **`<x-admin-core::form-actions submit="Create" :cancel="route('…index')" />`** — the submit + cancel row at
   the foot of a form (pass `:submit-class="config('class.button.update')"` on edit). Every generated and
   access-module form uses it.
+- **`<x-admin-core::alert type="warning" dismissible>…</x-admin-core::alert>`** — an inline contextual message
+  with a leading icon (info/success/warning/danger; `error` → danger). For page-level messages; one-off flash
+  is still handled by the layout.
+- **`<x-admin-core::modal id="editX" title="Edit" size="lg">… <x-slot:footer>…</x-slot></x-admin-core::modal>`**
+  — a reusable Bootstrap modal shell (title/body/footer slots); trigger from any `data-bs-target="#editX"`.
+- **`<x-admin-core::empty-state icon="bi-inbox" title="Nothing yet" message="…"><x-slot:action>…</x-slot></x-admin-core::empty-state>`**
+  — a centered placeholder (icon + title + message + optional CTA) for empty lists/sections.
+- **`<x-admin-core::skeleton :lines="3" />`** / `type="card"` / `type="table" :rows="5" :cols="4"` — animated
+  loading-skeleton placeholders to show while content loads, then swap for the real thing (shimmer is
+  dark-mode aware).
 - **Customize drawer** (palette icon in the topbar): theme (light/dark/system), accent colour, density,
   layout (sidebar/top-nav), container (fluid/boxed) and direction (LTR/RTL) — persisted in `localStorage`.
 - **Row actions** render as a kebab (⋯) menu (View / Edit / Delete). Add your own items — an "Approve"

@@ -529,3 +529,34 @@ body.ac-customize-open .ac-customize-backdrop { opacity: 1; visibility: visible;
         &:active { background: var(--ac-hover); color: inherit; }
     }
 }
+
+// 19. Loading skeleton + empty state -----------------------------------------
+// Placeholder shimmer shown while content loads (.ac-skeleton), and the centered
+// "nothing here yet" block (.ac-empty). Both read the theme tokens, so they adapt
+// to dark mode automatically.
+.ac-skeleton {
+    position: relative; overflow: hidden;
+    background: var(--ac-hover);
+    border-radius: .375rem;
+    &::after {
+        content: ""; position: absolute; inset: 0;
+        transform: translateX(-100%);
+        background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ac-border) 65%, transparent), transparent);
+        animation: ac-skeleton-shimmer 1.4s ease-in-out infinite;
+    }
+}
+.ac-skeleton-line  { height: .8rem; margin-bottom: .6rem; &:last-child { margin-bottom: 0; width: 70%; } }
+.ac-skeleton-title { height: 1.1rem; width: 40%; margin-bottom: 1rem; }
+.ac-skeleton-text  > .ac-skeleton-line:last-child { margin-bottom: 0; }
+@keyframes ac-skeleton-shimmer { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) {
+    .ac-skeleton::after { animation: none; }
+}
+
+.ac-empty {
+    text-align: center; padding: 2.5rem 1rem; color: var(--ac-muted);
+    .ac-empty-icon { font-size: 2.5rem; color: var(--ac-border); display: block; margin-bottom: .75rem; }
+    .ac-empty-title { font-weight: 600; color: var(--ac-heading); margin-bottom: .25rem; }
+    .ac-empty-message { margin-bottom: 1rem; }
+    .ac-empty-action { margin-top: .5rem; }
+}

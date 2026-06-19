@@ -103,6 +103,64 @@ it('renders form-actions with a submit button and a cancel link', function () {
         ->toContain('>Save</button>')->not->toContain('>Cancel</a>');
 });
 
+it('renders an alert with the right variant, icon and optional dismiss', function () {
+    $html = Blade::render('<x-admin-core::alert type="warning" dismissible>Careful</x-admin-core::alert>');
+    expect($html)
+        ->toContain('alert alert-warning')
+        ->toContain('alert-dismissible')
+        ->toContain('bi-exclamation-triangle')
+        ->toContain('Careful')
+        ->toContain('data-bs-dismiss="alert"');
+
+    // error maps to danger; no dismiss button unless asked.
+    expect(Blade::render('<x-admin-core::alert type="error">Boom</x-admin-core::alert>'))
+        ->toContain('alert-danger')->not->toContain('data-bs-dismiss="alert"');
+});
+
+it('renders a modal shell with title, body and footer slots', function () {
+    $html = Blade::render(<<<'BLADE'
+        <x-admin-core::modal id="editX" title="Edit item" size="lg">
+            Body here
+            <x-slot:footer><button class="btn btn-primary">Save</button></x-slot:footer>
+        </x-admin-core::modal>
+        BLADE);
+
+    expect($html)
+        ->toContain('id="editX"')
+        ->toContain('modal-dialog modal-lg')
+        ->toContain('<h5 class="modal-title">Edit item</h5>')
+        ->toContain('Body here')
+        ->toContain('<div class="modal-footer">');
+});
+
+it('renders an empty-state with icon, title, message and action slot', function () {
+    $html = Blade::render(<<<'BLADE'
+        <x-admin-core::empty-state icon="bi-inbox" title="No products" message="Add one to start.">
+            <x-slot:action><a href="/x" class="btn btn-primary">Add</a></x-slot:action>
+        </x-admin-core::empty-state>
+        BLADE);
+
+    expect($html)
+        ->toContain('class="ac-empty"')
+        ->toContain('bi bi-inbox ac-empty-icon')
+        ->toContain('No products')
+        ->toContain('Add one to start.')
+        ->toContain('ac-empty-action');
+});
+
+it('renders skeleton placeholders for text, card and table types', function () {
+    expect(Blade::render('<x-admin-core::skeleton :lines="3" />'))
+        ->toContain('ac-skeleton-text')
+        ->and(substr_count(Blade::render('<x-admin-core::skeleton :lines="3" />'), 'ac-skeleton-line'))->toBe(3);
+
+    expect(Blade::render('<x-admin-core::skeleton type="card" :lines="2" />'))
+        ->toContain('card')->toContain('ac-skeleton-title');
+
+    $table = Blade::render('<x-admin-core::skeleton type="table" :rows="4" :cols="3" />');
+    expect(substr_count($table, '<tr>'))->toBe(4)
+        ->and(substr_count($table, 'ac-skeleton-line'))->toBe(12); // 4 rows × 3 cols
+});
+
 it('renders the data-table shell with a toolbar slot and the thead included', function () {
     // A throwaway thead view for the component's @include.
     View::addNamespace('actmp', sys_get_temp_dir());
