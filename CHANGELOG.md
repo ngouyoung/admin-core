@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.25.0
+
+- **The `avatar` component is now used across the access module** (instead of hand-rolled avatar markup), so
+  every avatar shares one look + initials fallback:
+  - the **topbar user menu** and the **profile page** render `<x-admin-core::avatar>` (a stored image, or a
+    stable colour + initials when there's none — replacing the old SVG-silhouette / gravatar fallbacks);
+  - the **users list** gains an **avatar column**, served by a new reusable `WebController::avatar()` helper
+    (mirrors `badges()`/`actions()`) + an `admin-core::datatable.avatar` partial — so any resource's
+    `getData()` can add an avatar cell with one call.
+  - Re-publish/rebuild the front-end kit to pick up the navbar/profile changes. Dogfood-verified: users list,
+    `getData`, and profile all render the avatar (initials fallback for the seeded admin).
+
+
 ## v2.24.0
 
 - **New `admin-core:page` command — scaffold a standalone (non-CRUD) page.** The generator covered CRUD

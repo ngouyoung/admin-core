@@ -38,10 +38,11 @@ class UserController extends WebController
     public function getData($relation = null)
     {
         return parent::getData(['roles', 'permissions'])
+            ->addColumn('avatar', fn ($user) => $this->avatar($user))
             ->addColumn('roles', fn ($user) => $this->badges($user->roles))
             ->addColumn('permissions', fn ($user) => $this->badges($user->permissions, 'secondary'))
             ->addColumn('actions', fn ($user) => $this->actions($user, 'user'))
-            ->rawColumns(['roles', 'permissions', 'actions'])
+            ->rawColumns(['avatar', 'roles', 'permissions', 'actions'])
             ->make(true);
     }
 

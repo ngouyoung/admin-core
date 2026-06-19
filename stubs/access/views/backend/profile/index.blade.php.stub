@@ -19,9 +19,9 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-body text-center">
-                    <img id="current-avatar"
-                         src="{{ $user->avatar ? asset('storage/' . $user->avatar) : 'https://www.gravatar.com/avatar/?d=mp&s=120' }}"
-                         class="rounded-circle mb-2" style="width:120px;height:120px;object-fit:cover" alt="avatar">
+                    <x-admin-core::avatar id="current-avatar" class="mb-2"
+                                          :src="$user->avatar ? asset('storage/' . $user->avatar) : null"
+                                          :name="$user->name" size="120" />
                     <h5 class="mb-0 text-capitalize">{{ $user->name }}</h5>
                     <p class="text-muted">{{ $user->email }}</p>
 

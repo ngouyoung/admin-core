@@ -1,4 +1,5 @@
 <tr>
+    <th style="width:48px"></th>
     <th>Name</th>
     <th>Email</th>
     <th>Roles</th>

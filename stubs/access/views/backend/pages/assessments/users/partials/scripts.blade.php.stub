@@ -4,6 +4,7 @@
             ajax: {url: '{{ route('admin.assessments.users.getData') }}', type: 'GET'},
             pageLength: {{ (int) config('admin-core.pagination', 10) }},
             columns: [
+                {data: 'avatar', name: 'avatar', orderable: false, searchable: false},
                 {data: 'name', name: 'name'},
                 {data: 'email', name: 'email'},
                 {data: 'roles', orderable: false, searchable: false},

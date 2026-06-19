@@ -378,6 +378,23 @@ abstract class WebController extends BaseController
     }
 
     /**
+     * Render an avatar cell for a DataTables column — the stored image, or a colour +
+     * initials fallback (via the avatar component, so a list cell matches the avatar
+     * shown everywhere else). $avatarAttr is the model's image column (null → always
+     * initials); $nameAttr drives the initials.
+     */
+    protected function avatar($model, string $nameAttr = 'name', ?string $avatarAttr = 'avatar', int $size = 32): string
+    {
+        $stored = $avatarAttr ? ($model->{$avatarAttr} ?? null) : null;
+
+        return view('admin-core::datatable.avatar', [
+            'src' => $stored ? asset('storage/' . $stored) : null,
+            'name' => (string) ($model->{$nameAttr} ?? ''),
+            'size' => $size,
+        ])->render();
+    }
+
+    /**
      * Render the row's kebab (⋯) menu of view/edit/delete actions.
      *
      * Extra resource-specific items can be injected as a list of:
