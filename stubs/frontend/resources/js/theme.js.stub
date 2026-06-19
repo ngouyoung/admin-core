@@ -46,6 +46,12 @@ if ($.fn.dataTable) {
         // arrow next to the checkbox. Let the server return its natural order;
         // users can still click any real column header to sort.
         order: [],
+        // A friendly empty state instead of the default "No data available in table"
+        // (matches the <x-admin-core::empty-state> look — icon + muted message).
+        language: {
+            emptyTable: '<div class="ac-table-empty"><i class="bi bi-inbox"></i><span>No records yet.</span></div>',
+            zeroRecords: '<div class="ac-table-empty"><i class="bi bi-search"></i><span>No matching records.</span></div>',
+        },
         // Keep the select-all checkbox (first) and the Actions column (last) out of the
         // Columns show/hide menu — they're not data, and hiding Actions would strand the
         // row controls. The `.noVis` class drives the colvis `:not(.noVis)` selector below.

@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.25.1
+
+- **Friendlier empty state on every list.** The DataTables defaults (in the front-end kit's `theme.js`) now
+  render a centered icon + muted message — `No records yet.` (`emptyTable`) and `No matching records.`
+  (`zeroRecords`) — instead of the stock "No data available in table", matching the `empty-state` look. New
+  `.ac-table-empty` style ships in `app.scss`. Kit-only (re-publish/rebuild to pick it up); verified it
+  compiles into the JS + CSS bundles. (`skeleton` stays an available primitive — the dashboard loads its
+  counts synchronously, so there's no genuine async-loading moment to wire it into.)
+
+
 ## v2.25.0
 
 - **The `avatar` component is now used across the access module** (instead of hand-rolled avatar markup), so
