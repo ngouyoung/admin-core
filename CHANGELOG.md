@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.19.2
+
+- **Fix: `admin-core:uninstall --purge` orphaned the entire `--api-auth` footprint.** `install --api-auth`
+  publishes `app/Http/Controllers/Api/AuthController.php` + `app/Providers/ApiAuthServiceProvider.php` and
+  registers that provider in `bootstrap/providers.php` — but uninstall listed none of them. After a "purge"
+  that promises to *delete the files it published*, both files were left on disk and the provider stayed
+  registered. The dangling registration is the real hazard: delete the provider file by hand (as a purge is
+  expected to) and the app fatals on boot with a missing class.
+  - Un-wiring now **un-registers `ApiAuthServiceProvider` from `bootstrap/providers.php`** (it's wiring, like
+    the middleware alias, so it goes on a plain uninstall too — the host's own providers are preserved).
+  - `--purge` now **deletes the two `--api-auth` files**, so a purge leaves no admin-core artifacts behind.
+  - Dogfood-verified: after `install --api-auth` → `uninstall --purge`, both files are gone, zero provider
+    registrations remain, and the app boots; a non-purge uninstall drops the registration but keeps the files.
+
 ## v2.19.1
 
 - **Fix: generated `--api` route files shipped a broken comment sentence.** The guard token

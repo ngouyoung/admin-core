@@ -55,8 +55,9 @@ class AdminCoreUninstallCommand extends Command
             }
         }
 
-        // routes/api.php: the Passport auth routes (point at the AuthController we purge) and the
-        // `--api` module loader. Left behind, the auth block would reference a deleted controller.
+        // routes/api.php: the Passport auth routes (which point at the --api-auth AuthController) and the
+        // `--api` module loader. They are admin-core's wiring, so they go when we un-wire; with --purge the
+        // AuthController is then deleted too (so the stripped block can't dangle against a missing class).
         $api = base_path('routes/api.php');
         foreach (['admin-core:api-auth', 'admin-core:api-modules'] as $marker) {
             if ($this->stripBlock($api, $marker)) {
@@ -68,7 +69,29 @@ class AdminCoreUninstallCommand extends Command
             $this->line('  <info>removed</info> permission middleware alias from bootstrap/app.php');
         }
 
+        $this->unregisterApiAuthProvider();
         $this->revertHasRoles();
+    }
+
+    /**
+     * --api-auth registers App\Providers\ApiAuthServiceProvider in bootstrap/providers.php. That
+     * registration is admin-core's wiring (like the middleware alias), so un-wiring must drop it —
+     * otherwise --purge deletes the provider file but leaves a registration pointing at a missing class,
+     * which fatals on the next boot.
+     */
+    private function unregisterApiAuthProvider(): void
+    {
+        $file = base_path('bootstrap/providers.php');
+        if (! File::exists($file)) {
+            return;
+        }
+        $contents = File::get($file);
+        $new = preg_replace('/^[ \t]*App\\\\Providers\\\\ApiAuthServiceProvider::class,[ \t]*\n/m', '', $contents);
+
+        if ($new !== null && $new !== $contents) {
+            File::put($file, $new);
+            $this->line('  <info>removed</info> ApiAuthServiceProvider from bootstrap/providers.php');
+        }
     }
 
     private function stripBlock(string $file, string $marker): bool
@@ -140,6 +163,9 @@ class AdminCoreUninstallCommand extends Command
             resource_path('views/backend/layouts/app.blade.php'),
             resource_path('views/auth/login.blade.php'),
             base_path('routes/Web/Backend/Modules/assessments.php'),
+            // --api-auth footprint (stubs/api-auth) — copied to fixed paths, not a walked stub dir.
+            app_path('Http/Controllers/Api/AuthController.php'),
+            app_path('Providers/ApiAuthServiceProvider.php'),
         ];
 
         $map = [

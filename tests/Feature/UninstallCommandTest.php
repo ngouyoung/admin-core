@@ -43,6 +43,44 @@ it('strips the api-auth + api-modules blocks from routes/api.php (host content p
     $original === null ? File::delete($api) : File::put($api, $original);
 });
 
+it('un-registers the --api-auth provider from bootstrap/providers.php (host providers kept)', function () {
+    // --api-auth registers App\Providers\ApiAuthServiceProvider here. Un-wiring must drop it, or --purge
+    // deletes the provider file and leaves a registration pointing at a missing class → fatal on next boot.
+    $path = base_path('bootstrap/providers.php');
+    $original = File::exists($path) ? File::get($path) : null;
+    File::ensureDirectoryExists(dirname($path));
+    File::put($path, <<<'PHP'
+    <?php
+
+    return [
+        App\Providers\AppServiceProvider::class,
+        App\Providers\ApiAuthServiceProvider::class,
+    ];
+    PHP);
+
+    $command = new \Ngos\AdminCore\Console\AdminCoreUninstallCommand();
+    (fn ($o) => $this->output = $o)->call(
+        $command,
+        new \Illuminate\Console\OutputStyle(new \Symfony\Component\Console\Input\ArrayInput([]), new \Symfony\Component\Console\Output\BufferedOutput()),
+    );
+    (new ReflectionMethod($command, 'unregisterApiAuthProvider'))->invoke($command);
+
+    expect(File::get($path))
+        ->not->toContain('ApiAuthServiceProvider')                  // admin-core's registration is gone
+        ->toContain('App\Providers\AppServiceProvider::class,');     // the host's own provider survives
+
+    $original === null ? File::delete($path) : File::put($path, $original);
+});
+
+it('lists the --api-auth files among the purge targets (so --purge deletes them, not orphans)', function () {
+    $command = new \Ngos\AdminCore\Console\AdminCoreUninstallCommand();
+    $owned = (new ReflectionMethod($command, 'ownedFiles'))->invoke($command);
+
+    expect($owned)
+        ->toContain(app_path('Http/Controllers/Api/AuthController.php'))
+        ->toContain(app_path('Providers/ApiAuthServiceProvider.php'));
+});
+
 it('reverts HasRoles/HasPublicUuid cleanly (no dangling trait or import)', function () {
     File::ensureDirectoryExists(app_path('Models'));
     $userPath = app_path('Models/User.php');
