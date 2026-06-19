@@ -365,8 +365,17 @@ it('gives create/edit/show a consistent page-header with a parent crumb', functi
     foreach (['create', 'edit', 'show'] as $view) {
         expect(File::get(resource_path("views/backend/pages/gizmos/{$view}.blade.php")))
             ->toContain('<x-admin-core::page-header')
-            ->toContain('parent="Gizmos"');
+            ->toContain('parent="Gizmos"')
+            ->toContain('<x-admin-core::card>')          // wrapper is the component now
+            ->not->toContain('<div class="card">');
     }
+
+    // create/edit close the form with the reusable form-actions component (submit + cancel).
+    expect(File::get(resource_path('views/backend/pages/gizmos/create.blade.php')))
+        ->toContain('<x-admin-core::form-actions submit="Create" :cancel="route(\'admin.gizmos.index\')" />');
+    expect(File::get(resource_path('views/backend/pages/gizmos/edit.blade.php')))
+        ->toContain('<x-admin-core::form-actions submit="Update"')
+        ->toContain(':submit-class="config(\'class.button.update\')"');
 
     // The legacy AdminLTE breadcrumb section is gone from show.
     expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))

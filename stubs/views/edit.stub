@@ -5,21 +5,14 @@
 @section('contents')
     <x-admin-core::page-header title="Edit DummyClass" parent="DummyClasses" :parent-url="route('__AC_RNS__dummyModels.index')" />
 
-    <div class="card">
-        <div class="card-body">
-            <form action="{{ route('__AC_RNS__dummyModels.update', $object->getRouteKey()) }}" method="POST"__AC_ENCTYPE__>
-                @csrf
-                @method('PUT')
-                @include('backend.pages.dummyModels.partials.form')
-                <div class="row">
-                    <div class="col-md-8 offset-md-2">
-                        <button type="submit" class="{{ config('class.button.update') }}">Update</button>
-                        <a href="{{ route('__AC_RNS__dummyModels.index') }}" class="{{ config('class.button.cancel') }}">Cancel</a>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
+    <x-admin-core::card>
+        <form action="{{ route('__AC_RNS__dummyModels.update', $object->getRouteKey()) }}" method="POST"__AC_ENCTYPE__>
+            @csrf
+            @method('PUT')
+            @include('backend.pages.dummyModels.partials.form')
+            <x-admin-core::form-actions submit="Update" :submit-class="config('class.button.update')" :cancel="route('__AC_RNS__dummyModels.index')" />
+        </form>
+    </x-admin-core::card>
 @endsection
 
 __AC_FORM_SCRIPTS__

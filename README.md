@@ -588,6 +588,15 @@ The `--access` kit ships a custom Bootstrap-5 theme (no AdminLTE) plus reusable 
   archived → muted; unknown values fall back to neutral.
 - **`<x-admin-core::stat-list title="Summary" :items="[['label' => 'Refund', 'value' => '-35.00', 'suffix' => 'USD']]" />`**
   — a label→value summary card (right-aligned tabular numbers, negatives in red, `'strong' => true` for totals).
+- **`<x-admin-core::stat-card label="Users" :count="$n" icon="bi-people" :route="route('…')" tone="1" />`**
+  — a dashboard KPI card (big number + label + icon, optionally a link; `tone` 1-4 picks the accent). The
+  dashboard composes these.
+- **`<x-admin-core::card>`** — a Bootstrap card with optional `<x-slot:header>` / `<x-slot:footer>`; the body
+  is wrapped in `card-body` (pass `:body-class="''"` to drop the wrapper, e.g. a flush table). Used by the
+  generated show/create/edit and the dashboard panels.
+- **`<x-admin-core::form-actions submit="Create" :cancel="route('…index')" />`** — the submit + cancel row at
+  the foot of a form (pass `:submit-class="config('class.button.update')"` on edit). Every generated and
+  access-module form uses it.
 - **Customize drawer** (palette icon in the topbar): theme (light/dark/system), accent colour, density,
   layout (sidebar/top-nav), container (fluid/boxed) and direction (LTR/RTL) — persisted in `localStorage`.
 - **Row actions** render as a kebab (⋯) menu (View / Edit / Delete). Add your own items — an "Approve"

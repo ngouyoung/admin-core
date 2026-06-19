@@ -16,17 +16,15 @@
         </x-slot:actions>
     </x-admin-core::page-header>
 
-    <div class="card">
-        <div class="card-body">
-            <table class="table table-bordered mb-0">
-                <tbody>
+    <x-admin-core::card>
+        <table class="table table-bordered mb-0">
+            <tbody>
 __AC_SHOW__
-                <tr>
-                    <th style="width:220px">Created</th>
-                    <td>{{ $object->created_at }}</td>
-                </tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+            <tr>
+                <th style="width:220px">Created</th>
+                <td>{{ $object->created_at }}</td>
+            </tr>
+            </tbody>
+        </table>
+    </x-admin-core::card>
 @endsection

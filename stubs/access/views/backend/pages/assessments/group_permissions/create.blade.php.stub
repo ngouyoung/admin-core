@@ -7,14 +7,13 @@
             <li class="breadcrumb-item active">Create</li></ol></div></div>
 @endsection
 @section('contents')
-    <div class="card"><div class="card-body">
+    <x-admin-core::card>
         <form method="POST" action="{{ route('admin.assessments.group_permissions.store') }}">
             @csrf
             @include('backend.pages.assessments.group_permissions.partials.form')
-            <button type="submit" class="{{ config('class.button.create') }}">Create</button>
-            <a href="{{ route('admin.assessments.group_permissions.index') }}" class="{{ config('class.button.cancel') }}">Cancel</a>
+            <x-admin-core::form-actions submit="Create" :cancel="route('admin.assessments.group_permissions.index')" />
         </form>
-    </div></div>
+    </x-admin-core::card>
 @endsection
 @push('scripts')
     @include('backend.pages.assessments.group_permissions.partials.scripts')

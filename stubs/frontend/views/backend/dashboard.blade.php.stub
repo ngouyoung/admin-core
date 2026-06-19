@@ -15,38 +15,29 @@
     <div class="row g-3 mb-3">
         @foreach ($stats as $s)
             <div class="col-xl-3 col-md-6">
-                <a href="{{ Route::has($s['route']) ? route($s['route']) : '#' }}" class="d-block text-decoration-none">
-                    <div class="ac-stat ac-stat-{{ $s['n'] }} d-flex align-items-center justify-content-between">
-                        <div>
-                            <div class="ac-stat-value">{{ $s['count'] }}</div>
-                            <div class="ac-stat-label">{{ $s['label'] }}</div>
-                        </div>
-                        <i class="bi {{ $s['icon'] }} ac-stat-icon"></i>
-                    </div>
-                </a>
+                <x-admin-core::stat-card :label="$s['label']" :count="$s['count']" :icon="$s['icon']"
+                    :route="Route::has($s['route']) ? route($s['route']) : null" :tone="$s['n']" />
             </div>
         @endforeach
     </div>
 
     <div class="row g-3">
         <div class="col-lg-5">
-            <div class="card h-100">
-                <div class="card-header">Overview</div>
-                <div class="card-body"><div id="overview-chart"></div></div>
-            </div>
+            <x-admin-core::card class="h-100">
+                <x-slot:header>Overview</x-slot>
+                <div id="overview-chart"></div>
+            </x-admin-core::card>
         </div>
         <div class="col-lg-7">
-            <div class="card h-100">
-                <div class="card-header">Welcome</div>
-                <div class="card-body">
-                    <p>Welcome back, <strong class="text-capitalize">{{ auth()->user()->name }}</strong>.</p>
-                    <p class="mb-0 text-secondary">
-                        Scaffold a resource with
-                        <code>php artisan admin-core:make Product --migration --fields="name:string"</code> —
-                        it auto-adds to the sidebar and grants your role the permissions.
-                    </p>
-                </div>
-            </div>
+            <x-admin-core::card class="h-100">
+                <x-slot:header>Welcome</x-slot>
+                <p>Welcome back, <strong class="text-capitalize">{{ auth()->user()->name }}</strong>.</p>
+                <p class="mb-0 text-secondary">
+                    Scaffold a resource with
+                    <code>php artisan admin-core:make Product --migration --fields="name:string"</code> —
+                    it auto-adds to the sidebar and grants your role the permissions.
+                </p>
+            </x-admin-core::card>
         </div>
     </div>
 @endsection

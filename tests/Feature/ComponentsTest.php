@@ -54,6 +54,55 @@ it('renders the import modal button + a form posting to the route', function () 
         ->toContain('href="/x/tmpl"'); // template link present when passed
 });
 
+it('renders a stat-card as a link with value, label and icon', function () {
+    $html = Blade::render('<x-admin-core::stat-card label="Users" :count="42" icon="bi-people" route="/admin/users" tone="2" />');
+
+    expect($html)
+        ->toContain('href="/admin/users"')
+        ->toContain('ac-stat ac-stat-2')
+        ->toContain('>42<')
+        ->toContain('>Users<')
+        ->toContain('bi bi-people ac-stat-icon');
+
+    // Without a route it renders the card but no anchor.
+    expect(Blade::render('<x-admin-core::stat-card label="X" :count="1" />'))
+        ->toContain('ac-stat')->not->toContain('<a ');
+});
+
+it('renders a card with header, body and footer slots', function () {
+    $html = Blade::render(<<<'BLADE'
+        <x-admin-core::card class="h-100">
+            <x-slot:header>Overview</x-slot>
+            Body
+            <x-slot:footer>Foot</x-slot>
+        </x-admin-core::card>
+        BLADE);
+
+    expect($html)
+        ->toContain('class="card h-100"')          // attributes merge onto the card
+        ->toContain('<div class="card-header">Overview</div>')
+        ->toContain('card-body')->toContain('Body') // body wrapped
+        ->toContain('<div class="card-footer">Foot</div>');
+
+    // :body-class="''" drops the body wrapper (flush content).
+    expect(Blade::render('<x-admin-core::card :body-class="\'\'">Flush</x-admin-core::card>'))
+        ->toContain('Flush')->not->toContain('card-body');
+});
+
+it('renders form-actions with a submit button and a cancel link', function () {
+    $html = Blade::render('<x-admin-core::form-actions submit="Create" cancel="/admin/x" />');
+
+    expect($html)
+        ->toContain('type="submit"')
+        ->toContain('>Create</button>')
+        ->toContain('href="/admin/x"')
+        ->toContain('>Cancel</a>');
+
+    // Submit-only when no cancel URL is given.
+    expect(Blade::render('<x-admin-core::form-actions submit="Save" />'))
+        ->toContain('>Save</button>')->not->toContain('>Cancel</a>');
+});
+
 it('renders the data-table shell with a toolbar slot and the thead included', function () {
     // A throwaway thead view for the component's @include.
     View::addNamespace('actmp', sys_get_temp_dir());

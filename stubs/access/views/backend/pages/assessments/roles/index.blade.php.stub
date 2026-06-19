@@ -13,13 +13,7 @@
         </x-slot:actions>
     </x-admin-core::page-header>
 
-    <div class="card">
-        <div class="card-body">
-            <table class="{{ config('class.table') }}" id="roles_table">
-                <thead>@include('backend.pages.assessments.roles.partials.thead')</thead>
-            </table>
-        </div>
-    </div>
+    <x-admin-core::data-table id="roles_table" thead="backend.pages.assessments.roles.partials.thead" />
 @endsection
 
 @push('scripts')

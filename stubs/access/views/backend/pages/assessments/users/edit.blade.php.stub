@@ -7,12 +7,11 @@
             <li class="breadcrumb-item active">Edit</li></ol></div></div>
 @endsection
 @section('contents')
-    <div class="card"><div class="card-body">
+    <x-admin-core::card>
         <form method="POST" action="{{ route('admin.assessments.users.update', $object->getRouteKey()) }}">
             @csrf @method('PUT')
             @include('backend.pages.assessments.users.partials.form')
-            <button type="submit" class="{{ config('class.button.update') }}">Update</button>
-            <a href="{{ route('admin.assessments.users.index') }}" class="{{ config('class.button.cancel') }}">Cancel</a>
+            <x-admin-core::form-actions submit="Update" :submit-class="config('class.button.update')" :cancel="route('admin.assessments.users.index')" />
         </form>
-    </div></div>
+    </x-admin-core::card>
 @endsection

@@ -2,6 +2,25 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.21.0
+
+- **More reusable Blade components, and the scaffold composes them throughout** (continues v2.20.0):
+  - **`<x-admin-core::stat-card>`** — a dashboard KPI card (number + label + icon, optional link, 4 accent
+    tones). The dashboard now composes these instead of hand-rolling each `ac-stat` block.
+  - **`<x-admin-core::card>`** — a Bootstrap card with optional header/footer slots and a configurable body
+    wrapper (`:body-class="''"` for flush content). The generated show/create/edit and the dashboard panels
+    use it.
+  - **`<x-admin-core::form-actions>`** — the submit + cancel row at the foot of a form.
+- **The access module now uses the shared components for consistency**: the users/roles index views adopt
+  `<x-admin-core::data-table>`, and all six access create/edit forms (users, roles, group-permissions) use
+  `<x-admin-core::card>` + `<x-admin-core::form-actions>`. (The permissions index keeps its inline thead +
+  note, and the group-permissions index keeps its bespoke drag/drop layout.)
+- Net effect: the dashboard, every generated CRUD view and the access-management screens share one set of UI
+  primitives, so a visual change lands in one place. New render tests cover the three components; dogfood-
+  verified the generated views, dashboard and retrofitted access views all render in a real app. No behaviour
+  change for existing apps until views are re-generated.
+
+
 ## v2.20.0
 
 - **New reusable Blade UI components, and the generated views now compose them** instead of hand-rolling the
