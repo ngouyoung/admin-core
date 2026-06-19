@@ -7,7 +7,8 @@ use Ngos\AdminCore\Http\Middleware\AuthorizeApiPermission;
 // Each action is gated by the same permission as the web admin (when permission gating is enabled), so
 // the API and the back office enforce one permission model. AuthorizeApiPermission resolves it on the
 // permission guard (where the admin's permissions live), not the API's auth guard — so a web admin's
-// Passport/Sanctum token is authorized. (A --guard=api resource pins that guard via __AC_PERM_GUARD__.)
+// Passport/Sanctum token is authorized. (A --guard=api resource instead pins its own guard, passed to
+// the middleware as a second argument.)
 $gate = fn (string $action) => config('admin-core.permission.enabled')
     ? AuthorizeApiPermission::class . ':' . $action . '-dummy-model__AC_PERM_GUARD__'
     : [];

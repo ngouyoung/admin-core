@@ -521,7 +521,11 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         ->toContain('use Ngos\AdminCore\Http\Middleware\AuthorizeApiPermission;')
         ->toContain("AuthorizeApiPermission::class . ':' . \$action . '-gizmo'")
         ->toContain("'destroy'])->name('destroy')->middleware(\$gate('delete'))")
-        ->toContain("->middleware(\$gate('list'))");
+        ->toContain("->middleware(\$gate('list'))")
+        // The guard token is a middleware-arg fragment (',merchant'), never injected into prose. A plain
+        // resource left it empty, so the comment used to read "pins that guard via ." — a broken sentence.
+        ->not->toContain('__AC_PERM_GUARD__')
+        ->not->toContain('via .');
 });
 
 it('wires routes/api.php to load the generated API modules with --api (idempotent)', function () {

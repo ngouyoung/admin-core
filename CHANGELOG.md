@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.19.1
+
+- **Fix: generated `--api` route files shipped a broken comment sentence.** The guard token
+  (`__AC_PERM_GUARD__`) is a middleware-argument fragment (`,merchant`) — correct in the gate expression,
+  but it was also injected into prose. On a plain (web-guard) resource the token is empty, so the comment
+  rendered as *"…pins that guard via ."* — a dangling sentence in every generated non-guard API module. The
+  comment is now static and accurate (a `--guard=api` resource pins its guard via a second middleware
+  argument); the functional gate is unchanged.
+- Dogfood-verified the previously unexercised surfaces — `admin-core:uninstall` (un-wires routes/middleware/
+  User traits, keeps published files), `admin-core:uninstall --purge` + `admin-core:reinstall` (clean
+  round-trip), and `--api-only` (emits only the JSON API, no web controller/views/route; unauth → 401, not 500).
+
 ## v2.19.0
 
 - **Fix: the back-office admin was forbidden (403) from every permission-gated API route over Passport.**
