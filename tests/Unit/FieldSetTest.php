@@ -119,8 +119,8 @@ it('labels enum values with Str::headline (multi-word reads cleanly) across form
     expect($f->formFields())->toContain('Str::headline($case->value)')->not->toContain('ucfirst(');
     expect($f->getDataColumns())->toContain('Str::headline($row->state->value)')
         ->toContain("data-status=\"' . e(\$row->state->value)"); // CSS hook stays raw
-    expect($f->showRows())->toContain('Str::headline($object->state->value)')
-        ->toContain('data-status="{{ $object->state->value }}"');
+    // The show view defers the pill to the reusable component (it does the headline + data-status).
+    expect($f->showRows())->toContain('<x-admin-core::status :value="$object->state" />');
 });
 
 it('builds a foreign key with belongsTo + exists + eager load', function () {

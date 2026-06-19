@@ -265,6 +265,24 @@ it('adds segmented filter tabs for an enum field', function () {
         ->toContain(':enum="\App\Enums\GizmoStatus::class"');
 });
 
+it('composes the index from the reusable UI components (not hand-rolled markup)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, price:decimal',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // The card/toolbar/table shell, the export dropdown and the import modal are now components — the export
+    // field-picker is passed as a value => label literal rather than baked-in checkbox HTML.
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->toContain('<x-admin-core::data-table id="gizmos_table" thead="backend.pages.gizmos.partials.thead">')
+        ->toContain('<x-admin-core::export-menu :route="route(\'admin.gizmos.export\')"')
+        ->toContain("'name' => 'Name', 'price' => 'Price'")
+        ->toContain('<x-admin-core::import-modal :route="route(\'admin.gizmos.import\')"')
+        ->not->toContain('class="card-header')   // the shell is the component's job now
+        ->not->toContain('id="importModal"');    // ditto the modal
+});
+
 it('generates a backed enum as the single source of truth for an enum field', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
@@ -311,9 +329,9 @@ it('renders an enum column as a status pill (table + show), marked raw', functio
         ->toContain('class="ac-status" data-status="')
         ->toMatch('/rawColumns\(\[[^\]]*\bstatus\b/');
 
-    // Detail screen: same pill (the cast makes $object->status an enum → ->value).
+    // Detail screen: same pill via the reusable component (it reads the enum and emits the .ac-status pill).
     expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))
-        ->toContain('<span class="ac-status" data-status="{{ $object->status->value }}">');
+        ->toContain('<x-admin-core::status :value="$object->status" />');
 });
 
 it('keys edit/show route links by the public route key, not the bigint id (hybrid keys)', function () {

@@ -573,10 +573,19 @@ The `--access` kit ships a custom Bootstrap-5 theme (no AdminLTE) plus reusable 
   `Dashboard › Posts › Edit` trail. Used on every index / create / edit / show.
 - **`<x-admin-core::filter-tabs table="#x_table" :column="2" :tabs="['' => 'All', 'draft' => 'Draft']" />`**
   — segmented tabs that drive a server-side DataTables column search (auto-added for enum fields).
-- **Status pills** — enum columns render as a soft `.ac-status` pill in the table and the show view
-  (semantic colours for common words: published/active → green, pending → amber, failed/cancelled → red,
-  archived → muted; unknown values fall back to neutral). Reuse anywhere with
-  `<span class="ac-status" data-status="…">…</span>`.
+- **`<x-admin-core::data-table id="products_table" thead="…partials.thead">`** — the list-page shell: a card
+  with an `<x-slot:toolbar>` (export / import / bulk-delete), the `<table>` your DataTable binds to, and a
+  default slot under it (e.g. the sort panel). Every generated index uses it.
+- **`<x-admin-core::export-menu :route="route('admin.products.export')" :fields="['name' => 'Name', …]" />`**
+  — the CSV export dropdown with a per-column checkbox picker (all checked = everything).
+- **`<x-admin-core::import-modal :route="route('admin.products.import')" :template="…" title="Products" />`**
+  — the “Import CSV” button + modal (file upload, optional blank-template link). Gate it with `@can(...)`.
+- **`<x-admin-core::form-row name="price" label="Price">…control…</x-admin-core::form-row>`** — one labelled
+  horizontal field row with the validation-error message wired; the generated forms emit one per field.
+- **`<x-admin-core::status :value="$object->status" />`** — the soft `.ac-status` pill for an enum value
+  (accepts a backed-enum instance or a string; blank renders nothing). Used in the table and show view.
+  Semantic colours for common words: published/active → green, pending → amber, failed/cancelled → red,
+  archived → muted; unknown values fall back to neutral.
 - **`<x-admin-core::stat-list title="Summary" :items="[['label' => 'Refund', 'value' => '-35.00', 'suffix' => 'USD']]" />`**
   — a label→value summary card (right-aligned tabular numbers, negatives in red, `'strong' => true` for totals).
 - **Customize drawer** (palette icon in the topbar): theme (light/dark/system), accent colour, density,

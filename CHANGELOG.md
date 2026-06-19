@@ -2,6 +2,27 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.20.0
+
+- **New reusable Blade UI components, and the generated views now compose them** instead of hand-rolling the
+  same markup into every resource:
+  - **`<x-admin-core::data-table>`** — the list-page card shell (toolbar slot + the `<table>` + a slot under
+    it for the sort panel).
+  - **`<x-admin-core::export-menu>`** — the CSV export dropdown with a per-column checkbox picker (takes a
+    `value => label` map).
+  - **`<x-admin-core::import-modal>`** — the Import button + CSV upload modal (optional blank-template link).
+  - **`<x-admin-core::form-row>`** — one labelled horizontal field row with the validation error wired; the
+    generated forms emit one per field.
+  - **`<x-admin-core::status>`** — the `.ac-status` enum pill (accepts a backed-enum instance or a string;
+    blank renders nothing), used in the show view.
+  Why it matters: a generated index view dropped from ~60 lines of inline card/toolbar/modal markup to a few
+  component tags, and an import/export UX change now lands in one package component for **every** resource
+  (no regeneration). The components are documented under “UI components & theme” in the README and covered by
+  render tests; the per-field form rows and show rows stay generated (resource-specific, owned in the host).
+- No behaviour change for existing apps until views are re-generated; the components ship with the package and
+  resolve via the `admin-core::` view namespace.
+
+
 ## v2.19.4
 
 - **Fix: some enum values generated a syntactically broken enum class while reporting success.** Each enum

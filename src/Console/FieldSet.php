@@ -929,13 +929,9 @@ PHP;
         };
 
         return <<<BLADE
-<div class="row mb-3">
-    <label for="{$col}" class="col-md-2 col-sm-3 col-4 col-form-label text-end">{$label}:</label>
-    <div class="col-md-8 col-sm-8 col-8">
+<x-admin-core::form-row name="{$col}" label="{$label}">
         {$control}
-        @error('{$col}')<div class="invalid-feedback d-block">{{ \$message }}</div>@enderror
-    </div>
-</div>
+    </x-admin-core::form-row>
 BLADE;
     }
 
@@ -1234,7 +1230,7 @@ BLADE;
                 'image' => "@if(\$object->{$f['name']})<img src=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
-                'enum' => "@if(\$object->{$f['name']})<span class=\"ac-status\" data-status=\"{{ \$object->{$f['name']}->value }}\">{{ \\Illuminate\\Support\\Str::headline(\$object->{$f['name']}->value) }}</span>@endif",
+                'enum' => "<x-admin-core::status :value=\"\$object->{$f['name']}\" />",
                 default => "{{ \$object->{$f['name']} }}",
             };
             $rows[] = "            <tr>\n                <th style=\"width:220px\">{$label}</th>\n                <td>{$value}</td>\n            </tr>";
