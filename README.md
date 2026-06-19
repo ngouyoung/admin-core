@@ -482,6 +482,24 @@ value-setter), so it **skips them with a note** — add those by regenerating wi
 > Patching assumes the views/model still match the generated shape; heavily hand-edited files may need a
 > manual touch-up (it never duplicates, so a re-run won't hurt).
 
+## Custom (non-CRUD) page (`admin-core:page`)
+
+`admin-core:make` builds CRUD resources; for a **standalone page** — a Reports screen, a Settings page, a
+custom dashboard — use `admin-core:page`:
+
+```bash
+php artisan admin-core:page Reports
+```
+
+It scaffolds a thin **invokable controller** (`app/Http/Controllers/Backend/ReportsController.php` — fill in
+`__invoke()` with whatever data the page needs), a **Blade view** (`resources/views/backend/pages/reports.blade.php`,
+already composing `<x-admin-core::page-header>` + `<x-admin-core::card>` + a `<x-admin-core::empty-state>`
+placeholder), and a **route** under `routes/Web/Backend/Modules/` (auto-loaded inside the `admin` group →
+`admin.reports` at `/admin/reports`). By default it also **adds a sidebar menu entry** and creates a
+**`view-reports` permission** granted to the super role — mirroring how `admin-core:make` wires things.
+Multi-word names kebab-case (`admin-core:page "Sales Report"` → `admin.sales-report`). Flags: `--no-menu`,
+`--no-permission`, `--force`.
+
 ## Multi-portal
 
 Need a second admin area — a **merchant** or **vendor** portal with its own login, separate from your

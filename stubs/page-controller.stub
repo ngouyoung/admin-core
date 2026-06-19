@@ -1,0 +1,16 @@
+<?php
+
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
+
+class __AC_CONTROLLER__ extends Controller
+{
+    public function __invoke(Request $request): View
+    {
+        // Load whatever this page needs and pass it to the view.
+        return view('__AC_VIEW__');
+    }
+}

@@ -1,0 +1,12 @@
+@extends('backend.layouts.app')
+
+@section('title', '__AC_TITLE__')
+
+@section('contents')
+    <x-admin-core::page-header title="__AC_TITLE__" description="Describe what this page does." />
+
+    <x-admin-core::card>
+        <x-admin-core::empty-state icon="bi-clipboard-data" title="__AC_TITLE__"
+            message="This page is ready — replace this placeholder with your own content." />
+    </x-admin-core::card>
+@endsection

@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.24.0
+
+- **New `admin-core:page` command — scaffold a standalone (non-CRUD) page.** The generator covered CRUD
+  resources, portals and fields, but a custom page (Reports, Settings, a bespoke dashboard) had to be wired by
+  hand. `php artisan admin-core:page Reports` now scaffolds:
+  - a thin **invokable controller** (`Backend/ReportsController`),
+  - a **Blade view** composing `page-header` + `card` + an `empty-state` placeholder,
+  - a **route** under `routes/Web/Backend/Modules/` (auto-loaded → `admin.reports` at `/admin/reports`),
+  - and by default a **sidebar menu entry** + a **`view-reports` permission** granted to the super role.
+  Multi-word names kebab-case (`"Sales Report"` → `admin.sales-report`); flags `--no-menu`, `--no-permission`,
+  `--force`. Covered by tests and dogfood-verified end to end (route registers, permission granted, `/admin/reports`
+  returns 200 for the admin and renders the components).
+
+
 ## v2.23.0
 
 - **Three more reusable components** — rounding out the library:
