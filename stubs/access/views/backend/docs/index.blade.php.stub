@@ -26,6 +26,8 @@
                         <x-slot:header>What you can build</x-slot>
                         <ul class="mb-0">
                             <li><strong>CRUD resources</strong> — list/create/edit/delete with search, export &amp; import.</li>
+                            <li><strong>A full access module</strong> — auth, users, roles &amp; permissions, activity log,
+                                error log, settings (shipped by <code>--access</code>).</li>
                             <li><strong>Custom pages</strong> — reports, dashboards, settings.</li>
                             <li><strong>Separate portals</strong> — a second admin area on its own guard.</li>
                             <li><strong>A JSON API</strong> — the same resource, headless.</li>
@@ -49,7 +51,34 @@
 <pre class="border rounded bg-body-tertiary p-3 small mb-0"><code>php artisan admin-core:make Product --migration --fields="name:string, price:decimal, status:enum:draft|published"
 php artisan migrate</code></pre>
                         <p class="mt-3 mb-0">Visit <code>/admin/products</code> — it's already in the sidebar and
-                            granted to the <x-admin-core::badge tone="secondary">admin</x-admin-core::badge> role.</p>
+                            granted to the <x-admin-core::badge tone="secondary">admin</x-admin-core::badge> role.
+                            (If you cache config, run <code>php artisan config:clear</code> first.)</p>
+                    </x-admin-core::card>
+                </div>
+                <div class="col-12">
+                    <x-admin-core::card>
+                        <x-slot:header>The sidebar, routes &amp; access — wired for you</x-slot>
+                        <p>You never add the menu by hand. One <code>admin-core:make</code> wires the whole screen:
+                            migration, model, controller, form requests, views, an optional JSON API
+                            (<code>--api</code>), a <strong>sidebar link</strong>, and a permission set
+                            (<code>list-</code>, <code>create-</code>, <code>update-</code>,
+                            <code>delete-{resource}</code>) — all granted to the
+                            <x-admin-core::badge tone="secondary">admin</x-admin-core::badge> super-role, so it works
+                            immediately.</p>
+                        <x-admin-core::alert type="warning" class="mb-0">
+                            <strong>Generated a resource but don't see it in the sidebar?</strong> Check, in order:
+                            <ol class="mb-0 mt-1">
+                                <li><strong>Caches</strong> — run
+                                    <code>php artisan config:clear route:clear view:clear</code>. The menu lives in
+                                    <code>config/admin-core.php</code>; a cached config (or compiled views) keeps the
+                                    old sidebar.</li>
+                                <li><strong>Permissions</strong> — the sidebar <em>hides links you can't open</em>.
+                                    Sign in as <code>admin@example.com</code>, or grant your role the
+                                    <code>list-{resource}</code> permission under <strong>Access &rsaquo; Roles</strong>.</li>
+                                <li><strong>Migrate</strong> — run <code>php artisan migrate</code> so the screen's
+                                    table exists (a missing route is hidden too).</li>
+                            </ol>
+                        </x-admin-core::alert>
                     </x-admin-core::card>
                 </div>
             </div>

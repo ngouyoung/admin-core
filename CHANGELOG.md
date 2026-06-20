@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.28.0
+
+- **Docs page now explains the sidebar / menu & access workflow.** The most common "huh?" after generating
+  a resource is *"I ran `admin-core:make` but I don't see it in the sidebar."* The in-app docs (`/admin/docs`)
+  now spells it out: `make` wires the sidebar link, route and permission set for you (no manual menu edit),
+  and a new **"don't see it?"** checklist covers the three real causes — a cached config/views
+  (`php artisan config:clear route:clear view:clear`), the sidebar **hiding links you lack permission for**
+  (sign in as `admin@example.com` or grant `list-{resource}`), and an un-run migration. The "What you can
+  build" list also now calls out the `--access` module (auth, users, roles, activity/error logs, settings).
+
 ## v2.27.0
 
 - **Hover-to-expand sidebar (collapsed rail).** When the desktop sidebar is collapsed to an icon rail,
