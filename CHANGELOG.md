@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.27.0
+
+- **Hover-to-expand sidebar (collapsed rail).** When the desktop sidebar is collapsed to an icon rail,
+  hovering it (or tabbing into it) now temporarily flies the full sidebar back out *over* the content and
+  re-collapses on mouse-leave — so you can read the labels and open sub-menus without un-collapsing. Pure
+  CSS, no JS: the grid track stays at the rail width, so the main content never reflows; the flyout sits
+  above the sticky header (`z-index`) with a soft shadow, and explicit widths on every state keep the
+  collapse / expand / hover-slide all animating smoothly. Scoped to the default `sidebar` layout (the
+  `topnav` layout opts out) and desktop widths only (mobile keeps the off-canvas drawer).
+- **Tighter sidebar user card.** `.ac-user` horizontal padding trimmed (`.65rem` → `.45rem`) so the avatar +
+  name sit a touch closer to the edges.
+
+  Both are front-end-kit (`app.scss`) tweaks — re-publish / rebuild the kit (`npm run build`) to pick them up.
+
 ## v2.26.0
 
 - **In-app documentation page (`--access`).** A new `/admin/docs` screen gives every signed-in admin a

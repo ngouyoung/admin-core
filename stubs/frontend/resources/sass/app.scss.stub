@@ -103,12 +103,39 @@ body { background: var(--ac-body-bg); color: var(--ac-body-color); }
 .ac-main    { grid-area: main; min-width: 0; }
 .ac-footer  { grid-area: footer; min-width: 0; }
 
-// Collapsed (desktop) — sidebar shrinks to icons.
+// Collapsed (desktop) — sidebar shrinks to an icon rail.
 body.ac-sidebar-collapsed .ac-shell { grid-template-columns: var(--ac-sidebar-w-collapsed) minmax(0, 1fr); }
 body.ac-sidebar-collapsed {
     .ac-brand-text, .ac-user-meta, .ac-nav-link span, .ac-nav-header, .ac-nav-caret { display: none; }
     .ac-nav-link { justify-content: center; }
     .ac-treeview { display: none !important; }
+}
+
+// Hover-to-expand flyout (desktop, default sidebar layout — topnav opts out).
+// Hovering (or tabbing into) the collapsed rail temporarily flies the full sidebar
+// back out *over* the content and re-collapses on mouse-leave, so you can read the
+// labels without un-collapsing. The grid track stays at the rail width, so the main
+// content never reflows on hover. Explicit widths on every state keep the collapse,
+// expand and hover-slide all animating smoothly (you can't transition from `auto`).
+@media (min-width: 992px) {
+    [data-ac-layout="sidebar"] .ac-sidebar {
+        width: var(--ac-sidebar-w);
+        transition: width .2s ease, box-shadow .2s ease;
+    }
+    [data-ac-layout="sidebar"] body.ac-sidebar-collapsed .ac-sidebar {
+        width: var(--ac-sidebar-w-collapsed);
+
+        &:hover, &:focus-within {
+            width: var(--ac-sidebar-w);
+            z-index: 1035;                       // above the sticky header (1020) so the brand shows
+            box-shadow: 0 18px 50px rgba(0, 0, 0, .18);
+
+            // Reveal everything the rail hides and left-align the links again.
+            .ac-brand-text, .ac-user-meta, .ac-nav-link span, .ac-nav-header, .ac-nav-caret { display: revert; }
+            .ac-nav-link { justify-content: flex-start; }
+            .ac-nav-item.open > .ac-treeview { display: block !important; }
+        }
+    }
 }
 
 // 6. Sidebar -----------------------------------------------------------------
@@ -140,7 +167,7 @@ body.ac-sidebar-collapsed {
     background: var(--ac-surface);
     border: 1px solid var(--ac-border);
     border-radius: $border-radius-lg;
-    padding: .55rem .65rem; margin-bottom: 1rem; text-decoration: none;
+    padding: .55rem .45rem; margin-bottom: 1rem; text-decoration: none;
     img { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
     .ac-user-meta { line-height: 1.1; min-width: 0; }
     .ac-user-name { color: var(--ac-heading); font-weight: 600; text-transform: capitalize; }
