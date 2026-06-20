@@ -20,4 +20,24 @@ export default defineConfig({
             },
         },
     },
+    build: {
+        // ApexCharts alone is ~530 kB. It's lazy-loaded (its own async chunk, off every
+        // non-dashboard page — see resources/js/app.js), and a single library can't be split
+        // further, so lift the warning above it to keep the build output clean.
+        chunkSizeWarningLimit: 700,
+        rollupOptions: {
+            output: {
+                // Split the heavy vendors into their own chunks so the app bundle stays
+                // small and each library caches independently across pages.
+                manualChunks(id) {
+                    if (!id.includes('node_modules')) return;
+                    if (id.includes('/jquery/')) return 'jquery';
+                    if (id.includes('/datatables')) return 'datatables';
+                    if (id.includes('/apexcharts/')) return 'charts';
+                    if (id.includes('/sweetalert2/') || id.includes('/select2/') || id.includes('/croppie/')) return 'ui';
+                    if (id.includes('/bootstrap/') || id.includes('/@popperjs/')) return 'bootstrap';
+                },
+            },
+        },
+    },
 });

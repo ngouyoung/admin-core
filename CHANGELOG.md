@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.30.1
+
+- **Front-end build: lazy-load ApexCharts + quiet the chunk-size warning.** ApexCharts (~530 kB) was imported
+  eagerly in `app.js`, so it loaded on *every* admin page even though only the dashboard uses it. It's now
+  loaded on demand (`import('apexcharts')` when a chart container is present), so the dashboard renders it on
+  an `apexcharts:ready` event and every other page drops ~530 kB from its initial load (verified: ApexCharts
+  is now a dynamic chunk, not a static import of the entry). The kit's `vite.config.js` also gains the vendor
+  `manualChunks` split (jquery / datatables / charts / ui / bootstrap) that the host already had but the stub
+  was missing, plus `chunkSizeWarningLimit: 700` for the one legitimately-large (charts) chunk — so a fresh
+  `npm run build` no longer prints the "Some chunks are larger than 500 kB" warning. Re-publish / rebuild the
+  kit to pick it up.
+
 ## v2.30.0
 
 - **Database-driven sidebar menu + Menu manager (`--access`).** The sidebar can now be managed at runtime

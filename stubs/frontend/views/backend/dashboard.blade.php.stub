@@ -46,7 +46,9 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const el = document.querySelector('#overview-chart');
-            if (el && window.ApexCharts) {
+            if (!el) return;
+
+            const render = function () {
                 new window.ApexCharts(el, {
                     chart: { type: 'donut', height: 300, fontFamily: 'inherit' },
                     series: [{{ collect($stats)->pluck('count')->implode(', ') }}],
@@ -55,7 +57,12 @@
                     legend: { position: 'bottom' },
                     dataLabels: { enabled: true },
                 }).render();
-            }
+            };
+
+            // ApexCharts is lazy-loaded (see resources/js/app.js): render now if it's
+            // already here, otherwise as soon as it finishes loading.
+            if (window.ApexCharts) render();
+            else window.addEventListener('apexcharts:ready', render);
         });
     </script>
 @endpush

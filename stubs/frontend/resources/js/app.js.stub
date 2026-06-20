@@ -44,8 +44,16 @@ import select2 from 'select2';
 select2(window, window.jQuery); // select2's UMD export is a factory that must be invoked
 import './jquery.nestable';
 import 'croppie';
-import ApexCharts from 'apexcharts';
-window.ApexCharts = ApexCharts;
+
+// ApexCharts is ~530 kB and only used on the dashboard — load it on demand so it stays
+// out of every other page's bundle. A page that has a chart container renders it on the
+// `apexcharts:ready` event (see backend/dashboard.blade.php).
+if (document.querySelector('#overview-chart, [data-apexchart]')) {
+    import('apexcharts').then(({ default: ApexCharts }) => {
+        window.ApexCharts = ApexCharts;
+        window.dispatchEvent(new CustomEvent('apexcharts:ready'));
+    });
+}
 
 // App behaviour
 import './shell';
