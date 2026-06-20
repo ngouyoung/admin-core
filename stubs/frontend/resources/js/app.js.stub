@@ -63,3 +63,5 @@ import './datepicker';
 import './customize';
 import './filter-tabs';
 import './notify';
+import './echo';      // Laravel Echo (guarded — only if a broadcaster key is configured)
+import './realtime';  // live notification bell (no-op unless Echo + the user channel are present)

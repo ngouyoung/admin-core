@@ -106,6 +106,32 @@ it('AdminNotification stores title/message/url/icon (+extra) as a database notif
         ]);
 });
 
+it('AdminNotification broadcasts only when realtime is on (or forced per-notification)', function () {
+    $user = NotifiableUser::create(['name' => 'A']);
+
+    config()->set('admin-core.notifications.realtime', false);
+    expect((new AdminNotification('x'))->via($user))->toBe(['database']);          // default: in-app only
+
+    config()->set('admin-core.notifications.realtime', true);
+    expect((new AdminNotification('x'))->via($user))->toBe(['database', 'broadcast']); // realtime on
+
+    // Per-notification override beats the config either way.
+    expect((new AdminNotification('x', broadcast: false))->via($user))->toBe(['database']);
+    config()->set('admin-core.notifications.realtime', false);
+    expect((new AdminNotification('x', broadcast: true))->via($user))->toBe(['database', 'broadcast']);
+});
+
+it('AdminNotification broadcast payload matches the stored data', function () {
+    $user = NotifiableUser::create(['name' => 'A']);
+    $message = (new AdminNotification(title: 'Shipped', message: 'On its way', url: '/x', icon: 'bi-truck', extra: ['id' => 9]))
+        ->toBroadcast($user);
+
+    expect($message)->toBeInstanceOf(\Illuminate\Notifications\Messages\BroadcastMessage::class)
+        ->and($message->data)->toMatchArray([
+            'title' => 'Shipped', 'message' => 'On its way', 'url' => '/x', 'icon' => 'bi-truck', 'id' => 9,
+        ]);
+});
+
 it('deletes a notification', function () {
     $user = NotifiableUser::create(['name' => 'A']);
     $id = seedNotification($user);

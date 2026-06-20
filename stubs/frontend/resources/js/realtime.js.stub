@@ -1,0 +1,47 @@
+// Live notification bell. Once Echo is ready (lazy-loaded in echo.js) it listens on the signed-in
+// user's private channel and, on each new broadcast notification, pops a toast and bumps the bell's
+// unread badge. No-op unless Echo is configured AND the layout exposes <meta name="ac-user-channel">,
+// so it's safe to ship always. The dropdown's list refreshes on the next page load / open.
+let acRealtimeStarted = false;
+
+function acStartRealtime() {
+    if (acRealtimeStarted) {
+        return;
+    }
+    const channel = document.querySelector('meta[name="ac-user-channel"]')?.content;
+    if (! window.Echo || ! channel) {
+        return;
+    }
+    acRealtimeStarted = true;
+
+    window.Echo.private(channel).notification((payload) => {
+        // 1. Toast on arrival.
+        window.toastr?.info(payload.message || payload.title || 'New notification');
+
+        // 2. Bump the bell's unread badge (create it if there were zero before).
+        const bell = document.querySelector('[data-ac-bell]');
+        if (! bell) {
+            return;
+        }
+        let badge = bell.querySelector('[data-ac-bell-count]');
+        if (! badge) {
+            badge = document.createElement('span');
+            badge.setAttribute('data-ac-bell-count', '');
+            badge.className = 'badge rounded-pill text-bg-danger position-absolute top-0 start-100 translate-middle';
+            badge.style.fontSize = '.6rem';
+            badge.dataset.count = '0';
+            (bell.querySelector('a') || bell).appendChild(badge);
+        }
+        const count = (parseInt(badge.dataset.count, 10) || 0) + 1;
+        badge.dataset.count = String(count);
+        badge.textContent = count > 9 ? '9+' : String(count);
+    });
+}
+
+// Echo loads asynchronously — start on its ready event, or now if it's already up.
+window.addEventListener('ac:echo-ready', acStartRealtime);
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.Echo) {
+        acStartRealtime();
+    }
+});

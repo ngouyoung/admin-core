@@ -576,6 +576,35 @@ The bell renders only where the routes exist (`Route::adminCoreNotifications()`,
 `--access`) and the user is `Notifiable` — so it's safe everywhere. **Existing installs:** re-run
 `php artisan admin-core:install --access` to add the table, route and bell, then `php artisan migrate`.
 
+### Realtime (live bell)
+
+By default the bell is **pull-based** (updates on page load). Turn on **realtime** and each `AdminNotification`
+also **broadcasts**, so the bell's badge bumps live and a toast pops on arrival — no refresh. It's **opt-in**
+because it needs a broadcaster + Laravel Echo + a queue worker:
+
+1. **Enable it:** `ADMIN_CORE_REALTIME=true` (or `config('admin-core.notifications.realtime')`). Per-notification
+   override: `new AdminNotification(..., broadcast: true)`.
+2. **A broadcaster** — [Reverb](https://laravel.com/docs/reverb) (first-party, self-hosted) is easiest:
+   `composer require laravel/reverb && php artisan reverb:install`, then run `php artisan reverb:start`. (Pusher
+   works too — the kit's `echo.js` supports both.)
+3. **Front-end env** (read at build time, then `npm run build`):
+   ```dotenv
+   VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
+   VITE_REVERB_HOST="${REVERB_HOST}"
+   VITE_REVERB_PORT="${REVERB_PORT}"
+   VITE_REVERB_SCHEME="${REVERB_SCHEME}"
+   ```
+   Echo + pusher-js are **lazy-loaded only when a key is set** — with realtime off they're not in the bundle.
+4. **Channel auth** — notifications broadcast on the private channel `App.Models.User.{id}`. Fresh Laravel apps
+   already authorize this in `routes/channels.php`; if yours doesn't:
+   ```php
+   Broadcast::channel('App.Models.User.{id}', fn ($user, $id) => (int) $user->id === (int) $id);
+   ```
+5. **Run a queue worker** (`php artisan queue:work`) — broadcasts are queued.
+
+That's it: `$user->notify(new AdminNotification(...))` now lands live. The kit listens on the user's channel
+(`resources/js/realtime.js`) and updates the bell; the dropdown list itself refreshes on the next open/load.
+
 ## Lifecycle commands
 
 ```bash

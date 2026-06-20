@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.34.0
+
+- **Realtime (live) notifications — opt-in.** The in-app bell can now update **live** (badge bumps + a toast
+  on arrival) instead of only on page load:
+  - `AdminNotification` gains a **broadcast** channel — added to `via()` when
+    `config('admin-core.notifications.realtime')` is on (or `new AdminNotification(..., broadcast: true)`),
+    with a `toBroadcast()` payload matching the stored one. Default is unchanged (database/in-app only).
+  - The kit ships **Laravel Echo** wiring (`resources/js/echo.js` + `realtime.js`, `laravel-echo` + `pusher-js`
+    deps) that listens on the signed-in user's private channel and updates the bell. Echo + pusher-js are
+    **lazy-loaded only when a broadcaster key is set at build time** (`VITE_REVERB_APP_KEY` / `VITE_PUSHER_APP_KEY`)
+    — with realtime off they're tree-shaken out, **zero bundle cost** (main JS stays ~15 kB).
+  - Supports **Reverb** (recommended) or **Pusher**. Needs a broadcaster + channel auth + a queue worker — see
+    the new "Realtime (live bell)" section in the README.
+  - New `config('admin-core.notifications.realtime')` (`ADMIN_CORE_REALTIME`). 227 tests (broadcast `via()` +
+    `toBroadcast()` covered); both build paths verified (no-key → tree-shaken; key → realtime chunk compiles).
+
 ## v2.33.0
 
 - **Image compression (WebP) + configurable storage/CDN for all uploads.** Every image/file upload

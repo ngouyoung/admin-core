@@ -13,12 +13,12 @@
     && \Illuminate\Support\Facades\Route::has('admin.notifications.index')
     && method_exists($acUser, 'unreadNotifications'))
     @php($acUnread = $acUser->unreadNotifications)
-    <div class="dropdown">
+    <div class="dropdown" data-ac-bell>
         <a href="#" class="ac-icon-btn position-relative" data-bs-toggle="dropdown" role="button" title="Notifications">
             <i class="bi bi-bell"></i>
             @if ($acUnread->count())
                 <span class="badge rounded-pill text-bg-danger position-absolute top-0 start-100 translate-middle"
-                      style="font-size:.6rem">{{ $acUnread->count() > 9 ? '9+' : $acUnread->count() }}</span>
+                      style="font-size:.6rem" data-ac-bell-count data-count="{{ $acUnread->count() }}">{{ $acUnread->count() > 9 ? '9+' : $acUnread->count() }}</span>
             @endif
         </a>
         <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-0"

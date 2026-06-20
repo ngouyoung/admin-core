@@ -126,6 +126,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Notifications
+    |--------------------------------------------------------------------------
+    | In-app notifications are always on (the bell + /admin/notifications, Laravel
+    | database notifications). Set `realtime` to true to ALSO broadcast each
+    | AdminNotification so the bell updates live + a toast pops on arrival — this
+    | needs a broadcaster (Reverb/Pusher) + Laravel Echo + a running queue worker.
+    | See the "Realtime notifications" section in the README. Per-notification
+    | override: new AdminNotification(..., broadcast: true|false).
+    */
+    'notifications' => [
+        'realtime' => env('ADMIN_CORE_REALTIME', false),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Uploads (images & files) — compression + storage/CDN
     |--------------------------------------------------------------------------
     | All image/file uploads (avatars, `image`/`file` fields, settings images) go
