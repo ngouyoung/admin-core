@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.29.0
+
+- **Responsive DataTables toolbar.** On phones (`≤767px`) the DataTables BS5 integration centers the
+  search/length/info/paging and leaves the search input `width:auto`, so it rendered as a small, off-centre
+  box. The kit now makes the search fill the row (label + full-width input, left-aligned) and stretches the
+  "Columns" button to full width, so the toolbar stays tidy on small screens. (Row/column collapsing was
+  already handled by the Responsive plugin — this is just the toolbar.) Front-end-kit (`app.scss`) tweak —
+  re-publish / rebuild the kit to pick it up.
+
 ## v2.28.0
 
 - **Docs page now explains the sidebar / menu & access workflow.** The most common "huh?" after generating

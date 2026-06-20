@@ -384,6 +384,24 @@ ul.checktree {
 .is-invalid .select2-container--bootstrap-5 .select2-selection { border-color: var(--bs-danger); }
 .dtr-details { width: 100% !important; }
 
+// DataTables toolbar — responsive polish. The BS5 integration centers the
+// search/length/info/paging at <=767px and keeps the search input width:auto, so on
+// a phone it reads as a small, off-centre box. Make the search fill the row (label +
+// full-width input, left-aligned) and stretch the Columns button so the toolbar stays
+// tidy. (Column collapsing itself is handled by the Responsive plugin.)
+@media (max-width: 767.98px) {
+    div.dt-container {
+        div.dt-search {
+            display: flex; align-items: center; gap: .5rem;
+            text-align: start;
+        }
+        div.dt-search label { flex: 0 0 auto; margin: 0; }
+        div.dt-search input { flex: 1 1 auto; width: 100%; min-width: 0; margin-left: 0; }
+        div.dt-buttons { display: flex; }
+        div.dt-buttons > .btn { flex: 1 1 auto; }   // full-width "Columns" button
+    }
+}
+
 // Air Datepicker (date/datetime inputs) — map its --adp-* tokens onto the theme
 // tokens so the calendar matches your surface/border/accent and flips with dark
 // mode for free. See resources/js/datepicker.js.
