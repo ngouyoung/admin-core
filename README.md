@@ -662,6 +662,10 @@ Re-skin the whole thing from the `--ac-*` CSS tokens / SCSS variables at the top
 - **Stubs:** `php artisan vendor:publish --tag=admin-core-stubs` → `stubs/admin-core/` (yours win over the package's).
 - **DataTable partials:** `php artisan vendor:publish --tag=admin-core-views` → `resources/views/vendor/admin-core/`.
 - **Config:** edit `config/admin-core.php`.
+- **Uploads (compression + CDN):** all image/file uploads go through `Ngos\AdminCore\Support\Media`. Set
+  `uploads.compress`/`max_width`/`quality` to control WebP compression, `uploads.disk` to store on any
+  filesystem (e.g. s3 + CloudFront for a CDN), and `uploads.cdn_url` to prepend a CDN base URL when building
+  image URLs. All in `config/admin-core.php` (`ADMIN_CORE_UPLOAD_DISK` / `ADMIN_CORE_CDN_URL`).
 - **Base model for generated models:** set `generator.base_model` in `config/admin-core.php` and every
   `admin-core:make` model `extends` it. Share common behaviour by `use`-ing traits in your base (keep the
   logic in traits so `Role`/`Permission` — which must extend Spatie's classes — can `use` them too):

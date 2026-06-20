@@ -4,8 +4,8 @@ namespace App\Services\Settings;
 
 use App\Models\Setting;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use Ngos\AdminCore\Services\BaseService;
+use Ngos\AdminCore\Support\Media;
 
 /**
  * Settings read (grouped) + write (key/value, file-aware) layer.
@@ -35,10 +35,8 @@ class SettingService extends BaseService
         foreach ($this->model->all() as $setting) {
             if (in_array($setting->type, ['image', 'file'], true)) {
                 if (isset($files[$setting->key])) {
-                    if ($setting->value) {
-                        Storage::disk('public')->delete($setting->value);
-                    }
-                    Setting::set($setting->key, $files[$setting->key]->store('settings', 'public'));
+                    Media::delete($setting->value);
+                    Setting::set($setting->key, Media::store($files[$setting->key], 'settings'));
                 }
 
                 continue;

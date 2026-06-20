@@ -23,7 +23,7 @@
                                     @case('image')
                                     @case('file')
                                         @if ($setting->type === 'image' && $setting->value)
-                                            <img src="{{ asset('storage/' . $setting->value) }}" alt="{{ $setting->key }}"
+                                            <img src="{{ \Ngos\AdminCore\Support\Media::url($setting->value) }}" alt="{{ $setting->key }}"
                                                  class="img-thumbnail mb-2" style="max-height: 64px">
                                         @endif
                                         <input type="file" name="{{ $name }}" class="form-control"

@@ -18,7 +18,7 @@
 
         <div class="dropdown">
             <a href="#" class="ac-user-btn" data-bs-toggle="dropdown" role="button">
-                <x-admin-core::avatar :src="auth()->user()->avatar ? asset('storage/' . auth()->user()->avatar) : null"
+                <x-admin-core::avatar :src="auth()->user()->avatar ? \Ngos\AdminCore\Support\Media::url(auth()->user()->avatar) : null"
                                       :name="auth()->user()->name" size="30" />
                 <span class="ac-user-btn-name d-none d-sm-inline">{{ auth()->user()->name }}</span>
                 <i class="bi bi-chevron-down ac-user-btn-caret"></i>

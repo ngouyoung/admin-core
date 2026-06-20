@@ -2,6 +2,25 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.33.0
+
+- **Image compression (WebP) + configurable storage/CDN for all uploads.** Every image/file upload
+  (avatars, `image`/`file` fields, settings images) now goes through one helper,
+  `Ngos\AdminCore\Support\Media`:
+  - **WebP compression** — uploaded images are downscaled to `max_width` and re-encoded to WebP at high
+    quality (`quality`, default 82) via `intervention/image` (now required). Non-images, or any encode
+    failure (no GD/Imagick WebP), fall back to storing the original.
+  - **Configurable disk + CDN** — `uploads.disk` chooses the filesystem (point it at s3 + CloudFront to
+    serve from a CDN), and `uploads.cdn_url` optionally prepends a CDN base URL. All `asset('storage/…')`
+    calls (views, `WebController::avatar`, generated views/columns/forms/model accessors) now build URLs via
+    `Media::url()`, so there's one place to switch storage/CDN instead of ~12.
+  - New `config('admin-core.uploads')`: `disk`, `cdn_url`, `compress`, `max_width`, `quality`
+    (`ADMIN_CORE_UPLOAD_DISK` / `ADMIN_CORE_CDN_URL` env).
+- **Fix: profile avatar wasn't saving (regression in v2.31.0).** The refactor changed the avatar write from
+  `$user->avatar = …; save()` to `$user->update(['avatar' => …])`, but `avatar` isn't in the User's
+  `$fillable`, so the mass assignment silently dropped it. Restored a direct assignment. (Caught by
+  dogfooding the new upload pipeline.)
+
 ## v2.32.0
 
 - **Configurable base model for generated models.** New `config('admin-core.generator.base_model')` (default

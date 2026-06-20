@@ -388,7 +388,7 @@ abstract class WebController extends BaseController
         $stored = $avatarAttr ? ($model->{$avatarAttr} ?? null) : null;
 
         return view('admin-core::datatable.avatar', [
-            'src' => $stored ? asset('storage/' . $stored) : null,
+            'src' => $stored ? \Ngos\AdminCore\Support\Media::url($stored) : null,
             'name' => (string) ($model->{$nameAttr} ?? ''),
             'size' => $size,
         ])->render();

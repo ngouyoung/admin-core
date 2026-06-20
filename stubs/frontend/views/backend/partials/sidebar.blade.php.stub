@@ -2,7 +2,7 @@
 <aside class="ac-sidebar">
     <a href="{{ route('admin.dashboard') }}" class="ac-brand">
         @if (setting('site_logo'))
-            <img src="{{ asset('storage/' . setting('site_logo')) }}" alt="logo" class="ac-brand-logo">
+            <img src="{{ \Ngos\AdminCore\Support\Media::url(setting('site_logo')) }}" alt="logo" class="ac-brand-logo">
         @else
             <span class="ac-brand-logo"><i class="bi bi-grid-1x2-fill"></i></span>
         @endif
@@ -12,7 +12,7 @@
     @auth
         @php($acUser = auth()->user())
         <a href="{{ route('admin.profile.index') }}" class="ac-user">
-            <img src="{{ $acUser->avatar ? asset('storage/' . $acUser->avatar) : $avatarFallback }}"
+            <img src="{{ $acUser->avatar ? \Ngos\AdminCore\Support\Media::url($acUser->avatar) : $avatarFallback }}"
                  onerror="this.onerror=null;this.src='{{ $avatarFallback }}'" alt="avatar">
             <span class="ac-user-meta">
                 <span class="ac-user-name d-block">{{ $acUser->name }}</span>

@@ -15,7 +15,7 @@
     <div class="ac-auth-card">
         <div class="ac-auth-brand">
             @if (setting('site_logo'))
-                <img src="{{ asset('storage/' . setting('site_logo')) }}" alt="logo" style="height:48px">
+                <img src="{{ \Ngos\AdminCore\Support\Media::url(setting('site_logo')) }}" alt="logo" style="height:48px">
             @else
                 {{ setting('app_name', config('app.name')) }}
             @endif

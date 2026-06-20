@@ -566,7 +566,7 @@ PHP;
                 continue;
             }
             if (in_array($f['type'], ['image', 'file'], true)) {
-                $lines[] = "            '{$f['name']}' => \$this->{$f['name']} ? asset('storage/' . \$this->{$f['name']}) : null,";
+                $lines[] = "            '{$f['name']}' => \$this->{$f['name']} ? \\Ngos\\AdminCore\\Support\\Media::url(\$this->{$f['name']}) : null,";
                 continue;
             }
             $lines[] = "            '{$f['name']}' => \$this->{$f['name']},";
@@ -958,9 +958,9 @@ BLADE;
         $col = $f['name'];
         $input = "<input type=\"file\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\"" . ($image ? ' accept="image/*"' : '') . '>';
         if ($image) {
-            $input .= "\n        @if(isset(\$object) && \$object->{$col})<img src=\"{{ asset('storage/' . \$object->{$col}) }}\" class=\"mt-2 rounded\" style=\"height:60px\">@endif";
+            $input .= "\n        @if(isset(\$object) && \$object->{$col})<img src=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$col}) }}\" class=\"mt-2 rounded\" style=\"height:60px\">@endif";
         } elseif (true) {
-            $input .= "\n        @if(isset(\$object) && \$object->{$col})<a href=\"{{ asset('storage/' . \$object->{$col}) }}\" target=\"_blank\" class=\"d-block mt-1 small\">current file</a>@endif";
+            $input .= "\n        @if(isset(\$object) && \$object->{$col})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$col}) }}\" target=\"_blank\" class=\"d-block mt-1 small\">current file</a>@endif";
         }
 
         return $input;
@@ -1197,8 +1197,8 @@ BLADE;
             'boolean' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')",
             'date' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d'))",
             'datetime' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))",
-            'image' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . asset('storage/' . \$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')",
-            'file' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<a href=\"' . asset('storage/' . \$row->{$f['name']}) . '\" target=\"_blank\">file</a>' : '')",
+            'image' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')",
+            'file' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<a href=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" target=\"_blank\">file</a>' : '')",
             default => null,
         };
     }
@@ -1234,8 +1234,8 @@ BLADE;
             $value = match ($f['type']) {
                 'foreign' => "{{ \$object->{$f['relation']}?->name }}",
                 'belongsToMany' => "@foreach(\$object->{$f['relation']} as \$i)<span class=\"badge text-bg-secondary\">{{ \$i->name ?? \$i->id }}</span> @endforeach",
-                'image' => "@if(\$object->{$f['name']})<img src=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
-                'file' => "@if(\$object->{$f['name']})<a href=\"{{ asset('storage/' . \$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
+                'image' => "@if(\$object->{$f['name']})<img src=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
+                'file' => "@if(\$object->{$f['name']})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
                 'enum' => "<x-admin-core::status :value=\"\$object->{$f['name']}\" />",
                 default => "{{ \$object->{$f['name']} }}",
@@ -1271,8 +1271,9 @@ BLADE;
         }
         $uses = ['use Illuminate\Database\Eloquent\Model;'];
         if ($this->hasFiles()) {
+            // File ops go through \Ngos\AdminCore\Support\Media (compress + disk/CDN), referenced
+            // by FQCN in the generated body — so only UploadedFile needs importing here.
             $uses[] = 'use Illuminate\Http\UploadedFile;';
-            $uses[] = 'use Illuminate\Support\Facades\Storage;';
         }
 
         return implode("\n", $uses) . "\n";
@@ -1300,14 +1301,14 @@ BLADE;
                 continue;
             }
             $c = $f['name'];
-            $storeCreate .= "\n        if ((\$data['{$c}'] ?? null) instanceof UploadedFile) {\n            \$data['{$c}'] = \$data['{$c}']->store('{$this->table}', 'public');\n        } else {\n            unset(\$data['{$c}']);\n        }";
-            $storeUpdate .= "\n        if ((\$data['{$c}'] ?? null) instanceof UploadedFile) {\n            if (\$model->{$c}) {\n                Storage::disk('public')->delete(\$model->{$c});\n            }\n            \$data['{$c}'] = \$data['{$c}']->store('{$this->table}', 'public');\n        } else {\n            unset(\$data['{$c}']);\n        }";
+            $storeCreate .= "\n        if ((\$data['{$c}'] ?? null) instanceof UploadedFile) {\n            \$data['{$c}'] = \\Ngos\\AdminCore\\Support\\Media::store(\$data['{$c}'], '{$this->table}');\n        } else {\n            unset(\$data['{$c}']);\n        }";
+            $storeUpdate .= "\n        if ((\$data['{$c}'] ?? null) instanceof UploadedFile) {\n            \\Ngos\\AdminCore\\Support\\Media::delete(\$model->{$c});\n            \$data['{$c}'] = \\Ngos\\AdminCore\\Support\\Media::store(\$data['{$c}'], '{$this->table}');\n        } else {\n            unset(\$data['{$c}']);\n        }";
         }
 
         $deleteBody = '';
         foreach ($this->fields as $f) {
             if ($this->isFile($f)) {
-                $deleteBody .= "\n        if (\$model->{$f['name']}) {\n            Storage::disk('public')->delete(\$model->{$f['name']});\n        }";
+                $deleteBody .= "\n        \\Ngos\\AdminCore\\Support\\Media::delete(\$model->{$f['name']});";
             }
         }
         if ($deleteBody === '') {

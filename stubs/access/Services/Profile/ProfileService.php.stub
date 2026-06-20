@@ -4,9 +4,8 @@ namespace App\Services\Profile;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Ngos\AdminCore\Services\BaseService;
+use Ngos\AdminCore\Support\Media;
 
 /**
  * Self-service profile operations for the signed-in user (name/email, password, avatar).
@@ -41,11 +40,10 @@ class ProfileService extends BaseService
         // Make sure it's actually an image, not arbitrary bytes posted as a fake avatar.
         abort_if(@getimagesizefromstring($binary) === false, 422, 'The avatar must be a valid image.');
 
-        if ($user->avatar) {
-            Storage::disk('public')->delete($user->avatar);
-        }
-        $path = 'avatars/' . Str::uuid() . '.jpg';
-        Storage::disk('public')->put($path, $binary);
-        $user->update(['avatar' => $path]);
+        Media::delete($user->avatar);
+        // Set directly (not update()): `avatar` isn't in the User's $fillable, so a mass
+        // assignment would silently drop it.
+        $user->avatar = Media::store($binary, 'avatars');
+        $user->save();
     }
 }

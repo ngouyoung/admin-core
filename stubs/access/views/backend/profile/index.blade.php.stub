@@ -20,7 +20,7 @@
             <div class="card">
                 <div class="card-body text-center">
                     <x-admin-core::avatar id="current-avatar" class="mb-2"
-                                          :src="$user->avatar ? asset('storage/' . $user->avatar) : null"
+                                          :src="$user->avatar ? \Ngos\AdminCore\Support\Media::url($user->avatar) : null"
                                           :name="$user->name" size="120" />
                     <h5 class="mb-0 text-capitalize">{{ $user->name }}</h5>
                     <p class="text-muted">{{ $user->email }}</p>

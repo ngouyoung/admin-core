@@ -126,6 +126,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Uploads (images & files) — compression + storage/CDN
+    |--------------------------------------------------------------------------
+    | All image/file uploads (avatars, `image`/`file` fields, settings images) go
+    | through Ngos\AdminCore\Support\Media, so storage + URLs are configured here.
+    |
+    | disk      : filesystem disk to store on (config/filesystems.php). Point it at
+    |             s3 (+ CloudFront) to serve from a CDN automatically.
+    | cdn_url   : optional absolute base URL prepended to stored paths when building
+    |             URLs (front your storage with a CDN without changing the disk).
+    |             Overrides the disk's own url(). e.g. https://cdn.example.com
+    | compress  : re-encode uploaded images to WebP (best size at high quality).
+    |             Falls back to storing the original if encoding isn't possible.
+    | max_width : downscale images wider than this (px) before encoding; 0 = no cap.
+    | quality   : WebP quality (0–100); ~82 is visually lossless at a big size saving.
+    */
+    'uploads' => [
+        'disk' => env('ADMIN_CORE_UPLOAD_DISK', 'public'),
+        'cdn_url' => env('ADMIN_CORE_CDN_URL'),
+        'compress' => true,
+        'max_width' => 1600,
+        'quality' => 82,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Error log retention (--access)
     |--------------------------------------------------------------------------
     | Captured exceptions older than this many days are pruned. The package

@@ -63,9 +63,14 @@ afterEach(fn () => cleanupGizmo());
 it('scaffolds a full resource with valid, token-free PHP', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
-        '--fields' => 'name:string, price:decimal?, body:text?',
+        '--fields' => 'name:string, price:decimal?, body:text?, photo:image?',
         '--migration' => true,
     ])->assertSuccessful();
+
+    // The image field routes uploads through Media (compress + disk/CDN), referenced by FQCN.
+    expect(File::get(app_path('Services/Gizmos/GizmoService.php')))
+        ->toContain('\Ngos\AdminCore\Support\Media::store(')
+        ->not->toContain("Storage::disk('public')");
 
     // Core files all landed.
     expect(File::exists(app_path('Models/Gizmo.php')))->toBeTrue()

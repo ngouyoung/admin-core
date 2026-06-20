@@ -187,13 +187,13 @@ it('handles image uploads with service-side storage', function () {
     $f = fs('photo:image?');
     expect($f->migrationColumns())->toContain("\$table->string('photo')->nullable();");
     expect($f->enctype())->toContain('multipart/form-data');
-    expect($f->serviceBody())->toContain("store('products', 'public')");
+    expect($f->serviceBody())->toContain("Media::store(\$data['photo'], 'products')");
     expect($f->storeRules())->toContain("'image'");
 
     // No soft deletes: delete() is permanent, so the file is removed there.
     expect($f->serviceBody())
         ->toContain('public function delete(')
-        ->toContain("Storage::disk('public')->delete(\$model->photo)")
+        ->toContain('Media::delete($model->photo)')
         ->not->toContain('function forceDelete(');
 });
 
@@ -204,7 +204,7 @@ it('deletes a file only on force-delete for a soft-deletable resource (keeps it 
     expect($f->serviceBody())
         ->toContain('public function forceDelete(')
         ->toContain('$this->findTrashed($id)')
-        ->toContain("Storage::disk('public')->delete(\$model->photo)")
+        ->toContain('Media::delete($model->photo)')
         ->not->toContain('public function delete('); // soft delete() keeps the file
 });
 
