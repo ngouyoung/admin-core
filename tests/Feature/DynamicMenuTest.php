@@ -140,10 +140,19 @@ it('defaults menu_source to config and ships the database switch', function () {
 });
 
 it('ships the access stubs for the Menu manager', function () {
+    // Follows the project skeleton: thin controller -> service -> model + form requests.
     expect(menuStub('access/Http/Controllers/Backend/MenuController.php.stub'))
-        ->toContain('class MenuController')
+        ->toContain('class MenuController extends WebController')
         ->toContain('function reorder')
+        ->toContain('MenuService');
+
+    expect(menuStub('access/Services/Menu/MenuService.php.stub'))
+        ->toContain('class MenuService extends BaseService')
+        ->toContain('function saveTree')
         ->toContain('MenuItem::forgetCache');
+
+    expect(menuStub('access/Http/Requests/Menu/StoreMenuRequest.php.stub'))
+        ->toContain('class StoreMenuRequest extends FormRequest');
 
     expect(menuStub('access/routes/account.php.stub'))
         ->toContain("'prefix' => 'menu'")

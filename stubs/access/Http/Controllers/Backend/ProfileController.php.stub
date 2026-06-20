@@ -2,72 +2,44 @@
 
 namespace App\Http\Controllers\Backend;
 
-use App\Http\Controllers\Controller;
+use App\Http\Requests\Profile\UpdateAvatarRequest;
+use App\Http\Requests\Profile\UpdatePasswordRequest;
+use App\Http\Requests\Profile\UpdateProfileRequest;
+use App\Services\Profile\ProfileService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Ngos\AdminCore\Http\Controllers\BaseController;
 
-class ProfileController extends Controller
+class ProfileController extends BaseController
 {
+    public function __construct(ProfileService $profileService)
+    {
+        $this->service = $profileService;
+    }
+
     public function index(): View
     {
         return view('backend.profile.index', ['user' => Auth::user()]);
     }
 
-    public function updateProfile(Request $request): RedirectResponse
+    public function updateProfile(UpdateProfileRequest $request): RedirectResponse
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email,' . Auth::id()],
-        ]);
-
-        $user = Auth::user();
-        $user->name = $data['name'];
-        $user->email = $data['email'];
-        $user->save();
+        $this->service->updateProfile(Auth::user(), $request->validated());
 
         return back()->with('success', 'Profile updated.');
     }
 
-    public function updatePassword(Request $request): RedirectResponse
+    public function updatePassword(UpdatePasswordRequest $request): RedirectResponse
     {
-        $request->validate([
-            'current_password' => ['required', 'current_password'],
-            'password' => ['required', 'min:8', 'confirmed'],
-        ]);
-
-        $user = Auth::user();
-        $user->password = Hash::make($request->input('password'));
-        $user->save();
+        $this->service->updatePassword(Auth::user(), $request->validated()['password']);
 
         return back()->with('success', 'Password updated.');
     }
 
-    public function updateAvatar(Request $request): RedirectResponse
+    public function updateAvatar(UpdateAvatarRequest $request): RedirectResponse
     {
-        // Croppie posts the cropped image as a base64 data URL.
-        $request->validate(['avatar' => ['required', 'string']]);
-
-        $image = preg_replace('#^data:image/\w+;base64,#i', '', $request->input('avatar'));
-        $image = str_replace(' ', '+', $image);
-        $binary = base64_decode($image, true);
-
-        abort_if($binary === false, 422, 'Invalid image data.');
-        abort_if(strlen($binary) > 5 * 1024 * 1024, 422, 'Image too large (max 5 MB).');
-        // Make sure it's actually an image, not arbitrary bytes posted as a fake avatar.
-        abort_if(@getimagesizefromstring($binary) === false, 422, 'The avatar must be a valid image.');
-
-        $user = Auth::user();
-        if ($user->avatar) {
-            Storage::disk('public')->delete($user->avatar);
-        }
-        $path = 'avatars/' . \Illuminate\Support\Str::uuid() . '.jpg';
-        Storage::disk('public')->put($path, $binary);
-        $user->avatar = $path;
-        $user->save();
+        $this->service->updateAvatar(Auth::user(), $request->validated()['avatar']);
 
         return back()->with('success', 'Avatar updated.');
     }

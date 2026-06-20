@@ -2,21 +2,26 @@
 
 namespace App\Http\Controllers\Backend;
 
-use App\Http\Controllers\Controller;
+use App\Services\ActivityLogs\ActivityLogService;
 use Illuminate\View\View;
-use Ngos\AdminCore\Models\ActivityLog;
-use Yajra\DataTables\Facades\DataTables;
+use Ngos\AdminCore\Http\Controllers\WebController;
 
-class ActivityLogController extends Controller
+class ActivityLogController extends WebController
 {
+    public function __construct(ActivityLogService $activityLogService)
+    {
+        $this->routeBase = 'activity-logs.';
+        $this->service = $activityLogService;
+    }
+
     public function index(): View
     {
         return view('backend.activity_logs.index');
     }
 
-    public function getData()
+    public function getData($relation = null)
     {
-        return DataTables::of(ActivityLog::query()->with('causer')->latest())
+        return parent::getData($relation)
             ->addColumn('causer', fn ($log) => $log->causer?->name ?? 'system')
             ->addColumn('subject', fn ($log) => $log->log_name . ' #' . $log->subject_id)
             ->editColumn('description', fn ($log) => '<span class="badge text-bg-secondary text-capitalize">' . e($log->description) . '</span>')

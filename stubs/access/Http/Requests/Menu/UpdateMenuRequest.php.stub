@@ -1,0 +1,10 @@
+<?php
+
+namespace App\Http\Requests\Menu;
+
+/**
+ * Same rules + link normalization as creating a menu item.
+ */
+class UpdateMenuRequest extends StoreMenuRequest
+{
+}

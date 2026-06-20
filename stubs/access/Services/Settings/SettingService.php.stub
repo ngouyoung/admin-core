@@ -1,0 +1,52 @@
+<?php
+
+namespace App\Services\Settings;
+
+use App\Models\Setting;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
+use Ngos\AdminCore\Services\BaseService;
+
+/**
+ * Settings read (grouped) + write (key/value, file-aware) layer.
+ */
+class SettingService extends BaseService
+{
+    public function __construct(Setting $setting)
+    {
+        $this->model = $setting;
+    }
+
+    /** Settings grouped by their `group`, for the settings form. */
+    public function grouped(): Collection
+    {
+        return $this->model->orderBy('group')->orderBy('key')->get()->groupBy('group');
+    }
+
+    /**
+     * Persist submitted values. image/file settings only change when a new file is uploaded
+     * (the old value is kept otherwise, and the previous file removed).
+     *
+     * @param  array<string, mixed>  $values
+     * @param  array<string, \Illuminate\Http\UploadedFile>  $files
+     */
+    public function save(array $values, array $files): void
+    {
+        foreach ($this->model->all() as $setting) {
+            if (in_array($setting->type, ['image', 'file'], true)) {
+                if (isset($files[$setting->key])) {
+                    if ($setting->value) {
+                        Storage::disk('public')->delete($setting->value);
+                    }
+                    Setting::set($setting->key, $files[$setting->key]->store('settings', 'public'));
+                }
+
+                continue;
+            }
+
+            if (array_key_exists($setting->key, $values) && $values[$setting->key] !== null) {
+                Setting::set($setting->key, $values[$setting->key]);
+            }
+        }
+    }
+}

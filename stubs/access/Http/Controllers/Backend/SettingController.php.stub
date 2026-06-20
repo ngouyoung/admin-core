@@ -2,42 +2,30 @@
 
 namespace App\Http\Controllers\Backend;
 
-use App\Http\Controllers\Controller;
-use App\Models\Setting;
+use App\Http\Requests\Setting\UpdateSettingRequest;
+use App\Services\Settings\SettingService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Ngos\AdminCore\Http\Controllers\BaseController;
 
-class SettingController extends Controller
+class SettingController extends BaseController
 {
-    public function index(): View
+    public function __construct(SettingService $settingService)
     {
-        return view('backend.settings.index', [
-            'groups' => Setting::orderBy('group')->orderBy('key')->get()->groupBy('group'),
-        ]);
+        $this->service = $settingService;
     }
 
-    public function update(Request $request): RedirectResponse
+    public function index(): View
     {
-        foreach (Setting::all() as $setting) {
-            if (in_array($setting->type, ['image', 'file'], true)) {
-                // Only replace the file when a new one is uploaded; keep the old value otherwise.
-                if ($request->hasFile("settings.{$setting->key}")) {
-                    if ($setting->value) {
-                        Storage::disk('public')->delete($setting->value);
-                    }
-                    Setting::set($setting->key, $request->file("settings.{$setting->key}")->store('settings', 'public'));
-                }
+        return view('backend.settings.index', ['groups' => $this->service->grouped()]);
+    }
 
-                continue;
-            }
-
-            $value = $request->input("settings.{$setting->key}");
-            if ($value !== null) {
-                Setting::set($setting->key, $value);
-            }
-        }
+    public function update(UpdateSettingRequest $request): RedirectResponse
+    {
+        $this->service->save(
+            (array) $request->input('settings', []),
+            (array) $request->file('settings', []),
+        );
 
         return back()->with('success', 'Settings saved.');
     }

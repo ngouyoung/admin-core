@@ -13,13 +13,17 @@ use Ngos\AdminCore\Models\MenuItem;
  * the real .stub file so the test tracks exactly what ships.
  */
 
-// A minimal base controller + the stub itself, declared once at collection time.
-if (! class_exists(\App\Http\Controllers\Controller::class)) {
-    eval('namespace App\Http\Controllers; abstract class Controller {}');
-}
+// Load the published Menu skeleton (service + form requests + controller) once at
+// collection time, so the tests exercise exactly what ships.
 if (! class_exists(\App\Http\Controllers\Backend\MenuController::class)) {
-    $stub = file_get_contents(__DIR__ . '/../../stubs/access/Http/Controllers/Backend/MenuController.php.stub');
-    eval(preg_replace('/^<\?php/', '', $stub));
+    foreach ([
+        'access/Services/Menu/MenuService.php.stub',
+        'access/Http/Requests/Menu/StoreMenuRequest.php.stub',
+        'access/Http/Requests/Menu/UpdateMenuRequest.php.stub',
+        'access/Http/Controllers/Backend/MenuController.php.stub',
+    ] as $rel) {
+        eval(preg_replace('/^<\?php/', '', file_get_contents(__DIR__ . '/../../stubs/' . $rel)));
+    }
 }
 
 beforeEach(function () {
@@ -45,10 +49,11 @@ beforeEach(function () {
     // is auto-skipped under tests. Permission middleware is off in the test env.
     $c = \App\Http\Controllers\Backend\MenuController::class;
     Route::middleware('web')->prefix('admin/menu')->name('admin.menu.')->group(function () use ($c) {
+        Route::get('/', [$c, 'index'])->name('index'); // for the toIndex() redirect target
         Route::post('/', [$c, 'store'])->name('store');
         Route::post('reorder', [$c, 'reorder'])->name('reorder');
-        Route::put('{menu}', [$c, 'update'])->name('update');
-        Route::delete('{menu}', [$c, 'destroy'])->name('destroy');
+        Route::put('{id}', [$c, 'update'])->name('update');
+        Route::delete('{id}', [$c, 'delete'])->name('destroy');
     });
 });
 

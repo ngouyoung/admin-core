@@ -2,6 +2,26 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.31.0
+
+- **Access "system" screens now follow the project architecture skeleton.** The Menu manager,
+  Activity Log, Error Log, Profile and Settings controllers were bespoke `Controller`s with inline
+  `$request->validate()` and direct `Model::` calls — out of step with the CRUD resources (Users, Roles,
+  GroupPermissions), which go **Controller → Service (`BaseService`) → Model + FormRequests**. They're now
+  aligned:
+  - **Menu** → `MenuController extends WebController` + `App\Services\Menu\MenuService` (create-with-sort,
+    `saveTree` reorder) + `StoreMenuRequest`/`UpdateMenuRequest`.
+  - **ActivityLog / ErrorLog** → `WebController` + `ActivityLogService` / `ErrorLogService` (query layer,
+    `clear()`); `getData` now sources from `service->query()`.
+  - **Profile** → `BaseController` + `ProfileService` (profile/password/avatar) + `UpdateProfileRequest` /
+    `UpdatePasswordRequest` / `UpdateAvatarRequest`.
+  - **Settings** → `BaseController` + `SettingService` (grouped read, file-aware save) + `UpdateSettingRequest`.
+
+  No behaviour change — same screens, now consistent and testable. Controller test coverage for the Menu
+  manager updated to the new layering. (Models intentionally stay on traits/concerns — `HasPublicUuid`,
+  `LogsActivity` — not a base model, since `Role`/`Permission` must extend Spatie's classes.) Dogfood-verified:
+  all five resolve their service via DI and render; 219 tests + Larastan L5 clean.
+
 ## v2.30.2
 
 - **Fix: Menu manager — adding a top-level item 500'd.** `MenuController::store()` read `$data['parent_id']`

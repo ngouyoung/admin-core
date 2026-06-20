@@ -203,10 +203,18 @@ class AdminCoreUninstallCommand extends Command
             app_path('Http/Requests/User'),
             app_path('Http/Requests/Role'),
             app_path('Http/Requests/GroupPermission'),
+            app_path('Http/Requests/Menu'),
+            app_path('Http/Requests/Profile'),
+            app_path('Http/Requests/Setting'),
             app_path('Services/Users'),
             app_path('Services/Roles'),
             app_path('Services/Permissions'),
             app_path('Services/GroupPermissions'),
+            app_path('Services/Menu'),
+            app_path('Services/ActivityLogs'),
+            app_path('Services/ErrorLogs'),
+            app_path('Services/Profile'),
+            app_path('Services/Settings'),
         ];
         foreach ($dirs as $dir) {
             if (File::isDirectory($dir) && empty(File::allFiles($dir))) {

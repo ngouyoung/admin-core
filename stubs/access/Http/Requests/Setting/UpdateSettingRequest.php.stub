@@ -1,0 +1,22 @@
+<?php
+
+namespace App\Http\Requests\Setting;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class UpdateSettingRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        // Settings are a dynamic key/value bag; the service whitelists keys against the
+        // known settings rows, so the request just shape-checks the payload.
+        return [
+            'settings' => ['nullable', 'array'],
+        ];
+    }
+}

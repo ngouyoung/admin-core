@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Services\ErrorLogs;
+
+use Illuminate\Database\Eloquent\Builder;
+use Ngos\AdminCore\Models\ErrorLog;
+use Ngos\AdminCore\Services\BaseService;
+
+/**
+ * Captured-exception query layer (newest first) + clear-all.
+ */
+class ErrorLogService extends BaseService
+{
+    public function __construct(ErrorLog $errorLog)
+    {
+        $this->model = $errorLog;
+    }
+
+    public function query(array|string|null $relation = null): Builder
+    {
+        return parent::query($relation)->latest();
+    }
+
+    /** Wipe every captured error. */
+    public function clear(): void
+    {
+        $this->model->newQuery()->delete();
+    }
+}

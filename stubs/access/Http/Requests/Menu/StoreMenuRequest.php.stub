@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Http\Requests\Menu;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class StoreMenuRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /** Normalize the link before validation: keep only the chosen type, default target, cast the toggle. */
+    protected function prepareForValidation(): void
+    {
+        $type = $this->input('link_type', 'route');
+
+        $this->merge([
+            'route' => $type === 'route' ? $this->input('route') : null,
+            'url' => $type === 'url' ? $this->input('url') : null,
+            'target' => $this->input('target') ?: '_self',
+            'is_active' => $this->boolean('is_active'),
+        ]);
+    }
+
+    public function rules(): array
+    {
+        $type = $this->input('link_type', 'route');
+
+        return [
+            'label' => ['required', 'string', 'max:255'],
+            'icon' => ['nullable', 'string', 'max:255'],
+            'route' => [Rule::requiredIf($type === 'route'), 'nullable', 'string', 'max:255'],
+            'url' => [Rule::requiredIf($type === 'url'), 'nullable', 'string', 'max:255'],
+            'match' => ['nullable', 'string', 'max:255'],
+            'permission' => ['nullable', 'string', 'max:255'],
+            'parent_id' => ['nullable', 'integer', 'exists:menu_items,id'],
+            'target' => ['nullable', Rule::in(['_self', '_blank'])],
+            'is_active' => ['boolean'],
+        ];
+    }
+}

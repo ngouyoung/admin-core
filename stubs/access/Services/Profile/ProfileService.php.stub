@@ -1,0 +1,51 @@
+<?php
+
+namespace App\Services\Profile;
+
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Ngos\AdminCore\Services\BaseService;
+
+/**
+ * Self-service profile operations for the signed-in user (name/email, password, avatar).
+ */
+class ProfileService extends BaseService
+{
+    public function __construct(User $user)
+    {
+        $this->model = $user;
+    }
+
+    public function updateProfile(User $user, array $data): void
+    {
+        $user->update(['name' => $data['name'], 'email' => $data['email']]);
+    }
+
+    public function updatePassword(User $user, string $password): void
+    {
+        $user->update(['password' => Hash::make($password)]);
+    }
+
+    /** Decode a base64 data-URL avatar, validate it's a real image, store it, drop the old one. */
+    public function updateAvatar(User $user, string $dataUrl): void
+    {
+        // Croppie posts the cropped image as a base64 data URL.
+        $image = preg_replace('#^data:image/\w+;base64,#i', '', $dataUrl);
+        $image = str_replace(' ', '+', $image);
+        $binary = base64_decode($image, true);
+
+        abort_if($binary === false, 422, 'Invalid image data.');
+        abort_if(strlen($binary) > 5 * 1024 * 1024, 422, 'Image too large (max 5 MB).');
+        // Make sure it's actually an image, not arbitrary bytes posted as a fake avatar.
+        abort_if(@getimagesizefromstring($binary) === false, 422, 'The avatar must be a valid image.');
+
+        if ($user->avatar) {
+            Storage::disk('public')->delete($user->avatar);
+        }
+        $path = 'avatars/' . Str::uuid() . '.jpg';
+        Storage::disk('public')->put($path, $binary);
+        $user->update(['avatar' => $path]);
+    }
+}

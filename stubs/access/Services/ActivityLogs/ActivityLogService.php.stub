@@ -1,0 +1,23 @@
+<?php
+
+namespace App\Services\ActivityLogs;
+
+use Illuminate\Database\Eloquent\Builder;
+use Ngos\AdminCore\Models\ActivityLog;
+use Ngos\AdminCore\Services\BaseService;
+
+/**
+ * Read-only activity-log query layer (newest first, causer eager-loaded).
+ */
+class ActivityLogService extends BaseService
+{
+    public function __construct(ActivityLog $activityLog)
+    {
+        $this->model = $activityLog;
+    }
+
+    public function query(array|string|null $relation = null): Builder
+    {
+        return $this->model->with('causer')->latest();
+    }
+}

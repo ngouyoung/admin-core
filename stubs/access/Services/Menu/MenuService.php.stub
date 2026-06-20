@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Services\Menu;
+
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Ngos\AdminCore\Models\MenuItem;
+use Ngos\AdminCore\Services\BaseService;
+
+/**
+ * Sidebar menu service — the model logic behind the Menu manager (menu_source=database).
+ */
+class MenuService extends BaseService
+{
+    public function __construct(MenuItem $menuItem)
+    {
+        $this->model = $menuItem;
+    }
+
+    /** Root items (eager-loaded children) for the nestable tree. */
+    public function roots(): Collection
+    {
+        return $this->model->with('children')->whereNull('parent_id')->orderBy('sort')->orderBy('id')->get();
+    }
+
+    /** New items append to the end of their level. */
+    public function create(array $data): Model
+    {
+        $data['sort'] = (int) $this->model->where('parent_id', $data['parent_id'] ?? null)->max('sort') + 1;
+
+        return $this->model->create($data);
+    }
+
+    /** Persist the dragged nestable tree (parent_id + sort) and bust the cached menu. */
+    public function saveTree(array $nodes, ?int $parentId = null): void
+    {
+        $this->persist($nodes, $parentId);
+        MenuItem::forgetCache(); // the bulk update below fires no model events
+    }
+
+    /** @param array<int, array<string, mixed>> $nodes */
+    private function persist(array $nodes, ?int $parentId): void
+    {
+        foreach (array_values($nodes) as $position => $node) {
+            if (! isset($node['id'])) {
+                continue;
+            }
+            $this->model->newQuery()->whereKey((int) $node['id'])->update([
+                'parent_id' => $parentId,
+                'sort' => $position + 1,
+            ]);
+            if (! empty($node['children'])) {
+                $this->persist($node['children'], (int) $node['id']);
+            }
+        }
+    }
+}

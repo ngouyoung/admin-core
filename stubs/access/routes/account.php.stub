@@ -56,6 +56,6 @@ Route::group([
     Route::get('/', [MenuController::class, 'index'])->name('index');
     Route::post('/', [MenuController::class, 'store'])->name('store');
     Route::post('reorder', [MenuController::class, 'reorder'])->name('reorder');
-    Route::put('{menu}', [MenuController::class, 'update'])->name('update');
-    Route::delete('{menu}', [MenuController::class, 'destroy'])->name('destroy');
+    Route::put('{id}', [MenuController::class, 'update'])->name('update');
+    Route::delete('{id}', [MenuController::class, 'delete'])->name('destroy');
 });
