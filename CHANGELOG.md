@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.26.0
+
+- **In-app documentation page (`--access`).** A new `/admin/docs` screen gives every signed-in admin a
+  built-in usage guide — what you can build, your first resource, the `admin-core:make` / `:field` / `:page`
+  / `:portal` commands, the `--fields` DSL (types + modifiers) and the full UI-component catalog — composed
+  from the package's own components (`page-header`, `alert`, `tabs`, `card`, `badge`), so the page is also a
+  live demo of them. Shipped as an ungated `Route::view` (visible to all admins, no permission), with a
+  `Documentation` sidebar entry that minimal installs drop automatically (the sidebar hides items whose route
+  doesn't exist).
+  - **Fix:** the component-catalog loop used `$component` as its `@foreach` variable, which collides with
+    Blade's reserved per-component instance variable — inside the `<x-admin-core::badge>` render scope it
+    resolved to the `AnonymousComponent` object and crashed `htmlspecialchars()`. Renamed to `$componentName`;
+    added a regression test guarding the stub against echoing any Blade-reserved name (`$component`,
+    `$attributes`, `$slot`, `$errors`) as a loop variable. Dogfood-verified: `/admin/docs` renders end to end
+    with the sidebar link, tabs and all component badges.
+
 ## v2.25.1
 
 - **Friendlier empty state on every list.** The DataTables defaults (in the front-end kit's `theme.js`) now

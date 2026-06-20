@@ -6,6 +6,9 @@ use App\Http\Controllers\Backend\ProfileController;
 use App\Http\Controllers\Backend\SettingController;
 use Illuminate\Support\Facades\Route;
 
+// In-app usage guide (available to every signed-in admin — no permission gate).
+Route::view('docs', 'backend.docs.index')->name('docs');
+
 Route::group(['prefix' => 'profile', 'as' => 'profile.'], function () {
     Route::get('/', [ProfileController::class, 'index'])->name('index');
     Route::put('/', [ProfileController::class, 'updateProfile'])->name('update');
