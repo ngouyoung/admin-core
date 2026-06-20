@@ -56,8 +56,23 @@ return [
         ['label' => 'Settings', 'route' => 'admin.settings.index', 'icon' => 'bi bi-gear', 'can' => 'manage-settings', 'match' => 'admin/settings*'],
         ['label' => 'Activity Log', 'route' => 'admin.activity-logs.index', 'icon' => 'bi bi-clock-history', 'can' => 'list-activity', 'match' => 'admin/activity-logs*'],
         ['label' => 'Error Log', 'route' => 'admin.error-logs.index', 'icon' => 'bi bi-bug', 'can' => 'view-error-log', 'match' => 'admin/error-logs*'],
+        ['label' => 'Menu', 'route' => 'admin.menu.index', 'icon' => 'bi bi-list-nested', 'can' => 'manage-menu', 'match' => 'admin/menu*'],
         ['label' => 'Documentation', 'route' => 'admin.docs', 'icon' => 'bi bi-book', 'match' => 'admin/docs'],
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Sidebar menu source
+    |--------------------------------------------------------------------------
+    | 'config'   (default) — render the `menu` array above.
+    | 'database' — render the menu_items table managed at /admin/menu (the Menu
+    |              manager, shipped by --access) via <x-admin-core::sidebar-menu>,
+    |              cached and permission/route-filtered exactly like the config menu.
+    |
+    | Switching keeps everything else the same. Seed the table from your current
+    | array with:  php artisan admin-core:menu:import
+    */
+    'menu_source' => env('ADMIN_CORE_MENU_SOURCE', 'config'),
 
     /*
     |--------------------------------------------------------------------------

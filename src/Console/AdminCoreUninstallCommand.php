@@ -198,6 +198,7 @@ class AdminCoreUninstallCommand extends Command
     {
         $dirs = [
             resource_path('views/backend/pages/assessments'),
+            resource_path('views/backend/pages/menu'),
             app_path('Http/Controllers/Backend/Assessments'),
             app_path('Http/Requests/User'),
             app_path('Http/Requests/Role'),

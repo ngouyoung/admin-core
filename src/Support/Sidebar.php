@@ -37,6 +37,17 @@ class Sidebar
         return self::prune(self::filter($items ?? config('admin-core.menu', []), $guard));
     }
 
+    /**
+     * The visible menu built from the database (the Menu manager / `menu_source = 'database'`),
+     * run through the same route + permission filtering as the config menu.
+     *
+     * @param  string|null  $guard  Auth guard for the `can` checks (multi-portal).
+     */
+    public static function database(?string $guard = null): array
+    {
+        return self::items(\Ngos\AdminCore\Models\MenuItem::tree(), $guard);
+    }
+
     /** @param array<int, array<string, mixed>> $items */
     private static function filter(array $items, ?string $guard): array
     {

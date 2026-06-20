@@ -213,6 +213,14 @@ The `--access` kit now ships a complete admin shell beyond the access screens:
   permission or its `route` doesn't exist (so menus for un-installed features vanish on their own), and
   empty section headers are pruned. `admin-core:make` appends the new resource there — no hand-editing
   Blade. (Older installs with the static sidebar still work: the generator falls back to injecting the link.)
+- **Database-driven menu + Menu manager** (optional) — manage the sidebar at runtime instead of editing
+  config. Set `config('admin-core.menu_source')` to `'database'` (default `'config'`) and the same
+  `<x-admin-core::sidebar-menu />` renders the `menu_items` table — cached (`MenuItem::tree()`, busted on
+  every write) and filtered by the same permission/route rules. The **Menu manager** at `/admin/menu`
+  (System → Menu, `manage-menu`) lets admins add/edit/delete items and **drag to reorder & nest** them; each
+  item is a label + icon + a named route *or* custom URL (or none → a section header) + optional permission +
+  active toggle. Move your existing menu into the table with **`php artisan admin-core:menu:import`**. Ships
+  with `--access`.
 - **Multi-portal** — stand up a second portal (merchant, vendor, …) **in one command**:
   `php artisan admin-core:portal merchant` scaffolds its own-guard user model + migration, login + dashboard,
   route group, and menu/permission config. Then `admin-core:make Order --portal=merchant` generates straight

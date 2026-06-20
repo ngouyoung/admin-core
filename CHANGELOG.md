@@ -2,6 +2,30 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.30.0
+
+- **Database-driven sidebar menu + Menu manager (`--access`).** The sidebar can now be managed at runtime
+  from the panel instead of editing `config/admin-core.php`:
+  - A new **Menu manager** screen at `/admin/menu` (System → Menu, gated by `manage-menu`) where admins
+    **add / edit / delete** items and **drag to reorder & nest** them (the nestable tree posts to a reorder
+    endpoint that writes each row's `parent_id` + `sort`). Each item has a label, Bootstrap icon, a link
+    (pick a named **route** or a custom **URL**, or none → a section header), an optional permission gate,
+    open-in-new-tab, an active toggle, and nesting.
+  - Opt in with **`config('admin-core.menu_source')` = `'database'`** (default `'config'` — nothing changes
+    for existing installs; `ADMIN_CORE_MENU_SOURCE` env override). The `admin-core::sidebar-menu` component
+    then renders the new `menu_items` table via `Sidebar::database()`, **cached** (`MenuItem::tree()`,
+    forgotten on every write) and **permission/route-filtered** exactly like the config menu.
+  - **`php artisan admin-core:menu:import`** copies your current `config('admin-core.menu')` into the table
+    (headers, nesting, icons, routes/URLs, `can`, `match` all round-trip) so you start from your real menu.
+  - Ships with `--access`: a package-owned `Ngos\AdminCore\Models\MenuItem`, a `menu_items` migration, the
+    manager controller/views/routes, and the `manage-menu` permission (granted to the `admin` super-role).
+    Dogfood-verified end to end (import → manager renders → DB sidebar renders; store/edit/reorder/delete
+    persist + bust the cache).
+- **Installer guard against a duplicate permission migration.** `admin-core:install --access` now warns (with
+  the exact file to delete) when a second `*_create_permission_tables.php` migration exists — e.g. Spatie's
+  default published via `vendor:publish` — instead of letting `migrate` fail later with *"table 'permissions'
+  already exists"*. (admin-core's `--access` ships its own permission migration, with `uuid` + `group_id`.)
+
 ## v2.29.0
 
 - **Responsive DataTables toolbar.** On phones (`≤767px`) the DataTables BS5 integration centers the

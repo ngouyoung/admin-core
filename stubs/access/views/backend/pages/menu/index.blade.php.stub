@@ -1,0 +1,40 @@
+@extends('backend.layouts.app')
+
+@section('title', 'Menu')
+
+@section('contents')
+    <x-admin-core::page-header title="Menu"
+        description="Build the sidebar — drag a row to reorder, drag onto another to nest.">
+        <x-slot:actions>
+            <button type="button" class="btn btn-primary btn-sm" id="menu-add"
+                data-bs-toggle="offcanvas" data-bs-target="#menu-form">
+                <i class="bi bi-plus-lg"></i> Add item
+            </button>
+        </x-slot:actions>
+    </x-admin-core::page-header>
+
+    @if (config('admin-core.menu_source') !== 'database')
+        <x-admin-core::alert type="warning">
+            The sidebar is currently rendered from <code>config/admin-core.php</code>. Set
+            <code>'menu_source' =&gt; 'database'</code> (or <code>ADMIN_CORE_MENU_SOURCE=database</code>) to use the
+            menu below. Pull your current menu in with <code>php artisan admin-core:menu:import</code>.
+        </x-admin-core::alert>
+    @endif
+
+    <x-admin-core::card>
+        @if ($roots->isEmpty())
+            <x-admin-core::empty-state icon="bi-list-nested" title="No menu items yet"
+                message="Click “Add item”, or run php artisan admin-core:menu:import to pull in your config menu." />
+        @else
+            <div class="dd ac-menu-tree" id="menu-tree">
+                @include('backend.pages.menu.partials.branch', ['items' => $roots])
+            </div>
+        @endif
+    </x-admin-core::card>
+
+    @include('backend.pages.menu.partials.form')
+@endsection
+
+@push('scripts')
+    @include('backend.pages.menu.partials.scripts')
+@endpush

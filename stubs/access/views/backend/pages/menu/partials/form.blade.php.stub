@@ -1,0 +1,79 @@
+{{-- Add / edit offcanvas. The same form is reused: the edit buttons (see scripts) swap
+     the action + _method and pre-fill the fields from the row's data-* attributes. --}}
+<div class="offcanvas offcanvas-end" tabindex="-1" id="menu-form" aria-labelledby="menu-form-title">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title" id="menu-form-title">Add menu item</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form id="menu-form-el" method="post" action="{{ route('admin.menu.store') }}">
+            @csrf
+            <input type="hidden" name="_method" id="menu-method" value="POST">
+            <input type="hidden" name="parent_id" id="menu-parent" value="">
+
+            <div class="mb-3">
+                <label class="form-label" for="menu-label">Label</label>
+                <input type="text" name="label" id="menu-label" class="form-control" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="menu-icon">Icon <span class="text-muted small">(Bootstrap Icon)</span></label>
+                <input type="text" name="icon" id="menu-icon" class="form-control" placeholder="bi bi-box-seam">
+                <div class="form-text">Browse names at icons.getbootstrap.com</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="menu-link-type">Link</label>
+                <select name="link_type" id="menu-link-type" class="form-select">
+                    <option value="route">Named route</option>
+                    <option value="url">Custom URL</option>
+                    <option value="none">None (section header)</option>
+                </select>
+            </div>
+
+            <div class="mb-3" data-link="route">
+                <label class="form-label" for="menu-route">Route</label>
+                <select name="route" id="menu-route" class="form-select">
+                    <option value="">—</option>
+                    @foreach ($routes as $r)
+                        <option value="{{ $r }}">{{ $r }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="mb-3 d-none" data-link="url">
+                <label class="form-label" for="menu-url">URL</label>
+                <input type="text" name="url" id="menu-url" class="form-control" placeholder="https://… or /admin/x">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="menu-match">Active highlight pattern <span class="text-muted small">(optional)</span></label>
+                <input type="text" name="match" id="menu-match" class="form-control" placeholder="admin/products*">
+                <div class="form-text">A <code>request()->is()</code> pattern that marks the item “active”.</div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label" for="menu-permission">Permission <span class="text-muted small">(optional)</span></label>
+                <select name="permission" id="menu-permission" class="form-select">
+                    <option value="">— visible to everyone —</option>
+                    @foreach ($permissions as $p)
+                        <option value="{{ $p }}">{{ $p }}</option>
+                    @endforeach
+                </select>
+                <div class="form-text">Hidden unless the signed-in admin has this permission.</div>
+            </div>
+
+            <div class="form-check form-switch mb-3">
+                <input type="checkbox" class="form-check-input" name="target" id="menu-target" value="_blank">
+                <label class="form-check-label" for="menu-target">Open in a new tab</label>
+            </div>
+
+            <div class="form-check form-switch mb-4">
+                <input type="checkbox" class="form-check-input" name="is_active" id="menu-active" value="1" checked>
+                <label class="form-check-label" for="menu-active">Active (shown in the sidebar)</label>
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check-lg"></i> Save</button>
+        </form>
+    </div>
+</div>

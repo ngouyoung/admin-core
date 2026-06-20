@@ -79,6 +79,10 @@ php artisan migrate</code></pre>
                                     table exists (a missing route is hidden too).</li>
                             </ol>
                         </x-admin-core::alert>
+                        <p class="mt-3 mb-0 text-muted small">Prefer to manage the menu without code? Set
+                            <code>menu_source</code> to <code>database</code> and use the
+                            <strong>Menu</strong> manager (System &rsaquo; Menu) to add, edit and drag-reorder
+                            items. Move your current menu in with <code>php artisan admin-core:menu:import</code>.</p>
                     </x-admin-core::card>
                 </div>
             </div>

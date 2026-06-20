@@ -1,0 +1,75 @@
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 1. Drag to reorder / nest -> persist the tree (parent_id + sort).
+        const tree = $('#menu-tree');
+        if (tree.length) {
+            tree.nestable({ group: 1, maxDepth: 6 }).on('change', function () {
+                $.ajax({
+                    url: "{{ route('admin.menu.reorder') }}",
+                    type: 'post',
+                    data: { data: tree.nestable('serialize') },
+                    success: function (res) {
+                        if (res && res.status === 'OK') { window.toastr?.success('Menu order saved'); }
+                        else { window.toastr?.error('Could not save the order'); }
+                    },
+                    error: function () { window.toastr?.error('Could not save the order'); }
+                });
+            });
+            // Don't let a click on the row's action buttons start a drag.
+            tree.on('mousedown', '.ac-menu-actions', function (e) { e.stopPropagation(); });
+        }
+
+        // 2. Add / edit offcanvas form.
+        const form = document.getElementById('menu-form-el');
+        const title = document.getElementById('menu-form-title');
+        const method = document.getElementById('menu-method');
+        const linkType = document.getElementById('menu-link-type');
+        const base = "{{ url('admin/menu') }}";
+
+        function toggleLink() {
+            document.querySelectorAll('#menu-form [data-link]').forEach(function (el) {
+                el.classList.toggle('d-none', el.getAttribute('data-link') !== linkType.value);
+            });
+        }
+        linkType.addEventListener('change', toggleLink);
+
+        document.getElementById('menu-add').addEventListener('click', function () {
+            form.reset();
+            form.setAttribute('action', "{{ route('admin.menu.store') }}");
+            method.value = 'POST';
+            title.textContent = 'Add menu item';
+            document.getElementById('menu-parent').value = '';
+            document.getElementById('menu-active').checked = true;
+            linkType.value = 'route';
+            toggleLink();
+        });
+
+        document.querySelectorAll('.ac-menu-edit').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                const d = btn.dataset;
+                form.setAttribute('action', base + '/' + d.id);
+                method.value = 'PUT';
+                title.textContent = 'Edit menu item';
+                document.getElementById('menu-label').value = d.label || '';
+                document.getElementById('menu-icon').value = d.icon || '';
+                document.getElementById('menu-route').value = d.route || '';
+                document.getElementById('menu-url').value = d.url || '';
+                document.getElementById('menu-match').value = d.match || '';
+                document.getElementById('menu-permission').value = d.permission || '';
+                document.getElementById('menu-parent').value = d.parent || '';
+                document.getElementById('menu-target').checked = d.target === '_blank';
+                document.getElementById('menu-active').checked = d.active === '1';
+                linkType.value = d.route ? 'route' : (d.url ? 'url' : 'none');
+                toggleLink();
+                window.bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('menu-form')).show();
+            });
+        });
+
+        // 3. Confirm deletes.
+        document.querySelectorAll('.ac-menu-delete').forEach(function (f) {
+            f.addEventListener('submit', function (e) {
+                if (! window.confirm('Delete this menu item? Any children move up a level.')) { e.preventDefault(); }
+            });
+        });
+    });
+</script>

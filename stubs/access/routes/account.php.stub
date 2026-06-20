@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Backend\ActivityLogController;
 use App\Http\Controllers\Backend\ErrorLogController;
+use App\Http\Controllers\Backend\MenuController;
 use App\Http\Controllers\Backend\ProfileController;
 use App\Http\Controllers\Backend\SettingController;
 use Illuminate\Support\Facades\Route;
@@ -44,4 +45,17 @@ Route::group([
     Route::post('clear', [ErrorLogController::class, 'clear'])->name('clear');
     Route::get('{id}', [ErrorLogController::class, 'show'])->name('show');
     Route::delete('{id}', [ErrorLogController::class, 'destroy'])->name('destroy');
+});
+
+// Menu manager — the admin UI behind config('admin-core.menu_source') = 'database'.
+Route::group([
+    'prefix' => 'menu',
+    'as' => 'menu.',
+    'middleware' => config('admin-core.permission.enabled') ? 'permission:manage-menu' : [],
+], function () {
+    Route::get('/', [MenuController::class, 'index'])->name('index');
+    Route::post('/', [MenuController::class, 'store'])->name('store');
+    Route::post('reorder', [MenuController::class, 'reorder'])->name('reorder');
+    Route::put('{menu}', [MenuController::class, 'update'])->name('update');
+    Route::delete('{menu}', [MenuController::class, 'destroy'])->name('destroy');
 });

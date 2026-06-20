@@ -13,9 +13,11 @@
 --}}
 @props(['items' => null, 'menu' => null, 'guard' => null, 'nested' => false])
 
-@php($list = $items ?? \Ngos\AdminCore\Support\Sidebar::items(
-    $menu !== null ? config('admin-core.menus.' . $menu, []) : config('admin-core.menu', []),
-    $guard,
+@php($list = $items ?? ($menu !== null
+    ? \Ngos\AdminCore\Support\Sidebar::items(config('admin-core.menus.' . $menu, []), $guard)
+    : (config('admin-core.menu_source') === 'database'
+        ? \Ngos\AdminCore\Support\Sidebar::database($guard)
+        : \Ngos\AdminCore\Support\Sidebar::items(config('admin-core.menu', []), $guard))
 ))
 
 @foreach ($list as $item)

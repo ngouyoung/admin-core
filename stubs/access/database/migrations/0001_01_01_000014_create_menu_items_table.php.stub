@@ -1,0 +1,47 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        Schema::create('menu_items', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('parent_id')->nullable();
+            $table->string('label');
+            $table->string('icon')->nullable();        // Bootstrap-Icon class, e.g. "bi bi-box-seam"
+            $table->string('route')->nullable();       // a named route (preferred), e.g. "admin.products.index"
+            $table->string('url')->nullable();         // OR a raw URL when there's no named route
+            $table->string('match')->nullable();       // request()->is() pattern for the active state, e.g. "admin/products*"
+            $table->string('permission')->nullable();  // gate: hidden unless the user can() this
+            $table->string('target')->nullable();      // _self (default) | _blank
+            $table->unsignedInteger('sort')->default(0);
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+
+            $table->index(['parent_id', 'sort']);
+            $table->foreign('parent_id')
+                ->references('id')
+                ->on('menu_items')
+                ->nullOnDelete();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        Schema::dropIfExists('menu_items');
+    }
+};

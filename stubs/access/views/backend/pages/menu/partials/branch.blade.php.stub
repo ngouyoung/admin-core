@@ -1,0 +1,41 @@
+{{-- Recursive nestable branch. $items = a Collection of MenuItem (a level of the tree). --}}
+<ol class="dd-list">
+    @foreach ($items as $item)
+        <li class="dd-item ac-menu-item" data-id="{{ $item->id }}">
+            <div class="dd-handle ac-menu-row">
+                <i class="bi bi-grip-vertical ac-menu-grip text-muted"></i>
+                <span class="ac-menu-label">
+                    @if ($item->icon)<i class="{{ $item->icon }}"></i>@endif
+                    {{ $item->label }}
+                    @unless ($item->is_active)<span class="badge text-bg-secondary ms-1">hidden</span>@endunless
+                    @if (! $item->route && ! $item->url && $item->children->isEmpty())
+                        <span class="badge text-bg-light text-muted ms-1">header</span>
+                    @endif
+                </span>
+                <span class="ac-menu-meta text-muted small">{{ $item->route ?: $item->url }}</span>
+                <span class="ac-menu-actions">
+                    <button type="button" class="btn btn-sm btn-link p-0 ac-menu-edit"
+                        data-id="{{ $item->id }}"
+                        data-label="{{ $item->label }}"
+                        data-icon="{{ $item->icon }}"
+                        data-route="{{ $item->route }}"
+                        data-url="{{ $item->url }}"
+                        data-match="{{ $item->match }}"
+                        data-permission="{{ $item->permission }}"
+                        data-parent="{{ $item->parent_id }}"
+                        data-target="{{ $item->target }}"
+                        data-active="{{ $item->is_active ? 1 : 0 }}"
+                        title="Edit"><i class="bi bi-pencil"></i></button>
+                    <form action="{{ route('admin.menu.destroy', $item->id) }}" method="post" class="d-inline ac-menu-delete">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="Delete"><i class="bi bi-trash"></i></button>
+                    </form>
+                </span>
+            </div>
+            @if ($item->children->isNotEmpty())
+                @include('backend.pages.menu.partials.branch', ['items' => $item->children])
+            @endif
+        </li>
+    @endforeach
+</ol>
