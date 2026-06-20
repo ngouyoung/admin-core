@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.30.2
+
+- **Fix: Menu manager — adding a top-level item 500'd.** `MenuController::store()` read `$data['parent_id']`
+  to compute the append position, but the validated payload omits that key when no parent is sent (nullable +
+  absent), causing an "undefined array key" on every root-level add. Now defaults to `null`.
+- **Test coverage for the Menu manager controller.** New `MenuManagerTest` loads the *published* controller
+  stub and exercises store / reorder / update / destroy over HTTP (append-to-level, header items, the
+  route-required rule, drag-reorder persisting `parent_id` + `sort` and busting the cache, link-type
+  switching, delete) — the gap that let the above bug ship. Suite: 219 passing.
+
 ## v2.30.1
 
 - **Front-end build: lazy-load ApexCharts + quiet the chunk-size warning.** ApexCharts (~530 kB) was imported
