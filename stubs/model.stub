@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+__AC_MODEL_BASE_IMPORT__
 __AC_MODEL_USES__
-class DummyClass extends Model
+class DummyClass extends __AC_MODEL_BASE__
 {
     use __AC_MODEL_TRAITS__;
 

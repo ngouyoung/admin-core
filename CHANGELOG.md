@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.32.0
+
+- **Configurable base model for generated models.** New `config('admin-core.generator.base_model')` (default
+  `Illuminate\Database\Eloquent\Model`) — `admin-core:make` now generates models that `extend` it. Point it at
+  your own base (e.g. `App\Models\BaseModel` that `use`s shared traits/casts) and every generated model extends
+  it, so you don't repeat `use SomeTrait;` across many models. Keep the *logic* in traits (so Spatie's
+  `Role`/`Permission`, which can't extend a base, can `use` them too); the base model just bundles them. Default
+  behaviour is unchanged. Enables, never imposes — the package still ships traits, your app decides on a base.
+
 ## v2.31.0
 
 - **Access "system" screens now follow the project architecture skeleton.** The Menu manager,

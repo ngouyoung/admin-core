@@ -662,6 +662,18 @@ Re-skin the whole thing from the `--ac-*` CSS tokens / SCSS variables at the top
 - **Stubs:** `php artisan vendor:publish --tag=admin-core-stubs` → `stubs/admin-core/` (yours win over the package's).
 - **DataTable partials:** `php artisan vendor:publish --tag=admin-core-views` → `resources/views/vendor/admin-core/`.
 - **Config:** edit `config/admin-core.php`.
+- **Base model for generated models:** set `generator.base_model` in `config/admin-core.php` and every
+  `admin-core:make` model `extends` it. Share common behaviour by `use`-ing traits in your base (keep the
+  logic in traits so `Role`/`Permission` — which must extend Spatie's classes — can `use` them too):
+  ```php
+  // app/Models/BaseModel.php
+  abstract class BaseModel extends \Illuminate\Database\Eloquent\Model
+  {
+      use \Ngos\AdminCore\Concerns\HasPublicUuid;   // shared behaviour lives in traits
+      protected $casts = ['published_at' => 'datetime'];
+  }
+  // config/admin-core.php → 'generator' => ['base_model' => \App\Models\BaseModel::class],
+  ```
 
 ## Using the core directly
 

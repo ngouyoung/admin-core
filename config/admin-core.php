@@ -168,10 +168,17 @@ return [
     | bigint `id` primary key (lean foreign keys + joins) plus a unique public
     | `uuid` column used in URLs/APIs (non-enumerable). Override per-resource with
     | the --uuid / --no-uuid flags.
+    |
+    | base_model: the class generated models extend. Default is Eloquent's Model.
+    | If many of your models share behavior, point this at your own base, e.g.
+    | App\Models\BaseModel that `use`s the shared traits/casts — then every
+    | `admin-core:make` model extends it (keep the *logic* in traits so Spatie's
+    | Role/Permission can `use` it too; the base model just bundles them).
     */
     'generator' => [
         'uuid' => false,
         'audit' => false,
+        'base_model' => \Illuminate\Database\Eloquent\Model::class,
     ],
 
 ];

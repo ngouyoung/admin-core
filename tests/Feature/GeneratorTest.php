@@ -150,6 +150,24 @@ it('uses the hybrid key strategy with --uuid (bigint PK + public uuid + bigint F
         ->toContain('Ngos\AdminCore\Concerns\HasPublicUuid');
 });
 
+it('extends the configured base model (default Model, or a custom base)', function () {
+    // Default: plain Eloquent Model.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->toContain('use Illuminate\Database\Eloquent\Model;')
+        ->toContain('class Gizmo extends Model');
+
+    cleanupGizmo();
+
+    // A host base model: every generated model extends it (DRY for shared traits/casts).
+    config()->set('admin-core.generator.base_model', 'App\Models\BaseModel');
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->toContain('use App\Models\BaseModel;')
+        ->toContain('class Gizmo extends BaseModel')
+        ->not->toContain('use Illuminate\Database\Eloquent\Model;');
+});
+
 it('handles write-once (~) and system (@) field modifiers', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

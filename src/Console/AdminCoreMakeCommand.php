@@ -210,7 +210,14 @@ class AdminCoreMakeCommand extends Command
             ->map(fn ($label, $col) => "'{$col}' => '{$label}'")
             ->implode(', ') . ']';
 
+        // Base class the generated model extends. Default is Eloquent's Model; a host can point
+        // config('admin-core.generator.base_model') at its own base (e.g. App\Models\BaseModel that
+        // `use`s shared traits/casts) to DRY up many models.
+        $baseModel = ltrim((string) (config('admin-core.generator.base_model') ?: \Illuminate\Database\Eloquent\Model::class), '\\');
+
         $replace = [
+            '__AC_MODEL_BASE__' => class_basename($baseModel),
+            '__AC_MODEL_BASE_IMPORT__' => "use {$baseModel};",
             'DummyClasses' => $plural,
             'DummyClass' => $class,
             'dummyModels' => $snakePlural,
