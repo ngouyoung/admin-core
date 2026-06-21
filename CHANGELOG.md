@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.47.1
+
+- **Clearer drag-and-drop tree nesting.** On the shared `.ac-tree` / `.ac-menu-tree` style, nested levels now
+  indent with a connector line down the branch (so a child reads clearly as one level deeper), and the
+  collapse/expand toggle is larger + themed (the default was a tiny 25x20 glyph).
+
 ## v2.47.0
 
 - **`menu_source=database` is resilient on a fresh database.** The sidebar falls back to the config menu when

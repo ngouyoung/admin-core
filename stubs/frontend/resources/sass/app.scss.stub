@@ -419,6 +419,26 @@ ul.checktree {
     .ac-menu-meta { flex: 0 0 auto; }
     .ac-menu-actions { flex: 0 0 auto; display: inline-flex; gap: .35rem; }
     .dd-placeholder { background: color-mix(in srgb, var(--ac-accent) 10%, transparent); border-color: var(--ac-accent); }
+
+    // Make nesting obvious: indent each level a bit more and draw a connector line down the branch,
+    // so a child (e.g. a permission group nested under another) reads clearly as one level deeper.
+    .dd-list .dd-list {
+        margin-left: 1rem;
+        padding-left: 1rem;
+        border-left: 2px solid var(--ac-border);
+    }
+
+    // Bigger, clearer collapse/expand toggle (the default is a tiny 25×20 glyph).
+    .dd-item > button {
+        width: 1.75rem;
+        height: 1.75rem;
+        margin: .4rem .25rem;
+        font-size: 1.2rem;
+        border-radius: .4rem;
+        color: var(--ac-body-color);
+        &:hover { background: var(--ac-hover); }
+        &:before { line-height: 1.75rem; }
+    }
 }
 
 // Air Datepicker (date/datetime inputs) — map its --adp-* tokens onto the theme
