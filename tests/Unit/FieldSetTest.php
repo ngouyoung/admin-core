@@ -144,6 +144,32 @@ it('builds a foreign key with belongsTo + exists + eager load', function () {
     expect($f->eager())->toContain("'category'");
 });
 
+it('points a foreign key at an explicit target table (self-reference / tree)', function () {
+    // parent_id:foreign:categories on the categories table itself = a self-referencing tree.
+    $f = fs('parent_id:foreign:categories', 'categories');
+
+    // The FK targets the explicit table, never the inferred "parents".
+    expect($f->migrationColumns())
+        ->toContain("foreignId('parent_id')")
+        ->toContain("->constrained('categories')");
+    // Relation + validation resolve to Category, not a non-existent Parent model.
+    expect($f->relations())->toContain('belongsTo(\App\Models\Category::class)');
+    expect($f->storeRules())->toContain("'exists:categories,id'");
+    // A self-referencing factory must NOT recurse — it leaves the FK null.
+    expect($f->factoryDefinition())->toContain("'parent_id' => null,");
+});
+
+it('points a foreign key at an explicit target for a non-conventional column name', function () {
+    // author_id would infer "authors"; foreign:users points it at users instead.
+    $f = fs('author_id:foreign:users', 'posts');
+
+    expect($f->migrationColumns())->toContain("->constrained('users')");
+    expect($f->relations())->toContain('belongsTo(\App\Models\User::class)');
+    expect($f->storeRules())->toContain("'exists:users,id'");
+    // Not a self-reference here, so the factory still builds a related row.
+    expect($f->factoryDefinition())->toContain('\App\Models\User::factory()');
+});
+
 it('makes a belongsTo list column searchable and sortable by the related name', function () {
     $f = fs('category_id:foreign'); // table = products
 

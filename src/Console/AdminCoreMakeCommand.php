@@ -12,7 +12,7 @@ use Spatie\Permission\PermissionRegistrar;
 class AdminCoreMakeCommand extends Command
 {
     protected $signature = 'admin-core:make {name? : The resource name, e.g. Product}
-                            {--fields= : Field DSL, e.g. "name:string, price:decimal?, category_id:foreign"}
+                            {--fields= : Field DSL, e.g. "name:string, price:decimal?, category_id:foreign, parent_id:foreign:categories"}
                             {--list-fields : Print the field types + modifiers the --fields DSL accepts, then exit}
                             {--uuid : Use a UUID primary key (and UUID foreign keys)}
                             {--no-uuid : Force an auto-increment key even if config enables uuid}
@@ -661,7 +661,7 @@ PHP);
             'json' => 'structured data (JSON ↔ array)',
             'image' => 'uploaded image (stored path)',
             'file' => 'uploaded file (stored path)',
-            'foreign' => 'belongsTo another table (a *_id column)',
+            'foreign' => 'belongsTo another table (a *_id column). Self-ref/tree or odd name: foreign:table (parent_id:foreign:categories)',
             'belongsToMany' => 'many-to-many relation (aliases: m2m, manyToMany)',
         ];
     }

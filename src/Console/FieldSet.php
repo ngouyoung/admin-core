@@ -11,7 +11,9 @@ use Illuminate\Support\Str;
  *        category_id:foreign, avatar:image?, brochure:file?, tags:belongsToMany"
  *   - scalar   string text integer decimal boolean date datetime email
  *   - enum     values piped:  status:enum:draft|published|archived
- *   - foreign  column ending in _id:  category_id:foreign  (-> belongsTo)
+ *   - foreign  column ending in _id:  category_id:foreign  (-> belongsTo). Add an explicit
+ *              target table for a self-reference / tree or a non-conventional name:
+ *              parent_id:foreign:categories,  author_id:foreign:users
  *   - image    file upload, stored on the public disk, thumbnailed in the table
  *   - file     any file upload
  *   - belongsToMany (aliases manyToMany, m2m)  ->  pivot table + multi-select + sync
@@ -215,6 +217,15 @@ class FieldSet
                 $spec = 'enum';
             }
 
+            // Explicit FK target: `parent_id:foreign:categories` (self-reference / tree) or a column whose
+            // name doesn't match the table convention (`author_id:foreign:users`). Without the target the
+            // table is inferred from the column (parent_id -> parents), which breaks self-refs.
+            $foreignTable = null;
+            if (str_starts_with($spec, 'foreign:')) {
+                $foreignTable = trim(substr($spec, 8));
+                $spec = 'foreign';
+            }
+
             if (in_array($spec, ['manytomany', 'm2m'], true)) {
                 $spec = 'belongsToMany';
             }
@@ -241,7 +252,7 @@ class FieldSet
                 $this->assertEnumCases($name, $enum);
             }
 
-            $fields[] = $this->field($name, $type, $nullable, $unique, $enum, $writeOnce, $system, $index);
+            $fields[] = $this->field($name, $type, $nullable, $unique, $enum, $writeOnce, $system, $index, $foreignTable);
         }
 
         return $fields ?: [$this->field('name', 'string')];
@@ -282,7 +293,7 @@ class FieldSet
         }
     }
 
-    private function field(string $name, string $type, bool $nullable = false, bool $unique = false, array $enum = [], bool $writeOnce = false, bool $system = false, bool $index = false): array
+    private function field(string $name, string $type, bool $nullable = false, bool $unique = false, array $enum = [], bool $writeOnce = false, bool $system = false, bool $index = false, ?string $foreignTable = null): array
     {
         $f = compact('name', 'type', 'nullable', 'unique', 'enum', 'writeOnce', 'system', 'index');
 
@@ -301,8 +312,14 @@ class FieldSet
         if ($type === 'foreign') {
             $base = Str::beforeLast($name, '_id');
             $f['relation'] = Str::camel($base);
-            $f['relModel'] = Str::studly(Str::singular($base));
-            $f['relTable'] = Str::snake(Str::pluralStudly($base));
+            if ($foreignTable !== null && $foreignTable !== '') {
+                // explicit target: parent_id:foreign:categories (self-ref) or author_id:foreign:users
+                $f['relTable'] = Str::snake($foreignTable);
+                $f['relModel'] = Str::studly(Str::singular($f['relTable']));
+            } else {
+                $f['relModel'] = Str::studly(Str::singular($base));
+                $f['relTable'] = Str::snake(Str::pluralStudly($base));
+            }
         }
 
         if ($type === 'belongsToMany') {
@@ -382,7 +399,7 @@ class FieldSet
                 'time' => "\$table->time('{$col}')",
                 'json' => "\$table->json('{$col}')",
                 'image', 'file' => "\$table->string('{$col}')",
-                'foreign' => "\$table->foreignId('{$col}')" . ($n ? '->nullable()' : '') . '->constrained()' . ($n ? '->nullOnDelete()' : '->cascadeOnDelete()'),
+                'foreign' => "\$table->foreignId('{$col}')" . ($n ? '->nullable()' : '') . "->constrained('{$f['relTable']}')" . ($n ? '->nullOnDelete()' : '->cascadeOnDelete()'),
                 'auth' => "\$table->foreignId('{$col}')->nullable()->constrained('users')->nullOnDelete()", // set from auth()->id()
                 default => "\$table->string('{$col}')", // also covers 'sku' (a string, made nullable below as a system field)
             };
@@ -632,7 +649,7 @@ PHP;
                 $f['type'] === 'json' => "['key' => fake()->word()]",
                 $f['type'] === 'password' => "'password'", // hashed by the model's 'hashed' cast
                 $f['type'] === 'enum' => "fake()->randomElement(\\App\\Enums\\{$this->enumClass($f)}::cases())",
-                $f['type'] === 'foreign' => "\\App\\Models\\{$f['relModel']}::factory()",
+                $f['type'] === 'foreign' => $f['relTable'] === $this->table ? 'null' : "\\App\\Models\\{$f['relModel']}::factory()",
                 in_array($f['type'], ['image', 'file'], true) => 'null',
                 default => 'fake()->words(3, true)',
             };

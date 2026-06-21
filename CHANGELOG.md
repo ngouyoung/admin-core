@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.37.0
+
+- **Generator: self-referencing & explicit foreign-key targets.** The `--fields` DSL now accepts an explicit
+  target table on a `foreign` field — `parent_id:foreign:categories` — so you can scaffold a self-referencing
+  tree (category → parent category, threaded comments, org charts) or any FK whose column doesn't follow the
+  table convention (`author_id:foreign:users`). Previously the table was inferred from the column name
+  (`parent_id` → `parents`), which silently broke self-references. With an explicit target: the migration
+  emits `->constrained('<table>')`, the `belongsTo` relation + `exists:` rule + form select all resolve to the
+  right model, and a **self-referencing factory writes `null`** instead of `Model::factory()` so seeding and
+  tests don't recurse infinitely. Conventional `category_id:foreign` is unchanged.
+
 ## v2.36.3
 
 - **Docs + i18n polish.** `ARCHITECTURE.md` now documents the three intentional non-CRUD controllers (auth,
