@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.47.0
+
+- **`menu_source=database` is resilient on a fresh database.** The sidebar falls back to the config menu when
+  the `menu_items` table is empty (e.g. right after a `migrate:fresh`, before `admin-core:menu:import`), so it
+  is never blank; once the table has rows the database menu takes over. (Tip: call `admin-core:menu:import
+  --force` from `DatabaseSeeder` in database mode so `migrate:fresh --seed` repopulates the manager too.)
+- **Consistent drag-and-drop tree styling.** The Group Permissions tree now uses the same themed nestable
+  look as the Menu manager via a shared `.ac-tree` style — both drag-and-drop trees are identical.
+
 ## v2.46.0
 
 - **Bulk restore + bulk force-delete on the trash screen.** The trash list gained row checkboxes, a

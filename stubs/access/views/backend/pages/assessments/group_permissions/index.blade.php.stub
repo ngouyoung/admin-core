@@ -20,7 +20,7 @@
                     <div class="col-md-6">
                         <div class="card"><div class="card-body">
                             <div class="cf nestable-lists">
-                                <div class="dd @cannot('sort-group-permission') nestable-disable @endcannot" id="nestable">
+                                <div class="dd ac-tree @cannot('sort-group-permission') nestable-disable @endcannot" id="nestable">
                                     <ol class="dd-list">
                                         @foreach($array as $group)
                                             <li class="dd-item" data-id="{{ $group->id }}">

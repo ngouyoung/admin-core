@@ -402,9 +402,9 @@ ul.checktree {
     }
 }
 
-// Menu manager (database-driven sidebar, /admin/menu) — lay out each nestable row
-// as: grip · icon+label · meta · actions, themed to match the panel.
-.ac-menu-tree {
+// Themed nestable tree, shared by every drag-and-drop tree (the Menu manager and the Group
+// Permissions tree) so they look identical. `.ac-menu-tree` adds the menu-row layout on top.
+.ac-menu-tree, .ac-tree {
     max-width: 760px;
     .dd-handle {
         display: flex; align-items: center; gap: .55rem;

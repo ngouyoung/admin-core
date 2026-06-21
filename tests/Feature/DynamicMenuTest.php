@@ -93,6 +93,16 @@ it('filters the database menu by route existence (Sidebar::database)', function 
     expect(collect(Sidebar::database())->pluck('label')->all())->toBe(['Widgets']);
 });
 
+it('falls back to the config menu when the table is empty (e.g. right after migrate:fresh)', function () {
+    config()->set('admin-core.menu', [
+        ['label' => 'Widgets', 'route' => 'admin.widgets.index', 'sort' => 1],
+    ]);
+
+    expect(MenuItem::tree())->toBe([]); // empty database menu (no rows yet)
+    // …so the sidebar shows the config menu instead of a blank bar, until menu:import / customization.
+    expect(collect(Sidebar::database())->pluck('label')->all())->toBe(['Widgets']);
+});
+
 it('falls back to an empty tree when the table is absent', function () {
     Schema::dropIfExists('menu_items');
 

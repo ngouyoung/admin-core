@@ -45,7 +45,15 @@ class Sidebar
      */
     public static function database(?string $guard = null): array
     {
-        return self::items(\Ngos\AdminCore\Models\MenuItem::tree(), $guard);
+        $tree = \Ngos\AdminCore\Models\MenuItem::tree();
+
+        // Empty table (e.g. right after a migrate:fresh, before admin-core:menu:import) — fall back to the
+        // config menu so the sidebar is never blank. As soon as menu_items has rows, the database menu wins.
+        if (blank($tree)) {
+            return self::items(config('admin-core.menu', []), $guard);
+        }
+
+        return self::items($tree, $guard);
     }
 
     /** @param array<int, array<string, mixed>> $items */
