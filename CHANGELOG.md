@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.39.1
+
+- **Fix: `admin-core:make` skipped the sidebar menu entry when the resource's route appeared in the config
+  docblock example.** The shipped config has a commented example (`['route' => 'admin.products.index', …]`),
+  and the menu-append idempotency check used a literal `str_contains`, so generating `Product` (or any
+  resource whose route matched the example) silently got no menu link. The check now strips block comments
+  first, so genuine entries are always added.
+
 ## v2.39.0
 
 - **Reusable form-control components.** Added the atomic controls that were the gap in the component set

@@ -463,7 +463,11 @@ PHP);
         if (File::exists($config)) {
             $contents = File::get($config);
             if (preg_match($markerRe, $contents)) {
-                if (str_contains($contents, "'{$route}'")) {
+                // Idempotency check ignores block comments — the config docblock shows an example
+                // entry (['route' => 'admin.products.index', …]), and a literal str_contains would
+                // see that and wrongly skip a real "Product" resource. Strip /* … */ first.
+                $codeOnly = preg_replace('/\/\*.*?\*\//s', '', $contents);
+                if (str_contains($codeOnly, "'{$route}'")) {
                     return; // already in the menu — idempotent
                 }
                 $urlPrefix = rtrim($routeNs, '.');
