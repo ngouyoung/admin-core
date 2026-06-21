@@ -1,18 +1,20 @@
 <header class="ac-header">
-    <button class="ac-burger" data-ac-toggle="sidebar" type="button" aria-label="Toggle sidebar">
+    <button class="ac-burger" data-ac-toggle="sidebar" type="button" aria-label="{{ __('admin-core::admin-core.nav.toggle_sidebar') }}">
         <i class="bi bi-list"></i>
     </button>
 
     <div class="ac-header-actions">
-        <a href="#" class="ac-icon-btn" id="theme-toggle" title="Toggle theme" role="button">
+        <a href="#" class="ac-icon-btn" id="theme-toggle" title="{{ __('admin-core::admin-core.nav.toggle_theme') }}" role="button">
             <i class="bi bi-moon-stars"></i>
         </a>
-        <a href="#" class="ac-icon-btn" data-ac-toggle="customize" title="Customize" role="button">
+        <a href="#" class="ac-icon-btn" data-ac-toggle="customize" title="{{ __('admin-core::admin-core.nav.customize') }}" role="button">
             <i class="bi bi-palette"></i>
         </a>
-        <a href="#" class="ac-icon-btn d-none d-sm-grid" data-ac-toggle="fullscreen" title="Fullscreen" role="button">
+        <a href="#" class="ac-icon-btn d-none d-sm-grid" data-ac-toggle="fullscreen" title="{{ __('admin-core::admin-core.nav.fullscreen') }}" role="button">
             <i class="bi bi-arrows-fullscreen"></i>
         </a>
+
+        <x-admin-core::language-switcher />
 
         <x-admin-core::notifications-bell />
 
@@ -25,11 +27,11 @@
             </a>
             <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" style="border-radius:1rem">
                 <h6 class="dropdown-header text-capitalize">{{ auth()->user()->name }}</h6>
-                <a class="dropdown-item" href="{{ route('admin.profile.index') }}"><i class="bi bi-person me-2"></i> Profile</a>
+                <a class="dropdown-item" href="{{ route('admin.profile.index') }}"><i class="bi bi-person me-2"></i> {{ __('admin-core::admin-core.nav.profile') }}</a>
                 <div class="dropdown-divider"></div>
                 <a class="dropdown-item text-danger" href="{{ route('logout') }}"
                    onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-                    <i class="bi bi-box-arrow-right me-2"></i> Logout
+                    <i class="bi bi-box-arrow-right me-2"></i> {{ __('admin-core::admin-core.nav.logout') }}
                 </a>
                 <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">@csrf</form>
             </div>

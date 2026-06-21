@@ -1,8 +1,8 @@
 <tr>
     <th style="width:48px"></th>
-    <th>Name</th>
-    <th>Email</th>
-    <th>Roles</th>
-    <th>Permissions</th>
-    <th>Actions</th>
+    <th>{{ __('admin-core::admin-core.access.name') }}</th>
+    <th>{{ __('admin-core::admin-core.access.email') }}</th>
+    <th>{{ __('admin-core::admin-core.access.roles') }}</th>
+    <th>{{ __('admin-core::admin-core.access.permissions') }}</th>
+    <th>{{ __('admin-core::admin-core.actions.actions') }}</th>
 </tr>

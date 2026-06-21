@@ -467,10 +467,10 @@ class AdminCoreFieldCommand extends Command
         }
 
         $contents = File::get($path);
-        // Anchor on the generated "Created" row so the new fields land with the
-        // others, above the timestamps (mirrors thead anchoring on <th>Actions</th>).
+        // Anchor on the generated timestamps row (the fixed `width:220px` <th>, whatever its
+        // label — it's localized via __()) so the new fields land with the others, above it.
         $patched = preg_replace(
-            '/(\n[ \t]*<tr>\s*<th style="width:220px">Created<\/th>)/',
+            '/(\n[ \t]*<tr>\s*<th style="width:220px">.*?<\/th>)/',
             "\n{$rows}$1",
             $contents,
             1,

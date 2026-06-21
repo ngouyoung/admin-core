@@ -68,7 +68,7 @@
         // 3. Confirm deletes.
         document.querySelectorAll('.ac-menu-delete').forEach(function (f) {
             f.addEventListener('submit', function (e) {
-                if (! window.confirm('Delete this menu item? Any children move up a level.')) { e.preventDefault(); }
+                if (! window.confirm('{{ __('admin-core::admin-core.confirm.delete_menu_item') }}')) { e.preventDefault(); }
             });
         });
     });

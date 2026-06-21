@@ -1,9 +1,9 @@
 @extends('backend.layouts.app')
 
-@section('title', 'Settings')
+@section('title', __('admin-core::admin-core.access.settings'))
 
 @section('breadcrumb')
-    <div class="row"><div class="col-sm-6"><h3 class="mb-0">Settings</h3></div></div>
+    <div class="row"><div class="col-sm-6"><h3 class="mb-0">{{ __('admin-core::admin-core.access.settings') }}</h3></div></div>
 @endsection
 
 @section('contents')
@@ -29,7 +29,7 @@
                                         <input type="file" name="{{ $name }}" class="form-control"
                                                @if ($setting->type === 'image') accept="image/*" @endif>
                                         @if ($setting->value)
-                                            <small class="text-muted">Current: {{ $setting->value }} — choose a file to replace it.</small>
+                                            <small class="text-muted">{{ __('admin-core::admin-core.access.current_file') }} {{ $setting->value }} {{ __('admin-core::admin-core.access.replace_file_hint') }}</small>
                                         @endif
                                         @break
 
@@ -61,8 +61,8 @@
                 </div>
             </div>
         @empty
-            <div class="alert alert-info">No settings yet — seed some with <code>Setting::set('key', 'value')</code>.</div>
+            <div class="alert alert-info">{{ __('admin-core::admin-core.access.settings_empty') }} <code>Setting::set('key', 'value')</code>.</div>
         @endforelse
-        <button class="btn btn-primary">Save settings</button>
+        <button class="btn btn-primary">{{ __('admin-core::admin-core.access.save_settings') }}</button>
     </form>
 @endsection

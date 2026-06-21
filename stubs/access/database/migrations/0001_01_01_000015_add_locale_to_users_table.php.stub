@@ -1,0 +1,33 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+// Durable per-user UI language for admin-core's SetLocale middleware. Without this column the language
+// preference is session-only; with it, each user's choice persists across logins/devices. Guarded so it
+// is safe to (re)run on an app that may already have the column.
+return new class extends Migration
+{
+    public function up(): void
+    {
+        if (Schema::hasColumn('users', 'locale')) {
+            return;
+        }
+
+        Schema::table('users', function (Blueprint $table) {
+            $table->string('locale', 8)->nullable()->after('email');
+        });
+    }
+
+    public function down(): void
+    {
+        if (! Schema::hasColumn('users', 'locale')) {
+            return;
+        }
+
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('locale');
+        });
+    }
+};

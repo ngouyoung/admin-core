@@ -166,6 +166,52 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Translation & multi-language
+    |--------------------------------------------------------------------------
+    | Two features, both driven by middleware (no public translate endpoint):
+    |
+    |  • Per-user UI language — SetLocale middleware picks the active language from
+    |    the signed-in user's `locale` (when a `users.locale` column exists), else
+    |    the session, else `default`. Users switch via a link `?setlang=km`, which
+    |    the same middleware persists. So one admin runs in English, another in
+    |    Khmer, each remembered per user.
+    |
+    |  • Content auto-translate — AutoTranslate middleware fills empty per-locale
+    |    fields on save (e.g. you type a product name in Khmer, English/Thai/… are
+    |    filled in for you). It never overwrites what you typed, and runs INSIDE the
+    |    authenticated, CSRF-protected form submit — no extra endpoint to secure.
+    |
+    | locales : every language the admin offers — add as many as you like. The key
+    |           is the ISO code used by Laravel + the translator (en, km, th, vi, zh…).
+    | driver  : which translation backend to use. `mymemory` is free + needs no key.
+    |           `libretranslate` (self-host) keeps data on your own servers (private).
+    |           `null` disables auto-translate (UI language still works).
+    | max_length / rate_limit / timeout : safety limits for outbound translate calls.
+    | API keys live here (from env), server-side only — never exposed to the browser.
+    */
+    'translation' => [
+        'enabled' => env('ADMIN_CORE_TRANSLATION', true),
+        'driver' => env('ADMIN_CORE_TRANSLATOR', 'mymemory'), // mymemory | libretranslate | null
+        'default' => env('ADMIN_CORE_LOCALE', 'en'),
+        'locales' => [
+            'en' => 'English',
+            'km' => 'ខ្មែរ',
+            // 'th' => 'ไทย', 'vi' => 'Tiếng Việt', 'zh' => '中文', 'fr' => 'Français',
+        ],
+        'max_length' => 5000,    // reject translate input longer than this
+        'rate_limit' => 60,      // max outbound translate calls per request (guards a runaway save)
+        'timeout' => 8,          // seconds per provider call
+        'mymemory' => [
+            'email' => env('MYMEMORY_EMAIL'), // optional — raises the free daily quota
+        ],
+        'libretranslate' => [
+            'url' => env('LIBRETRANSLATE_URL', 'https://libretranslate.com'),
+            'key' => env('LIBRETRANSLATE_KEY'),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Error log retention (--access)
     |--------------------------------------------------------------------------
     | Captured exceptions older than this many days are pruned. The package
@@ -209,6 +255,14 @@ return [
     | `uuid` column used in URLs/APIs (non-enumerable). Override per-resource with
     | the --uuid / --no-uuid flags.
     |
+    | soft_deletes: when true, every generated resource gets a `deleted_at` column,
+    | the SoftDeletes trait + a trash/restore screen. Override per-resource with the
+    | --soft-deletes / --no-soft-deletes flags (use --no-soft-deletes for high-churn
+    | tables like sale lines or ledger rows that should hard-delete).
+    |
+    | audit: when true, generated models get the LogsActivity trait (writes
+    | created/updated/deleted to the activity log). Override with --audit.
+    |
     | base_model: the class generated models extend. Default is Eloquent's Model.
     | If many of your models share behavior, point this at your own base, e.g.
     | App\Models\BaseModel that `use`s the shared traits/casts — then every
@@ -217,6 +271,7 @@ return [
     */
     'generator' => [
         'uuid' => false,
+        'soft_deletes' => false,
         'audit' => false,
         'base_model' => \Illuminate\Database\Eloquent\Model::class,
     ],

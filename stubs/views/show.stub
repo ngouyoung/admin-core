@@ -6,11 +6,11 @@
     <x-admin-core::page-header title="DummyClass" parent="DummyClasses" :parent-url="route('__AC_RNS__dummyModels.index')">
         <x-slot:actions>
             <a href="{{ route('__AC_RNS__dummyModels.index') }}" class="{{ config('class.button.back') }}">
-                <i class="{{ config('class.icon.back') }}"></i> Back
+                <i class="{{ config('class.icon.back') }}"></i> {{ __('admin-core::admin-core.actions.back') }}
             </a>
             @can('edit-dummy-model')
                 <a href="{{ route('__AC_RNS__dummyModels.edit', $object->getRouteKey()) }}" class="{{ config('class.button.edit') }}">
-                    <i class="{{ config('class.icon.edit') }}"></i> Edit
+                    <i class="{{ config('class.icon.edit') }}"></i> {{ __('admin-core::admin-core.actions.edit') }}
                 </a>
             @endcan
         </x-slot:actions>
@@ -21,7 +21,7 @@
             <tbody>
 __AC_SHOW__
             <tr>
-                <th style="width:220px">Created</th>
+                <th style="width:220px">{{ __('admin-core::admin-core.labels.created') }}</th>
                 <td>{{ $object->created_at }}</td>
             </tr>
             </tbody>

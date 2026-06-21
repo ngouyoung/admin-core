@@ -10,7 +10,7 @@
             @csrf
             @method('PUT')
             @include('backend.pages.dummyModels.partials.form')
-            <x-admin-core::form-actions submit="Update" :submit-class="config('class.button.update')" :cancel="route('__AC_RNS__dummyModels.index')" />
+            <x-admin-core::form-actions :submit="__('admin-core::admin-core.actions.update')" :submit-class="config('class.button.update')" :cancel="route('__AC_RNS__dummyModels.index')" />
         </form>
     </x-admin-core::card>
 @endsection

@@ -1,20 +1,20 @@
 @extends('backend.layouts.app')
 
-@section('title', 'Permissions')
+@section('title', __('admin-core::admin-core.access.permissions_title'))
 
 @section('contents')
-    <x-admin-core::page-header title="Permissions" description="All permissions available to assign to roles." />
+    <x-admin-core::page-header :title="__('admin-core::admin-core.access.permissions_title')" :description="__('admin-core::admin-core.access.permissions_desc')" />
 
     <div class="card">
         <div class="card-body">
-            <p class="text-muted">Permissions are generated automatically by <code>php artisan admin-core:make</code>.</p>
+            <p class="text-muted">{{ __('admin-core::admin-core.access.permissions_note') }} <code>php artisan admin-core:make</code>.</p>
             <table class="{{ config('class.table') }}" id="permissions_table">
                 <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Group</th>
-                    <th>Guard</th>
-                    <th>Roles</th>
+                    <th>{{ __('admin-core::admin-core.access.name') }}</th>
+                    <th>{{ __('admin-core::admin-core.access.group') }}</th>
+                    <th>{{ __('admin-core::admin-core.access.guard') }}</th>
+                    <th>{{ __('admin-core::admin-core.access.roles') }}</th>
                 </tr>
                 </thead>
             </table>

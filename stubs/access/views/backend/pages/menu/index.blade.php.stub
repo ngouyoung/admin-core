@@ -1,14 +1,14 @@
 @extends('backend.layouts.app')
 
-@section('title', 'Menu')
+@section('title', __('admin-core::admin-core.access.menu'))
 
 @section('contents')
-    <x-admin-core::page-header title="Menu"
-        description="Build the sidebar — drag a row to reorder, drag onto another to nest.">
+    <x-admin-core::page-header :title="__('admin-core::admin-core.access.menu')"
+        :description="__('admin-core::admin-core.access.menu_desc')">
         <x-slot:actions>
             <button type="button" class="btn btn-primary btn-sm" id="menu-add"
                 data-bs-toggle="offcanvas" data-bs-target="#menu-form">
-                <i class="bi bi-plus-lg"></i> Add item
+                <i class="bi bi-plus-lg"></i> {{ __('admin-core::admin-core.access.add_item') }}
             </button>
         </x-slot:actions>
     </x-admin-core::page-header>
@@ -23,7 +23,7 @@
 
     <x-admin-core::card>
         @if ($roots->isEmpty())
-            <x-admin-core::empty-state icon="bi-list-nested" title="No menu items yet"
+            <x-admin-core::empty-state icon="bi-list-nested" :title="__('admin-core::admin-core.access.no_menu_items')"
                 message="Click “Add item”, or run php artisan admin-core:menu:import to pull in your config menu." />
         @else
             <div class="dd ac-menu-tree" id="menu-tree">

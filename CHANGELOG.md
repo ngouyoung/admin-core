@@ -2,6 +2,48 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.36.0
+
+- **Global soft deletes — opt-in default.** New `config('admin-core.generator.soft_deletes')` (default
+  `false`): when on, **every** `admin-core:make` resource gets the `SoftDeletes` trait + `deleted_at`
+  column + the trash/restore screen, no flag needed — mirroring `generator.uuid` / `generator.audit`.
+  Override per-resource with the new **`--no-soft-deletes`** flag (use it for high-churn tables like sale
+  lines or ledger rows that should hard-delete). The existing `--soft-deletes` flag still forces it on.
+  Hard delete is unchanged: the trash screen's **Delete permanently** is a true `forceDelete()`, and
+  resources generated without soft deletes hard-delete on the normal delete.
+- **Translation & multi-language — middleware-based, no public endpoint.** Two features, both driven by
+  middleware that auto-registers on the `web` group (works in already-installed apps, no route edits):
+  - **Per-user UI language.** `SetLocale` middleware applies each user's language with `App::setLocale()`,
+    so one admin runs in English while another runs in Khmer. Switch with a plain `?setlang=km` link
+    (only accepts a configured locale) — the middleware persists it to the signed-in user's `locale`
+    column (a `users.locale` migration now ships with `--access`, so per-user language is durable across
+    devices out of the box; without the column it falls back to the session). Ships
+    `<x-admin-core::language-switcher>` for the topbar and starter `lang/en` + `lang/km` files
+    (`__('admin-core::admin-core.*')`, publishable via `--tag=admin-core-lang`).
+  - **Content auto-translate (bidirectional, multi-language).** `AutoTranslate` middleware fills empty
+    per-locale fields **on save** — type a product name in Khmer and English/Thai/… are filled in for you
+    (any configured locale pair, either direction). It runs INSIDE the authenticated, CSRF-protected form
+    submit, never overwrites what you typed, and caps outbound calls per request. Use the
+    `<x-admin-core::translatable-input name="name" />` component (renders one input per locale + the marker).
+  - **Driver-based translator** (`config('admin-core.translation.driver')`): **MyMemory** (free, no API key)
+    by default, **LibreTranslate** (point at a self-hosted instance to keep data on your servers), or `null`
+    to disable auto-translate (UI language still works). Drivers are **fail-safe** — a provider outage
+    returns the original text so a save never breaks. API keys live server-side in `.env`, never exposed.
+  - **`php artisan admin-core:translate <code>`** — auto-generate a UI language file for a new locale by
+    machine-translating the English source through the driver (writes `lang/vendor/admin-core/<code>/admin-core.php`;
+    keeps existing translations unless `--force`). So adding a language is: add it to `locales`, run the command, review.
+  - **Localized UI strings.** The shared components (form-actions, import-modal, notifications-bell), the
+    `WebController` flash messages, the **chrome stubs** (login page, top nav, sidebar, footer), the
+    **generated resource views** (index/create/edit/show/trash), and the **access screens**
+    (users, roles, permissions, settings, profile, menu manager) now resolve through
+    `__('admin-core::admin-core.*')`, as do the **JS dialogs** (SweetAlert delete confirms + toastr toasts,
+    with client-side `:count` interpolation) — English output is byte-identical, so they all switch language
+    with the user's locale. (Component/controller strings are live immediately; stubs apply to new installs —
+    re-publish to update an existing app.) The only text left in English is a handful of technical hint
+    lines that embed code snippets.
+  - New `config('admin-core.translation')` block (multi-language `locales` map, `driver`, `default`,
+    `max_length`/`rate_limit`/`timeout` safety limits). 244 tests (drivers via mocked HTTP + both middlewares + command).
+
 ## v2.34.0
 
 - **Realtime (live) notifications — opt-in.** The in-app bell can now update **live** (badge bumps + a toast

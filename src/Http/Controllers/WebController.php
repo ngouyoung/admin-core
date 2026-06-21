@@ -61,10 +61,10 @@ abstract class WebController extends BaseController
     protected function message(string $action): string
     {
         return match ($action) {
-            'created' => 'Created successfully.',
-            'updated' => 'Updated successfully.',
-            'deleted' => 'Deleted successfully.',
-            'restored' => 'Restored successfully.',
+            'created' => __('admin-core::admin-core.messages.created'),
+            'updated' => __('admin-core::admin-core.messages.updated'),
+            'deleted' => __('admin-core::admin-core.messages.deleted'),
+            'restored' => __('admin-core::admin-core.messages.restored'),
             default => 'Done.',
         };
     }

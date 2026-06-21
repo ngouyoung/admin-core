@@ -8,7 +8,7 @@
         <div class="col-sm-6">
             <ol class="breadcrumb float-sm-end">
                 <li class="breadcrumb-item"><a href="{{ route('__AC_RNS__dummyModels.index') }}">DummyClasses</a></li>
-                <li class="breadcrumb-item active">Trash</li>
+                <li class="breadcrumb-item active">{{ __('admin-core::admin-core.nav.trash') }}</li>
             </ol>
         </div>
     </div>
@@ -18,13 +18,13 @@
     <div class="card">
         <div class="card-header">
             <a href="{{ route('__AC_RNS__dummyModels.index') }}" class="{{ config('class.button.back') }}">
-                <i class="{{ config('class.icon.back') }}"></i> Back
+                <i class="{{ config('class.icon.back') }}"></i> {{ __('admin-core::admin-core.actions.back') }}
             </a>
         </div>
         <div class="card-body">
             <table class="{{ config('class.table') }}">
                 <thead>
-                <tr><th>Record</th><th>Deleted</th><th>Actions</th></tr>
+                <tr><th>{{ __('admin-core::admin-core.labels.record') }}</th><th>{{ __('admin-core::admin-core.labels.deleted') }}</th><th>{{ __('admin-core::admin-core.actions.actions') }}</th></tr>
                 </thead>
                 <tbody>
                 @forelse ($items as $item)
@@ -34,21 +34,21 @@
                         <td>
                             <form action="{{ route('__AC_RNS__dummyModels.restore', $item->id) }}" method="POST" class="d-inline">
                                 @csrf @method('PUT')
-                                <button class="btn btn-sm btn-success" data-bs-toggle="tooltip" title="Restore">
+                                <button class="btn btn-sm btn-success" data-bs-toggle="tooltip" title="{{ __('admin-core::admin-core.actions.restore') }}">
                                     <i class="bi bi-arrow-counterclockwise"></i>
                                 </button>
                             </form>
                             <form action="{{ route('__AC_RNS__dummyModels.forceDelete', $item->id) }}" method="POST"
-                                  class="d-inline" onsubmit="return confirm('Permanently delete this record?')">
+                                  class="d-inline" onsubmit="return confirm('{{ __('admin-core::admin-core.messages.confirm_force_delete') }}')">
                                 @csrf @method('DELETE')
-                                <button class="{{ config('class.button.delete') }}" data-bs-toggle="tooltip" title="Delete permanently">
+                                <button class="{{ config('class.button.delete') }}" data-bs-toggle="tooltip" title="{{ __('admin-core::admin-core.actions.delete_permanently') }}">
                                     <i class="{{ config('class.icon.delete') }}"></i>
                                 </button>
                             </form>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="3" class="text-center text-muted">Trash is empty.</td></tr>
+                    <tr><td colspan="3" class="text-center text-muted">{{ __('admin-core::admin-core.messages.trash_empty') }}</td></tr>
                 @endforelse
                 </tbody>
             </table>

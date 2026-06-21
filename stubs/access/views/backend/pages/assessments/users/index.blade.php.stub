@@ -1,13 +1,13 @@
 @extends('backend.layouts.app')
 
-@section('title', 'Users')
+@section('title', __('admin-core::admin-core.access.users'))
 
 @section('contents')
-    <x-admin-core::page-header title="Users" description="Manage user accounts and their access.">
+    <x-admin-core::page-header :title="__('admin-core::admin-core.access.users')" :description="__('admin-core::admin-core.access.users_desc')">
         <x-slot:actions>
             @can('create-user')
                 <a href="{{ route('admin.assessments.users.create') }}" class="{{ config('class.button.create') }}">
-                    <i class="{{ config('class.icon.create') }}"></i> Add New
+                    <i class="{{ config('class.icon.create') }}"></i> {{ __('admin-core::admin-core.actions.add_new') }}
                 </a>
             @endcan
         </x-slot:actions>

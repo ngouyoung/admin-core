@@ -155,6 +155,31 @@ it('uses the hybrid key strategy with --uuid (bigint PK + public uuid + bigint F
         ->toContain('Ngos\AdminCore\Concerns\HasPublicUuid');
 });
 
+it('soft-deletes every resource when generator.soft_deletes is on, and --no-soft-deletes opts out', function () {
+    // Global default ON: a plain make gets soft deletes without any flag.
+    config()->set('admin-core.generator.soft_deletes', true);
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--migration' => true])
+        ->assertSuccessful();
+
+    expect(File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))
+        ->toContain('$table->softDeletes();');
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->toContain('use Illuminate\Database\Eloquent\SoftDeletes;')
+        ->toContain('SoftDeletes');
+
+    cleanupGizmo();
+
+    // Per-resource opt-out: --no-soft-deletes wins over the global default (for high-churn
+    // tables like sale lines / ledger rows that should hard-delete).
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--migration' => true, '--no-soft-deletes' => true])
+        ->assertSuccessful();
+
+    expect(File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))
+        ->not->toContain('$table->softDeletes();');
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->not->toContain('use Illuminate\Database\Eloquent\SoftDeletes;');
+});
+
 it('extends the configured base model (default Model, or a custom base)', function () {
     // Default: plain Eloquent Model.
     $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
@@ -394,10 +419,11 @@ it('gives create/edit/show a consistent page-header with a parent crumb', functi
     }
 
     // create/edit close the form with the reusable form-actions component (submit + cancel).
+    // Submit labels go through __() so they localize (English value is unchanged).
     expect(File::get(resource_path('views/backend/pages/gizmos/create.blade.php')))
-        ->toContain('<x-admin-core::form-actions submit="Create" :cancel="route(\'admin.gizmos.index\')" />');
+        ->toContain('<x-admin-core::form-actions :submit="__(\'admin-core::admin-core.actions.create\')" :cancel="route(\'admin.gizmos.index\')" />');
     expect(File::get(resource_path('views/backend/pages/gizmos/edit.blade.php')))
-        ->toContain('<x-admin-core::form-actions submit="Update"')
+        ->toContain('<x-admin-core::form-actions :submit="__(\'admin-core::admin-core.actions.update\')"')
         ->toContain(':submit-class="config(\'class.button.update\')"');
 
     // The legacy AdminLTE breadcrumb section is gone from show.

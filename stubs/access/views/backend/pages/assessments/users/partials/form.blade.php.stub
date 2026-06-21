@@ -1,6 +1,6 @@
 @php($selectedRoles = isset($object) ? $object->roles->pluck('id')->all() : [])
 <div class="row mb-3">
-    <label class="col-md-2 col-form-label text-md-end">Name</label>
+    <label class="col-md-2 col-form-label text-md-end">{{ __('admin-core::admin-core.access.name') }}</label>
     <div class="col-md-8">
         <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
                value="{{ old('name', $object->name ?? '') }}" required>
@@ -8,7 +8,7 @@
     </div>
 </div>
 <div class="row mb-3">
-    <label class="col-md-2 col-form-label text-md-end">Email</label>
+    <label class="col-md-2 col-form-label text-md-end">{{ __('admin-core::admin-core.access.email') }}</label>
     <div class="col-md-8">
         <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
                value="{{ old('email', $object->email ?? '') }}" required>
@@ -16,16 +16,16 @@
     </div>
 </div>
 <div class="row mb-3">
-    <label class="col-md-2 col-form-label text-md-end">Password</label>
+    <label class="col-md-2 col-form-label text-md-end">{{ __('admin-core::admin-core.access.password') }}</label>
     <div class="col-md-8">
         <input type="password" name="password" autocomplete="new-password" class="form-control @error('password') is-invalid @enderror"
                {{ isset($object) ? '' : 'required' }}>
-        @isset($object)<small class="text-muted">Leave blank to keep current.</small>@endisset
+        @isset($object)<small class="text-muted">{{ __('admin-core::admin-core.access.password_keep') }}</small>@endisset
         @error('password')<div class="invalid-feedback">{{ $message }}</div>@enderror
     </div>
 </div>
 <div class="row mb-3">
-    <label class="col-md-2 col-form-label text-md-end">Roles</label>
+    <label class="col-md-2 col-form-label text-md-end">{{ __('admin-core::admin-core.access.roles') }}</label>
     <div class="col-md-8 pt-2">
         @forelse ($roles as $role)
             <div class="form-check form-check-inline">
@@ -34,7 +34,7 @@
                 <label class="form-check-label text-capitalize" for="role-{{ $role->id }}">{{ $role->name }}</label>
             </div>
         @empty
-            <p class="text-muted mb-0">No roles yet — create one first.</p>
+            <p class="text-muted mb-0">{{ __('admin-core::admin-core.access.no_roles') }}</p>
         @endforelse
     </div>
 </div>

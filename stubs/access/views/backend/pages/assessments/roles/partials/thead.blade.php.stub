@@ -1,5 +1,5 @@
 <tr>
-    <th>Name</th>
-    <th>Permissions</th>
-    <th>Actions</th>
+    <th>{{ __('admin-core::admin-core.access.name') }}</th>
+    <th>{{ __('admin-core::admin-core.access.permissions') }}</th>
+    <th>{{ __('admin-core::admin-core.actions.actions') }}</th>
 </tr>

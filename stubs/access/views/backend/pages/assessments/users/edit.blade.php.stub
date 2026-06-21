@@ -1,17 +1,17 @@
 @extends('backend.layouts.app')
-@section('title', 'Edit User')
+@section('title', __('admin-core::admin-core.access.edit_user'))
 @section('breadcrumb')
-    <div class="row"><div class="col-sm-6"><h3 class="mb-0">Edit User</h3></div>
+    <div class="row"><div class="col-sm-6"><h3 class="mb-0">{{ __('admin-core::admin-core.access.edit_user') }}</h3></div>
         <div class="col-sm-6"><ol class="breadcrumb float-sm-end">
-            <li class="breadcrumb-item"><a href="{{ route('admin.assessments.users.index') }}">Users</a></li>
-            <li class="breadcrumb-item active">Edit</li></ol></div></div>
+            <li class="breadcrumb-item"><a href="{{ route('admin.assessments.users.index') }}">{{ __('admin-core::admin-core.access.users') }}</a></li>
+            <li class="breadcrumb-item active">{{ __('admin-core::admin-core.actions.edit') }}</li></ol></div></div>
 @endsection
 @section('contents')
     <x-admin-core::card>
         <form method="POST" action="{{ route('admin.assessments.users.update', $object->getRouteKey()) }}">
             @csrf @method('PUT')
             @include('backend.pages.assessments.users.partials.form')
-            <x-admin-core::form-actions submit="Update" :submit-class="config('class.button.update')" :cancel="route('admin.assessments.users.index')" />
+            <x-admin-core::form-actions :submit="__('admin-core::admin-core.actions.update')" :submit-class="config('class.button.update')" :cancel="route('admin.assessments.users.index')" />
         </form>
     </x-admin-core::card>
 @endsection

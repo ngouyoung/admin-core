@@ -25,10 +25,10 @@ __AC_COLS__
             const ids = $('.row-check:checked').map(function () { return this.value; }).get();
             if (!ids.length) return;
             Swal.fire({
-                title: 'Delete ' + ids.length + ' record(s)?',
-                text: 'You will not be able to recover them!',
+                title: '{{ __('admin-core::admin-core.confirm.delete_count') }}'.replace(':count', ids.length),
+                text: '{{ __('admin-core::admin-core.confirm.recover_many') }}',
                 icon: 'warning', showCancelButton: true,
-                confirmButtonText: 'Yes, delete them!', cancelButtonText: 'Cancel',
+                confirmButtonText: '{{ __('admin-core::admin-core.confirm.yes_delete_many') }}', cancelButtonText: '{{ __('admin-core::admin-core.actions.cancel') }}',
             }).then((result) => {
                 if (result.value) {
                     $.ajax({
@@ -38,7 +38,7 @@ __AC_COLS__
                             Table.ajax.reload(null, false);
                             $('#check-all').prop('checked', false);
                             refreshBulk();
-                            window.toastr.success('Deleted ' + ids.length + ' record(s)');
+                            window.toastr.success('{{ __('admin-core::admin-core.toast.deleted_count') }}'.replace(':count', ids.length));
                         },
                     });
                 }
@@ -50,17 +50,17 @@ __AC_COLS__
             e.preventDefault();
             const url = $(this).attr('data-remote');
             Swal.fire({
-                title: 'Are you sure?',
-                text: 'You will not be able to recover this record!',
+                title: '{{ __('admin-core::admin-core.confirm.title') }}',
+                text: '{{ __('admin-core::admin-core.confirm.recover_one') }}',
                 icon: 'warning', showCancelButton: true,
-                confirmButtonText: 'Yes, delete it!', cancelButtonText: 'No, keep it',
+                confirmButtonText: '{{ __('admin-core::admin-core.confirm.yes_delete') }}', cancelButtonText: '{{ __('admin-core::admin-core.confirm.no_keep') }}',
             }).then((result) => {
                 if (result.value) {
                     $.ajax({
                         type: 'DELETE', url: url,
                         success: function () {
                             Table.ajax.reload(null, false);
-                            window.toastr.success('Deleted');
+                            window.toastr.success('{{ __('admin-core::admin-core.toast.deleted') }}');
                         },
                     });
                 }

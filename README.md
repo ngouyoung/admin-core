@@ -320,7 +320,12 @@ php artisan admin-core:make Product --soft-deletes --migration --fields="name:st
 
 It adds the `SoftDeletes` trait + `deleted_at` column, a **Trash** button on the index, and a
 trash screen with **Restore** / **Delete permanently** (routes `trash` / `restore` / `forceDelete`,
-backed by `trashedQuery()` / `restore()` / `forceDelete()` on the base service).
+backed by `trashedQuery()` / `restore()` / `forceDelete()` on the base service). "Delete permanently"
+is a true **hard delete**; resources generated *without* soft deletes hard-delete on the normal delete.
+
+To make **every** generated resource soft-delete by default, set
+`'generator' => ['soft_deletes' => true]` in `config/admin-core.php` (override per-resource with
+`--no-soft-deletes` for high-churn tables like sale lines or ledger rows that should hard-delete).
 
 ### Generated tests (`--tests`)
 
@@ -604,6 +609,60 @@ because it needs a broadcaster + Laravel Echo + a queue worker:
 
 That's it: `$user->notify(new AdminNotification(...))` now lands live. The kit listens on the user's channel
 (`resources/js/realtime.js`) and updates the bell; the dropdown list itself refreshes on the next open/load.
+
+## Translation & multi-language
+
+Two features, both **middleware-based** (no public translate endpoint to secure) and **multi-language** —
+list every language you offer in `config('admin-core.translation.locales')`:
+
+```php
+'translation' => [
+    'driver'  => env('ADMIN_CORE_TRANSLATOR', 'mymemory'), // mymemory | libretranslate | null
+    'locales' => ['en' => 'English', 'km' => 'ខ្មែរ', 'th' => 'ไทย'], // add as many as you like
+    'default' => 'en',
+],
+```
+
+**1. Per-user UI language.** Each user gets their own language — one admin in English, another in Khmer.
+Drop the switcher in your topbar:
+
+```blade
+<x-admin-core::language-switcher />
+```
+
+Each item is a plain `?setlang=km` link the `SetLocale` middleware picks up, applies with `App::setLocale()`,
+and remembers — persisted to a `users.locale` column (a migration for it **ships with `--access`**, so per-user
+language is durable across devices out of the box; without the column it falls back to the session). The
+middleware auto-registers on the `web` group, so no route changes are needed. Use the shipped strings via
+`__('admin-core::admin-core.actions.save')`, etc. (publish/extend with `--tag=admin-core-lang`; for a no-access
+install, add the column yourself: `$table->string('locale', 8)->nullable();`).
+
+**2. Content auto-translate (bidirectional).** For multilingual *data* (e.g. a product name per language),
+render a translatable input:
+
+```blade
+<x-admin-core::translatable-input name="name" label="Name" :value="old('name', $product->name ?? [])" />
+```
+
+It shows one box per locale (`name[en]`, `name[km]`, …) plus a hidden marker. On **save**, the `AutoTranslate`
+middleware takes whichever language you filled and **fills the empty ones for you** — type Khmer, get English
+(and Thai, …); or type English, get the rest. It runs inside the authenticated, CSRF-protected submit, never
+overwrites what you typed, and caps outbound calls per request. (Store the values however you like — e.g. a
+JSON-cast attribute or a translatable package.)
+
+**Auto-generate a language file.** Instead of translating the UI strings by hand, machine-translate them:
+
+```bash
+php artisan admin-core:translate th        # writes lang/vendor/admin-core/th/admin-core.php via the driver
+php artisan admin-core:translate vi --force # re-translate everything (default: keep existing keys)
+```
+
+Then add the code to `translation.locales` and review the output (machine translation is a draft).
+
+**Drivers & privacy.** `mymemory` is free and needs no key. For privacy, point `libretranslate.url` at a
+self-hosted instance so text never leaves your servers. `null` disables auto-translate (UI language still
+works). All drivers are **fail-safe** — if the provider is down, the original text is kept, so a save never
+breaks. API keys live in `.env`, server-side only. Machine output is a *draft to review*, especially for Khmer.
 
 ## Lifecycle commands
 

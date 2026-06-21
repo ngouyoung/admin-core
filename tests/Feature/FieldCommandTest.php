@@ -83,7 +83,7 @@ it('adds new fields across migration, model, requests, views and factory', funct
     expect($show)
         ->toContain('$object->note')
         ->toContain('<x-admin-core::status :value="$object->status" />')              // enum rendered by the pill component
-        ->and(strpos($show, '$object->note'))->toBeLessThan(strpos($show, '>Created</th>')); // before timestamps
+        ->and(strpos($show, '$object->note'))->toBeLessThan(strpos($show, '$object->created_at')); // before timestamps
 
     // Form + factory + the backed enum class.
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))->toContain('name="status"');

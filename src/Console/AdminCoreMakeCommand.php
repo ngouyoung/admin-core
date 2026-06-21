@@ -17,6 +17,7 @@ class AdminCoreMakeCommand extends Command
                             {--uuid : Use a UUID primary key (and UUID foreign keys)}
                             {--no-uuid : Force an auto-increment key even if config enables uuid}
                             {--soft-deletes : Add soft deletes + a trash/restore screen}
+                            {--no-soft-deletes : Skip soft deletes even if config enables them}
                             {--audit : Log created/updated/deleted activity for this resource}
                             {--sortable : Add a drag-and-drop ordering column (sort) + reorder list}
                             {--migration : Also generate a create migration}
@@ -57,7 +58,9 @@ class AdminCoreMakeCommand extends Command
             ? false
             : ($this->option('uuid') || (bool) config('admin-core.generator.uuid', false));
 
-        $soft = (bool) $this->option('soft-deletes');
+        $soft = $this->option('no-soft-deletes')
+            ? false
+            : ($this->option('soft-deletes') || (bool) config('admin-core.generator.soft_deletes', false));
 
         $audit = $this->option('audit') || (bool) config('admin-core.generator.audit', false);
         $sortable = (bool) $this->option('sortable');

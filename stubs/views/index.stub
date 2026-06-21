@@ -7,7 +7,7 @@
         <x-slot:actions>
             @can('create-dummy-model')
                 <a href="{{ route('__AC_RNS__dummyModels.create') }}" class="{{ config('class.button.create') }}">
-                    <i class="{{ config('class.icon.create') }}"></i> Add New
+                    <i class="{{ config('class.icon.create') }}"></i> {{ __('admin-core::admin-core.actions.add_new') }}
                 </a>
             @endcan
         </x-slot:actions>
@@ -21,7 +21,7 @@ __AC_FILTER_TABS__    <x-admin-core::data-table id="dummyModels_table" thead="ba
             @endcan__AC_TRASH_LINK____AC_SORT_BUTTON__
             @can('delete-dummy-model')
                 <button id="bulk-delete" class="{{ config('class.button.delete') }} d-none ms-auto">
-                    <i class="{{ config('class.icon.delete') }}"></i> Delete selected (<span id="bulk-count">0</span>)
+                    <i class="{{ config('class.icon.delete') }}"></i> {{ __('admin-core::admin-core.actions.delete_selected') }} (<span id="bulk-count">0</span>)
                 </button>
             @endcan
         </x-slot:toolbar>

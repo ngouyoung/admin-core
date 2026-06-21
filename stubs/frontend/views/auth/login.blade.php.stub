@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Sign in | {{ setting('app_name', config('app.name')) }}</title>
+    <title>{{ __('admin-core::admin-core.auth.sign_in') }} | {{ setting('app_name', config('app.name')) }}</title>
     {{-- Load the built theme when available; don't crash on a fresh install before `npm run build`. --}}
     @if (file_exists(public_path('hot')) || file_exists(public_path('build/manifest.json')))
         @vite(['resources/js/app.js'])
@@ -20,7 +20,7 @@
                 {{ setting('app_name', config('app.name')) }}
             @endif
         </div>
-        <p class="text-center text-secondary mb-4">Sign in to your account</p>
+        <p class="text-center text-secondary mb-4">{{ __('admin-core::admin-core.auth.sign_in_subtitle') }}</p>
 
         @if ($errors->any())
             <div class="alert alert-danger py-2">{{ $errors->first() }}</div>
@@ -29,21 +29,21 @@
         <form method="POST" action="{{ route('login') }}">
             @csrf
             <div class="mb-3">
-                <label class="form-label">Email</label>
+                <label class="form-label">{{ __('admin-core::admin-core.auth.email') }}</label>
                 <input type="email" name="email" value="{{ old('email') }}" autocomplete="username"
                        class="form-control form-control-lg" placeholder="you@example.com" required autofocus>
             </div>
             <div class="mb-3">
-                <label class="form-label">Password</label>
+                <label class="form-label">{{ __('admin-core::admin-core.auth.password') }}</label>
                 <input type="password" name="password" autocomplete="current-password" class="form-control form-control-lg" placeholder="••••••••" required>
             </div>
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div class="form-check">
                     <input class="form-check-input" type="checkbox" name="remember" id="remember">
-                    <label class="form-check-label" for="remember">Remember me</label>
+                    <label class="form-check-label" for="remember">{{ __('admin-core::admin-core.auth.remember_me') }}</label>
                 </div>
             </div>
-            <button type="submit" class="btn btn-primary btn-lg w-100">Sign in</button>
+            <button type="submit" class="btn btn-primary btn-lg w-100">{{ __('admin-core::admin-core.auth.sign_in') }}</button>
         </form>
     </div>
 </div>

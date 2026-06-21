@@ -16,7 +16,7 @@
                  onerror="this.onerror=null;this.src='{{ $avatarFallback }}'" alt="avatar">
             <span class="ac-user-meta">
                 <span class="ac-user-name d-block">{{ $acUser->name }}</span>
-                <span class="ac-user-role">{{ method_exists($acUser, 'getRoleNames') ? ($acUser->getRoleNames()->first() ?? 'Member') : 'Member' }}</span>
+                <span class="ac-user-role">{{ method_exists($acUser, 'getRoleNames') ? ($acUser->getRoleNames()->first() ?? __('admin-core::admin-core.nav.member')) : __('admin-core::admin-core.nav.member') }}</span>
             </span>
         </a>
     @endauth

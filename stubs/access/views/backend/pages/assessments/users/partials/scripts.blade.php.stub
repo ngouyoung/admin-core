@@ -17,14 +17,14 @@
             e.preventDefault();
             const url = $(this).attr('data-remote');
             Swal.fire({
-                title: 'Are you sure?', text: 'You will not be able to recover this record!',
+                title: '{{ __('admin-core::admin-core.confirm.title') }}', text: '{{ __('admin-core::admin-core.confirm.recover_one') }}',
                 icon: 'warning', showCancelButton: true,
-                confirmButtonText: 'Yes, delete it!', cancelButtonText: 'No, keep it',
+                confirmButtonText: '{{ __('admin-core::admin-core.confirm.yes_delete') }}', cancelButtonText: '{{ __('admin-core::admin-core.confirm.no_keep') }}',
             }).then((result) => {
                 if (result.value) {
                     $.ajax({type: 'DELETE', url: url, success: function () {
                         Table.ajax.reload(null, false);
-                        window.toastr.success('Deleted');
+                        window.toastr.success('{{ __('admin-core::admin-core.toast.deleted') }}');
                     }});
                 }
             });

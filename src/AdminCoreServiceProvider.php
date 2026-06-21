@@ -12,9 +12,14 @@ use Ngos\AdminCore\Console\AdminCoreMenuImportCommand;
 use Ngos\AdminCore\Console\AdminCorePageCommand;
 use Ngos\AdminCore\Console\AdminCorePortalCommand;
 use Ngos\AdminCore\Console\AdminCoreReinstallCommand;
+use Ngos\AdminCore\Console\AdminCoreTranslateCommand;
 use Ngos\AdminCore\Console\AdminCoreUninstallCommand;
 use Ngos\AdminCore\Console\AdminCoreVersionCommand;
 use Ngos\AdminCore\Http\Controllers\NotificationController;
+use Ngos\AdminCore\Http\Middleware\AutoTranslate;
+use Ngos\AdminCore\Http\Middleware\SetLocale;
+use Ngos\AdminCore\Translation\TranslationManager;
+use Ngos\AdminCore\Translation\Translator;
 
 class AdminCoreServiceProvider extends ServiceProvider
 {
@@ -23,11 +28,18 @@ class AdminCoreServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__ . '/../config/admin-core.php', 'admin-core');
         $this->registerCrudMacro();
         $this->registerNotificationsMacro();
+
+        // The configured translation driver, resolved through the manager so
+        // config('admin-core.translation.driver') is the only switch.
+        $this->app->singleton(TranslationManager::class);
+        $this->app->bind(Translator::class, fn ($app) => $app->make(TranslationManager::class)->driver());
     }
 
     public function boot(): void
     {
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'admin-core');
+        $this->loadTranslationsFrom(__DIR__ . '/../lang', 'admin-core');
+        $this->registerLocalization();
         $this->registerErrorLogging();
         $this->registerErrorLogPruning();
 
@@ -40,6 +52,7 @@ class AdminCoreServiceProvider extends ServiceProvider
                 AdminCoreMenuImportCommand::class,
                 AdminCorePortalCommand::class,
                 AdminCoreReinstallCommand::class,
+                AdminCoreTranslateCommand::class,
                 AdminCoreUninstallCommand::class,
                 AdminCoreVersionCommand::class,
             ]);
@@ -55,7 +68,24 @@ class AdminCoreServiceProvider extends ServiceProvider
             $this->publishes([
                 __DIR__ . '/../resources/views' => resource_path('views/vendor/admin-core'),
             ], 'admin-core-views');
+
+            $this->publishes([
+                __DIR__ . '/../lang' => $this->app->langPath('vendor/admin-core'),
+            ], 'admin-core-lang');
         }
+    }
+
+    /**
+     * Register the localization middleware on the `web` group so it applies to every admin page with no
+     * route changes in the host (works in already-installed apps). SetLocale sets the per-user language;
+     * AutoTranslate fills empty per-locale fields on save — both no-op when not needed, so global is free.
+     */
+    protected function registerLocalization(): void
+    {
+        Route::aliasMiddleware('admin-core.locale', SetLocale::class);
+        Route::aliasMiddleware('admin-core.translate', AutoTranslate::class);
+        Route::pushMiddlewareToGroup('web', SetLocale::class);
+        Route::pushMiddlewareToGroup('web', AutoTranslate::class);
     }
 
     /**

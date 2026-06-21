@@ -75,8 +75,8 @@
                     success: function (data) {
                         if (data.status === "OK") {
                             refreshTable();
-                            window.toastr.success('Order updated');
-                        } else window.toastr.error('Something went wrong!');
+                            window.toastr.success('{{ __('admin-core::admin-core.toast.order_updated') }}');
+                        } else window.toastr.error('{{ __('admin-core::admin-core.toast.error') }}');
                     },
                     error: function (xhr, status, error) { window.toastr.error(error); }
                 });
@@ -86,9 +86,9 @@
                 e.preventDefault();
                 const url = $(this).attr('data-remote');
                 Swal.fire({
-                    title: 'Are you sure?', text: 'You will not be able to recover this record!',
+                    title: '{{ __('admin-core::admin-core.confirm.title') }}', text: '{{ __('admin-core::admin-core.confirm.recover_one') }}',
                     icon: 'warning', showCancelButton: true,
-                    confirmButtonText: 'Yes, delete it!', cancelButtonText: 'No, keep it'
+                    confirmButtonText: '{{ __('admin-core::admin-core.confirm.yes_delete') }}', cancelButtonText: '{{ __('admin-core::admin-core.confirm.no_keep') }}'
                 }).then((result) => {
                     if (result.value) {
                         $.ajax({type: "DELETE", url: url, success: function () {

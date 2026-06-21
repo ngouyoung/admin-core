@@ -14,7 +14,7 @@
     && method_exists($acUser, 'unreadNotifications'))
     @php($acUnread = $acUser->unreadNotifications)
     <div class="dropdown" data-ac-bell>
-        <a href="#" class="ac-icon-btn position-relative" data-bs-toggle="dropdown" role="button" title="Notifications">
+        <a href="#" class="ac-icon-btn position-relative" data-bs-toggle="dropdown" role="button" title="{{ __('admin-core::admin-core.notifications.title') }}">
             <i class="bi bi-bell"></i>
             @if ($acUnread->count())
                 <span class="badge rounded-pill text-bg-danger position-absolute top-0 start-100 translate-middle"
@@ -24,11 +24,11 @@
         <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-0"
              style="border-radius:1rem; min-width:320px; max-width:360px">
             <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
-                <h6 class="mb-0">Notifications</h6>
+                <h6 class="mb-0">{{ __('admin-core::admin-core.notifications.title') }}</h6>
                 @if ($acUnread->count())
                     <form action="{{ route('admin.notifications.readAll') }}" method="POST" class="m-0">
                         @csrf
-                        <button class="btn btn-link btn-sm p-0 text-decoration-none">Mark all read</button>
+                        <button class="btn btn-link btn-sm p-0 text-decoration-none">{{ __('admin-core::admin-core.notifications.mark_all_read') }}</button>
                     </form>
                 @endif
             </div>
@@ -46,10 +46,10 @@
                         </button>
                     </form>
                 @empty
-                    <div class="px-3 py-4 text-center text-muted small">You're all caught up.</div>
+                    <div class="px-3 py-4 text-center text-muted small">{{ __('admin-core::admin-core.notifications.empty') }}</div>
                 @endforelse
             </div>
-            <a href="{{ route('admin.notifications.index') }}" class="dropdown-item text-center py-2 small">See all</a>
+            <a href="{{ route('admin.notifications.index') }}" class="dropdown-item text-center py-2 small">{{ __('admin-core::admin-core.notifications.see_all') }}</a>
         </div>
     </div>
 @endif

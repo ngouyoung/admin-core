@@ -1,4 +1,4 @@
 <footer class="ac-footer">
-    <span>&copy; {{ date('Y') }} {{ setting('app_name', config('app.name')) }}. All rights reserved.</span>
+    <span>&copy; {{ date('Y') }} {{ setting('app_name', config('app.name')) }}. {{ __('admin-core::admin-core.footer.rights') }}</span>
     <span>Built with admin-core</span>
 </footer>

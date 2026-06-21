@@ -10,28 +10,28 @@
      the controller. --}}
 @props(['route', 'template' => null, 'title' => 'records', 'id' => 'importModal'])
 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#{{ $id }}">
-    <i class="bi bi-upload"></i> Import
+    <i class="bi bi-upload"></i> {{ __('admin-core::admin-core.actions.import') }}
 </button>
 <div class="modal fade" id="{{ $id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <form action="{{ $route }}" method="POST" enctype="multipart/form-data" class="modal-content">
             @csrf
             <div class="modal-header">
-                <h5 class="modal-title">Import {{ $title }}</h5>
+                <h5 class="modal-title">{{ __('admin-core::admin-core.actions.import') }} {{ $title }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
                 @if ($template)
-                    <p class="text-muted small mb-2">Not sure which columns to use?
-                        <a href="{{ $template }}"><i class="bi bi-download"></i> Download a blank template</a>,
-                        fill in the rows and upload it. (Same shape as Export; invalid rows are skipped and reported.)</p>
+                    <p class="text-muted small mb-2">{{ __('admin-core::admin-core.import.help_question') }}
+                        <a href="{{ $template }}"><i class="bi bi-download"></i> {{ __('admin-core::admin-core.import.download_template') }}</a>,
+                        {{ __('admin-core::admin-core.import.help_rest') }}</p>
                 @endif
                 <input type="file" name="file" accept=".csv,.txt" class="form-control @error('file') is-invalid @enderror" required>
                 @error('file')<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> Import</button>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">{{ __('admin-core::admin-core.actions.cancel') }}</button>
+                <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload"></i> {{ __('admin-core::admin-core.actions.import') }}</button>
             </div>
         </form>
     </div>
