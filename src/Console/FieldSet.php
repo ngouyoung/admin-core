@@ -883,6 +883,12 @@ PHP;
                     . "            \$this->merge(['{$f['name']}' => json_decode(\$this->{$f['name']}, true)]);\n"
                     . "        }";
             }
+            if ($f['type'] === 'richtext') {
+                // Sanitize WYSIWYG HTML on the way in (it's echoed raw on the show page).
+                $lines[] = "        if (is_string(\$this->{$f['name']})) {\n"
+                    . "            \$this->merge(['{$f['name']}' => \\Ngos\\AdminCore\\Support\\Html::clean(\$this->{$f['name']})]);\n"
+                    . "        }";
+            }
             if ($f['type'] === 'password' && $update) {
                 $lines[] = "        if (blank(\$this->{$f['name']})) {\n"
                     . "            \$this->request->remove('{$f['name']}');\n"

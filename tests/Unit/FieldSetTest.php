@@ -205,6 +205,8 @@ it('builds a richtext field (text column + CKEditor editor component + stripped 
     // List shows a plain-text preview; the show view renders the stored HTML.
     expect($f->getDataColumns())->toContain('strip_tags');
     expect($f->showRows())->toContain('{!! $object->body !!}');
+    // Stored HTML is sanitized on save (it's echoed raw on the show page).
+    expect($f->prepareBody(false))->toContain('Html::clean');
 });
 
 it('makes a belongsTo list column searchable and sortable by the related name', function () {

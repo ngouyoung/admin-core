@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.43.1
+
+- **Security hardening (follows up the v2.43.0 richtext feature; from a package audit).**
+  - The CKEditor CDN script now carries an SRI `integrity` hash + `crossorigin="anonymous"`, so a tampered
+    CDN is rejected by the browser; the component documents how to self-host for offline/air-gapped installs.
+  - Richtext is sanitized on save via the new `Ngos\AdminCore\Support\Html::clean()` (drops
+    `<script>`/`<style>`/`<iframe>`/`<object>`… elements, inline `on*` event handlers, and
+    `javascript:`/`data:` URLs) before it is stored and echoed raw on the show page — defense-in-depth
+    against stored XSS. For untrusted input, swap in a full HTML sanitizer (e.g. HTMLPurifier) there.
+  - **Portal login now throttles brute-force** (5 attempts per email+IP, then a short lockout), matching the
+    main admin login — generated portals previously shipped an unthrottled login endpoint.
+
 ## v2.43.0
 
 - **Rich-text editor: `richtext` field type + `<x-admin-core::editor>` component.** `--fields="body:richtext"`
