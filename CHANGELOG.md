@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.36.3
+
+- **Docs + i18n polish.** `ARCHITECTURE.md` now documents the three intentional non-CRUD controllers (auth,
+  notification, page) and the localization middleware (`SetLocale` / `AutoTranslate`). Localized the last
+  three hardcoded hint strings in the menu-manager form (icon / active-pattern / permission) — the admin UI
+  is now 100% translatable.
+
 ## v2.36.2
 
 - **Complete the dependency declarations** (full audit of `src/` vs `composer.json`). Added the remaining

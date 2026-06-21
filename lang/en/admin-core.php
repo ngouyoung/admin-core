@@ -148,6 +148,9 @@ return [
         'active_sidebar' => 'Active (shown in the sidebar)',
         'hidden' => 'hidden',
         'header' => 'header',
+        'icon_hint' => 'Browse names at icons.getbootstrap.com',
+        'match_hint' => 'A request()->is() pattern that marks the item “active”.',
+        'permission_hint' => 'Hidden unless the signed-in admin has this permission.',
     ],
 
     // JS dialogs (SweetAlert confirms + toastr toasts). :count is replaced client-side.

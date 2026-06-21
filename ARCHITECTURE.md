@@ -85,4 +85,17 @@ Everything generated is **thin** — the logic lives in the four base classes (`
 - **Override, don't fork**: stubs are publishable, views are publishable, `query()`/`BaseController` are
   override points.
 
+## Outside the CRUD skeleton
+
+Three controllers are intentionally **not** generated CRUD — they're flows, not managed resources:
+
+- **Auth** (`LoginController`) — login / logout.
+- **NotificationController** — acts on the *current user's* notifications (no managed table behind it).
+- **Page** (`admin-core:page`, in-app docs) — static / custom screens with no model.
+
+Cross-cutting middleware, auto-registered on the `web` group (no host route edits): **`SetLocale`** (per-user
+UI language; switch via `?setlang=xx`) and **`AutoTranslate`** (fills empty per-locale fields on save). For the
+API, **`AuthorizeApiPermission`** resolves a resource's permission on the *back-office* guard, so one permission
+set works for both web and API. See the README "Translation & multi-language" section for the localization layer.
+
 See `README.md` for usage and `UPGRADING.md` for per-version migration notes.
