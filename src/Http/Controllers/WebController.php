@@ -363,6 +363,32 @@ abstract class WebController extends BaseController
         return redirect()->route($this->routeName('trash'))->with('success', $this->message('deleted'));
     }
 
+    /** Restore every selected trashed row. */
+    public function bulkRestore(Request $request): JsonResponse
+    {
+        $ids = array_filter((array) $request->input('ids', []));
+        DB::transaction(function () use ($ids) {
+            foreach ($ids as $id) {
+                $this->service->restore($id);
+            }
+        });
+
+        return response()->json(['code' => 200, 'restored' => count($ids)]);
+    }
+
+    /** Permanently delete every selected trashed row. */
+    public function bulkForceDelete(Request $request): JsonResponse
+    {
+        $ids = array_filter((array) $request->input('ids', []));
+        DB::transaction(function () use ($ids) {
+            foreach ($ids as $id) {
+                $this->service->forceDelete($id);
+            }
+        });
+
+        return response()->json(['code' => 200, 'deleted' => count($ids)]);
+    }
+
     /** Persist a drag-and-drop reorder (resources generated with --sortable). */
     public function reorder(Request $request): JsonResponse
     {

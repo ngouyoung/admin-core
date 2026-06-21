@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.46.0
+
+- **Bulk restore + bulk force-delete on the trash screen.** The trash list gained row checkboxes, a
+  select-all, and a bulk action bar — restore or permanently delete the selected rows at once (force-delete
+  asks via SweetAlert), mirroring the list's bulk-delete. New `bulkRestore` / `bulkForceDelete` controller
+  methods + routes are generated for soft-delete resources.
+
 ## v2.45.0
 
 - **Global search (dependency-free, offline).** A topbar search box that LIKE-searches across the resources

@@ -16,19 +16,34 @@
 
 @section('contents')
     <div class="card">
-        <div class="card-header">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <a href="{{ route('__AC_RNS__dummyModels.index') }}" class="{{ config('class.button.back') }}">
                 <i class="{{ config('class.icon.back') }}"></i> {{ __('admin-core::admin-core.actions.back') }}
             </a>
+            <div id="bulk-actions" class="d-none">
+                <span class="me-2 text-muted small"><span id="bulk-count">0</span> {{ __('admin-core::admin-core.labels.selected') ?? 'selected' }}</span>
+                <button type="button" class="btn btn-sm btn-success" id="bulk-restore">
+                    <i class="bi bi-arrow-counterclockwise"></i> {{ __('admin-core::admin-core.actions.restore') }}
+                </button>
+                <button type="button" class="btn btn-sm btn-danger" id="bulk-force-delete">
+                    <i class="bi bi-trash"></i> {{ __('admin-core::admin-core.actions.delete_permanently') }}
+                </button>
+            </div>
         </div>
         <div class="card-body">
             <table class="{{ config('class.table') }}">
                 <thead>
-                <tr><th>{{ __('admin-core::admin-core.labels.record') }}</th><th>{{ __('admin-core::admin-core.labels.deleted') }}</th><th>{{ __('admin-core::admin-core.actions.actions') }}</th></tr>
+                <tr>
+                    <th style="width:1%"><input type="checkbox" id="check-all"></th>
+                    <th>{{ __('admin-core::admin-core.labels.record') }}</th>
+                    <th>{{ __('admin-core::admin-core.labels.deleted') }}</th>
+                    <th>{{ __('admin-core::admin-core.actions.actions') }}</th>
+                </tr>
                 </thead>
                 <tbody>
                 @forelse ($items as $item)
                     <tr>
+                        <td><input type="checkbox" class="row-check" value="{{ $item->id }}"></td>
                         <td class="text-capitalize">{{ $item->name ?? $item->id }}</td>
                         <td>{{ $item->deleted_at }}</td>
                         <td>
@@ -48,10 +63,46 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="3" class="text-center text-muted">{{ __('admin-core::admin-core.messages.trash_empty') }}</td></tr>
+                    <tr><td colspan="4" class="text-center text-muted">{{ __('admin-core::admin-core.messages.trash_empty') }}</td></tr>
                 @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var all = document.getElementById('check-all'),
+                bar = document.getElementById('bulk-actions'),
+                count = document.getElementById('bulk-count');
+            function rows() { return Array.prototype.slice.call(document.querySelectorAll('.row-check')); }
+            function selected() { return rows().filter(function (c) { return c.checked; }).map(function (c) { return c.value; }); }
+            function refresh() { var n = selected().length; count.textContent = n; bar.classList.toggle('d-none', n === 0); }
+            if (all) all.addEventListener('change', function () { rows().forEach(function (c) { c.checked = all.checked; }); refresh(); });
+            document.addEventListener('change', function (e) { if (e.target.classList.contains('row-check')) refresh(); });
+
+            function post(url) {
+                var ids = selected();
+                if (! ids.length) return;
+                fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: JSON.stringify({ ids: ids }),
+                }).then(function () { window.location.reload(); });
+            }
+            var rb = document.getElementById('bulk-restore');
+            if (rb) rb.addEventListener('click', function () { post('{{ route('__AC_RNS__dummyModels.bulkRestore') }}'); });
+            var fb = document.getElementById('bulk-force-delete');
+            if (fb) fb.addEventListener('click', function () {
+                window.Swal.fire({
+                    title: '{{ __('admin-core::admin-core.messages.confirm_force_delete') }}',
+                    icon: 'warning', showCancelButton: true,
+                    confirmButtonText: '{{ __('admin-core::admin-core.confirm.yes_delete') }}',
+                    cancelButtonText: '{{ __('admin-core::admin-core.confirm.no_keep') }}',
+                }).then(function (r) { if (r.value) post('{{ route('__AC_RNS__dummyModels.bulkForceDelete') }}'); });
+            });
+        });
+    </script>
+@endpush

@@ -26,6 +26,31 @@ function softService(): BaseService
     };
 }
 
+it('bulk-restores and bulk-force-deletes the selected trashed rows', function () {
+    $a = SoftWidget::create(['name' => 'A']);
+    $b = SoftWidget::create(['name' => 'B']);
+    softService()->delete($a->id);
+    softService()->delete($b->id);
+    expect(softService()->trashedQuery()->count())->toBe(2);
+
+    $controller = new class(softService()) extends \Ngos\AdminCore\Http\Controllers\WebController
+    {
+        public function __construct(BaseService $service)
+        {
+            $this->service = $service;
+        }
+    };
+
+    $controller->bulkRestore(new \Illuminate\Http\Request(['ids' => [$a->id, $b->id]]));
+    expect(softService()->trashedQuery()->count())->toBe(0)
+        ->and(SoftWidget::count())->toBe(2);
+
+    softService()->delete($a->id);
+    softService()->delete($b->id);
+    $controller->bulkForceDelete(new \Illuminate\Http\Request(['ids' => [$a->id, $b->id]]));
+    expect(SoftWidget::withTrashed()->count())->toBe(0); // gone for good
+});
+
 it('soft-deletes, lists trashed, restores and force-deletes', function () {
     $service = softService();
     $widget = SoftWidget::create(['name' => 'A']);

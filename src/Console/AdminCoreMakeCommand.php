@@ -191,6 +191,8 @@ class AdminCoreMakeCommand extends Command
             . "            Route::get('trash', 'trash')->name('trash');\n"
             . "            Route::put('restore/{id}', 'restore')->name('restore');\n"
             . "            Route::delete('forceDelete/{id}', 'forceDelete')->name('forceDelete');\n"
+            . "            Route::post('bulkRestore', 'bulkRestore')->name('bulkRestore');\n"
+            . "            Route::post('bulkForceDelete', 'bulkForceDelete')->name('bulkForceDelete');\n"
             . "        });",
             $class,
             $kebab,
