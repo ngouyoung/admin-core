@@ -126,6 +126,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Global search (<x-admin-core::global-search /> + Route::adminCoreSearch())
+    |--------------------------------------------------------------------------
+    | A dependency-free, offline-friendly LIKE search across the resources you list here — no Scout /
+    | external engine. Add the topbar box with <x-admin-core::global-search /> and call
+    | Route::adminCoreSearch() inside your admin route group. Each entry:
+    |   ['model' => \App\Models\Product::class, 'columns' => ['name'], 'label' => 'Products',
+    |    'route' => 'admin.products.edit', 'key' => 'uuid', 'icon' => 'bi bi-box-seam']
+    | columns are LIKE-matched (a translatable JSON column works — its text is matched, label uses the
+    | active locale); route+key build the result link (key defaults to the model's primary key).
+    */
+    'search' => [],
+
+    /*
+    |--------------------------------------------------------------------------
     | Notifications
     |--------------------------------------------------------------------------
     | In-app notifications are always on (the bell + /admin/notifications, Laravel

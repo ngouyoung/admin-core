@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.45.0
+
+- **Global search (dependency-free, offline).** A topbar search box that LIKE-searches across the resources
+  listed in `config('admin-core.search')` — no Scout / external engine. Add `Route::adminCoreSearch()` to your
+  admin route group and `<x-admin-core::global-search />` to the header; results are grouped by resource and
+  link to each record. A translatable (JSON) name column is matched and labelled in the active locale. The
+  box renders nothing until you configure resources + register the route, so it's opt-in.
+
 ## v2.44.0
 
 - **API permission: the super-admin (configured `super_role`) now passes API routes too.** `AuthorizeApiPermission`

@@ -16,6 +16,7 @@ use Ngos\AdminCore\Console\AdminCoreTranslateCommand;
 use Ngos\AdminCore\Console\AdminCoreUninstallCommand;
 use Ngos\AdminCore\Console\AdminCoreVersionCommand;
 use Ngos\AdminCore\Http\Controllers\NotificationController;
+use Ngos\AdminCore\Http\Controllers\SearchController;
 use Ngos\AdminCore\Http\Middleware\AutoTranslate;
 use Ngos\AdminCore\Http\Middleware\SetLocale;
 use Ngos\AdminCore\Translation\TranslationManager;
@@ -28,6 +29,7 @@ class AdminCoreServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__ . '/../config/admin-core.php', 'admin-core');
         $this->registerCrudMacro();
         $this->registerNotificationsMacro();
+        $this->registerSearchMacro();
 
         // The configured translation driver, resolved through the manager so
         // config('admin-core.translation.driver') is the only switch.
@@ -183,6 +185,18 @@ class AdminCoreServiceProvider extends ServiceProvider
                     Route::post('read-all', 'readAll')->name('readAll');
                     Route::delete('{id}', 'destroy')->name('destroy');
                 });
+        });
+    }
+
+    /**
+     * Route::adminCoreSearch() — the global-search endpoint (admin.search), surfaced by the
+     * <x-admin-core::global-search /> topbar component. Call it inside your admin route group.
+     * Searches config('admin-core.search') with LIKE — no external search engine / dependency.
+     */
+    protected function registerSearchMacro(): void
+    {
+        Route::macro('adminCoreSearch', function () {
+            Route::get('search', [SearchController::class, 'index'])->name('search');
         });
     }
 }

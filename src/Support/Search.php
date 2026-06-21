@@ -1,0 +1,73 @@
+<?php
+
+namespace Ngos\AdminCore\Support;
+
+class Search
+{
+    /**
+     * Global search across the resources declared in config('admin-core.search'). Each entry:
+     *   ['model' => Product::class, 'columns' => ['name', 'slug'], 'label' => 'Products',
+     *    'route' => 'admin.products.edit', 'key' => 'uuid', 'icon' => 'bi bi-box-seam']
+     * - columns: LIKE-matched (no external search engine / dependency; works offline).
+     * - route + key: builds the result link (key column = the route param; defaults to the model key).
+     *
+     * Returns a flat, grouped list: [['group' => , 'label' => , 'url' => , 'icon' => ], …], capped per group.
+     *
+     * @return array<int, array{group: string, label: string, url: string|null, icon: string}>
+     */
+    public static function query(string $term, int $perGroup = 5): array
+    {
+        $term = trim($term);
+        if ($term === '') {
+            return [];
+        }
+
+        $results = [];
+        foreach ((array) config('admin-core.search', []) as $cfg) {
+            $model = $cfg['model'] ?? null;
+            $columns = array_values((array) ($cfg['columns'] ?? []));
+            if (! is_string($model) || ! class_exists($model) || $columns === []) {
+                continue;
+            }
+
+            $rows = $model::query()
+                ->where(function ($q) use ($columns, $term) {
+                    foreach ($columns as $col) {
+                        $q->orWhere($col, 'like', '%' . $term . '%');
+                    }
+                })
+                ->limit($perGroup)
+                ->get();
+
+            $key = $cfg['key'] ?? null;
+            foreach ($rows as $row) {
+                $results[] = [
+                    'group' => (string) ($cfg['label'] ?? class_basename($model)),
+                    'label' => self::label($row, $columns),
+                    'url' => isset($cfg['route'])
+                        ? route($cfg['route'], [$key !== null ? $row->{$key} : $row->getKey()])
+                        : null,
+                    'icon' => (string) ($cfg['icon'] ?? 'bi bi-dot'),
+                ];
+            }
+        }
+
+        return $results;
+    }
+
+    /** First non-empty searched column as the display label (handles translatable JSON columns). */
+    private static function label(object $row, array $columns): string
+    {
+        foreach ($columns as $col) {
+            $value = $row->{$col} ?? null;
+            if (is_array($value)) {
+                $value = $value[app()->getLocale()] ?? (reset($value) ?: null);
+            }
+            if (filled($value)) {
+                return (string) $value;
+            }
+        }
+
+        return (string) $row->getKey();
+    }
+}
