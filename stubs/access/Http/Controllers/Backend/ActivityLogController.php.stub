@@ -26,7 +26,22 @@ class ActivityLogController extends WebController
             ->addColumn('subject', fn ($log) => $log->log_name . ' #' . $log->subject_id)
             ->editColumn('description', fn ($log) => '<span class="badge text-bg-secondary text-capitalize">' . e($log->description) . '</span>')
             ->addColumn('when', fn ($log) => $log->created_at?->diffForHumans())
-            ->rawColumns(['description'])
+            ->addColumn('changes', function ($log) {
+                $new = $log->properties['attributes'] ?? [];
+                $old = $log->properties['old'] ?? [];
+                if (! $new) {
+                    return '<span class="text-muted">—</span>';
+                }
+                $fmt = fn ($v) => e(\Illuminate\Support\Str::limit(is_scalar($v) ? (string) $v : json_encode($v), 40));
+                $rows = [];
+                foreach ($new as $key => $value) {
+                    $from = array_key_exists($key, $old) ? '<span class="text-muted">' . $fmt($old[$key]) . '</span> &rarr; ' : '';
+                    $rows[] = '<div><code>' . e($key) . '</code>: ' . $from . $fmt($value) . '</div>';
+                }
+
+                return implode('', $rows);
+            })
+            ->rawColumns(['description', 'changes'])
             ->make(true);
     }
 }

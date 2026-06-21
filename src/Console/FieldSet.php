@@ -868,12 +868,10 @@ PHP;
     }
 
     /**
-     * A `prepareForValidation()` body when fields need pre-validation massaging:
-     * a JSON column arrives as a textarea string and is decoded to an array (so
-     * the `array` cast stores it once), and a blank password on update is dropped
-     * so the existing hash isn't overwritten. Empty (omitted) when neither applies.
+     * The `prepareForValidation()` body lines, or '' when none apply. Pre-validation massaging:
+     * a JSON column arrives as a textarea string and is decoded to an array; a richtext column is
+     * HTML-sanitized; and a blank password on update is dropped so the existing hash isn't overwritten.
      */
-    /** The `prepareForValidation()` body lines (json decode / blank-password drop), or '' when none apply. */
     public function prepareBody(bool $update): string
     {
         $lines = [];

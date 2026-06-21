@@ -132,6 +132,7 @@ php artisan admin-core:make Product --migration --fields="\
 |---|---|---|---|
 | `string` (default) | `string` | text | `string,max:255` |
 | `text` | `text` | textarea | `string` |
+| `richtext` | `text` | CKEditor WYSIWYG (sanitized on save, rendered on show) | `string` |
 | `integer` | `integer` | number | `integer` |
 | `decimal` | `decimal(10,2)` | number (step) | `numeric` |
 | `boolean` | `boolean` default 0 | checkbox | `boolean` |
@@ -142,8 +143,9 @@ php artisan admin-core:make Product --migration --fields="\
 | `enum:a\|b\|c` | `string` | `<select>` from cases | `Rule::enum` (generated backed enum) |
 | `slug` | `string` nullable unique | text | `alpha_dash` + unique (auto from `name`) |
 | `json` | `json` | monospace textarea | `array` (decoded from the textarea) |
+| `translatable` | `json` | multi-locale inputs + auto-translate | `array`, default locale required |
 | `password` | `string` | password | `min:8` (hashed; blank on edit = keep) |
-| `foreign` (`x_id`) | `foreignId()->constrained()` | Select2 of related rows | `exists:xs,id` |
+| `foreign` (`x_id`), `foreign:table` (self-ref/tree, e.g. `parent_id:foreign:categories`) | `foreignId()->constrained()` | Select2 of related rows | `exists:table,id` |
 | `image` | `string` (path) | file input + preview | `image,max:2048` |
 | `file` | `string` (path) | file input | `file,max:10240` |
 | `belongsToMany` (`m2m`) | pivot table | multi-Select2 | `array` + `exists` |

@@ -38,6 +38,14 @@ class AuthorizeApiPermission
             throw UnauthorizedException::missingTraitHasRoles($user);
         }
 
+        // A super-admin (the configured super role) passes everything, resolved on the permission guard —
+        // so an admin granted access via the role (or a host Gate::before keyed on that role) works on API
+        // routes too, not just web. Mirrors the web side's super-role grant.
+        $superRole = config('admin-core.permission.super_role');
+        if (is_string($superRole) && $superRole !== '' && method_exists($user, 'hasRole') && $user->hasRole($superRole, $guard)) {
+            return $next($request);
+        }
+
         if (! $user->hasPermissionTo($permission, $guard)) {
             throw UnauthorizedException::forPermissions([$permission]);
         }

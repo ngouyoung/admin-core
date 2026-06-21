@@ -16,6 +16,7 @@
                     <th>Who</th>
                     <th>Action</th>
                     <th>Subject</th>
+                    <th>Changes</th>
                 </tr>
                 </thead>
             </table>
@@ -35,6 +36,7 @@
                     {data: 'causer', orderable: false, searchable: false},
                     {data: 'description', name: 'description'},
                     {data: 'subject', name: 'log_name'},
+                    {data: 'changes', orderable: false, searchable: false},
                 ],
             });
         });

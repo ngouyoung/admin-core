@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.44.0
+
+- **API permission: the super-admin (configured `super_role`) now passes API routes too.** `AuthorizeApiPermission`
+  previously checked only `hasPermissionTo`, so an admin whose access comes from the super role (or a host
+  `Gate::before` keyed on it) was 403'd on API routes while web routes passed. It now short-circuits for the
+  super role, resolved on the permission guard.
+- **Activity log shows what changed.** The activity-log list gained a "Changes" column rendering the captured
+  `old → new` diff — the data was already stored in `properties`, just never displayed.
+- **Docs:** the README `--fields` table now lists `richtext`, `translatable`, and the `foreign:table`
+  self-reference / tree form (matching `--list-fields`).
+- Removed a duplicate docblock on `FieldSet::prepareBody()`.
+
 ## v2.43.1
 
 - **Security hardening (follows up the v2.43.0 richtext feature; from a package audit).**
