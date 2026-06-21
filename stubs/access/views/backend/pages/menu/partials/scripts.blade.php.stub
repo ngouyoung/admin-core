@@ -64,12 +64,7 @@
                 window.bootstrap.Offcanvas.getOrCreateInstance(document.getElementById('menu-form')).show();
             });
         });
-
-        // 3. Confirm deletes.
-        document.querySelectorAll('.ac-menu-delete').forEach(function (f) {
-            f.addEventListener('submit', function (e) {
-                if (! window.confirm('{{ __('admin-core::admin-core.confirm.delete_menu_item') }}')) { e.preventDefault(); }
-            });
-        });
+        // Delete confirmation is handled globally by the layout's data-confirm SweetAlert handler
+        // (the form carries data-confirm) — no native confirm() here.
     });
 </script>

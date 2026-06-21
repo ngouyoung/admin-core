@@ -7,7 +7,7 @@
         <div class="col-sm-6"><h3 class="mb-0">Error Log</h3></div>
         <div class="col-sm-6 text-sm-end">
             <form action="{{ route('admin.error-logs.clear') }}" method="POST" class="d-inline"
-                  onsubmit="return confirm('{{ __('admin-core::admin-core.confirm.delete_all_errors') }}')">
+                  data-confirm="{{ __('admin-core::admin-core.confirm.delete_all_errors') }}">
                 @csrf
                 <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Clear all</button>
             </form>

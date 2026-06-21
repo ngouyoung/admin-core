@@ -47,9 +47,12 @@
         @hasSection('breadcrumb')
             <div class="mb-3">@yield('breadcrumb')</div>
         @endif
-        @foreach (['success' => 'success', 'error' => 'danger', 'warning' => 'warning', 'info' => 'info'] as $flash => $variant)
+        {{-- Flash messages pop as toastr toasts (same feedback as AJAX actions, not a static alert box). --}}
+        @foreach (['success', 'error', 'warning', 'info'] as $flash)
             @if (session($flash))
-                <div class="alert alert-{{ $variant }}">{{ session($flash) }}</div>
+                @push('scripts')
+                    <script>window.toastr && window.toastr.{{ $flash }}(@json(session($flash)));</script>
+                @endpush
             @endif
         @endforeach
         @yield('contents')
@@ -60,5 +63,26 @@
 <div class="ac-overlay" data-ac-toggle="sidebar"></div>
 @include('backend.partials.customize')
 @stack('scripts')
+<script>
+    // Reusable confirm — any <form data-confirm="…"> or <a data-confirm="…"> asks via SweetAlert
+    // (the already-loaded library) before proceeding. Keeps every confirmation consistent; no native confirm().
+    (function () {
+        function ask(message, onYes) {
+            window.Swal.fire({
+                title: message, icon: 'warning', showCancelButton: true,
+                confirmButtonText: '{{ __('admin-core::admin-core.confirm.yes_delete') }}',
+                cancelButtonText: '{{ __('admin-core::admin-core.confirm.no_keep') }}',
+            }).then(function (r) { if (r.value) onYes(); });
+        }
+        document.addEventListener('submit', function (e) {
+            var f = e.target.closest('form[data-confirm]');
+            if (f) { e.preventDefault(); ask(f.dataset.confirm, function () { f.submit(); }); }
+        });
+        document.addEventListener('click', function (e) {
+            var a = e.target.closest('a[data-confirm]');
+            if (a) { e.preventDefault(); ask(a.dataset.confirm, function () { window.location = a.href; }); }
+        });
+    })();
+</script>
 </body>
 </html>

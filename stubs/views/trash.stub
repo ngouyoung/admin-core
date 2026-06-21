@@ -39,7 +39,7 @@
                                 </button>
                             </form>
                             <form action="{{ route('__AC_RNS__dummyModels.forceDelete', $item->id) }}" method="POST"
-                                  class="d-inline" onsubmit="return confirm('{{ __('admin-core::admin-core.messages.confirm_force_delete') }}')">
+                                  class="d-inline" data-confirm="{{ __('admin-core::admin-core.messages.confirm_force_delete') }}">
                                 @csrf @method('DELETE')
                                 <button class="{{ config('class.button.delete') }}" data-bs-toggle="tooltip" title="{{ __('admin-core::admin-core.actions.delete_permanently') }}">
                                     <i class="{{ config('class.icon.delete') }}"></i>

@@ -26,7 +26,7 @@
                         data-target="{{ $item->target }}"
                         data-active="{{ $item->is_active ? 1 : 0 }}"
                         title="{{ __('admin-core::admin-core.actions.edit') }}"><i class="bi bi-pencil"></i></button>
-                    <form action="{{ route('admin.menu.destroy', $item->id) }}" method="post" class="d-inline ac-menu-delete">
+                    <form action="{{ route('admin.menu.destroy', $item->id) }}" method="post" class="d-inline" data-confirm="{{ __('admin-core::admin-core.confirm.delete_menu_item') }}">
                         @csrf
                         @method('DELETE')
                         <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="{{ __('admin-core::admin-core.actions.delete') }}"><i class="bi bi-trash"></i></button>

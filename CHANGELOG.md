@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.41.0
+
+- **All confirmations use SweetAlert, never the native browser `confirm()`.** Added a reusable global handler
+  in the app layout: any `<form data-confirm="…">` or `<a data-confirm="…">` asks via the already-loaded
+  SweetAlert before proceeding. The menu-manager delete, the error-log "clear all", and the per-resource
+  trash force-delete now carry `data-confirm` instead of `window.confirm()` / `onsubmit="return confirm()"` —
+  one consistent themed dialog everywhere, and reusable for any new destructive action (use the loaded
+  library, not native JS).
+- **Flash messages pop as toastr toasts, matching the AJAX feedback.** Server-side `session('success'|'error'
+  |'warning'|'info')` flashes previously rendered as static Bootstrap alert boxes while AJAX actions used
+  toastr — now both use toastr, so notifications look the same whether they come from a redirect or a
+  background request.
+
 ## v2.40.0
 
 - **Generated forms now compose the reusable form components.** `admin-core:make` emits
