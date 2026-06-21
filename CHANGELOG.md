@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.39.0
+
+- **Reusable form-control components.** Added the atomic controls that were the gap in the component set
+  (`form-row`, `card`, `modal`, `alert`, `badge`, `tabs`, `data-table`, `status`, … already shipped):
+  `<x-admin-core::input>`, `<x-admin-core::select>`, `<x-admin-core::textarea>` and `<x-admin-core::button>`.
+  Each field control renders the full labelled row (label + control + validation error) with consistent
+  Bootstrap styling + select2 enhancement and merges any extra attributes (placeholder, step, data-adp, …);
+  `<x-admin-core::button>` renders a `<button>` or an `<a href>` with variant / size / outline / icon. Use
+  them for custom screens (POS, dashboards, bespoke pages) so everything stays visually consistent — change
+  a control's style in one place. Rendered + asserted by a new component test.
+
 ## v2.38.0
 
 - **Generator: `translatable` field type.** `--fields="name:translatable"` scaffolds a per-locale field end
