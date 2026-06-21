@@ -170,6 +170,32 @@ it('points a foreign key at an explicit target for a non-conventional column nam
     expect($f->factoryDefinition())->toContain('\App\Models\User::factory()');
 });
 
+it('builds a translatable field (JSON + array cast + translatable-input + per-locale rules)', function () {
+    config(['admin-core.translation.locales' => ['en' => 'English', 'km' => 'Khmer'], 'admin-core.translation.default' => 'en']);
+    $f = fs('name:translatable', 'products');
+
+    expect($f->migrationColumns())->toContain("\$table->json('name')");
+    expect($f->casts())->toContain("'name' => 'array'");
+    // Renders the multi-locale widget (auto-translate), not a plain text input.
+    expect($f->formFields())->toContain('<x-admin-core::translatable-input name="name"');
+    // Per-locale validation: default locale required, the rest optional (AutoTranslate fills them).
+    expect($f->storeRules())
+        ->toContain("'name' => ['required', 'array']")
+        ->toContain("'name.en' => ['required', 'string', 'max:255']")
+        ->toContain("'name.km' => ['nullable', 'string', 'max:255']");
+    // Factory builds a per-locale array (no scalar / recursion).
+    expect($f->factoryDefinition())->toContain("'en' =>")->toContain("'km' =>");
+    // List + show render the active locale, never the raw array.
+    expect($f->getDataColumns())->toContain('app()->getLocale()');
+    expect($f->showRows())->toContain('app()->getLocale()');
+});
+
+it('derives a slug from a translatable name using the default locale (never Str::slug an array)', function () {
+    config(['admin-core.translation.locales' => ['en' => 'English', 'km' => 'Khmer'], 'admin-core.translation.default' => 'en']);
+    $f = fs('name:translatable, slug:slug', 'products');
+    expect($f->bootBody())->toContain("\$model->name['en']");
+});
+
 it('makes a belongsTo list column searchable and sortable by the related name', function () {
     $f = fs('category_id:foreign'); // table = products
 

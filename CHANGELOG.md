@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.38.0
+
+- **Generator: `translatable` field type.** `--fields="name:translatable"` scaffolds a per-locale field end
+  to end — a JSON column (array cast), the `<x-admin-core::translatable-input>` widget in the form (one input
+  per configured locale + the `_translate` marker the AutoTranslate middleware fills, so you type one language
+  and the rest are translated on save), per-locale validation (the default locale required, the others
+  optional), a per-locale factory, and list/show rendering in the active locale. A slug derived from a
+  translatable `name` uses the default locale (never passes an array to `Str::slug`). This wires up the model +
+  generator side that was missing — the translation middleware and components already shipped.
+
 ## v2.37.0
 
 - **Generator: self-referencing & explicit foreign-key targets.** The `--fields` DSL now accepts an explicit

@@ -16,6 +16,7 @@ use Illuminate\Support\Str;
  *              parent_id:foreign:categories,  author_id:foreign:users
  *   - image    file upload, stored on the public disk, thumbnailed in the table
  *   - file     any file upload
+ *   - translatable  per-locale JSON (name:translatable)  ->  multi-language input + auto-translate
  *   - belongsToMany (aliases manyToMany, m2m)  ->  pivot table + multi-select + sync
  *   - modifiers trailing  ?  = nullable,  ^  = unique,  #  = index   (e.g. slug:string^?, status:enum:a|b#)
  */
@@ -28,7 +29,7 @@ class FieldSet
      */
     private const TYPES = [
         'string', 'text', 'integer', 'decimal', 'boolean', 'date', 'datetime', 'time',
-        'email', 'url', 'password', 'slug', 'json', 'image', 'file',
+        'email', 'url', 'password', 'slug', 'json', 'translatable', 'image', 'file',
         'foreign', 'belongsToMany', 'enum', 'auth', 'sku',
     ];
 
@@ -348,6 +349,12 @@ class FieldSet
         return $this->hasNameOverride ?? collect($this->fields)->contains(fn ($f) => $f['name'] === 'name');
     }
 
+    /** True when the `name` column is a translatable (per-locale array) field. */
+    private function nameIsTranslatable(): bool
+    {
+        return collect($this->fields)->contains(fn ($f) => $f['name'] === 'name' && $f['type'] === 'translatable');
+    }
+
     private function hasFiles(): bool
     {
         return collect($this->fields)->contains(fn ($f) => $this->isFile($f));
@@ -397,7 +404,7 @@ class FieldSet
                 'date' => "\$table->date('{$col}')",
                 'datetime' => "\$table->dateTime('{$col}')",
                 'time' => "\$table->time('{$col}')",
-                'json' => "\$table->json('{$col}')",
+                'json', 'translatable' => "\$table->json('{$col}')",
                 'image', 'file' => "\$table->string('{$col}')",
                 'foreign' => "\$table->foreignId('{$col}')" . ($n ? '->nullable()' : '') . "->constrained('{$f['relTable']}')" . ($n ? '->nullOnDelete()' : '->cascadeOnDelete()'),
                 'auth' => "\$table->foreignId('{$col}')->nullable()->constrained('users')->nullOnDelete()", // set from auth()->id()
@@ -533,9 +540,15 @@ PHP;
                     default => "                \$model->{$f['name']} = null; // TODO: set {$f['name']} from trusted code",
                 };
             }
-            // A blank slug derives from the `name` field when one exists.
+            // A blank slug derives from the `name` field when one exists. When `name` is translatable
+            // (an array of locales), derive from the default locale so Str::slug() never sees an array.
             if ($f['type'] === 'slug' && $this->hasName()) {
-                $assigns[] = "                \$model->{$f['name']} ??= \\Illuminate\\Support\\Str::slug(\$model->name);";
+                if ($this->nameIsTranslatable()) {
+                    $d = (string) config('admin-core.translation.default', 'en');
+                    $assigns[] = "                \$model->{$f['name']} ??= \\Illuminate\\Support\\Str::slug(is_array(\$model->name) ? (\$model->name['{$d}'] ?? collect(\$model->name)->first()) : \$model->name);";
+                } else {
+                    $assigns[] = "                \$model->{$f['name']} ??= \\Illuminate\\Support\\Str::slug(\$model->name);";
+                }
             }
         }
 
@@ -635,6 +648,8 @@ PHP;
             }
             $col = $f['name'];
             $fake = match (true) {
+                // translatable first — it's a per-locale array regardless of the column name (e.g. `name`).
+                $f['type'] === 'translatable' => '[' . implode(', ', array_map(fn ($l) => "'{$l}' => fake()->words(2, true)", array_keys((array) config('admin-core.translation.locales', ['en' => 'English'])))) . ']',
                 $f['name'] === 'name' => 'fake()->name()',
                 $f['name'] === 'email' || $f['type'] === 'email' => 'fake()->safeEmail()',
                 $f['type'] === 'text' => 'fake()->paragraph()',
@@ -698,7 +713,7 @@ PHP;
             'date' => "'date'",
             'datetime' => "'datetime'",
             'decimal' => "'decimal:2'",
-            'json' => "'array'",
+            'json', 'translatable' => "'array'",
             'password' => "'hashed'",
             default => null,
         };
@@ -820,6 +835,17 @@ PHP;
                     $lines[] = "            '{$f['name']}' => ['array'],";
                     $lines[] = "            '{$f['name']}.*' => ['integer', 'exists:{$f['relTable']},id'],";
                     continue 2;
+                case 'translatable':
+                    // Per-locale array (name[en], name[km], …). AutoTranslate fills the blanks before
+                    // validation, so requiring the default locale is enough; the rest stay optional.
+                    $tLocales = array_keys((array) config('admin-core.translation.locales', ['en' => 'English']));
+                    $tDefault = (string) config('admin-core.translation.default', $tLocales[0] ?? 'en');
+                    $lines[] = "            '{$f['name']}' => [{$required}, 'array'],";
+                    foreach ($tLocales as $loc) {
+                        $req = (! $f['nullable'] && $loc === $tDefault) ? "'required'" : "'nullable'";
+                        $lines[] = "            '{$f['name']}.{$loc}' => [{$req}, 'string', 'max:255'],";
+                    }
+                    continue 2;
                 default: // string
                     $rules = [$required, "'string'", "'max:255'"];
             }
@@ -915,6 +941,13 @@ PHP;
     private function formField(array $f): string
     {
         $col = $f['name'];
+        // A translatable field renders the multi-locale widget (its own form-row), which posts
+        // name[en], name[km], … and a _translate marker the AutoTranslate middleware fills.
+        if ($f['type'] === 'translatable') {
+            $tLabel = $this->label($col);
+
+            return "<x-admin-core::translatable-input name=\"{$col}\" label=\"{$tLabel}\" :value=\"old('{$col}', \$object?->{$col} ?? [])\" />";
+        }
         $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $col);
         $err = "@error('{$col}') is-invalid @enderror";
         $old = "old('{$col}', \$object?->{$col})";
@@ -1087,6 +1120,10 @@ BLADE;
         if (in_array($f['type'], ['image', 'file'], true)) {
             return "                {data: '{$f['name']}', orderable: false, searchable: false},";
         }
+        // Translatable JSON column: searchable (LIKE on the raw JSON) but not orderable.
+        if ($f['type'] === 'translatable') {
+            return "                {data: '{$f['name']}', name: '{$f['name']}', orderable: false},";
+        }
 
         return "                {data: '{$f['name']}', name: '{$f['name']}'},";
     }
@@ -1186,7 +1223,7 @@ BLADE;
     public function getDataColumns(): string
     {
         $lines = [];
-        if ($this->hasName()) {
+        if ($this->hasName() && ! $this->nameIsTranslatable()) {
             $lines[] = "            ->editColumn('name', fn (\$row) => '<span class=\"text-capitalize\">' . e(\$row->name) . '</span>')";
         }
         foreach ($this->fields as $f) {
@@ -1216,6 +1253,8 @@ BLADE;
             'datetime' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))",
             'image' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')",
             'file' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<a href=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" target=\"_blank\">file</a>' : '')",
+            // Translatable JSON: show the current locale (fall back to the first filled one).
+            'translatable' => "            ->editColumn('{$f['name']}', fn (\$row) => is_array(\$row->{$f['name']}) ? (\$row->{$f['name']}[app()->getLocale()] ?? collect(\$row->{$f['name']})->first()) : \$row->{$f['name']})",
             default => null,
         };
     }
@@ -1255,6 +1294,7 @@ BLADE;
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
                 'enum' => "<x-admin-core::status :value=\"\$object->{$f['name']}\" />",
+                'translatable' => "{{ is_array(\$object->{$f['name']}) ? (\$object->{$f['name']}[app()->getLocale()] ?? collect(\$object->{$f['name']})->first()) : \$object->{$f['name']} }}",
                 default => "{{ \$object->{$f['name']} }}",
             };
             $rows[] = "            <tr>\n                <th style=\"width:220px\">{$label}</th>\n                <td>{$value}</td>\n            </tr>";
@@ -1266,7 +1306,7 @@ BLADE;
     public function rawColumns(): string
     {
         $raw = [];
-        if ($this->hasName()) {
+        if ($this->hasName() && ! $this->nameIsTranslatable()) {
             $raw[] = "'name'";
         }
         foreach ($this->fields as $f) {

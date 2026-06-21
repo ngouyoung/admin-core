@@ -659,6 +659,7 @@ PHP);
             'enum' => 'fixed set of choices — enum:draft|published',
             'slug' => 'unique URL key (auto from name)',
             'json' => 'structured data (JSON ↔ array)',
+            'translatable' => 'per-locale text (JSON) — multi-language input + auto-translate',
             'image' => 'uploaded image (stored path)',
             'file' => 'uploaded file (stored path)',
             'foreign' => 'belongsTo another table (a *_id column). Self-ref/tree or odd name: foreign:table (parent_id:foreign:categories)',
