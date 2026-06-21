@@ -26,6 +26,7 @@
     },
     "require": {
         "php": "^8.3",
+        "guzzlehttp/guzzle": "^7.8",
         "illuminate/console": "^13.0",
         "illuminate/contracts": "^13.0",
         "illuminate/database": "^13.0",
@@ -34,6 +35,7 @@
         "illuminate/notifications": "^13.0",
         "illuminate/routing": "^13.0",
         "illuminate/support": "^13.0",
+        "illuminate/translation": "^13.0",
         "illuminate/validation": "^13.0",
         "illuminate/view": "^13.0",
         "spatie/laravel-permission": "^8.0",

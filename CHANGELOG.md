@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.36.1
+
+- **Declare the direct dependencies** the translation feature uses: `guzzlehttp/guzzle` (the HTTP client
+  behind the MyMemory/LibreTranslate drivers) and `illuminate/translation` (`__()` / `loadTranslationsFrom`).
+  Both are already pulled in by `laravel/framework`, so this is a correctness/hygiene fix — no behaviour
+  change — making the package honest about what it requires.
+
 ## v2.36.0
 
 - **Global soft deletes — opt-in default.** New `config('admin-core.generator.soft_deletes')` (default
