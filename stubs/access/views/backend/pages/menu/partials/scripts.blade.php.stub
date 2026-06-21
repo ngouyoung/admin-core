@@ -1,5 +1,17 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+        // Re-render the sidebar in place after a menu change — no full page refresh. (Effective when
+        // menu_source=database, where the sidebar reflects the menu_items table edited on this screen.)
+        function refreshSidebar() {
+            fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (r) { return r.text(); })
+                .then(function (html) {
+                    var fresh = new DOMParser().parseFromString(html, 'text/html').querySelector('.ac-nav');
+                    var cur = document.querySelector('.ac-nav');
+                    if (fresh && cur) { cur.innerHTML = fresh.innerHTML; }
+                });
+        }
+
         // 1. Drag to reorder / nest -> persist the tree (parent_id + sort).
         const tree = $('#menu-tree');
         if (tree.length) {
@@ -9,7 +21,7 @@
                     type: 'post',
                     data: { data: tree.nestable('serialize') },
                     success: function (res) {
-                        if (res && res.status === 'OK') { window.toastr?.success('Menu order saved'); }
+                        if (res && res.status === 'OK') { window.toastr?.success('Menu order saved'); refreshSidebar(); }
                         else { window.toastr?.error('Could not save the order'); }
                     },
                     error: function () { window.toastr?.error('Could not save the order'); }

@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.42.0
+
+- **Live sidebar after a menu reorder — no page refresh.** In the Menu manager, dragging to reorder/nest
+  saves via AJAX; the sidebar now re-renders in place on save (fetches the page, swaps `.ac-nav`), so the new
+  order/structure shows immediately when `menu_source=database`. (Edit and delete already reload the page.)
+
 ## v2.41.0
 
 - **All confirmations use SweetAlert, never the native browser `confirm()`.** Added a reusable global handler
