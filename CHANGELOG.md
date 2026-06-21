@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.36.2
+
+- **Complete the dependency declarations** (full audit of `src/` vs `composer.json`). Added the remaining
+  first-party packages the code uses directly but was relying on transitively: `composer-runtime-api`
+  (`Composer\InstalledVersions` in `admin-core:version`), `illuminate/process` (`Process` in the installer),
+  `illuminate/cache` (`Cache` in the menu tree), and `illuminate/auth` (`Auth` + auth exceptions in the
+  error log). All are provided by `laravel/framework`, so no behaviour change — the package now honestly
+  declares everything it requires.
+
 ## v2.36.1
 
 - **Declare the direct dependencies** the translation feature uses: `guzzlehttp/guzzle` (the HTTP client
