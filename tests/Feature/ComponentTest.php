@@ -35,6 +35,11 @@ it('renders the select component with options, a placeholder and the selected va
         ->toContain('selected');                  // the active option is marked selected
 });
 
+it('renders the editor component as a CKEditor-bound textarea', function () {
+    $html = Blade::render('<x-admin-core::editor name="body" value="<p>Hi</p>" />');
+    expect($html)->toContain('<textarea')->toContain('name="body"')->toContain('js-editor')->toContain('Body:');
+});
+
 it('renders the button as a <button>, and as an <a> when href is given', function () {
     expect(Blade::render('<x-admin-core::button variant="danger" icon="bi bi-trash">Delete</x-admin-core::button>'))
         ->toContain('<button')->toContain('btn btn-danger')->toContain('bi bi-trash')->toContain('Delete');

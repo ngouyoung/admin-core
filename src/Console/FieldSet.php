@@ -28,7 +28,7 @@ class FieldSet
      * (e.g. a comma'd enum `status:enum(a,b)` leaking columns named `b` and `c)`) into a clear error.
      */
     private const TYPES = [
-        'string', 'text', 'integer', 'decimal', 'boolean', 'date', 'datetime', 'time',
+        'string', 'text', 'richtext', 'integer', 'decimal', 'boolean', 'date', 'datetime', 'time',
         'email', 'url', 'password', 'slug', 'json', 'translatable', 'image', 'file',
         'foreign', 'belongsToMany', 'enum', 'auth', 'sku',
     ];
@@ -397,7 +397,7 @@ class FieldSet
             $col = $f['name'];
             $n = $f['nullable'];
             $line = match ($f['type']) {
-                'text' => "\$table->text('{$col}')",
+                'text', 'richtext' => "\$table->text('{$col}')",
                 'integer' => "\$table->integer('{$col}')",
                 'decimal' => "\$table->decimal('{$col}', 10, 2)",
                 'boolean' => "\$table->boolean('{$col}')" . ($n ? '' : '->default(false)'),
@@ -662,6 +662,7 @@ PHP;
                 $f['type'] === 'url' => 'fake()->url()',
                 $f['type'] === 'slug' => 'fake()->unique()->slug()',
                 $f['type'] === 'json' => "['key' => fake()->word()]",
+                $f['type'] === 'richtext' => "'<p>' . fake()->paragraph() . '</p>'",
                 $f['type'] === 'password' => "'password'", // hashed by the model's 'hashed' cast
                 $f['type'] === 'enum' => "fake()->randomElement(\\App\\Enums\\{$this->enumClass($f)}::cases())",
                 $f['type'] === 'foreign' => $f['relTable'] === $this->table ? 'null' : "\\App\\Models\\{$f['relModel']}::factory()",
@@ -785,6 +786,7 @@ PHP;
             $required = $f['nullable'] ? "'nullable'" : "'required'";
             switch ($f['type']) {
                 case 'text':
+                case 'richtext':
                     $rules = [$required, "'string'"];
                     break;
                 case 'integer':
@@ -956,6 +958,8 @@ PHP;
         // Most controls are reusable components that render their own labelled row (label + control + error),
         // so styling lives in one place. Only the bespoke controls (boolean/image/file) wrap a raw control.
         switch ($f['type']) {
+            case 'richtext':
+                return "<x-admin-core::editor name=\"{$col}\" label=\"{$label}\" :value=\"{$old}\" />";
             case 'text':
                 return "<x-admin-core::textarea name=\"{$col}\" label=\"{$label}\" :value=\"{$old}\"{$ro} />";
             case 'json':
@@ -1239,6 +1243,8 @@ BLADE;
             'file' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<a href=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" target=\"_blank\">file</a>' : '')",
             // Translatable JSON: show the current locale (fall back to the first filled one).
             'translatable' => "            ->editColumn('{$f['name']}', fn (\$row) => is_array(\$row->{$f['name']}) ? (\$row->{$f['name']}[app()->getLocale()] ?? collect(\$row->{$f['name']})->first()) : \$row->{$f['name']})",
+            // Rich text: strip HTML to a short plain-text preview in the list.
+            'richtext' => "            ->editColumn('{$f['name']}', fn (\$row) => \\Illuminate\\Support\\Str::limit(strip_tags((string) \$row->{$f['name']}), 60))",
             default => null,
         };
     }
@@ -1279,6 +1285,7 @@ BLADE;
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
                 'enum' => "<x-admin-core::status :value=\"\$object->{$f['name']}\" />",
                 'translatable' => "{{ is_array(\$object->{$f['name']}) ? (\$object->{$f['name']}[app()->getLocale()] ?? collect(\$object->{$f['name']})->first()) : \$object->{$f['name']} }}",
+                'richtext' => "{!! \$object->{$f['name']} !!}",
                 default => "{{ \$object->{$f['name']} }}",
             };
             $rows[] = "            <tr>\n                <th style=\"width:220px\">{$label}</th>\n                <td>{$value}</td>\n            </tr>";

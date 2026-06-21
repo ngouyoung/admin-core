@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.43.0
+
+- **Rich-text editor: `richtext` field type + `<x-admin-core::editor>` component.** `--fields="body:richtext"`
+  scaffolds a CKEditor 5 WYSIWYG field — a `text` column storing HTML, the editor component in the form
+  (CKEditor's classic build loaded from the CDN only on pages that use it; swap the `src` to self-host for
+  offline), a plain-text preview in the list (tags stripped + truncated), and the stored HTML rendered on the
+  show page. Use the component anywhere: `<x-admin-core::editor name="content" :value="…" />`.
+
 ## v2.42.0
 
 - **Live sidebar after a menu reorder — no page refresh.** In the Menu manager, dragging to reorder/nest

@@ -652,6 +652,7 @@ PHP);
         return [
             'string' => 'short text (VARCHAR)',
             'text' => 'long text',
+            'richtext' => 'rich text / HTML — CKEditor WYSIWYG editor',
             'integer' => 'whole number',
             'decimal' => 'money / 2-decimal number',
             'boolean' => 'true / false toggle',

@@ -196,6 +196,17 @@ it('derives a slug from a translatable name using the default locale (never Str:
     expect($f->bootBody())->toContain("\$model->name['en']");
 });
 
+it('builds a richtext field (text column + CKEditor editor component + stripped list + raw show)', function () {
+    $f = fs('body:richtext', 'posts');
+    expect($f->migrationColumns())->toContain("\$table->text('body')");
+    expect($f->formFields())->toContain('<x-admin-core::editor name="body"');
+    expect($f->storeRules())->toContain("'body' => ['required', 'string']");
+    expect($f->factoryDefinition())->toContain('fake()->paragraph()');
+    // List shows a plain-text preview; the show view renders the stored HTML.
+    expect($f->getDataColumns())->toContain('strip_tags');
+    expect($f->showRows())->toContain('{!! $object->body !!}');
+});
+
 it('makes a belongsTo list column searchable and sortable by the related name', function () {
     $f = fs('category_id:foreign'); // table = products
 
