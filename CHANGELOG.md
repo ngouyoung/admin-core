@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.40.0
+
+- **Generated forms now compose the reusable form components.** `admin-core:make` emits
+  `<x-admin-core::input/select/textarea>` (alongside `translatable-input`, `form-row`, `form-actions`) instead
+  of hand-written `<input>/<select>/<textarea>` markup, so every generated CRUD form and any custom screen
+  share one source of truth for control styling — change a control once, it changes everywhere. Behaviour is
+  unchanged: same field types, Air-Datepicker date inputs, select2-enhanced dropdowns, write-once readonly,
+  and enum/foreign/many-to-many option lists; the controls just route through the v2.39.0 components. (The old
+  `enumSelect`/`foreignSelect`/`manySelect` builders are gone — the `select` component covers all three.)
+
 ## v2.39.1
 
 - **Fix: `admin-core:make` skipped the sidebar menu entry when the resource's route appeared in the config

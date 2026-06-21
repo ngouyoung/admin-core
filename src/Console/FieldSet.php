@@ -949,58 +949,66 @@ PHP;
             return "<x-admin-core::translatable-input name=\"{$col}\" label=\"{$tLabel}\" :value=\"old('{$col}', \$object?->{$col} ?? [])\" />";
         }
         $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $col);
-        $err = "@error('{$col}') is-invalid @enderror";
         $old = "old('{$col}', \$object?->{$col})";
         // Write-once fields lock on edit (UX only — the real guard is the missing UpdateRequest rule).
-        $ro = ! empty($f['writeOnce']) ? " {{ \$object ? 'readonly' : '' }}" : '';
+        $ro = ! empty($f['writeOnce']) ? ' :readonly="(bool) $object"' : '';
 
-        $control = match ($f['type']) {
-            'text' => "<textarea name=\"{$col}\" id=\"{$col}\" rows=\"3\" class=\"form-control {$err}\"{$ro}>{{ {$old} }}</textarea>",
-            // The hidden 0 makes an *unchecked* box still submit the field (browsers send nothing for
-            // an unchecked checkbox) — otherwise you could never turn a boolean off on edit. The checkbox
-            // comes after it with the same name, so when checked its "1" wins.
-            'boolean' => "<input type=\"hidden\" name=\"{$col}\" value=\"0\">\n        <div class=\"form-check\">\n            <input type=\"checkbox\" name=\"{$col}\" id=\"{$col}\" value=\"1\" class=\"form-check-input {$err}\" {{ {$old} ? 'checked' : '' }}>\n        </div>",
-            'integer' => "<input type=\"number\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
-            'decimal' => "<input type=\"number\" step=\"0.01\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
-            // date/datetime are enhanced by Air Datepicker (theme.js attaches to .js-datepicker, reading
-            // data-adp for the mode) — a Bootstrap-themed calendar instead of the unstyled native picker.
-            // They stay plain text inputs so they degrade gracefully without JS, and the value is formatted
-            // to the exact shape the picker + the 'date' validation rule parse (Y-m-d / Y-m-d H:i); its
-            // Carbon __toString ("Y-m-d H:i:s") would otherwise not round-trip. old() already holds the
-            // submitted string after a validation error. (time keeps the native picker — calendar-less.)
-            'date' => "<input type=\"text\" name=\"{$col}\" id=\"{$col}\" class=\"form-control js-datepicker {$err}\" autocomplete=\"off\" data-adp=\"date\" value=\"{{ old('{$col}', \$object?->{$col}?->format('Y-m-d')) }}\"{$ro}>",
-            'datetime' => "<input type=\"text\" name=\"{$col}\" id=\"{$col}\" class=\"form-control js-datepicker {$err}\" autocomplete=\"off\" data-adp=\"datetime\" value=\"{{ old('{$col}', \$object?->{$col}?->format('Y-m-d H:i')) }}\"{$ro}>",
-            'time' => "<input type=\"time\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
-            'email' => "<input type=\"email\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
-            'url' => "<input type=\"url\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
-            'password' => "<input type=\"password\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" autocomplete=\"new-password\">",
-            'json' => "<textarea name=\"{$col}\" id=\"{$col}\" rows=\"4\" class=\"form-control font-monospace {$err}\"{$ro}>{{ is_array({$old}) ? json_encode({$old}, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : {$old} }}</textarea>",
-            'enum' => $this->enumSelect($f, $err, $old),
-            'image' => $this->fileInput($f, $err, true),
-            'file' => $this->fileInput($f, $err, false),
-            'foreign' => $this->foreignSelect($f, $err, $old),
-            'belongsToMany' => $this->manySelect($f, $err),
-            default => "<input type=\"text\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\" value=\"{{ {$old} }}\"{$ro}>",
-        };
+        // Most controls are reusable components that render their own labelled row (label + control + error),
+        // so styling lives in one place. Only the bespoke controls (boolean/image/file) wrap a raw control.
+        switch ($f['type']) {
+            case 'text':
+                return "<x-admin-core::textarea name=\"{$col}\" label=\"{$label}\" :value=\"{$old}\"{$ro} />";
+            case 'json':
+                $jsonOld = "old('{$col}', is_array(\$object?->{$col}) ? json_encode(\$object->{$col}, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : \$object?->{$col})";
 
+                return "<x-admin-core::textarea name=\"{$col}\" label=\"{$label}\" :value=\"{$jsonOld}\" rows=\"4\" class=\"font-monospace\" />";
+            case 'enum':
+                $enumClass = '\\App\\Enums\\' . $this->enumClass($f);
+                $opts = "collect({$enumClass}::cases())->mapWithKeys(fn (\$case) => [\$case->value => \\Illuminate\\Support\\Str::headline(\$case->value)])";
+
+                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"{$opts}\" :value=\"old('{$col}', \$object?->{$col}?->value)\" />";
+            case 'foreign':
+                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->pluck('name', 'id')\" :value=\"{$old}\" placeholder=\"— select —\" />";
+            case 'belongsToMany':
+                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->pluck('name', 'id')\" :value=\"old('{$col}', \${$f['relation']}Selected)\" multiple />";
+            // date/datetime stay text inputs enhanced by Air Datepicker (.js-datepicker + data-adp), value
+            // formatted to the shape the picker + 'date' rule parse (Carbon's "Y-m-d H:i:s" wouldn't round-trip).
+            case 'date':
+                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"text\" class=\"js-datepicker\" data-adp=\"date\" autocomplete=\"off\" :value=\"old('{$col}', \$object?->{$col}?->format('Y-m-d'))\"{$ro} />";
+            case 'datetime':
+                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"text\" class=\"js-datepicker\" data-adp=\"datetime\" autocomplete=\"off\" :value=\"old('{$col}', \$object?->{$col}?->format('Y-m-d H:i'))\"{$ro} />";
+            case 'password':
+                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"password\" autocomplete=\"new-password\" />";
+            case 'integer':
+                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" :value=\"{$old}\"{$ro} />";
+            case 'decimal':
+                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" step=\"0.01\" :value=\"{$old}\"{$ro} />";
+            case 'email':
+                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"email\" :value=\"{$old}\"{$ro} />";
+            case 'url':
+                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"url\" :value=\"{$old}\"{$ro} />";
+            case 'time':
+                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"time\" :value=\"{$old}\"{$ro} />";
+            case 'image':
+                $control = $this->fileInput($f, "@error('{$col}') is-invalid @enderror", true);
+                break;
+            case 'file':
+                $control = $this->fileInput($f, "@error('{$col}') is-invalid @enderror", false);
+                break;
+            case 'boolean':
+                // hidden 0 before the checkbox so an unchecked box still submits the field (and the 1 wins when checked).
+                $control = "<input type=\"hidden\" name=\"{$col}\" value=\"0\">\n        <div class=\"form-check\">\n            <input type=\"checkbox\" name=\"{$col}\" id=\"{$col}\" value=\"1\" class=\"form-check-input @error('{$col}') is-invalid @enderror\" {{ {$old} ? 'checked' : '' }}>\n        </div>";
+                break;
+            default: // string, slug and any other text-like column
+                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" :value=\"{$old}\"{$ro} />";
+        }
+
+        // boolean / image / file: a bespoke control inside the shared form-row.
         return <<<BLADE
 <x-admin-core::form-row name="{$col}" label="{$label}">
         {$control}
     </x-admin-core::form-row>
 BLADE;
-    }
-
-    private function enumSelect(array $f, string $err, string $old): string
-    {
-        // Single source of truth: iterate the backed enum's cases (compare by ->value,
-        // since the cast makes $object->{field} an enum instance).
-        $enumClass = '\\App\\Enums\\' . $this->enumClass($f);
-        $selected = "old('{$f['name']}', \$object?->{$f['name']}?->value)";
-
-        return "<select name=\"{$f['name']}\" id=\"{$f['name']}\" class=\"form-select admin-core-select {$err}\">\n"
-            . "            @foreach ({$enumClass}::cases() as \$case)\n"
-            . "                <option value=\"{{ \$case->value }}\" @selected({$selected} === \$case->value)>{{ \\Illuminate\\Support\\Str::headline(\$case->value) }}</option>\n"
-            . "            @endforeach\n        </select>";
     }
 
     private function fileInput(array $f, string $err, bool $image): string
@@ -1014,30 +1022,6 @@ BLADE;
         }
 
         return $input;
-    }
-
-    private function foreignSelect(array $f, string $err, string $old): string
-    {
-        $var = $f['relation'] . 'Options';
-
-        return "<select name=\"{$f['name']}\" id=\"{$f['name']}\" class=\"form-select admin-core-select {$err}\">\n"
-            . "            <option value=\"\">— select —</option>\n"
-            . "            @foreach(\${$var} as \$opt)\n"
-            . "                <option value=\"{{ \$opt->id }}\" @selected({$old} == \$opt->id)>{{ \$opt->name ?? \$opt->id }}</option>\n"
-            . "            @endforeach\n"
-            . '        </select>';
-    }
-
-    private function manySelect(array $f, string $err): string
-    {
-        $var = $f['relation'] . 'Options';
-        $sel = $f['relation'] . 'Selected';
-
-        return "<select name=\"{$f['name']}[]\" id=\"{$f['name']}\" multiple class=\"form-select admin-core-select {$err}\">\n"
-            . "            @foreach(\${$var} as \$opt)\n"
-            . "                <option value=\"{{ \$opt->id }}\" @selected(in_array(\$opt->id, old('{$f['name']}', \${$sel})))>{{ \$opt->name ?? \$opt->id }}</option>\n"
-            . "            @endforeach\n"
-            . '        </select>';
     }
 
     public function formScripts(): string

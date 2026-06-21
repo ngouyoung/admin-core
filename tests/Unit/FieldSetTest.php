@@ -66,7 +66,7 @@ it('builds an enum select backed by a generated enum class', function () {
     $f = fs('status:enum:draft|published')->setClass('Product');
     // Validation + form both reference the backed enum — the single source of truth.
     expect($f->storeRules())->toContain('Rule::enum(\App\Enums\ProductStatus::class)');
-    expect($f->formFields())->toContain('<select')
+    expect($f->formFields())->toContain('<x-admin-core::select')
         ->toContain('\App\Enums\ProductStatus::cases()');
     // The DB column stays a plain string (adding a case never needs a migration).
     expect($f->migrationColumns())->toContain("\$table->string('status');");
@@ -79,7 +79,7 @@ it('enhances every select with select2 — enum included, not just foreign/m2m',
     // The enum <select> carries .admin-core-select and an enum-only form still emits the
     // select2 init, so all dropdowns (enum / foreign / many-to-many) look and behave the same.
     $f = fs('status:enum:draft|published')->setClass('Product');
-    expect($f->formFields())->toContain('class="form-select admin-core-select');
+    expect($f->formFields())->toContain('<x-admin-core::select'); // the select component is select2-enhanced by default
     expect($f->formScripts())
         ->toContain(".admin-core-select')")
         ->toContain('.select2(');
@@ -117,7 +117,7 @@ it('renders date/datetime as Air Datepicker text inputs, value-formatted to the 
     // Themed picker (theme.js attaches to .js-datepicker, mode from data-adp), not the native input.
     // A raw Carbon ("Y-m-d H:i:s") wouldn't round-trip; format to Y-m-d / Y-m-d H:i.
     expect($form)
-        ->toContain('class="form-control js-datepicker @error(\'born_on\') is-invalid @enderror" autocomplete="off" data-adp="date"')
+        ->toContain('class="js-datepicker" data-adp="date"')
         ->toContain("old('born_on', \$object?->born_on?->format('Y-m-d'))")
         ->toContain('data-adp="datetime"')
         ->toContain("old('start_at', \$object?->start_at?->format('Y-m-d H:i'))")
