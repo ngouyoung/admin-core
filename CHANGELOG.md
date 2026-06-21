@@ -2,6 +2,11 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.47.2
+
+- **Bigger nesting indent on the drag-drop tree.** Each nested level now indents ~2.25rem (was ~1rem) so deep
+  trees read clearly — a child sits visibly to the right of its parent, with the connector line.
+
 ## v2.47.1
 
 - **Clearer drag-and-drop tree nesting.** On the shared `.ac-tree` / `.ac-menu-tree` style, nested levels now

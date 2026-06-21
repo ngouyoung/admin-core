@@ -423,8 +423,8 @@ ul.checktree {
     // Make nesting obvious: indent each level a bit more and draw a connector line down the branch,
     // so a child (e.g. a permission group nested under another) reads clearly as one level deeper.
     .dd-list .dd-list {
-        margin-left: 1rem;
-        padding-left: 1rem;
+        margin-left: .5rem;
+        padding-left: 2.25rem;
         border-left: 2px solid var(--ac-border);
     }
 
