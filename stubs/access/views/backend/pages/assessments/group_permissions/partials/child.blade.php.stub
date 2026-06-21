@@ -3,7 +3,7 @@
         @foreach($items as $item)
             <li class="dd-item" data-id="{{ $item->id }}">
                 <div class="dd-handle">
-                    {{ $item->name }}
+                    <i class="bi bi-grip-vertical text-muted me-2"></i>{{ $item->name }}
                     <span class="float-end">
                         <span class="badge text-bg-info">{{ $item->permissions->count() }}</span> Permissions
                     </span>

@@ -25,7 +25,7 @@
                                         @foreach($array as $group)
                                             <li class="dd-item" data-id="{{ $group->id }}">
                                                 <div class="dd-handle">
-                                                    {{ $group->name }}
+                                                    <i class="bi bi-grip-vertical text-muted me-2"></i>{{ $group->name }}
                                                     <span class="float-end">
                                                         <span class="badge text-bg-info">{{ $group->permissions->count() }}</span> Permissions
                                                     </span>

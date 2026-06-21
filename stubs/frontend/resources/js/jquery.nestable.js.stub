@@ -86,6 +86,12 @@
 
             var onStartEvent = function(e)
             {
+                // Only the primary (left) mouse button may start a drag. Without this guard a
+                // right-click (or middle-click) begins a drag that then "runs" with the cursor
+                // until the next click. Touch events have no e.which, so skip the check for them.
+                if (!/^touch/.test(e.type) && e.which !== 1) {
+                    return;
+                }
                 var handle = $(e.target);
                 if (!handle.hasClass(list.options.handleClass)) {
                     if (handle.closest('.' + list.options.noDragClass).length) {

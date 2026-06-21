@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.47.3
+
+- **Drag-drop tree polish + fixes.** The Menu manager and Group Permissions trees now share the same
+  themed style: a visible connector line and clearer per-level indent, compact rows, a grip handle, and a
+  right-aligned permission-count badge. Three drag fixes too: right-click / middle-click no longer starts a
+  drag (left button only), the drop placeholder is pinned to one row instead of ballooning to the dragged
+  subtree's height, and the drag clone shows just the single row being moved.
+
 ## v2.47.2
 
 - **Bigger nesting indent on the drag-drop tree.** Each nested level now indents ~2.25rem (was ~1rem) so deep
