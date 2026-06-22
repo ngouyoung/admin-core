@@ -2,19 +2,8 @@
 
 @section('title', __('admin-core::admin-core.access.my_profile'))
 
-@section('breadcrumb')
-    <div class="row">
-        <div class="col-sm-6"><h3 class="mb-0">{{ __('admin-core::admin-core.access.my_profile') }}</h3></div>
-        <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-end">
-                <li class="breadcrumb-item"><a href="{{ route('admin.dashboard') }}">{{ __('admin-core::admin-core.access.home') }}</a></li>
-                <li class="breadcrumb-item active">{{ __('admin-core::admin-core.access.profile') }}</li>
-            </ol>
-        </div>
-    </div>
-@endsection
-
 @section('contents')
+    <x-admin-core::page-header :title="__('admin-core::admin-core.access.my_profile')" />
     <div class="row">
         <div class="col-md-4">
             <div class="card">

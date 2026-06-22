@@ -1,12 +1,8 @@
 @extends('backend.layouts.app')
 @section('title', __('admin-core::admin-core.access.edit_user'))
-@section('breadcrumb')
-    <div class="row"><div class="col-sm-6"><h3 class="mb-0">{{ __('admin-core::admin-core.access.edit_user') }}</h3></div>
-        <div class="col-sm-6"><ol class="breadcrumb float-sm-end">
-            <li class="breadcrumb-item"><a href="{{ route('admin.assessments.users.index') }}">{{ __('admin-core::admin-core.access.users') }}</a></li>
-            <li class="breadcrumb-item active">{{ __('admin-core::admin-core.actions.edit') }}</li></ol></div></div>
-@endsection
 @section('contents')
+    <x-admin-core::page-header :title="__('admin-core::admin-core.access.edit_user')" :parent="__('admin-core::admin-core.access.users')" :parent-url="route('admin.assessments.users.index')" />
+
     <x-admin-core::card>
         <form method="POST" action="{{ route('admin.assessments.users.update', $object->getRouteKey()) }}">
             @csrf @method('PUT')

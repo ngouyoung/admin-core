@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.48.2
+
+- **Skeleton consistency (round 2).** A completeness re-scan caught views the first pass missed (all
+  cosmetic, no behavior change): the access **create / edit** views (roles, users, group-permissions) plus
+  **settings**, **error-logs** (index + detail), **activity-logs** and **profile** now use
+  `<x-admin-core::page-header>` instead of a hand-rolled `@section('breadcrumb')` — matching the generated
+  scaffold and their own index pages; the **users** form fields use `input` / `form-row`; the
+  **error-log detail** page uses `page-header` + `card` + `button`; and the **notifications** action
+  buttons use `button`. (Left intentionally raw, with reasons: the menu offcanvas form — JS targets fixed
+  element IDs; the settings type-switch renderer; the customize drawer's bespoke controls; content/detail
+  tables; and the standalone auth/install pages.)
+
 ## v2.48.1
 
 - **Skeleton/HTML consistency.** A full multi-agent audit of every package Blade view found 14 localized

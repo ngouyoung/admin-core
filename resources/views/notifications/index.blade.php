@@ -8,7 +8,7 @@
             @if ($unreadCount)
                 <form action="{{ route('admin.notifications.readAll') }}" method="POST">
                     @csrf
-                    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-check2-all me-1"></i>Mark all read</button>
+                    <x-admin-core::button type="submit" variant="secondary" outline size="sm" icon="bi bi-check2-all">Mark all read</x-admin-core::button>
                 </form>
             @endif
         </x-slot:actions>
@@ -30,12 +30,12 @@
                         @if (! $n->read_at)
                             <form action="{{ route('admin.notifications.read', $n->id) }}" method="POST">
                                 @csrf
-                                <button class="btn btn-sm btn-outline-secondary" title="Mark read / open"><i class="bi bi-check2"></i></button>
+                                <x-admin-core::button type="submit" variant="secondary" outline size="sm" icon="bi bi-check2" title="Mark read / open" />
                             </form>
                         @endif
                         <form action="{{ route('admin.notifications.destroy', $n->id) }}" method="POST">
                             @csrf @method('DELETE')
-                            <button class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                            <x-admin-core::button type="submit" variant="danger" outline size="sm" icon="bi bi-trash" title="Delete" />
                         </form>
                     </div>
                 </div>

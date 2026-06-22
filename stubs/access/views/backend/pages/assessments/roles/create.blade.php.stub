@@ -1,12 +1,8 @@
 @extends('backend.layouts.app')
 @section('title', __('admin-core::admin-core.access.create_role'))
-@section('breadcrumb')
-    <div class="row"><div class="col-sm-6"><h3 class="mb-0">{{ __('admin-core::admin-core.access.create_role') }}</h3></div>
-        <div class="col-sm-6"><ol class="breadcrumb float-sm-end">
-            <li class="breadcrumb-item"><a href="{{ route('admin.assessments.roles.index') }}">{{ __('admin-core::admin-core.access.roles_title') }}</a></li>
-            <li class="breadcrumb-item active">{{ __('admin-core::admin-core.actions.create') }}</li></ol></div></div>
-@endsection
 @section('contents')
+    <x-admin-core::page-header :title="__('admin-core::admin-core.access.create_role')" :parent="__('admin-core::admin-core.access.roles_title')" :parent-url="route('admin.assessments.roles.index')" />
+
     <x-admin-core::card>
         <form method="POST" action="{{ route('admin.assessments.roles.store') }}">
             @csrf

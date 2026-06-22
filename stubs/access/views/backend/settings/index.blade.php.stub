@@ -2,11 +2,9 @@
 
 @section('title', __('admin-core::admin-core.access.settings'))
 
-@section('breadcrumb')
-    <div class="row"><div class="col-sm-6"><h3 class="mb-0">{{ __('admin-core::admin-core.access.settings') }}</h3></div></div>
-@endsection
-
 @section('contents')
+    <x-admin-core::page-header :title="__('admin-core::admin-core.access.settings')" />
+
     <form action="{{ route('admin.settings.update') }}" method="POST" enctype="multipart/form-data">
         @csrf @method('PUT')
         @forelse ($groups as $group => $settings)

@@ -2,20 +2,17 @@
 
 @section('title', 'Error Log')
 
-@section('breadcrumb')
-    <div class="row">
-        <div class="col-sm-6"><h3 class="mb-0">Error Log</h3></div>
-        <div class="col-sm-6 text-sm-end">
+@section('contents')
+    <x-admin-core::page-header title="Error Log">
+        <x-slot:actions>
             <form action="{{ route('admin.error-logs.clear') }}" method="POST" class="d-inline"
                   data-confirm="{{ __('admin-core::admin-core.confirm.delete_all_errors') }}">
                 @csrf
                 <x-admin-core::button type="submit" variant="danger" outline size="sm" icon="bi bi-trash">Clear all</x-admin-core::button>
             </form>
-        </div>
-    </div>
-@endsection
+        </x-slot:actions>
+    </x-admin-core::page-header>
 
-@section('contents')
     <x-admin-core::data-table id="error_table" thead="backend.error_logs.partials.thead" />
 @endsection
 

@@ -2,39 +2,32 @@
 
 @section('title', 'Error')
 
-@section('breadcrumb')
-    <div class="row">
-        <div class="col-sm-6"><h3 class="mb-0">Error</h3></div>
-        <div class="col-sm-6 text-sm-end">
-            <a href="{{ route('admin.error-logs.index') }}" class="btn btn-sm btn-info"><i class="bi bi-arrow-left-circle"></i> Back</a>
+@section('contents')
+    <x-admin-core::page-header title="Error">
+        <x-slot:actions>
+            <x-admin-core::button :href="route('admin.error-logs.index')" variant="info" size="sm" icon="bi bi-arrow-left-circle">Back</x-admin-core::button>
             <form action="{{ route('admin.error-logs.destroy', $log->id) }}" method="POST" class="d-inline">
                 @csrf @method('DELETE')
-                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete</button>
+                <x-admin-core::button type="submit" variant="danger" outline size="sm" icon="bi bi-trash">Delete</x-admin-core::button>
             </form>
-        </div>
-    </div>
-@endsection
+        </x-slot:actions>
+    </x-admin-core::page-header>
 
-@section('contents')
-    <div class="card mb-3">
-        <div class="card-body">
-            <table class="table table-bordered mb-0">
-                <tbody>
-                <tr><th style="width:140px">Type</th><td><code>{{ $log->type }}</code></td></tr>
-                <tr><th>Message</th><td>{{ $log->message }}</td></tr>
-                <tr><th>File</th><td><code>{{ $log->file }}</code></td></tr>
-                <tr><th>URL</th><td>{{ $log->method }} {{ $log->url }}</td></tr>
-                <tr><th>User</th><td>{{ $log->user_id ?? '—' }}</td></tr>
-                <tr><th>When</th><td>{{ $log->created_at }} ({{ $log->created_at?->diffForHumans() }})</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
+    <x-admin-core::card class="mb-3">
+        <table class="table table-bordered mb-0">
+            <tbody>
+            <tr><th style="width:140px">Type</th><td><code>{{ $log->type }}</code></td></tr>
+            <tr><th>Message</th><td>{{ $log->message }}</td></tr>
+            <tr><th>File</th><td><code>{{ $log->file }}</code></td></tr>
+            <tr><th>URL</th><td>{{ $log->method }} {{ $log->url }}</td></tr>
+            <tr><th>User</th><td>{{ $log->user_id ?? '—' }}</td></tr>
+            <tr><th>When</th><td>{{ $log->created_at }} ({{ $log->created_at?->diffForHumans() }})</td></tr>
+            </tbody>
+        </table>
+    </x-admin-core::card>
 
-    <div class="card">
-        <div class="card-header"><strong>Stack trace</strong></div>
-        <div class="card-body p-0">
-            <pre class="mb-0 p-3 small" style="max-height:60vh; overflow:auto;">{{ $log->trace }}</pre>
-        </div>
-    </div>
+    <x-admin-core::card :body-class="'card-body p-0'">
+        <x-slot:header><strong>Stack trace</strong></x-slot:header>
+        <pre class="mb-0 p-3 small" style="max-height:60vh; overflow:auto;">{{ $log->trace }}</pre>
+    </x-admin-core::card>
 @endsection
