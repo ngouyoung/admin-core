@@ -140,3 +140,20 @@ it('deletes a notification', function () {
 
     expect(DB::table('notifications')->where('id', $id)->exists())->toBeFalse();
 });
+
+it('the bell honours the configurable route name_prefix (not a hardcoded admin.)', function () {
+    // A consumer that customises the prefix registers the routes under it…
+    Route::middleware('web')->prefix('panel')->name('panel.')
+        ->group(fn () => Route::adminCoreNotifications());
+    Route::getRoutes()->refreshNameLookups();
+    config()->set('admin-core.route.name_prefix', 'panel.');
+
+    $user = NotifiableUser::create(['name' => 'A']);
+    seedNotification($user); // unread → the read/readAll/see-all links all render
+
+    $this->actingAs($user);
+    $html = \Illuminate\Support\Facades\Blade::render('<x-admin-core::notifications-bell />');
+
+    // …so the bell must point at the panel-prefixed routes, never the hardcoded admin. ones.
+    expect($html)->toContain('/panel/notifications')->not->toContain('/admin/notifications');
+});

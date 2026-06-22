@@ -3,10 +3,11 @@
 @section('title', 'Notifications')
 
 @section('contents')
+    @php($acNs = config('admin-core.route.name_prefix', 'admin.'))
     <x-admin-core::page-header title="Notifications" description="Your recent alerts and updates.">
         <x-slot:actions>
             @if ($unreadCount)
-                <form action="{{ route('admin.notifications.readAll') }}" method="POST">
+                <form action="{{ route($acNs . 'notifications.readAll') }}" method="POST">
                     @csrf
                     <x-admin-core::button type="submit" variant="secondary" outline size="sm" icon="bi bi-check2-all">Mark all read</x-admin-core::button>
                 </form>
@@ -28,12 +29,12 @@
                     </div>
                     <div class="d-flex gap-2">
                         @if (! $n->read_at)
-                            <form action="{{ route('admin.notifications.read', $n->id) }}" method="POST">
+                            <form action="{{ route($acNs . 'notifications.read', $n->id) }}" method="POST">
                                 @csrf
                                 <x-admin-core::button type="submit" variant="secondary" outline size="sm" icon="bi bi-check2" title="Mark read / open" />
                             </form>
                         @endif
-                        <form action="{{ route('admin.notifications.destroy', $n->id) }}" method="POST">
+                        <form action="{{ route($acNs . 'notifications.destroy', $n->id) }}" method="POST">
                             @csrf @method('DELETE')
                             <x-admin-core::button type="submit" variant="danger" outline size="sm" icon="bi bi-trash" title="Delete" />
                         </form>

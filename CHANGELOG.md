@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.50.1
+
+### Fixed
+- **In-app notifications now honour a custom `route.name_prefix`.** The `notifications-bell` component and
+  the notifications index view hardcoded `route('admin.notifications.*')` (and the bell's
+  `Route::has('admin.notifications.index')` guard), so a consumer that set a non-default
+  `config('admin-core.route.name_prefix')` got a broken bell (dead links / the guard hid it entirely). Both
+  now read the configured prefix — matching how `global-search` already resolves its route. Added a feature
+  test that registers the routes under a custom prefix and asserts the bell links follow it.
+
 ## v2.50.0
 
 An adversarial 5-lens multi-agent re-audit of the component coverage found real gaps the earlier
