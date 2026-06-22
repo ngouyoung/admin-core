@@ -6,55 +6,48 @@
     <x-admin-core::page-header :title="__('admin-core::admin-core.access.my_profile')" />
     <div class="row">
         <div class="col-md-4">
-            <div class="card">
-                <div class="card-body text-center">
-                    <x-admin-core::avatar id="current-avatar" class="mb-2"
-                                          :src="$user->avatar ? \Ngos\AdminCore\Support\Media::url($user->avatar) : null"
-                                          :name="$user->name" size="120" />
-                    <h5 class="mb-0 text-capitalize">{{ $user->name }}</h5>
-                    <p class="text-muted">{{ $user->email }}</p>
+            <x-admin-core::card :body-class="'card-body text-center'">
+                <x-admin-core::avatar id="current-avatar" class="mb-2"
+                                      :src="$user->avatar ? \Ngos\AdminCore\Support\Media::url($user->avatar) : null"
+                                      :name="$user->name" size="120" />
+                <h5 class="mb-0 text-capitalize">{{ $user->name }}</h5>
+                <p class="text-muted">{{ $user->email }}</p>
 
-                    <button type="button" class="btn btn-sm btn-primary" id="change-avatar-btn">
-                        <i class="bi bi-camera"></i> {{ __('admin-core::admin-core.access.change_avatar') }}
-                    </button>
-                    <input type="file" id="avatar-input" accept="image/*" class="d-none">
-                    <form id="avatar-form" action="{{ route('admin.profile.avatar') }}" method="POST" class="d-none">
-                        @csrf
-                        <input type="hidden" name="avatar" id="avatar-data">
-                    </form>
-                </div>
-            </div>
+                <button type="button" class="btn btn-sm btn-primary" id="change-avatar-btn">
+                    <i class="bi bi-camera"></i> {{ __('admin-core::admin-core.access.change_avatar') }}
+                </button>
+                <input type="file" id="avatar-input" accept="image/*" class="d-none">
+                <form id="avatar-form" action="{{ route('admin.profile.avatar') }}" method="POST" class="d-none">
+                    @csrf
+                    <input type="hidden" name="avatar" id="avatar-data">
+                </form>
+            </x-admin-core::card>
         </div>
         <div class="col-md-8">
-            <div class="card mb-3">
-                <div class="card-header"><strong>{{ __('admin-core::admin-core.access.profile') }}</strong></div>
-                <div class="card-body">
-                    <form action="{{ route('admin.profile.update') }}" method="POST">
-                        @csrf @method('PUT')
-                        <x-admin-core::input name="name" :label="__('admin-core::admin-core.access.name')" :value="old('name', $user->name)" />
-                        <x-admin-core::input name="email" type="email" :label="__('admin-core::admin-core.access.email')" :value="old('email', $user->email)" />
-                        <x-admin-core::button type="submit">{{ __('admin-core::admin-core.actions.save') }}</x-admin-core::button>
-                    </form>
-                </div>
-            </div>
-            <div class="card">
-                <div class="card-header"><strong>{{ __('admin-core::admin-core.access.change_password') }}</strong></div>
-                <div class="card-body">
-                    <form action="{{ route('admin.profile.password') }}" method="POST">
-                        @csrf @method('PUT')
-                        <x-admin-core::input name="current_password" type="password" :label="__('admin-core::admin-core.access.current_password')" autocomplete="current-password" />
-                        <x-admin-core::input name="password" type="password" :label="__('admin-core::admin-core.access.new_password')" autocomplete="new-password" />
-                        <x-admin-core::input name="password_confirmation" type="password" :label="__('admin-core::admin-core.access.confirm_label')" autocomplete="new-password" />
-                        <x-admin-core::button type="submit">{{ __('admin-core::admin-core.access.update_password') }}</x-admin-core::button>
-                    </form>
-                </div>
-            </div>
+            <x-admin-core::card class="mb-3">
+                <x-slot:header><strong>{{ __('admin-core::admin-core.access.profile') }}</strong></x-slot:header>
+                <form action="{{ route('admin.profile.update') }}" method="POST">
+                    @csrf @method('PUT')
+                    <x-admin-core::input name="name" :label="__('admin-core::admin-core.access.name')" :value="old('name', $user->name)" />
+                    <x-admin-core::input name="email" type="email" :label="__('admin-core::admin-core.access.email')" :value="old('email', $user->email)" />
+                    <x-admin-core::button type="submit">{{ __('admin-core::admin-core.actions.save') }}</x-admin-core::button>
+                </form>
+            </x-admin-core::card>
+            <x-admin-core::card>
+                <x-slot:header><strong>{{ __('admin-core::admin-core.access.change_password') }}</strong></x-slot:header>
+                <form action="{{ route('admin.profile.password') }}" method="POST">
+                    @csrf @method('PUT')
+                    <x-admin-core::input name="current_password" type="password" :label="__('admin-core::admin-core.access.current_password')" autocomplete="current-password" />
+                    <x-admin-core::input name="password" type="password" :label="__('admin-core::admin-core.access.new_password')" autocomplete="new-password" />
+                    <x-admin-core::input name="password_confirmation" type="password" :label="__('admin-core::admin-core.access.confirm_label')" autocomplete="new-password" />
+                    <x-admin-core::button type="submit">{{ __('admin-core::admin-core.access.update_password') }}</x-admin-core::button>
+                </form>
+            </x-admin-core::card>
 
             @if (config('admin-core.two_factor.enabled'))
-                <div class="card mt-3">
-                    <div class="card-header"><strong>{{ __('admin-core::admin-core.auth.two_factor') }}</strong></div>
-                    <div class="card-body">
-                        <p class="text-muted">{{ __('admin-core::admin-core.auth.two_factor_card_desc') }}</p>
+                <x-admin-core::card class="mt-3">
+                    <x-slot:header><strong>{{ __('admin-core::admin-core.auth.two_factor') }}</strong></x-slot:header>
+                    <p class="text-muted">{{ __('admin-core::admin-core.auth.two_factor_card_desc') }}</p>
 
                         @if (! $user->hasEnabledTwoFactorAuthentication())
                             <form action="{{ route('admin.profile.two-factor.enable') }}" method="POST">
@@ -65,11 +58,11 @@
                             <div class="mb-2" style="max-width:200px">{!! $user->twoFactorQrCodeSvg() !!}</div>
                             <p class="text-muted small">{{ __('admin-core::admin-core.auth.two_factor_scan') }}</p>
 
-                            <div class="alert alert-warning">
+                            <x-admin-core::alert type="warning">
                                 <strong>{{ __('admin-core::admin-core.auth.recovery_code') }}</strong>
                                 <p class="small mb-2">{{ __('admin-core::admin-core.auth.two_factor_recovery_intro') }}</p>
                                 <code class="d-block font-monospace" style="white-space:pre-line">{{ implode("\n", $user->recoveryCodes()) }}</code>
-                            </div>
+                            </x-admin-core::alert>
 
                             <form action="{{ route('admin.profile.two-factor.confirm') }}" method="POST" style="max-width:18rem">
                                 @csrf
@@ -100,8 +93,7 @@
                                 <x-admin-core::button type="submit" variant="danger" outline size="sm">{{ __('admin-core::admin-core.auth.two_factor_disable') }}</x-admin-core::button>
                             </form>
                         @endif
-                    </div>
-                </div>
+                </x-admin-core::card>
             @endif
         </div>
     </div>

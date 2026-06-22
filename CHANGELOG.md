@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.48.3
+
+- **Skeleton consistency (round 3 — completeness).** A final whole-tree re-scan converted the last
+  remaining component-able raw markup: every backend **card** wrapper (profile ×4, settings groups,
+  permissions, the group-permissions assignment screen) now uses `<x-admin-core::card>`, and the profile
+  2FA recovery-codes notice uses `<x-admin-core::alert>`. After this, the only raw HTML left is
+  intentionally so (documented): JS-coupled forms/buttons (the menu offcanvas + tree, the avatar
+  croppie modal), the customize drawer's bespoke controls, the settings type-switch field renderer, and
+  content/detail tables — none of which a component fits. No behavior change.
+
 ## v2.48.2
 
 - **Skeleton consistency (round 2).** A completeness re-scan caught views the first pass missed (all

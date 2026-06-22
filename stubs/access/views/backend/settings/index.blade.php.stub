@@ -8,9 +8,8 @@
     <form action="{{ route('admin.settings.update') }}" method="POST" enctype="multipart/form-data">
         @csrf @method('PUT')
         @forelse ($groups as $group => $settings)
-            <div class="card mb-3">
-                <div class="card-header text-capitalize"><strong>{{ $group }}</strong></div>
-                <div class="card-body">
+            <x-admin-core::card class="mb-3">
+                <x-slot:header><strong class="text-capitalize">{{ $group }}</strong></x-slot:header>
                     @foreach ($settings as $setting)
                         @php($name = 'settings[' . $setting->key . ']')
                         @php($old = old('settings.' . $setting->key, $setting->value))
@@ -56,8 +55,7 @@
                             </div>
                         </div>
                     @endforeach
-                </div>
-            </div>
+            </x-admin-core::card>
         @empty
             <x-admin-core::alert type="info">{{ __('admin-core::admin-core.access.settings_empty') }} <code>Setting::set('key', 'value')</code>.</x-admin-core::alert>
         @endforelse

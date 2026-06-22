@@ -13,12 +13,11 @@
         </x-slot:actions>
     </x-admin-core::page-header>
 
-    <div class="card">
-        <div class="card-body">
-            <div class="row">
+    <x-admin-core::card>
+        <div class="row">
                 @if(isset($array) && $array->count() > 0)
                     <div class="col-md-6">
-                        <div class="card"><div class="card-body">
+                        <x-admin-core::card>
                             <div class="cf nestable-lists">
                                 <div class="dd ac-tree @cannot('sort-group-permission') nestable-disable @endcannot" id="nestable">
                                     <ol class="dd-list">
@@ -38,7 +37,7 @@
                                     </ol>
                                 </div>
                             </div>
-                        </div></div>
+                        </x-admin-core::card>
                     </div>
                     <div class="col-md-6">
                         <table class="{{ config('class.table') }}">
@@ -50,8 +49,7 @@
                     </div>
                 @endif
             </div>
-        </div>
-    </div>
+    </x-admin-core::card>
 @endsection
 
 @push('scripts')
