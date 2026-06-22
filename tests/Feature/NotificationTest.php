@@ -157,3 +157,18 @@ it('the bell honours the configurable route name_prefix (not a hardcoded admin.)
     // …so the bell must point at the panel-prefixed routes, never the hardcoded admin. ones.
     expect($html)->toContain('/panel/notifications')->not->toContain('/admin/notifications');
 });
+
+it('follows a notification url only when relative/same-host (no open redirect)', function () {
+    $user = NotifiableUser::create(['name' => 'A']);
+
+    // an external/absolute url is NOT followed — falls back to back()
+    $ext = seedNotification($user);
+    DB::table('notifications')->where('id', $ext)->update(['data' => json_encode(['url' => 'https://evil.example/x'])]);
+    $resp = $this->actingAs($user)->post(route('admin.notifications.read', $ext))->assertRedirect();
+    expect($resp->headers->get('Location'))->not->toContain('evil.example');
+
+    // a relative (same-app) url IS followed
+    $rel = seedNotification($user);
+    DB::table('notifications')->where('id', $rel)->update(['data' => json_encode(['url' => '/admin/orders/9'])]);
+    $this->actingAs($user)->post(route('admin.notifications.read', $rel))->assertRedirect('/admin/orders/9');
+});

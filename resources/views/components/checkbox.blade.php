@@ -4,11 +4,14 @@
        <x-admin-core::checkbox name="featured" :checked="$on" switch />
      `checked` the current value · `switch` render as a Bootstrap switch. Wraps form-row for the label/error. --}}
 @props(['name', 'label' => null, 'checked' => false, 'switch' => false])
-@php $label ??= \Illuminate\Support\Str::headline($name); @endphp
+@php
+    $label ??= \Illuminate\Support\Str::headline($name);
+    $errorKey = rtrim(str_replace(['[', ']'], ['.', ''], $name), '.'); // settings[active] -> settings.active
+@endphp
 <x-admin-core::form-row :name="$name" :label="$label">
     <input type="hidden" name="{{ $name }}" value="0">
     <div class="form-check{{ $switch ? ' form-switch' : '' }}">
         <input type="checkbox" name="{{ $name }}" id="{{ $name }}" value="1"
-            {{ $attributes->class(['form-check-input', 'is-invalid' => $errors->has($name)]) }} @checked($checked)>
+            {{ $attributes->class(['form-check-input', 'is-invalid' => $errors->has($errorKey)]) }} @checked($checked)>
     </div>
 </x-admin-core::form-row>

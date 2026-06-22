@@ -277,3 +277,25 @@ it('renders an input hint as muted form-text (and omits it when absent)', functi
     expect($h)->toContain('type="password"')->toContain('required')->toContain('form-text')->toContain('Leave blank to keep');
     expect(Blade::render('<x-admin-core::input name="x" />'))->not->toContain('form-text');
 });
+
+it('renders a translatable-input with one field per configured locale (+ the AutoTranslate marker)', function () {
+    config(['admin-core.translation.locales' => ['en' => 'English', 'km' => 'Khmer']]);
+
+    $html = Blade::render('<x-admin-core::translatable-input name="title" :value="[\'en\' => \'Hi\']" />');
+
+    expect($html)
+        ->toContain('data-ac-translatable="title"')   // the JS/AutoTranslate hook
+        ->toContain('name="title[en]"')               // one input per locale
+        ->toContain('name="title[km]"')
+        ->toContain('Hi');                            // existing en value rendered
+});
+
+it('shows a validation error for a bracket-named field (settings[logo] -> settings.logo)', function () {
+    // Laravel keys errors with dot notation; the components must normalise the bracket name to find it.
+    $bag = (new ViewErrorBag)->put('default', new \Illuminate\Support\MessageBag(['settings.logo' => 'The logo must be an image.']));
+    View::share('errors', $bag);
+
+    $html = Blade::render('<x-admin-core::file-input name="settings[logo]" image />');
+
+    expect($html)->toContain('is-invalid')->toContain('The logo must be an image.');
+});

@@ -33,8 +33,13 @@ class NotificationController extends Controller
         $notification->markAsRead();
 
         $url = $notification->data['url'] ?? null;
+        $host = is_string($url) ? parse_url($url, PHP_URL_HOST) : false;
 
-        return is_string($url) ? redirect()->to($url) : redirect()->back();
+        // Follow the stored URL only when it's relative or points at this app — never an arbitrary
+        // external/protocol-relative host (defence-in-depth, even though payloads are server-authored).
+        return is_string($url) && $url !== '' && ($host === null || $host === $request->getHost())
+            ? redirect()->to($url)
+            : redirect()->back();
     }
 
     public function readAll(Request $request): RedirectResponse

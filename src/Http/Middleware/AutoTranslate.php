@@ -48,7 +48,11 @@ class AutoTranslate
             return;
         }
 
-        $translator = app(Translator::class);
+        try {
+            $translator = app(Translator::class);
+        } catch (\Throwable $e) {
+            return; // a misconfigured/typo'd translator driver must never 500 a write — just skip auto-fill
+        }
 
         foreach ($fields as $field) {
             $values = $request->input($field);

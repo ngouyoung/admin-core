@@ -2,6 +2,36 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.1
+
+### Upgrading (important for existing installs)
+Several v2.51.0 security/bug fixes live in **published stubs** (code copied into your app by
+`admin-core:install` / `admin-core:make`), so they do **not** reach an app generated before v2.51.0 — most
+importantly the **settings upload validation** (`app/Http/Requests/Setting/UpdateSettingRequest.php`). To
+apply them, re-publish or hand-patch the affected files: the settings request, `settings/index`, and the
+generated `index`/`show`/`trash` views (guard-aware `@can`, trash pager). Fixes that live in the package
+`src/` (2FA middleware, generator, `WebController`, components) apply automatically on update.
+
+### Polish (deep-audit LOW)
+- **Notification redirect is same-host only** — `NotificationController::read()` no longer follows an
+  external / protocol-relative `url` from a notification payload (open-redirect hardening).
+- **Form components resolve bracket-name validation errors** — `input` / `textarea` / `checkbox` /
+  `file-input` + `form-row` normalise `settings[logo]` → `settings.logo`, so a per-field error (e.g. a
+  rejected upload) now shows on the field.
+- **Menu manager loads the whole tree in one query** — `MenuService::roots()` wires each level's `children`
+  in PHP instead of lazy-loading per node (no N+1).
+- **Removed a dead per-row `COUNT(users)`** from the roles DataTable (unused column).
+- **Auto-translate degrades gracefully** — a misconfigured `translator` driver no longer 500s a multilingual
+  write (the middleware skips auto-fill).
+- **Locale-column probe is cross-process cached** — `SetLocale` caches the `locale`-column existence (a
+  per-process static backed by a day-TTL cache), so the schema is probed ~once/day fleet-wide rather than
+  once per worker; the TTL means a later migration adding the column is picked up automatically.
+
+### Tests
+- Added: translatable-input render, notification open-redirect, bracket-name error display, menu single-query.
+
+`composer analyse` 0 errors; 306 tests green.
+
 ## v2.51.0
 
 A broad adversarial security/correctness/performance audit (multi-agent, 0 false positives) drove this

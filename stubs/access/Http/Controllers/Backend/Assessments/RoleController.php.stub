@@ -40,7 +40,6 @@ class RoleController extends WebController
         return parent::getData(['permissions'])
             ->editColumn('name', fn ($role) => '<span class="text-capitalize">' . e($role->name) . '</span>')
             ->addColumn('permissions', fn ($role) => $this->badges($role->permissions))
-            ->addColumn('countUsers', fn ($role) => $role->users()->count())
             ->addColumn('actions', fn ($role) => $this->actions($role, 'role'))
             ->rawColumns(['name', 'permissions', 'actions'])
             ->make(true);

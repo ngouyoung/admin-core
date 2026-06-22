@@ -5,6 +5,7 @@ namespace Ngos\AdminCore\Http\Middleware;
 use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -78,13 +79,22 @@ class SetLocale
         }
     }
 
-    /** Cheap, cached check so a missing column degrades to session-only rather than erroring. */
+    /**
+     * Whether the user table has a `locale` column (else we degrade to session-only). Cached two ways:
+     * a per-process static (fast, no driver call on repeat), backed by a day-TTL cache so the schema is
+     * probed at most ~once/day across the whole fleet — and the TTL means a later migration that adds the
+     * column is picked up automatically (no permanent stale `false`).
+     */
     protected function modelHasLocaleColumn(Model $user): bool
     {
         static $has = [];
 
         $table = $user->getTable();
 
-        return $has[$table] ??= Schema::hasColumn($table, 'locale');
+        return $has[$table] ??= Cache::remember(
+            "admin-core:has-locale-column:{$table}",
+            now()->addDay(),
+            fn () => Schema::hasColumn($table, 'locale'),
+        );
     }
 }

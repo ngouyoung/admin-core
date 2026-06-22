@@ -17,10 +17,20 @@ class MenuService extends BaseService
         $this->model = $menuItem;
     }
 
-    /** Root items (eager-loaded children) for the nestable tree. */
+    /**
+     * The whole menu tree in ONE query: load every item, then wire each level's `children`
+     * relation in PHP (the nestable view recurses `$item->children`) — no per-node N+1.
+     */
     public function roots(): Collection
     {
-        return $this->model->with('children')->whereNull('parent_id')->orderBy('sort')->orderBy('id')->get();
+        $byParent = $this->model->orderBy('sort')->orderBy('id')->get()
+            ->groupBy(fn (MenuItem $i) => $i->parent_id ?? 0);
+
+        $attach = function (Collection $items) use (&$attach, $byParent): Collection {
+            return $items->each(fn (MenuItem $i) => $i->setRelation('children', $attach($byParent->get($i->id, new Collection))));
+        };
+
+        return $attach($byParent->get(0, new Collection));
     }
 
     /** New items append to the end of their level. */

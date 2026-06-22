@@ -75,6 +75,23 @@ it('store creates an item and appends it to the end of its level', function () {
         ->and($row->sort)->toBe(2); // appended after "First"
 });
 
+it('roots() loads the whole tree in one query, children wired at every level (no N+1)', function () {
+    $root = MenuItem::create(['label' => 'Root', 'sort' => 1]);
+    $child = MenuItem::create(['label' => 'Child', 'parent_id' => $root->id, 'sort' => 1]);
+    MenuItem::create(['label' => 'Grandchild', 'parent_id' => $child->id, 'sort' => 1]);
+
+    \Illuminate\Support\Facades\DB::connection()->enableQueryLog();
+    $roots = app(\App\Services\Menu\MenuService::class)->roots();
+    $queries = \Illuminate\Support\Facades\DB::connection()->getQueryLog();
+
+    expect($roots)->toHaveCount(1);
+    $r = $roots->first();
+    expect($r->relationLoaded('children'))->toBeTrue()
+        ->and($r->children)->toHaveCount(1)
+        ->and($r->children->first()->children->first()->label)->toBe('Grandchild'); // deep level, no extra query
+    expect($queries)->toHaveCount(1); // the entire tree in a single SELECT
+});
+
 it('store with link_type=none makes a section header (no route/url)', function () {
     $this->post('/admin/menu', ['label' => 'System', 'link_type' => 'none'])->assertRedirect();
 
