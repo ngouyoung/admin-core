@@ -150,6 +150,20 @@ it('a generated file field carries a mimes allowlist (no executable/markup uploa
         ->toContain('mimes:pdf,doc,docx,xls,xlsx,csv,txt,zip');
 });
 
+it('localizes a foreign relation display so a translatable related name never breaks', function () {
+    $f = fs('category_id:foreign');
+
+    // list column, form <select> options, and show row all run the value through ac_localize()
+    expect($f->getDataColumns())->toContain('ac_localize($row->category?->name)');
+    expect($f->formFields())->toContain('ac_localize($o->name)');
+    expect($f->showRows())->toContain('ac_localize($object->category?->name)');
+
+    // and the helper resolves a translatable array to the locale string, passing plain strings through
+    expect(ac_localize(['en' => 'Drinks', 'km' => 'x']))->toBe('Drinks');
+    expect(ac_localize('Plain'))->toBe('Plain');
+    expect(ac_localize(null))->toBe('');
+});
+
 it('points a foreign key at an explicit target table (self-reference / tree)', function () {
     // parent_id:foreign:categories on the categories table itself = a self-referencing tree.
     $f = fs('parent_id:foreign:categories', 'categories');

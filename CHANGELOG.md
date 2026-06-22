@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.3
+
+### Fixed
+- **Generated resources handle a translatable foreign-key display.** `admin-core:make` emitted
+  `$row->relation?->name` for a foreign / belongsToMany **column, `<select>` and show row** — which crashed
+  with `htmlspecialchars(): array given` once records existed and the related model's `name` was
+  `translatable` (a JSON array). Added an **`ac_localize()`** helper (translatable array → current-locale
+  string; plain strings pass through) and the generator now wraps every FK display in it.
+- **Topnav layout (scss stub):** the sidebar-collapse override never matched (`data-ac-layout` is on
+  `<html>`, `ac-sidebar-collapsed` on `<body>`), so collapsing in topnav forced a 2-column grid onto the
+  single-column bar and broke the layout — fixed with a descendant selector, and the collapse toggle is now
+  hidden in topnav (meaningless there). The topnav bar also gets a `z-index` so its dropdowns sit above the
+  table, and the collapsed sidebar top (brand logo / user avatar) centers in the rail.
+
+`composer analyse` 0 errors; 307 tests green.
+
 ## v2.51.2
 
 A UI / responsiveness pass — friendlier, smoother, and tidier on phones.

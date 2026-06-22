@@ -980,9 +980,9 @@ PHP;
 
                 return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"{$opts}\" :value=\"old('{$col}', \$object?->{$col}?->value)\" />";
             case 'foreign':
-                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->pluck('name', 'id')\" :value=\"{$old}\" placeholder=\"— select —\" />";
+                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->mapWithKeys(fn (\$o) => [\$o->getKey() => ac_localize(\$o->name)])\" :value=\"{$old}\" placeholder=\"— select —\" />";
             case 'belongsToMany':
-                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->pluck('name', 'id')\" :value=\"old('{$col}', \${$f['relation']}Selected)\" multiple />";
+                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->mapWithKeys(fn (\$o) => [\$o->getKey() => ac_localize(\$o->name)])\" :value=\"old('{$col}', \${$f['relation']}Selected)\" multiple />";
             // date/datetime stay text inputs enhanced by Air Datepicker (.js-datepicker + data-adp), value
             // formatted to the shape the picker + 'date' rule parse (Carbon's "Y-m-d H:i:s" wouldn't round-trip).
             case 'date':
@@ -1216,7 +1216,7 @@ BLADE;
     {
         return match ($f['type']) {
             'foreign' => $this->foreignDataColumn($f),
-            'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(\$i->name ?? \$i->id) . '</span>')->implode(' '))\n"
+            'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(ac_localize(\$i->name) ?: \$i->id) . '</span>')->implode(' '))\n"
                 . "            ->filterColumn('{$f['relation']}', fn (\$q, \$keyword) => \$q->whereHas('{$f['relation']}', fn (\$rq) => \$rq->where('name', 'like', \"%{\$keyword}%\")))",
             // Match the show view's status badge / Yes-No / formatted date rather than leaking a raw value.
             'enum' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\\Illuminate\\Support\\Str::headline(\$row->{$f['name']}->value)) . '</span>' : '')",
@@ -1247,7 +1247,7 @@ BLADE;
         // `exists:` rule for irregular plurals (e.g. the order subquery and the rule naming different tables).
         $relTable = $f['relTable'];
 
-        return "            ->addColumn('{$rel}', fn (\$row) => \$row->{$rel}?->name)\n"
+        return "            ->addColumn('{$rel}', fn (\$row) => ac_localize(\$row->{$rel}?->name))\n"
             . "            ->filterColumn('{$rel}', fn (\$q, \$keyword) => \$q->whereHas('{$rel}', fn (\$rq) => \$rq->where('name', 'like', \"%{\$keyword}%\")))\n"
             . "            ->orderColumn('{$rel}', fn (\$q, \$dir) => \$q->orderBy({$relModel}::select('name')->whereColumn('{$relTable}.id', '{$this->table}.{$f['name']}'), \$dir))";
     }
@@ -1262,8 +1262,8 @@ BLADE;
             }
             $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']);
             $value = match ($f['type']) {
-                'foreign' => "{{ \$object->{$f['relation']}?->name }}",
-                'belongsToMany' => "@foreach(\$object->{$f['relation']} as \$i)<x-admin-core::badge tone=\"secondary\">{{ \$i->name ?? \$i->id }}</x-admin-core::badge> @endforeach",
+                'foreign' => "{{ ac_localize(\$object->{$f['relation']}?->name) }}",
+                'belongsToMany' => "@foreach(\$object->{$f['relation']} as \$i)<x-admin-core::badge tone=\"secondary\">{{ ac_localize(\$i->name) ?: \$i->id }}</x-admin-core::badge> @endforeach",
                 'image' => "@if(\$object->{$f['name']})<img src=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
