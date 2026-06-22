@@ -2,6 +2,29 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.2
+
+A UI / responsiveness pass — friendlier, smoother, and tidier on phones.
+
+### Added
+- **`<x-admin-core::page-loader>`** — a full-page themed-spinner overlay that masks the load/refresh reflow
+  and auto-hides on `load` (8s safety timeout). Wired into the layout stub.
+
+### Fixed / improved
+- **Editor has a real height** — `<x-admin-core::editor>` gained a `min-height` prop (default 250px); CKEditor 5
+  otherwise collapses to ~1 line.
+- **Row-actions ⋯ menu no longer renders under the table** — dropped `data-bs-display="static"` so Popper flips
+  the menu up near the bottom of a DataTable instead of dropping off the edge.
+- **Sidebar no longer flashes on refresh** — the layout applies the saved `ac-sidebar-collapsed` state *before
+  paint* (inline script), not after the JS bundle loads.
+- **Collapsed sidebar top is centered** — the brand logo + user avatar center in the icon rail (were left-aligned),
+  and expand again on hover.
+- **Forms stack on phones** — `form-row` makes the label full-width + left-aligned on xs, horizontal from sm up.
+- **Friendlier polish + mobile ergonomics** (scss stub) — accent focus rings, smooth interactive transitions,
+  44px tap targets, and tighter phone gutters; respects `prefers-reduced-motion`.
+
+`composer analyse` 0 errors; tests green.
+
 ## v2.51.1
 
 ### Upgrading (important for existing installs)

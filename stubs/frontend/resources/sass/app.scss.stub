@@ -108,6 +108,7 @@ body.ac-sidebar-collapsed .ac-shell { grid-template-columns: var(--ac-sidebar-w-
 body.ac-sidebar-collapsed {
     .ac-brand-text, .ac-user-meta, .ac-nav-link span, .ac-nav-header, .ac-nav-caret { display: none; }
     .ac-nav-link { justify-content: center; }
+    .ac-brand, .ac-user { justify-content: center; padding-inline: 0; } // center the lone logo/avatar in the 78px rail
     .ac-treeview { display: none !important; }
 }
 
@@ -133,6 +134,9 @@ body.ac-sidebar-collapsed {
             // Reveal everything the rail hides and left-align the links again.
             .ac-brand-text, .ac-user-meta, .ac-nav-link span, .ac-nav-header, .ac-nav-caret { display: revert; }
             .ac-nav-link { justify-content: flex-start; }
+            .ac-brand, .ac-user { justify-content: flex-start; }
+            .ac-brand { padding-inline: .6rem; }
+            .ac-user { padding-inline: .45rem; }
             .ac-nav-item.open > .ac-treeview { display: block !important; }
         }
     }
@@ -685,4 +689,39 @@ body.ac-customize-open .ac-customize-backdrop { opacity: 1; visibility: visible;
     display: inline-grid; place-items: center;
     color: #fff; font-weight: 600; line-height: 1; text-transform: uppercase;
     user-select: none;
+}
+
+// 21. Friendly polish + mobile ergonomics ------------------------------------
+// Smooth, consistent feedback on interactive chrome (subtle — not flashy).
+.btn, .ac-icon-btn, .ac-burger, .ac-user-btn, .ac-nav-link, .card, .dropdown-item {
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .12s ease;
+}
+.btn:active { transform: translateY(1px); }
+
+// Keyboard focus ring (accent) on chrome — visible for keyboard/AT, invisible on mouse.
+.btn:focus-visible, a:focus-visible, .ac-icon-btn:focus-visible, .ac-burger:focus-visible,
+.ac-user-btn:focus-visible, .ac-nav-link:focus-visible, .dropdown-item:focus-visible {
+    outline: 2px solid var(--ac-accent);
+    outline-offset: 2px;
+}
+// Form fields focus in the theme accent (not Bootstrap's fixed blue).
+.form-control:focus, .form-select:focus {
+    border-color: var(--ac-accent);
+    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--ac-accent) 22%, transparent);
+}
+
+// Phone ergonomics: bigger tap targets, tighter gutters so content gets the width.
+@media (max-width: 767.98px) {
+    .ac-burger, .ac-icon-btn, .ac-user-btn { width: 44px; height: 44px; }
+    .ac-header { padding: 0 .75rem; gap: .35rem; }
+    .ac-main { padding: 1rem; }
+    .ac-page-title { font-size: 1.25rem; }
+    .card > .card-body { padding: 1rem; }
+    .ac-user-btn .ac-user-btn-name { display: none; }
+    .btn { min-height: 40px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .btn, .ac-icon-btn, .ac-burger, .ac-user-btn, .ac-nav-link, .card, .dropdown-item { transition: none; }
+    .btn:active { transform: none; }
 }

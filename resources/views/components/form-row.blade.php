@@ -10,8 +10,9 @@
 {{-- Normalise bracket names (settings[logo], name[en]) to Laravel's dot error key (settings.logo). --}}
 @php($errorKey = rtrim(str_replace(['[', ']'], ['.', ''], $name), '.'))
 <div class="row mb-3">
-    <label for="{{ $name }}" class="col-md-2 col-sm-3 col-4 col-form-label text-end">{{ $label }}:</label>
-    <div class="col-md-8 col-sm-8 col-8">
+    {{-- Stacks on phones (label full-width, left-aligned); horizontal label/field from sm up. --}}
+    <label for="{{ $name }}" class="col-12 col-sm-3 col-md-2 col-form-label text-sm-end">{{ $label }}:</label>
+    <div class="col-12 col-sm-8 col-md-8">
         {{ $slot }}
         @if ($hint)<div class="form-text">{{ $hint }}</div>@endif
         @if ($errors->has($errorKey))<div class="invalid-feedback d-block">{{ $errors->first($errorKey) }}</div>@endif

@@ -39,6 +39,10 @@
     @stack('style')
 </head>
 <body>
+{{-- Apply the saved sidebar-collapsed state BEFORE the shell paints, so it never flashes
+     expanded→collapsed on refresh (mirrors resources/js/shell.js, which runs after the bundle loads). --}}
+<script>try{if(localStorage.getItem('ac-sidebar-collapsed')==='1')document.body.classList.add('ac-sidebar-collapsed');}catch(e){}</script>
+<x-admin-core::page-loader />
 <div class="ac-shell">
     @include('backend.partials.sidebar')
     @include('backend.partials.nav')

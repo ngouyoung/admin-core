@@ -3,7 +3,7 @@
      The View item appears only when the resource registered a `show` route.
      Delete keeps id="delete" + data-remote so the existing SweetAlert handler still binds. --}}
 <div class="dropdown ac-row-actions">
-    <button class="ac-kebab" type="button" data-bs-toggle="dropdown" data-bs-display="static"
+    <button class="ac-kebab" type="button" data-bs-toggle="dropdown" data-bs-auto-close="true"
             aria-expanded="false" aria-label="Actions">
         <i class="bi bi-three-dots"></i>
     </button>
