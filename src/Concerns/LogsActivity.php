@@ -36,15 +36,25 @@ trait LogsActivity
             default => [],
         };
 
-        ActivityLog::create([
-            'log_name' => class_basename($this),
-            'description' => $description,
-            'subject_type' => $this->getMorphClass(),
-            'subject_id' => (string) $this->getKey(),
-            'causer_type' => auth()->check() ? auth()->user()->getMorphClass() : null,
-            'causer_id' => auth()->id() !== null ? (string) auth()->id() : null,
-            'properties' => $this->filterLoggedProperties($properties),
-        ]);
+        // Never let audit logging break — or roll back — the write it observes: skip when the table
+        // isn't migrated yet, and swallow any insert failure (mirrors ErrorLog::capture).
+        if (! \Illuminate\Support\Facades\Schema::hasTable((new ActivityLog)->getTable())) {
+            return;
+        }
+
+        try {
+            ActivityLog::create([
+                'log_name' => class_basename($this),
+                'description' => $description,
+                'subject_type' => $this->getMorphClass(),
+                'subject_id' => (string) $this->getKey(),
+                'causer_type' => auth()->check() ? auth()->user()->getMorphClass() : null,
+                'causer_id' => auth()->id() !== null ? (string) auth()->id() : null,
+                'properties' => $this->filterLoggedProperties($properties),
+            ]);
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 
     protected function filterLoggedProperties(array $properties): array

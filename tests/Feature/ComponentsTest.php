@@ -266,9 +266,10 @@ it('renders a file-input with image/file variants + current-value preview', func
     expect($img)->toContain('type="file"')->toContain('accept="image/*"')->toContain('src="https://x/a.jpg"');
 
     $file = Blade::render('<x-admin-core::file-input name="doc" :value="\'https://x/d.pdf\'" />');
-    expect($file)->toContain('type="file"')->not->toContain('accept="image/*"')->toContain('current file');
+    expect($file)->toContain('type="file"')->not->toContain('accept="image/*"')
+        ->toContain('Current:')->toContain('href="https://x/d.pdf"'); // localized current-file link
 
-    expect(Blade::render('<x-admin-core::file-input name="x" />'))->not->toContain('<img')->not->toContain('current file');
+    expect(Blade::render('<x-admin-core::file-input name="x" />'))->not->toContain('<img')->not->toContain('Current:');
 });
 
 it('renders an input hint as muted form-text (and omits it when absent)', function () {

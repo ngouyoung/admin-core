@@ -406,7 +406,9 @@ class FieldSet
                 'time' => "\$table->time('{$col}')",
                 'json', 'translatable' => "\$table->json('{$col}')",
                 'image', 'file' => "\$table->string('{$col}')",
-                'foreign' => "\$table->foreignId('{$col}')" . ($n ? '->nullable()' : '') . "->constrained('{$f['relTable']}')" . ($n ? '->nullOnDelete()' : '->cascadeOnDelete()'),
+                // A self-referencing FK (e.g. parent_id -> same table) must be nullable: the root row has no
+                // parent, and the factory seeds null for it. Force nullable + nullOnDelete in that case.
+                'foreign' => "\$table->foreignId('{$col}')" . ($n || $f['relTable'] === $this->table ? '->nullable()' : '') . "->constrained('{$f['relTable']}')" . ($n || $f['relTable'] === $this->table ? '->nullOnDelete()' : '->cascadeOnDelete()'),
                 'auth' => "\$table->foreignId('{$col}')->nullable()->constrained('users')->nullOnDelete()", // set from auth()->id()
                 default => "\$table->string('{$col}')", // also covers 'sku' (a string, made nullable below as a system field)
             };
@@ -828,7 +830,9 @@ PHP;
                     $rules = [$update ? "'nullable'" : $required, "'image'", "'max:2048'"];
                     break;
                 case 'file':
-                    $rules = [$update ? "'nullable'" : $required, "'file'", "'max:10240'"];
+                    // An explicit allowlist — never accept executable/markup uploads (php, phtml, svg, html…)
+                    // onto the (public) upload disk. Widen this list per project if you need more types.
+                    $rules = [$update ? "'nullable'" : $required, "'file'", "'max:10240'", "'mimes:pdf,doc,docx,xls,xlsx,csv,txt,zip'"];
                     break;
                 case 'foreign':
                     $rules = [$required, "'integer'", "'exists:{$f['relTable']},id'"];

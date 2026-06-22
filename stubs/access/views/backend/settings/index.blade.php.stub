@@ -13,47 +13,33 @@
                     @foreach ($settings as $setting)
                         @php($name = 'settings[' . $setting->key . ']')
                         @php($old = old('settings.' . $setting->key, $setting->value))
-                        <div class="row mb-3">
-                            <label class="col-sm-3 col-form-label text-capitalize">{{ str_replace('_', ' ', $setting->key) }}</label>
-                            <div class="col-sm-9">
-                                @switch($setting->type)
-                                    @case('image')
-                                    @case('file')
-                                        @if ($setting->type === 'image' && $setting->value)
-                                            <img src="{{ \Ngos\AdminCore\Support\Media::url($setting->value) }}" alt="{{ $setting->key }}"
-                                                 class="img-thumbnail mb-2" style="max-height: 64px">
-                                        @endif
-                                        <input type="file" name="{{ $name }}" class="form-control"
-                                               @if ($setting->type === 'image') accept="image/*" @endif>
-                                        @if ($setting->value)
-                                            <small class="text-muted">{{ __('admin-core::admin-core.access.current_file') }} {{ $setting->value }} {{ __('admin-core::admin-core.access.replace_file_hint') }}</small>
-                                        @endif
-                                        @break
+                        @php($label = \Illuminate\Support\Str::headline($setting->key))
+                        @switch($setting->type)
+                            @case('image')
+                            @case('file')
+                                <x-admin-core::file-input :name="$name" :label="$label"
+                                    :image="$setting->type === 'image'" :value="$setting->value" />
+                                @break
 
-                                    @case('textarea')
-                                        <textarea name="{{ $name }}" class="form-control" rows="3">{{ $old }}</textarea>
-                                        @break
+                            @case('textarea')
+                                <x-admin-core::textarea :name="$name" :label="$label" :value="$old" rows="3" />
+                                @break
 
-                                    @case('boolean')
-                                        <input type="hidden" name="{{ $name }}" value="0">
-                                        <div class="form-check form-switch pt-2">
-                                            <input type="checkbox" name="{{ $name }}" value="1" class="form-check-input" @checked($old)>
-                                        </div>
-                                        @break
+                            @case('boolean')
+                                <x-admin-core::checkbox :name="$name" :label="$label" :checked="$old" switch />
+                                @break
 
-                                    @case('number')
-                                        <input type="number" name="{{ $name }}" class="form-control" value="{{ $old }}">
-                                        @break
+                            @case('number')
+                                <x-admin-core::input :name="$name" :label="$label" type="number" :value="$old" />
+                                @break
 
-                                    @case('email')
-                                        <input type="email" name="{{ $name }}" class="form-control" value="{{ $old }}">
-                                        @break
+                            @case('email')
+                                <x-admin-core::input :name="$name" :label="$label" type="email" :value="$old" />
+                                @break
 
-                                    @default
-                                        <input type="text" name="{{ $name }}" class="form-control" value="{{ $old }}">
-                                @endswitch
-                            </div>
-                        </div>
+                            @default
+                                <x-admin-core::input :name="$name" :label="$label" :value="$old" />
+                        @endswitch
                     @endforeach
             </x-admin-core::card>
         @empty

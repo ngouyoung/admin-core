@@ -37,9 +37,17 @@ abstract class WebController extends BaseController
      */
     protected ?string $routePrefix = null;
 
+    /**
+     * Auth guard for the permission checks in generated views (the @can action buttons + the row-action
+     * dropdown). Null = the default guard; a portal resource sets it to its guard name so a user
+     * authenticated on a non-default guard still sees the buttons their permissions allow.
+     */
+    protected ?string $guard = null;
+
     protected function view(string $file, array $data = [])
     {
-        return view(config('admin-core.views.path_prefix') . $this->viewPath . $file, $data);
+        // Share the guard with every generated view so its @can buttons resolve against the right user.
+        return view(config('admin-core.views.path_prefix') . $this->viewPath . $file, $data + ['acGuard' => $this->guard]);
     }
 
     protected function routeName(string $action): string
@@ -346,7 +354,7 @@ abstract class WebController extends BaseController
 
     public function trash()
     {
-        return $this->view('trash', ['items' => $this->service->trashedQuery()->latest('deleted_at')->get()]);
+        return $this->view('trash', ['items' => $this->service->trashedQuery()->latest('deleted_at')->paginate(config('admin-core.pagination', 50))]);
     }
 
     public function restore(int|string $id): RedirectResponse
@@ -437,6 +445,7 @@ abstract class WebController extends BaseController
             'base' => $this->routeName(''),
             'resource' => $resource,
             'extra' => $extra,
+            'guard' => $this->guard,
         ])->render();
     }
 }

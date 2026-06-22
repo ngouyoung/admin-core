@@ -34,16 +34,24 @@ class RequireTwoFactor
             return $next($request);
         }
 
-        // Only enforce inside the admin area (route names prefixed `admin.`), and never on the setup
-        // page itself. This leaves guests, the front-end, logout, and the profile pages untouched — no
-        // redirect loop, and no lockout for a same-`web`-guard front-end user.
+        // Only enforce inside the admin area (route names under the configured prefix), and never on the
+        // setup page itself. This leaves guests, the front-end, logout, and the profile pages untouched —
+        // no redirect loop, and no lockout for a same-`web`-guard front-end user.
+        $prefix = (string) config('admin-core.route.name_prefix', 'admin.');
         $route = $request->route();
         $name = $route instanceof Route ? $route->getName() : null;
-        if (! is_string($name) || ! str_starts_with($name, 'admin.') || str_starts_with($name, 'admin.profile.')) {
+        if (! is_string($name) || ! str_starts_with($name, $prefix) || str_starts_with($name, $prefix . 'profile.')) {
             return $next($request);
         }
 
-        return redirect()->route('admin.profile.index')
+        // If the profile route isn't registered (e.g. enforcement flipped on without the --access kit, or a
+        // renamed prefix), degrade to a no-op rather than 500-ing every admin page in a lockout loop.
+        $target = $prefix . 'profile.index';
+        if (! \Illuminate\Support\Facades\Route::has($target)) {
+            return $next($request);
+        }
+
+        return redirect()->route($target)
             ->with('warning', __('admin-core::admin-core.auth.2fa_required'));
     }
 }

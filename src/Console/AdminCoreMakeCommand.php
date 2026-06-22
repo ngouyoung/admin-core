@@ -80,6 +80,9 @@ class AdminCoreMakeCommand extends Command
         // routes/Merchant/Modules; otherwise the configured admin prefix + the admin dir.
         $routeNs = $portal ? "{$portal}." : config('admin-core.route.name_prefix', 'admin.');
         $routePrefixLine = $portal ? "\n        \$this->routePrefix = '{$routeNs}';" : '';
+        // A guarded/portal resource also pins the auth guard so the generated views' permission checks
+        // (the @can action buttons + the row-action dropdown) resolve against that guard's user, not the default.
+        $routePrefixLine .= $guardOpt ? "\n        \$this->guard = '{$guardOpt}';" : '';
         $moduleDir = $portal ? 'routes/' . Str::studly($portal) . '/Modules' : 'routes/Web/Backend/Modules';
         // A portal resource extends that portal's layout (merchant.layout) so it renders inside the
         // portal chrome (its sidebar/guard), not the admin layout.
@@ -134,12 +137,12 @@ class AdminCoreMakeCommand extends Command
             : '';
 
         $sortPanel = $sortable ? str_replace(
-            ['__CLASS__', '__SNAKE__'],
-            [$class, $snakePlural],
+            ['__CLASS__', '__SNAKE__', '__AC_RNS__'],
+            [$class, $snakePlural, $routeNs],
             <<<'BLADE'
 
             <div id="sort-panel" class="d-none mt-2">
-                @php($sortItems = \App\Models\__CLASS__::orderBy('sort')->get())
+                @php($sortItems = \App\Models\__CLASS__::orderBy('sort')->limit(500)->get())
                 <div class="alert alert-info py-2">Drag rows to reorder — changes save automatically.</div>
                 <div class="dd nestable-lists" id="__SNAKE___sortable">
                     <ol class="dd-list">
@@ -171,7 +174,7 @@ class AdminCoreMakeCommand extends Command
                         if (list.nestable) {
                             list.nestable({maxDepth: 1}).on('change', function () {
                                 const ids = list.nestable('serialize').map((i) => i.id);
-                                $.post('{{ route('admin.__SNAKE__.reorder') }}', {ids: ids}, function () {
+                                $.post('{{ route('__AC_RNS____SNAKE__.reorder') }}', {ids: ids}, function () {
                                     window.toastr && window.toastr.success('Order updated');
                                 });
                             });
@@ -200,9 +203,10 @@ class AdminCoreMakeCommand extends Command
         ) : '';
 
         $trashLink = $soft ? sprintf(
-            "\n            <a href=\"{{ route('admin.%s.trash') }}\" class=\"btn btn-sm btn-secondary\">\n"
+            "\n            <a href=\"{{ route('%s%s.trash') }}\" class=\"btn btn-sm btn-secondary\">\n"
             . "                <i class=\"bi bi-trash\"></i> Trash\n"
             . '            </a>',
+            $routeNs,
             $snakePlural,
         ) : '';
 

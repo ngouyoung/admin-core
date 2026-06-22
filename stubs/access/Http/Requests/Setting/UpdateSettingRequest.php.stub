@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Setting;
 
+use App\Models\Setting;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateSettingRequest extends FormRequest
@@ -14,9 +15,17 @@ class UpdateSettingRequest extends FormRequest
     public function rules(): array
     {
         // Settings are a dynamic key/value bag; the service whitelists keys against the
-        // known settings rows, so the request just shape-checks the payload.
-        return [
-            'settings' => ['nullable', 'array'],
-        ];
+        // known settings rows. We additionally constrain every UPLOAD by its setting's
+        // type so an admin can't drop an executable/markup file (php/phtml/svg/html…) onto
+        // the public disk — image settings must be real images, file settings an allowlist.
+        $rules = ['settings' => ['nullable', 'array']];
+
+        foreach (Setting::query()->whereIn('type', ['image', 'file'])->get(['key', 'type']) as $setting) {
+            $rules['settings.' . $setting->key] = $setting->type === 'image'
+                ? ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048']
+                : ['nullable', 'file', 'mimes:pdf,doc,docx,xls,xlsx,csv,txt,zip', 'max:10240'];
+        }
+
+        return $rules;
     }
 }

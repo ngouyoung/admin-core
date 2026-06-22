@@ -2,6 +2,49 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.0
+
+A broad adversarial security/correctness/performance audit (multi-agent, 0 false positives) drove this
+release. All high-severity issues were gated behind opt-in features, so a default install was never exposed.
+
+### Security
+- **Settings uploads are now validated by type.** `UpdateSettingRequest` previously only checked that
+  `settings` was an array — uploaded files went straight to the (public) disk keeping their extension, so a
+  `manage-settings` admin could upload `.php`/`.svg`/`.html` (stored-XSS / DoS / RCE). Each upload is now
+  validated against its setting's type with an explicit `mimes` allowlist + size cap.
+- **Generated `file` fields ship a `mimes` allowlist.** `admin-core:make` emitted a bare `file` rule (any
+  extension); it now restricts to a document allowlist (no executable/markup types).
+
+### Fixed
+- **2FA enforcement no longer bricks the panel or silently bypasses.** `RequireTwoFactor` hardcoded
+  `route('admin.profile.index')` + the `admin.` prefix with no `Route::has` guard, so enabling enforcement
+  without the `--access` kit — or under a renamed `route.name_prefix` — 500'd every admin page in a lockout
+  loop (and enforcement never fired under a custom prefix). It now resolves the configured prefix and degrades
+  to a no-op when the profile route is absent.
+- **`--portal` resources no longer crash on the index page.** The generated `--sortable` reorder URL and
+  `--soft-deletes` trash link hardcoded the `admin.` route prefix; they now use the resource's route prefix.
+- **Self-referencing foreign keys are nullable in the migration.** A `parent_id:foreign:<self>` column emitted
+  a NOT-NULL FK while the factory seeded `null`, breaking `create()`; it is now `nullable()->nullOnDelete()`.
+- **Auto-translate no longer corrupts placeholders.** `admin-core:translate` sent `:seconds`/`:count` to the
+  provider, which mangled them; strings carrying a `:placeholder` or `{…}` token are now kept verbatim.
+- **Audit logging never breaks the write it observes.** `LogsActivity` now skips when the `activity_logs`
+  table isn't migrated and swallows insert failures (mirroring `ErrorLog::capture`).
+- **Generated permission buttons are guard-aware.** The index/show action buttons and the row-action dropdown
+  used the default guard's `@can`, hiding CRUD controls for users authenticated on a non-default (portal)
+  guard; they now resolve against the resource's guard (threaded via `WebController`).
+
+### Performance
+- **Trash screen is paginated** (`WebController::trash()` + `trash.stub`) instead of loading every trashed row.
+- **`--sortable` index no longer eagerly loads the whole table** on every render (capped).
+
+### Changed (component conversion — folds in the unreleased v2.50.2 work)
+- **Settings page uses the shared field components** (`input` / `textarea` / `checkbox` / `file-input`) instead
+  of a bespoke grid — the last view hand-rolling field controls. Component conversion is now complete.
+- **`<x-admin-core::file-input>` current-file link is localized** (`access.current_file`); removed the unused
+  `access.replace_file_hint` key.
+
+`composer analyse` 0 errors; 302 tests green.
+
 ## v2.50.1
 
 ### Fixed

@@ -136,7 +136,6 @@ return [
         'save_settings' => 'រក្សាទុកការកំណត់',
         'settings_empty' => 'មិនទាន់មានការកំណត់ — បន្ថែមដោយ',
         'current_file' => 'បច្ចុប្បន្ន៖',
-        'replace_file_hint' => '— ជ្រើសឯកសារដើម្បីជំនួស។',
         'my_profile' => 'ប្រវត្តិរូបរបស់ខ្ញុំ',
         'profile' => 'ប្រវត្តិរូប',
         'change_avatar' => 'ប្ដូររូបតំណាង',

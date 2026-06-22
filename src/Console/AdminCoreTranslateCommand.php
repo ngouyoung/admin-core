@@ -90,7 +90,12 @@ class AdminCoreTranslateCommand extends Command
             if (is_array($value)) {
                 $out[$key] = $this->translateTree($value, is_array($current) ? $current : [], $translator, $from, $to);
             } elseif (is_string($value)) {
-                if (! $this->option('force') && is_string($current) && trim($current) !== '') {
+                if (preg_match('/:\w|[{}]/', $value)) {
+                    // Never machine-translate a string carrying a Laravel placeholder (:name) or {…} token —
+                    // the provider mangles it (e.g. ":seconds" → ": secondes") and breaks runtime substitution.
+                    // Keep any existing translation, else copy the source verbatim for manual translation.
+                    $out[$key] = is_string($current) && trim($current) !== '' ? $current : $value;
+                } elseif (! $this->option('force') && is_string($current) && trim($current) !== '') {
                     $out[$key] = $current; // keep an existing translation
                 } else {
                     $out[$key] = $translator->translate($value, $from, $to);

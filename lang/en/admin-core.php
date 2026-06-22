@@ -142,7 +142,6 @@ return [
         'save_settings' => 'Save settings',
         'settings_empty' => 'No settings yet — seed some with',
         'current_file' => 'Current:',
-        'replace_file_hint' => '— choose a file to replace it.',
         // profile
         'my_profile' => 'My Profile',
         'profile' => 'Profile',

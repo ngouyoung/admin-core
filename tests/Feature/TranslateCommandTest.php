@@ -52,3 +52,15 @@ it('fails clearly when the driver is null', function () {
 
     $this->artisan('admin-core:translate', ['locale' => 'th'])->assertFailed();
 });
+
+it('never machine-translates a string carrying a :placeholder (keeps it intact)', function () {
+    Http::fake([
+        'api.mymemory.translated.net/*' => Http::response(['responseData' => ['translatedText' => 'XX']]),
+    ]);
+
+    $this->artisan('admin-core:translate', ['locale' => 'th'])->assertSuccessful();
+
+    // auth.two_factor_throttled carries ":seconds" — it must survive verbatim (not become 'XX'),
+    // or runtime substitution would break.
+    expect(File::get($this->target))->toContain(':seconds');
+});

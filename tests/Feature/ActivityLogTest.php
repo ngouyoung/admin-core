@@ -68,3 +68,13 @@ it('records the subject, log name and changed attributes', function () {
     expect($log->properties['attributes'])->toHaveKey('name');
     expect($log->properties['old']['name'])->toBe('Alpha');
 });
+
+it('does not break the write when the activity_logs table is missing (pre-migrate)', function () {
+    Schema::dropIfExists('activity_logs');
+
+    // The model boots LogsActivity; recordActivity must no-op (not 500 / roll back) when the table is gone.
+    $widget = AuditedWidget::create(['name' => 'Gamma']);
+
+    expect($widget->exists)->toBeTrue()
+        ->and(AuditedWidget::find($widget->id))->not->toBeNull();
+});

@@ -84,3 +84,23 @@ it('is a no-op for a user model without the 2FA trait', function () {
     $plain = NotifiableUser::create(['name' => 'Plain', 'email' => 'plain@example.com']);
     $this->actingAs($plain)->get('admin/dashboard')->assertOk();
 });
+
+it('enforces under a custom route name_prefix (not a hardcoded admin.)', function () {
+    config(['admin-core.route.name_prefix' => 'panel.']);
+    Route::middleware(RequireTwoFactor::class)->group(function () {
+        Route::get('panel/dash', fn () => 'dash')->name('panel.dashboard');
+        Route::get('panel/profile', fn () => 'profile')->name('panel.profile.index');
+    });
+
+    $this->actingAs(unconfirmed2faUser())->get('panel/dash')->assertRedirect(route('panel.profile.index'));
+});
+
+it('degrades to a no-op when the profile route is missing (no lockout/500 loop)', function () {
+    // Enforcement flipped on without the --access kit (no profile routes), or under a renamed prefix.
+    config(['admin-core.route.name_prefix' => 'kiosk.']);
+    Route::middleware(RequireTwoFactor::class)->group(function () {
+        Route::get('kiosk/dash', fn () => 'dash')->name('kiosk.dashboard'); // no kiosk.profile.index
+    });
+
+    $this->actingAs(unconfirmed2faUser())->get('kiosk/dash')->assertOk()->assertSee('dash');
+});

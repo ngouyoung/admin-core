@@ -12,7 +12,7 @@
         @if ($image)
             <img src="{{ \Ngos\AdminCore\Support\Media::url($value) }}" class="mt-2 rounded" style="height:60px" alt="{{ $label }}">
         @else
-            <a href="{{ \Ngos\AdminCore\Support\Media::url($value) }}" target="_blank" class="d-block mt-1 small">current file</a>
+            <a href="{{ \Ngos\AdminCore\Support\Media::url($value) }}" target="_blank" class="d-block mt-1 small">{{ __('admin-core::admin-core.access.current_file') }} {{ $value }}</a>
         @endif
     @endif
 </x-admin-core::form-row>

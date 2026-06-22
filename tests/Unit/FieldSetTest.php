@@ -143,6 +143,13 @@ it('builds a foreign key with belongsTo + exists + eager load', function () {
     expect($f->eager())->toContain("'category'");
 });
 
+it('a generated file field carries a mimes allowlist (no executable/markup uploads)', function () {
+    // Bare 'file' accepts ANY extension; an explicit allowlist keeps php/phtml/svg/html off the public disk.
+    expect(fs('manual:file')->storeRules())
+        ->toContain("'file'")
+        ->toContain('mimes:pdf,doc,docx,xls,xlsx,csv,txt,zip');
+});
+
 it('points a foreign key at an explicit target table (self-reference / tree)', function () {
     // parent_id:foreign:categories on the categories table itself = a self-referencing tree.
     $f = fs('parent_id:foreign:categories', 'categories');
@@ -150,7 +157,9 @@ it('points a foreign key at an explicit target table (self-reference / tree)', f
     // The FK targets the explicit table, never the inferred "parents".
     expect($f->migrationColumns())
         ->toContain("foreignId('parent_id')")
-        ->toContain("->constrained('categories')");
+        ->toContain("->constrained('categories')")
+        ->toContain('->nullable()')        // a self-ref FK must be nullable: the root row has no parent…
+        ->toContain('->nullOnDelete()');   // …and the factory seeds null, so the migration must allow it
     // Relation + validation resolve to Category, not a non-existent Parent model.
     expect($f->relations())->toContain('belongsTo(\App\Models\Category::class)');
     expect($f->storeRules())->toContain("'exists:categories,id'");

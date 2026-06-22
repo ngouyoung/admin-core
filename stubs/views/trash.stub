@@ -58,6 +58,7 @@
             @endforelse
             </tbody>
         </table>
+        {{ $items->links() }}
     </x-admin-core::card>
 @endsection
 
