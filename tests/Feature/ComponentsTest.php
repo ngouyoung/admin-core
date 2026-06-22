@@ -249,3 +249,30 @@ it('renders a modal with id/title/centered, body slot, and footer (button ids pa
         ->toContain('modal-footer')
         ->toContain('id="crop-save"');         // button id passthrough — the croppie JS depends on it
 });
+
+it('renders a checkbox with the hidden-0 before the box (unchecked still submits)', function () {
+    $html = Blade::render('<x-admin-core::checkbox name="active" label="Active" :checked="true" />');
+
+    expect($html)
+        ->toContain('<input type="hidden" name="active" value="0">')
+        ->toContain('type="checkbox"')
+        ->toContain('form-check')
+        ->toContain('checked');
+    expect(strpos($html, 'value="0"'))->toBeLessThan(strpos($html, 'type="checkbox"'));
+});
+
+it('renders a file-input with image/file variants + current-value preview', function () {
+    $img = Blade::render('<x-admin-core::file-input name="avatar" image :value="\'https://x/a.jpg\'" />');
+    expect($img)->toContain('type="file"')->toContain('accept="image/*"')->toContain('src="https://x/a.jpg"');
+
+    $file = Blade::render('<x-admin-core::file-input name="doc" :value="\'https://x/d.pdf\'" />');
+    expect($file)->toContain('type="file"')->not->toContain('accept="image/*"')->toContain('current file');
+
+    expect(Blade::render('<x-admin-core::file-input name="x" />'))->not->toContain('<img')->not->toContain('current file');
+});
+
+it('renders an input hint as muted form-text (and omits it when absent)', function () {
+    $h = Blade::render('<x-admin-core::input name="password" type="password" hint="Leave blank to keep" required />');
+    expect($h)->toContain('type="password"')->toContain('required')->toContain('form-text')->toContain('Leave blank to keep');
+    expect(Blade::render('<x-admin-core::input name="x" />'))->not->toContain('form-text');
+});

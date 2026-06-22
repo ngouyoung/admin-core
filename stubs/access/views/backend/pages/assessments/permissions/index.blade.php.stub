@@ -5,19 +5,9 @@
 @section('contents')
     <x-admin-core::page-header :title="__('admin-core::admin-core.access.permissions_title')" :description="__('admin-core::admin-core.access.permissions_desc')" />
 
-    <x-admin-core::card>
-        <p class="text-muted">{{ __('admin-core::admin-core.access.permissions_note') }} <code>php artisan admin-core:make</code>.</p>
-        <table class="{{ config('class.table') }}" id="permissions_table">
-            <thead>
-            <tr>
-                <th>{{ __('admin-core::admin-core.access.name') }}</th>
-                <th>{{ __('admin-core::admin-core.access.group') }}</th>
-                <th>{{ __('admin-core::admin-core.access.guard') }}</th>
-                <th>{{ __('admin-core::admin-core.access.roles') }}</th>
-            </tr>
-            </thead>
-        </table>
-    </x-admin-core::card>
+    <p class="text-muted">{{ __('admin-core::admin-core.access.permissions_note') }} <code>php artisan admin-core:make</code>.</p>
+
+    <x-admin-core::data-table id="permissions_table" thead="backend.pages.assessments.permissions.partials.thead" />
 @endsection
 
 @push('scripts')

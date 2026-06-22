@@ -73,7 +73,7 @@
                 <label class="form-check-label" for="menu-active">{{ __('admin-core::admin-core.access.active_sidebar') }}</label>
             </div>
 
-            <button type="submit" class="btn btn-primary w-100"><i class="bi bi-check-lg"></i> {{ __('admin-core::admin-core.actions.save') }}</button>
+            <x-admin-core::button type="submit" icon="bi bi-check-lg" class="w-100">{{ __('admin-core::admin-core.actions.save') }}</x-admin-core::button>
         </form>
     </div>
 </div>

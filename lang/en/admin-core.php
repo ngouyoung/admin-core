@@ -159,6 +159,7 @@ return [
         'add_item' => 'Add item',
         'add_menu_item' => 'Add menu item',
         'no_menu_items' => 'No menu items yet',
+        'no_group_permissions' => 'No permission groups yet',
         'label' => 'Label',
         'icon' => 'Icon',
         'link' => 'Link',

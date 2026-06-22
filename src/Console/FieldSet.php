@@ -998,38 +998,14 @@ PHP;
             case 'time':
                 return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"time\" :value=\"{$old}\"{$ro} />";
             case 'image':
-                $control = $this->fileInput($f, "@error('{$col}') is-invalid @enderror", true);
-                break;
+                return "<x-admin-core::file-input name=\"{$col}\" label=\"{$label}\" image :value=\"\$object?->{$col}\" />";
             case 'file':
-                $control = $this->fileInput($f, "@error('{$col}') is-invalid @enderror", false);
-                break;
+                return "<x-admin-core::file-input name=\"{$col}\" label=\"{$label}\" :value=\"\$object?->{$col}\" />";
             case 'boolean':
-                // hidden 0 before the checkbox so an unchecked box still submits the field (and the 1 wins when checked).
-                $control = "<input type=\"hidden\" name=\"{$col}\" value=\"0\">\n        <div class=\"form-check\">\n            <input type=\"checkbox\" name=\"{$col}\" id=\"{$col}\" value=\"1\" class=\"form-check-input @error('{$col}') is-invalid @enderror\" {{ {$old} ? 'checked' : '' }}>\n        </div>";
-                break;
+                return "<x-admin-core::checkbox name=\"{$col}\" label=\"{$label}\" :checked=\"{$old}\" />";
             default: // string, slug and any other text-like column
                 return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" :value=\"{$old}\"{$ro} />";
         }
-
-        // boolean / image / file: a bespoke control inside the shared form-row.
-        return <<<BLADE
-<x-admin-core::form-row name="{$col}" label="{$label}">
-        {$control}
-    </x-admin-core::form-row>
-BLADE;
-    }
-
-    private function fileInput(array $f, string $err, bool $image): string
-    {
-        $col = $f['name'];
-        $input = "<input type=\"file\" name=\"{$col}\" id=\"{$col}\" class=\"form-control {$err}\"" . ($image ? ' accept="image/*"' : '') . '>';
-        if ($image) {
-            $input .= "\n        @if(isset(\$object) && \$object->{$col})<img src=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$col}) }}\" class=\"mt-2 rounded\" style=\"height:60px\">@endif";
-        } elseif (true) {
-            $input .= "\n        @if(isset(\$object) && \$object->{$col})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$col}) }}\" target=\"_blank\" class=\"d-block mt-1 small\">current file</a>@endif";
-        }
-
-        return $input;
     }
 
     public function formScripts(): string
@@ -1283,7 +1259,7 @@ BLADE;
             $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']);
             $value = match ($f['type']) {
                 'foreign' => "{{ \$object->{$f['relation']}?->name }}",
-                'belongsToMany' => "@foreach(\$object->{$f['relation']} as \$i)<span class=\"badge text-bg-secondary\">{{ \$i->name ?? \$i->id }}</span> @endforeach",
+                'belongsToMany' => "@foreach(\$object->{$f['relation']} as \$i)<x-admin-core::badge tone=\"secondary\">{{ \$i->name ?? \$i->id }}</x-admin-core::badge> @endforeach",
                 'image' => "@if(\$object->{$f['name']})<img src=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",

@@ -1,11 +1,9 @@
 @php($selectedRoles = isset($object) ? $object->roles->pluck('id')->all() : [])
 <x-admin-core::input name="name" :label="__('admin-core::admin-core.access.name')" :value="old('name', $object->name ?? '')" required />
 <x-admin-core::input name="email" type="email" :label="__('admin-core::admin-core.access.email')" :value="old('email', $object->email ?? '')" required />
-<x-admin-core::form-row name="password" :label="__('admin-core::admin-core.access.password')">
-    <input type="password" name="password" id="password" autocomplete="new-password"
-           class="form-control @error('password') is-invalid @enderror" {{ isset($object) ? '' : 'required' }}>
-    @isset($object)<small class="text-muted">{{ __('admin-core::admin-core.access.password_keep') }}</small>@endisset
-</x-admin-core::form-row>
+<x-admin-core::input name="password" type="password" :label="__('admin-core::admin-core.access.password')"
+    autocomplete="new-password" :required="! isset($object)"
+    :hint="isset($object) ? __('admin-core::admin-core.access.password_keep') : null" />
 <div class="row mb-3">
     <label class="col-md-2 col-form-label text-md-end">{{ __('admin-core::admin-core.access.roles') }}</label>
     <div class="col-md-8 pt-2">

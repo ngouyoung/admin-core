@@ -7,14 +7,14 @@
                 <span class="ac-menu-label">
                     @if ($item->icon)<i class="{{ $item->icon }}"></i>@endif
                     {{ $item->label }}
-                    @unless ($item->is_active)<span class="badge text-bg-secondary ms-1">{{ __('admin-core::admin-core.access.hidden') }}</span>@endunless
+                    @unless ($item->is_active)<x-admin-core::badge tone="secondary" class="ms-1">{{ __('admin-core::admin-core.access.hidden') }}</x-admin-core::badge>@endunless
                     @if (! $item->route && ! $item->url && $item->children->isEmpty())
-                        <span class="badge text-bg-light text-muted ms-1">{{ __('admin-core::admin-core.access.header') }}</span>
+                        <x-admin-core::badge tone="light" class="ms-1 text-muted">{{ __('admin-core::admin-core.access.header') }}</x-admin-core::badge>
                     @endif
                 </span>
                 <span class="ac-menu-meta text-muted small">{{ $item->route ?: $item->url }}</span>
                 <span class="ac-menu-actions">
-                    <button type="button" class="btn btn-sm btn-link p-0 ac-menu-edit"
+                    <x-admin-core::button variant="link" size="sm" class="p-0 ac-menu-edit"
                         data-id="{{ $item->id }}"
                         data-label="{{ $item->label }}"
                         data-icon="{{ $item->icon }}"
@@ -25,11 +25,11 @@
                         data-parent="{{ $item->parent_id }}"
                         data-target="{{ $item->target }}"
                         data-active="{{ $item->is_active ? 1 : 0 }}"
-                        title="{{ __('admin-core::admin-core.actions.edit') }}"><i class="bi bi-pencil"></i></button>
+                        title="{{ __('admin-core::admin-core.actions.edit') }}"><i class="bi bi-pencil"></i></x-admin-core::button>
                     <form action="{{ route('admin.menu.destroy', $item->id) }}" method="post" class="d-inline" data-confirm="{{ __('admin-core::admin-core.confirm.delete_menu_item') }}">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="btn btn-sm btn-link text-danger p-0" title="{{ __('admin-core::admin-core.actions.delete') }}"><i class="bi bi-trash"></i></button>
+                        <x-admin-core::button type="submit" variant="link" size="sm" class="text-danger p-0" title="{{ __('admin-core::admin-core.actions.delete') }}"><i class="bi bi-trash"></i></x-admin-core::button>
                     </form>
                 </span>
             </div>

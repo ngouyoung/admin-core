@@ -26,7 +26,7 @@
                                                 <div class="dd-handle">
                                                     <i class="bi bi-grip-vertical text-muted me-2"></i>{{ $group->name }}
                                                     <span class="float-end">
-                                                        <span class="badge text-bg-info">{{ $group->permissions->count() }}</span> Permissions
+                                                        <x-admin-core::badge tone="info">{{ $group->permissions->count() }}</x-admin-core::badge> Permissions
                                                     </span>
                                                 </div>
                                                 @if(isset($group->child) && $group->child->count())
@@ -46,6 +46,10 @@
                             @include('backend.pages.assessments.group_permissions.partials.childTable', ['items' => $array, 'level' => -1])
                             </tbody>
                         </table>
+                    </div>
+                @else
+                    <div class="col-12">
+                        <x-admin-core::empty-state icon="bi-collection" :title="__('admin-core::admin-core.access.no_group_permissions')" />
                     </div>
                 @endif
             </div>

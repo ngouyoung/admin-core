@@ -91,11 +91,10 @@ it('enhances every select with select2 — enum included, not just foreign/m2m',
 it('renders a boolean as a checkbox with a hidden 0 fallback (so it can be unchecked on edit)', function () {
     $form = fs('active:boolean')->formFields();
 
-    // Hidden 0 must come *before* the checkbox so the checkbox's 1 wins when checked,
-    // and the field is always submitted (an unchecked checkbox sends nothing on its own).
-    expect($form)->toContain('<input type="hidden" name="active" value="0">')
-        ->toContain('type="checkbox" name="active"');
-    expect(strpos($form, 'value="0"'))->toBeLessThan(strpos($form, 'type="checkbox"'));
+    // A boolean field is emitted as the checkbox component (which renders the hidden-0 + box itself —
+    // see the component render test in ComponentsTest for the hidden-before-checkbox ordering).
+    expect($form)->toContain('<x-admin-core::checkbox name="active"')
+        ->toContain(':checked="old(\'active\', $object?->active)"');
 });
 
 it('renders boolean and date columns in the list (not raw true/false or ISO strings)', function () {

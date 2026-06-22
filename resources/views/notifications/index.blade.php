@@ -40,7 +40,7 @@
                     </div>
                 </div>
             @empty
-                <div class="list-group-item text-center text-muted py-5">No notifications yet.</div>
+                <x-admin-core::empty-state icon="bi-bell" title="No notifications yet" />
             @endforelse
         </div>
     </x-admin-core::card>

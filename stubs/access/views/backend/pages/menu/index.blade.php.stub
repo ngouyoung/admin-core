@@ -6,10 +6,8 @@
     <x-admin-core::page-header :title="__('admin-core::admin-core.access.menu')"
         :description="__('admin-core::admin-core.access.menu_desc')">
         <x-slot:actions>
-            <button type="button" class="btn btn-primary btn-sm" id="menu-add"
-                data-bs-toggle="offcanvas" data-bs-target="#menu-form">
-                <i class="bi bi-plus-lg"></i> {{ __('admin-core::admin-core.access.add_item') }}
-            </button>
+            <x-admin-core::button size="sm" id="menu-add" icon="bi bi-plus-lg"
+                data-bs-toggle="offcanvas" data-bs-target="#menu-form">{{ __('admin-core::admin-core.access.add_item') }}</x-admin-core::button>
         </x-slot:actions>
     </x-admin-core::page-header>
 

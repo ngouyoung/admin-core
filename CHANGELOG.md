@@ -2,6 +2,50 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.50.0
+
+An adversarial 5-lens multi-agent re-audit of the component coverage found real gaps the earlier
+conformance rounds had missed (and rejected one false positive — the generator's `config('class.button.*')`
+buttons, which *are* shipped via `install`'s `class.php`). The genuine gaps are closed here.
+
+### New components — the generator no longer emits raw HTML for boolean/file fields
+- **`<x-admin-core::checkbox>`** — boolean field row. A hidden `0` is rendered before the box so an
+  unchecked box still submits the field; optional `switch` renders a Bootstrap switch. `FieldSet` emits it
+  for `boolean` fields.
+- **`<x-admin-core::file-input>`** — file/image upload row with a current-value preview (image thumbnail or
+  a "current file" link) and `is-invalid` wiring. `FieldSet` emits it for `image`/`file` fields; the private
+  `FieldSet::fileInput()` helper is removed.
+
+### Conversions to components that already existed
+- **permissions/index → `<x-admin-core::data-table>`** + a `thead` partial — it was the sole AJAX-DataTable
+  index still hand-rolling its `<table>`; the intro note now sits above the component. `#permissions_table`
+  is preserved, so the DataTables JS is unchanged.
+- **Badges → `<x-admin-core::badge>`** — the menu Hidden/Header tags, the profile 2FA enabled badge, and the
+  group-permission count badges (index + child partial).
+- **Buttons → `<x-admin-core::button>`** — menu add-item, the menu row edit/delete buttons, the menu form
+  save button, and the profile change-avatar button. ids, `data-*` and `.ac-menu-edit` pass through via
+  `$attributes`, so the menu offcanvas/edit JS is unchanged.
+- **notifications empty state → `<x-admin-core::empty-state>`**.
+
+### Activated a dead component
+- **`<x-admin-core::global-search>`** is now placed in the topbar nav stub. It self-guards (renders nothing
+  until `admin-core.search` is configured and the search route is registered), so fresh installs are unaffected.
+
+### Round-2 re-audit polish (folded in)
+A second adversarial pass confirmed the above are regression-free and closed the remaining under-applications:
+- **`<x-admin-core::input>` / `form-row` gained a `hint` prop** (muted `form-text` below the control). The
+  users form password field now uses `<x-admin-core::input type="password" :hint="…">` instead of a hand-rolled
+  input + `<small>` in a form-row slot.
+- **group_permissions/index** now renders `<x-admin-core::empty-state>` when there are no permission groups
+  (added `no_group_permissions` to the en + km lang files), mirroring menu/index.
+- **`FieldSet::showRows()`** emits `<x-admin-core::badge>` for `belongsToMany` detail values (was a raw `<span class="badge">`).
+
+The settings type-switch image/file branch is intentionally left raw: settings uses its own
+`col-sm-3 / col-sm-9` grid (label rendered once outside the `@switch`), which is incompatible with the
+form-row-based `file-input` without a full settings-form layout refactor.
+
+No behavior change. `composer analyse` 0 errors; 295 tests green.
+
 ## v2.49.1
 
 - **Profile crop-avatar modal now uses `<x-admin-core::modal>`** (with a new `centered` prop) instead of

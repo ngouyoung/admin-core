@@ -1,0 +1,6 @@
+<tr>
+    <th>{{ __('admin-core::admin-core.access.name') }}</th>
+    <th>{{ __('admin-core::admin-core.access.group') }}</th>
+    <th>{{ __('admin-core::admin-core.access.guard') }}</th>
+    <th>{{ __('admin-core::admin-core.access.roles') }}</th>
+</tr>

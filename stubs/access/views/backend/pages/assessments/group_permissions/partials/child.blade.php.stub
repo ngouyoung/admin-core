@@ -5,7 +5,7 @@
                 <div class="dd-handle">
                     <i class="bi bi-grip-vertical text-muted me-2"></i>{{ $item->name }}
                     <span class="float-end">
-                        <span class="badge text-bg-info">{{ $item->permissions->count() }}</span> Permissions
+                        <x-admin-core::badge tone="info">{{ $item->permissions->count() }}</x-admin-core::badge> Permissions
                     </span>
                 </div>
                 @if(isset($item->child) && count($item->child) > 0)
