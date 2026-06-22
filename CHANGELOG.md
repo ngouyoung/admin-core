@@ -2,6 +2,28 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.48.0
+
+- **Two-factor authentication (TOTP).** Opt-in authenticator-app 2FA for the admin login (Google
+  Authenticator / Authy) — **off by default**, so existing installs are unaffected. Admins enable it from
+  their profile (scan a QR, confirm a code, save single-use recovery codes); the login then asks for a
+  6-digit code or a recovery code. Set `admin-core.two_factor.enforce` (env `ADMIN_CORE_2FA_ENFORCE`) to
+  require it — admins without confirmed 2FA are redirected to set it up. The secret and recovery codes are
+  stored encrypted; remember-me carries through the challenge; the second factor is rate-limited on its own
+  key. Ships the `Ngos\AdminCore\Concerns\TwoFactorAuthenticatable` trait (installed onto the User model by
+  `--access`), a `RequireTwoFactor` enforcement middleware, a `two_factor` columns migration, the
+  `two_factor` config block, and adds the `pragmarx/google2fa` + `bacon/bacon-qr-code` (SVG QR) deps.
+  Enable with `ADMIN_CORE_2FA=true`.
+- _Hardened (internal security review):_ TOTP codes can't be replayed within their window (last-used
+  time-step is tracked); disabling 2FA and regenerating recovery codes require the current password
+  (a stolen session can't silently strip the second factor); the `two_factor_secret` / recovery-codes
+  columns are hidden from array/JSON/CSV serialization; and enforcement is scoped to admin routes so a
+  shared-`web`-guard front-end isn't trapped.
+
+  _Upgrading an existing install:_ re-run `php artisan admin-core:install --access` (adds the trait + the
+  migration) and `php artisan migrate`, or add `use Ngos\AdminCore\Concerns\TwoFactorAuthenticatable;` to
+  `App\Models\User` and the `two_factor` block to `config/admin-core.php` by hand.
+
 ## v2.47.3
 
 - **Drag-drop tree polish + fixes.** The Menu manager and Group Permissions trees now share the same

@@ -123,17 +123,18 @@ class AdminCoreUninstallCommand extends Command
             return;
         }
 
-        // Remove the two imports admin-core added…
+        // Remove the imports admin-core added…
         $contents = str_replace("\nuse Spatie\\Permission\\Traits\\HasRoles;", '', $contents);
         $contents = str_replace("\nuse Ngos\\AdminCore\\Concerns\\HasPublicUuid;", '', $contents);
-        // …then strip both traits from the class `use …;` line, whatever order/other traits sit there.
-        // (install adds them with a leading comma: `…Notifiable, HasRoles, HasPublicUuid;`.) The old
-        // exact-match `…Notifiable, HasRoles;` never matched once HasPublicUuid was also added, leaving
-        // the model using HasRoles with no import — a fatal "Trait not found".
-        $contents = preg_replace('/,\s*(HasRoles|HasPublicUuid)\b/', '', $contents);
+        $contents = str_replace("\nuse Ngos\\AdminCore\\Concerns\\TwoFactorAuthenticatable;", '', $contents);
+        // …then strip the traits from the class `use …;` line, whatever order/other traits sit there.
+        // (install adds them with a leading comma: `…Notifiable, HasRoles, HasPublicUuid, TwoFactorAuthenticatable;`.)
+        // The old exact-match `…Notifiable, HasRoles;` never matched once more traits were added, leaving
+        // the model using a trait with no import — a fatal "Trait not found".
+        $contents = preg_replace('/,\s*(HasRoles|HasPublicUuid|TwoFactorAuthenticatable)\b/', '', $contents);
 
         File::put($model, $contents);
-        $this->line('  <info>reverted</info> HasRoles / HasPublicUuid traits on app/Models/User.php');
+        $this->line('  <info>reverted</info> HasRoles / HasPublicUuid / TwoFactorAuthenticatable traits on app/Models/User.php');
     }
 
     // ------------------------------------------------------------------
@@ -162,6 +163,7 @@ class AdminCoreUninstallCommand extends Command
             resource_path('views/backend/dashboard.blade.php'),
             resource_path('views/backend/layouts/app.blade.php'),
             resource_path('views/auth/login.blade.php'),
+            resource_path('views/auth/two-factor-challenge.blade.php'),
             base_path('routes/Web/Backend/Modules/assessments.php'),
             // --api-auth footprint (stubs/api-auth) — copied to fixed paths, not a walked stub dir.
             app_path('Http/Controllers/Api/AuthController.php'),

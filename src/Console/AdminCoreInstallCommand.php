@@ -246,6 +246,7 @@ PHP;
         // Layout + nav/sidebar/footer + login.
         $this->copyTree("$fe/views/backend", resource_path('views/backend'), force: true);
         $this->copy("$fe/views/auth/login.blade.php.stub", resource_path('views/auth/login.blade.php'), force: true);
+        $this->copy("$fe/views/auth/two-factor-challenge.blade.php.stub", resource_path('views/auth/two-factor-challenge.blade.php'), force: true);
     }
 
     private function mergePackageJson(string $stub): void
@@ -327,6 +328,7 @@ PHP;
         $this->copy("$a/routes/account.php.stub", base_path('routes/Web/Backend/Modules/account.php'));
         $this->appendAuthRoutes("$a/routes/auth.php.stub");
         $this->addHasRolesTrait();
+        $this->addTwoFactorTrait();
         $this->publishSpatieConfig();
         $this->useAccessPermissionModels();
     }
@@ -444,6 +446,47 @@ PHP;
         $applied
             ? $this->line('  <info>updated</info> app/Models/User.php (added HasRoles trait)')
             : $this->warn('  added the imports to app/Models/User.php, but could not find the trait line — add `use HasRoles, HasPublicUuid;` inside the User class by hand.');
+    }
+
+    /**
+     * Add the TwoFactorAuthenticatable trait to the User model. Kept separate from {@see addHasRolesTrait}
+     * and idempotent on its own name, so an already-installed app (HasRoles present) still picks up 2FA on
+     * a reinstall. No-op once the trait is there.
+     */
+    private function addTwoFactorTrait(): void
+    {
+        $model = app_path('Models/User.php');
+        if (! File::exists($model)) {
+            return;
+        }
+
+        $contents = File::get($model);
+        if (str_contains($contents, 'TwoFactorAuthenticatable')) {
+            $this->line('  <comment>exists</comment>  TwoFactorAuthenticatable trait on User model');
+            return;
+        }
+
+        $contents = preg_replace(
+            '/(use Illuminate\\\\Notifications\\\\Notifiable;)/',
+            "$1\nuse Ngos\\AdminCore\\Concerns\\TwoFactorAuthenticatable;",
+            (string) $contents,
+            1,
+        );
+
+        // Append to the in-class `use … Notifiable …;` trait line (same flexible match as addHasRolesTrait).
+        $contents = preg_replace(
+            '/(\n[ \t]+use\s+[A-Za-z0-9_,\s]*\bNotifiable\b[A-Za-z0-9_,\s]*?)(;)/',
+            '$1, TwoFactorAuthenticatable$2',
+            (string) $contents,
+            1,
+            $applied,
+        );
+
+        File::put($model, (string) $contents);
+
+        $applied
+            ? $this->line('  <info>updated</info> app/Models/User.php (added TwoFactorAuthenticatable trait)')
+            : $this->warn('  could not find the trait line in app/Models/User.php — add `use TwoFactorAuthenticatable;` inside the User class by hand.');
     }
 
     private function publishSpatieConfig(): void

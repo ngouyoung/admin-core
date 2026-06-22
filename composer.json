@@ -44,7 +44,10 @@
         "illuminate/view": "^13.0",
         "spatie/laravel-permission": "^8.0",
         "yajra/laravel-datatables-oracle": "^13.0",
-        "intervention/image": "^3.0"
+        "intervention/image": "^3.0",
+        "pragmarx/google2fa": "^8.0",
+        "bacon/bacon-qr-code": "^3.0",
+        "ext-dom": "*"
     },
     "suggest": {
         "laravel/passport": "Required for `admin-core:install --api-auth` — OAuth2 (password grant) API auth for a decoupled front-end"

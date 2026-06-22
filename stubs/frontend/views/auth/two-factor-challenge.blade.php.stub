@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" data-bs-theme="light">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{{ __('admin-core::admin-core.auth.two_factor_title') }} | {{ setting('app_name', config('app.name')) }}</title>
+    {{-- Load the built theme when available; don't crash on a fresh install before `npm run build`. --}}
+    @if (file_exists(public_path('hot')) || file_exists(public_path('build/manifest.json')))
+        @vite(['resources/js/app.js'])
+    @endif
+</head>
+<body>
+<div class="ac-auth">
+    <div class="ac-auth-card">
+        <div class="ac-auth-brand">
+            @if (setting('site_logo'))
+                <img src="{{ \Ngos\AdminCore\Support\Media::url(setting('site_logo')) }}" alt="logo" style="height:48px">
+            @else
+                {{ setting('app_name', config('app.name')) }}
+            @endif
+        </div>
+        <p class="text-center text-secondary mb-4">{{ __('admin-core::admin-core.auth.two_factor_subtitle') }}</p>
+
+        @if ($errors->any())
+            <div class="alert alert-danger py-2">{{ $errors->first() }}</div>
+        @endif
+
+        <form method="POST" action="{{ route('two-factor.login') }}">
+            @csrf
+            <div class="mb-3" data-2fa="code">
+                <label class="form-label">{{ __('admin-core::admin-core.auth.code') }}</label>
+                <input type="text" name="code" inputmode="numeric" autocomplete="one-time-code"
+                       class="form-control form-control-lg text-center" placeholder="123456" autofocus>
+            </div>
+            <div class="mb-3 d-none" data-2fa="recovery">
+                <label class="form-label">{{ __('admin-core::admin-core.auth.recovery_code') }}</label>
+                <input type="text" name="recovery_code" autocomplete="one-time-code"
+                       class="form-control form-control-lg" placeholder="xxxxxxxxxx-xxxxxxxxxx">
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg w-100 mb-3">{{ __('admin-core::admin-core.auth.verify') }}</button>
+        </form>
+
+        <div class="text-center">
+            <a href="#" class="small text-decoration-none" data-2fa-toggle="recovery">{{ __('admin-core::admin-core.auth.use_recovery_code') }}</a>
+            <a href="#" class="small text-decoration-none d-none" data-2fa-toggle="code">{{ __('admin-core::admin-core.auth.use_authenticator') }}</a>
+        </div>
+        <div class="text-center mt-3">
+            <a href="{{ route('login') }}" class="small text-secondary text-decoration-none">&larr; {{ __('admin-core::admin-core.auth.back_to_login') }}</a>
+        </div>
+    </div>
+</div>
+<script>
+    document.querySelectorAll('[data-2fa-toggle]').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            e.preventDefault();
+            var to = el.getAttribute('data-2fa-toggle');
+            document.querySelector('[data-2fa="code"]').classList.toggle('d-none', to !== 'code');
+            document.querySelector('[data-2fa="recovery"]').classList.toggle('d-none', to !== 'recovery');
+            document.querySelector('[data-2fa-toggle="recovery"]').classList.toggle('d-none', to === 'recovery');
+            document.querySelector('[data-2fa-toggle="code"]').classList.toggle('d-none', to === 'code');
+            var input = to === 'recovery'
+                ? document.querySelector('[name=recovery_code]')
+                : document.querySelector('[name=code]');
+            if (input) input.focus();
+        });
+    });
+</script>
+</body>
+</html>

@@ -119,6 +119,25 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Two-factor authentication (TOTP)
+    |--------------------------------------------------------------------------
+    | Opt-in authenticator-app 2FA for the admin login (Google Authenticator / Authy). Off by default,
+    | so existing installs are unaffected. With 'enabled' on, each admin can turn 2FA on from their
+    | profile; the login then asks for a 6-digit code (or a single-use recovery code). Set 'enforce' to
+    | require it — admins without confirmed 2FA are redirected to set it up. Needs the --access kit
+    | (the user trait, the two_factor columns migration, and the profile routes).
+    */
+    'two_factor' => [
+        'enabled' => env('ADMIN_CORE_2FA', false),
+        'enforce' => env('ADMIN_CORE_2FA_ENFORCE', false),
+        // TOTP drift tolerance — each unit is one ±30s window either side of "now".
+        'window' => 1,
+        // Number of single-use recovery codes generated when 2FA is enabled.
+        'recovery_codes' => 8,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Default DataTables page length
     |--------------------------------------------------------------------------
     */

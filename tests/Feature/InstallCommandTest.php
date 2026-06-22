@@ -179,6 +179,46 @@ it('adds the HasRoles trait to a User model with extra/reordered traits (Sanctum
     $original === null ? File::delete($userPath) : File::put($userPath, $original);
 });
 
+it('adds the TwoFactorAuthenticatable trait to the User model (idempotent)', function () {
+    File::ensureDirectoryExists(app_path('Models'));
+    $userPath = app_path('Models/User.php');
+    $original = File::exists($userPath) ? File::get($userPath) : null;
+
+    File::put($userPath, <<<'PHP'
+    <?php
+
+    namespace App\Models;
+
+    use Illuminate\Database\Eloquent\Factories\HasFactory;
+    use Illuminate\Foundation\Auth\User as Authenticatable;
+    use Illuminate\Notifications\Notifiable;
+
+    class User extends Authenticatable
+    {
+        use HasFactory, Notifiable;
+    }
+    PHP);
+
+    $command = new \Ngos\AdminCore\Console\AdminCoreInstallCommand();
+    $command->setLaravel(app());
+    (fn ($o) => $this->output = $o)->call(
+        $command,
+        new \Illuminate\Console\OutputStyle(new \Symfony\Component\Console\Input\ArrayInput([]), new \Symfony\Component\Console\Output\BufferedOutput()),
+    );
+    $m = new ReflectionMethod($command, 'addTwoFactorTrait');
+    $m->setAccessible(true);
+    $m->invoke($command);
+    $m->invoke($command); // idempotent — second call is a no-op
+
+    $contents = File::get($userPath);
+    expect($contents)
+        ->toContain(', TwoFactorAuthenticatable;')                            // applied in the class body
+        ->toContain('use Ngos\AdminCore\Concerns\TwoFactorAuthenticatable;'); // import added
+    expect(substr_count($contents, 'use Ngos\AdminCore\Concerns\TwoFactorAuthenticatable;'))->toBe(1);
+
+    $original === null ? File::delete($userPath) : File::put($userPath, $original);
+});
+
 it('scaffolds Passport API auth with --api-auth', function () {
     $this->artisan('admin-core:install', ['--api-auth' => true])->assertSuccessful();
 

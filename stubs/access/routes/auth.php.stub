@@ -7,6 +7,11 @@
 Route::middleware('guest')->group(function () {
     Route::get('login', [\App\Http\Controllers\Auth\LoginController::class, 'showLoginForm'])->name('login');
     Route::post('login', [\App\Http\Controllers\Auth\LoginController::class, 'login']);
+
+    // Two-factor challenge (second login step). Reachable only with a pending `login.id` in the session;
+    // the controller redirects back to login otherwise.
+    Route::get('two-factor-challenge', [\App\Http\Controllers\Auth\TwoFactorChallengeController::class, 'show'])->name('two-factor.login');
+    Route::post('two-factor-challenge', [\App\Http\Controllers\Auth\TwoFactorChallengeController::class, 'store']);
 });
 Route::post('logout', [\App\Http\Controllers\Auth\LoginController::class, 'logout'])
     ->name('logout')->middleware('auth');

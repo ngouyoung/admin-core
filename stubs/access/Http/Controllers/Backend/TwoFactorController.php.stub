@@ -1,0 +1,59 @@
+<?php
+
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Requests\Profile\ConfirmTwoFactorRequest;
+use App\Http\Requests\Profile\TwoFactorPasswordRequest;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Ngos\AdminCore\Http\Controllers\BaseController;
+
+/**
+ * Two-factor setup management (the profile "Two-Factor Authentication" card). The logic lives on the
+ * User model via the Ngos\AdminCore\Concerns\TwoFactorAuthenticatable trait; this controller is thin.
+ */
+class TwoFactorController extends BaseController
+{
+    /** Generate a secret + recovery codes (unconfirmed). The profile view then shows the QR to scan. */
+    public function enable(Request $request): RedirectResponse
+    {
+        abort_unless(config('admin-core.two_factor.enabled'), 404);
+
+        Auth::user()->enableTwoFactorAuthentication();
+
+        return back();
+    }
+
+    /** Confirm setup by verifying the first code from the authenticator app. */
+    public function confirm(ConfirmTwoFactorRequest $request): RedirectResponse
+    {
+        abort_unless(config('admin-core.two_factor.enabled'), 404);
+
+        if (! Auth::user()->confirmTwoFactor($request->validated()['code'])) {
+            return back()->withErrors(['code' => __('admin-core::admin-core.auth.two_factor_invalid')]);
+        }
+
+        return back()->with('success', __('admin-core::admin-core.auth.two_factor_confirmed_msg'));
+    }
+
+    /** Turn 2FA off (clears the secret + recovery codes). Requires the current password (re-auth). */
+    public function disable(TwoFactorPasswordRequest $request): RedirectResponse
+    {
+        abort_unless(config('admin-core.two_factor.enabled'), 404);
+
+        Auth::user()->disableTwoFactor();
+
+        return back()->with('success', __('admin-core::admin-core.auth.two_factor_disabled_msg'));
+    }
+
+    /** Issue a fresh set of single-use recovery codes. Requires the current password (re-auth). */
+    public function regenerateRecoveryCodes(TwoFactorPasswordRequest $request): RedirectResponse
+    {
+        abort_unless(config('admin-core.two_factor.enabled'), 404);
+
+        Auth::user()->regenerateRecoveryCodes();
+
+        return back()->with('success', __('admin-core::admin-core.auth.two_factor_recovery_regenerated'));
+    }
+}

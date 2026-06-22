@@ -5,6 +5,7 @@ use App\Http\Controllers\Backend\ErrorLogController;
 use App\Http\Controllers\Backend\MenuController;
 use App\Http\Controllers\Backend\ProfileController;
 use App\Http\Controllers\Backend\SettingController;
+use App\Http\Controllers\Backend\TwoFactorController;
 use Illuminate\Support\Facades\Route;
 
 // In-app usage guide (available to every signed-in admin — no permission gate).
@@ -15,6 +16,14 @@ Route::group(['prefix' => 'profile', 'as' => 'profile.'], function () {
     Route::put('/', [ProfileController::class, 'updateProfile'])->name('update');
     Route::put('password', [ProfileController::class, 'updatePassword'])->name('password');
     Route::post('avatar', [ProfileController::class, 'updateAvatar'])->name('avatar');
+
+    // Two-factor authentication (opt-in TOTP). The setup card lives on the profile page.
+    Route::prefix('two-factor')->as('two-factor.')->group(function () {
+        Route::post('enable', [TwoFactorController::class, 'enable'])->name('enable');
+        Route::post('confirm', [TwoFactorController::class, 'confirm'])->name('confirm');
+        Route::delete('/', [TwoFactorController::class, 'disable'])->name('disable');
+        Route::post('recovery-codes', [TwoFactorController::class, 'regenerateRecoveryCodes'])->name('recovery-codes');
+    });
 });
 
 Route::group([

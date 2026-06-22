@@ -18,6 +18,7 @@ use Ngos\AdminCore\Console\AdminCoreVersionCommand;
 use Ngos\AdminCore\Http\Controllers\NotificationController;
 use Ngos\AdminCore\Http\Controllers\SearchController;
 use Ngos\AdminCore\Http\Middleware\AutoTranslate;
+use Ngos\AdminCore\Http\Middleware\RequireTwoFactor;
 use Ngos\AdminCore\Http\Middleware\SetLocale;
 use Ngos\AdminCore\Translation\TranslationManager;
 use Ngos\AdminCore\Translation\Translator;
@@ -42,6 +43,7 @@ class AdminCoreServiceProvider extends ServiceProvider
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'admin-core');
         $this->loadTranslationsFrom(__DIR__ . '/../lang', 'admin-core');
         $this->registerLocalization();
+        $this->registerTwoFactor();
         $this->registerErrorLogging();
         $this->registerErrorLogPruning();
 
@@ -88,6 +90,17 @@ class AdminCoreServiceProvider extends ServiceProvider
         Route::aliasMiddleware('admin-core.translate', AutoTranslate::class);
         Route::pushMiddlewareToGroup('web', SetLocale::class);
         Route::pushMiddlewareToGroup('web', AutoTranslate::class);
+    }
+
+    /**
+     * Register the 2FA enforcement middleware on the `web` group (no host route changes needed). It is a
+     * no-op unless `admin-core.two_factor.enabled` and `.enforce` are both on, so global registration is
+     * free; when enforced it redirects any admin without confirmed 2FA to their profile to set it up.
+     */
+    protected function registerTwoFactor(): void
+    {
+        Route::aliasMiddleware('admin-core.2fa', RequireTwoFactor::class);
+        Route::pushMiddlewareToGroup('web', RequireTwoFactor::class);
     }
 
     /**

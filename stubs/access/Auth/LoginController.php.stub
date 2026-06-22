@@ -37,6 +37,21 @@ class LoginController extends Controller
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             RateLimiter::clear($throttleKey);
+
+            // Two-factor: if this admin has confirmed 2FA, the password is only the first factor — don't
+            // complete the login yet. Stash the pending user and hand off to the authenticator challenge.
+            $user = Auth::user();
+            if (config('admin-core.two_factor.enabled')
+                && $user
+                && method_exists($user, 'hasConfirmedTwoFactorAuthentication')
+                && $user->hasConfirmedTwoFactorAuthentication()) {
+                Auth::logout();
+                $request->session()->put('login.id', $user->getAuthIdentifier());
+                $request->session()->put('login.remember', $request->boolean('remember'));
+
+                return redirect()->route('two-factor.login');
+            }
+
             $request->session()->regenerate();
 
             return redirect()->intended(route('admin.dashboard'));
