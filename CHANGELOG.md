@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.49.0
+
+- **New `detail-list` / `detail-row` components for show / detail pages.** The generated show view, the
+  `admin-core:field` show-view patch, and the error-log detail page now render their key/value tables via
+  `<x-admin-core::detail-list>` + `<x-admin-core::detail-row label="…">value</x-admin-core::detail-row>`
+  instead of hand-rolled `<table class="table table-bordered"><tr><th>…</th><td>…</td></tr>` markup. This
+  closes the last skeleton gap — the generator already emitted `<x-admin-core::input>` for forms but raw
+  `<tr>` for show rows; detail views are now fully component-based and restyleable in one place. No behavior change.
+
 ## v2.48.3
 
 - **Skeleton consistency (round 3 — completeness).** A final whole-tree re-scan converted the last

@@ -467,10 +467,10 @@ class AdminCoreFieldCommand extends Command
         }
 
         $contents = File::get($path);
-        // Anchor on the generated timestamps row (the fixed `width:220px` <th>, whatever its
-        // label — it's localized via __()) so the new fields land with the others, above it.
+        // Anchor on the generated timestamps row — the <x-admin-core::detail-row> that renders
+        // $object->created_at — so the new fields land with the others, just above it.
         $patched = preg_replace(
-            '/(\n[ \t]*<tr>\s*<th style="width:220px">.*?<\/th>)/',
+            '/(\n[ \t]*<x-admin-core::detail-row\b[^>]*>\{\{ \$object->created_at)/',
             "\n{$rows}$1",
             $contents,
             1,

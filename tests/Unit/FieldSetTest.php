@@ -333,6 +333,14 @@ it('builds read-only show rows', function () {
     expect($f->showRows())->toContain('$object->category?->name');
 });
 
+it('emits show rows as <x-admin-core::detail-row> components (not raw <tr>)', function () {
+    $rows = fs('name:string')->showRows();
+    expect($rows)
+        ->toContain('<x-admin-core::detail-row label="Name">')
+        ->toContain('</x-admin-core::detail-row>')
+        ->not->toContain('<tr>');
+});
+
 it('builds a sort column when sortable', function () {
     expect(fs('name:string')->setSortable(true)->sortColumn())->toContain("\$table->integer('sort')->default(0);");
     expect(fs('name:string')->setSortable(false)->sortColumn())->toBe('');

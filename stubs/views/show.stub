@@ -17,14 +17,9 @@
     </x-admin-core::page-header>
 
     <x-admin-core::card>
-        <table class="table table-bordered mb-0">
-            <tbody>
+        <x-admin-core::detail-list>
 __AC_SHOW__
-            <tr>
-                <th style="width:220px">{{ __('admin-core::admin-core.labels.created') }}</th>
-                <td>{{ $object->created_at }}</td>
-            </tr>
-            </tbody>
-        </table>
+            <x-admin-core::detail-row :label="__('admin-core::admin-core.labels.created')">{{ $object->created_at }}</x-admin-core::detail-row>
+        </x-admin-core::detail-list>
     </x-admin-core::card>
 @endsection

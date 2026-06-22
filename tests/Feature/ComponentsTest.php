@@ -216,3 +216,19 @@ it('renders the data-table shell with a toolbar slot and the thead included', fu
 
     File::delete($thead);
 });
+
+it('renders a detail-list with detail-row label/value pairs (show pages)', function () {
+    $html = Blade::render(
+        '<x-admin-core::detail-list>'
+        . '<x-admin-core::detail-row label="Email">a@b.com</x-admin-core::detail-row>'
+        . '<x-admin-core::detail-row label="Type" width="140px"><code>X</code></x-admin-core::detail-row>'
+        . '</x-admin-core::detail-list>'
+    );
+
+    expect($html)
+        ->toContain('table table-bordered')
+        ->toContain('Email')
+        ->toContain('<td>a@b.com</td>')
+        ->toContain('width: 140px')        // per-row width prop
+        ->toContain('<td><code>X</code></td>');
+});

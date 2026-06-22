@@ -14,16 +14,14 @@
     </x-admin-core::page-header>
 
     <x-admin-core::card class="mb-3">
-        <table class="table table-bordered mb-0">
-            <tbody>
-            <tr><th style="width:140px">Type</th><td><code>{{ $log->type }}</code></td></tr>
-            <tr><th>Message</th><td>{{ $log->message }}</td></tr>
-            <tr><th>File</th><td><code>{{ $log->file }}</code></td></tr>
-            <tr><th>URL</th><td>{{ $log->method }} {{ $log->url }}</td></tr>
-            <tr><th>User</th><td>{{ $log->user_id ?? '—' }}</td></tr>
-            <tr><th>When</th><td>{{ $log->created_at }} ({{ $log->created_at?->diffForHumans() }})</td></tr>
-            </tbody>
-        </table>
+        <x-admin-core::detail-list>
+            <x-admin-core::detail-row label="Type"><code>{{ $log->type }}</code></x-admin-core::detail-row>
+            <x-admin-core::detail-row label="Message">{{ $log->message }}</x-admin-core::detail-row>
+            <x-admin-core::detail-row label="File"><code>{{ $log->file }}</code></x-admin-core::detail-row>
+            <x-admin-core::detail-row label="URL">{{ $log->method }} {{ $log->url }}</x-admin-core::detail-row>
+            <x-admin-core::detail-row label="User">{{ $log->user_id ?? '—' }}</x-admin-core::detail-row>
+            <x-admin-core::detail-row label="When">{{ $log->created_at }} ({{ $log->created_at?->diffForHumans() }})</x-admin-core::detail-row>
+        </x-admin-core::detail-list>
     </x-admin-core::card>
 
     <x-admin-core::card :body-class="'card-body p-0'">

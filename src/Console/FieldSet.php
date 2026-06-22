@@ -1292,7 +1292,7 @@ BLADE;
                 'richtext' => "{!! \$object->{$f['name']} !!}",
                 default => "{{ \$object->{$f['name']} }}",
             };
-            $rows[] = "            <tr>\n                <th style=\"width:220px\">{$label}</th>\n                <td>{$value}</td>\n            </tr>";
+            $rows[] = "            <x-admin-core::detail-row label=\"{$label}\">{$value}</x-admin-core::detail-row>";
         }
 
         return implode("\n", $rows);
