@@ -19,6 +19,7 @@ return [
         'update' => 'btn btn-sm btn-primary',
         'cancel' => 'btn btn-sm btn-warning',
         'back' => 'btn btn-sm btn-info',
+        'restore' => 'btn btn-sm btn-success',
     ],
     'icon' => [
         'view' => '',
@@ -27,5 +28,6 @@ return [
         'delete' => 'bi bi-trash',
         'change-password' => 'bi bi-arrow-repeat',
         'back' => 'bi bi-arrow-left-circle',
+        'restore' => 'bi bi-arrow-counterclockwise',
     ],
 ];

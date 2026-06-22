@@ -42,11 +42,9 @@
                 <div class="card-body">
                     <form action="{{ route('admin.profile.update') }}" method="POST">
                         @csrf @method('PUT')
-                        <div class="mb-3"><label class="form-label">{{ __('admin-core::admin-core.access.name') }}</label>
-                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ old('name', $user->name) }}"></div>
-                        <div class="mb-3"><label class="form-label">{{ __('admin-core::admin-core.access.email') }}</label>
-                            <input type="email" name="email" class="form-control @error('email') is-invalid @enderror" value="{{ old('email', $user->email) }}"></div>
-                        <button class="btn btn-primary">{{ __('admin-core::admin-core.actions.save') }}</button>
+                        <x-admin-core::input name="name" :label="__('admin-core::admin-core.access.name')" :value="old('name', $user->name)" />
+                        <x-admin-core::input name="email" type="email" :label="__('admin-core::admin-core.access.email')" :value="old('email', $user->email)" />
+                        <x-admin-core::button type="submit">{{ __('admin-core::admin-core.actions.save') }}</x-admin-core::button>
                     </form>
                 </div>
             </div>
@@ -55,13 +53,10 @@
                 <div class="card-body">
                     <form action="{{ route('admin.profile.password') }}" method="POST">
                         @csrf @method('PUT')
-                        <div class="mb-3"><label class="form-label">{{ __('admin-core::admin-core.access.current_password') }}</label>
-                            <input type="password" name="current_password" autocomplete="current-password" class="form-control @error('current_password') is-invalid @enderror"></div>
-                        <div class="mb-3"><label class="form-label">{{ __('admin-core::admin-core.access.new_password') }}</label>
-                            <input type="password" name="password" autocomplete="new-password" class="form-control @error('password') is-invalid @enderror"></div>
-                        <div class="mb-3"><label class="form-label">{{ __('admin-core::admin-core.access.confirm_label') }}</label>
-                            <input type="password" name="password_confirmation" autocomplete="new-password" class="form-control"></div>
-                        <button class="btn btn-primary">{{ __('admin-core::admin-core.access.update_password') }}</button>
+                        <x-admin-core::input name="current_password" type="password" :label="__('admin-core::admin-core.access.current_password')" autocomplete="current-password" />
+                        <x-admin-core::input name="password" type="password" :label="__('admin-core::admin-core.access.new_password')" autocomplete="new-password" />
+                        <x-admin-core::input name="password_confirmation" type="password" :label="__('admin-core::admin-core.access.confirm_label')" autocomplete="new-password" />
+                        <x-admin-core::button type="submit">{{ __('admin-core::admin-core.access.update_password') }}</x-admin-core::button>
                     </form>
                 </div>
             </div>

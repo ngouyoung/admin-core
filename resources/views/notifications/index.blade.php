@@ -14,7 +14,7 @@
         </x-slot:actions>
     </x-admin-core::page-header>
 
-    <div class="card border-0 shadow-sm">
+    <x-admin-core::card :body-class="''" class="border-0 shadow-sm">
         <div class="list-group list-group-flush">
             @forelse ($notifications as $n)
                 <div class="list-group-item d-flex gap-3 align-items-start {{ $n->read_at ? '' : 'bg-body-secondary' }}">
@@ -43,7 +43,7 @@
                 <div class="list-group-item text-center text-muted py-5">No notifications yet.</div>
             @endforelse
         </div>
-    </div>
+    </x-admin-core::card>
 
     <div class="mt-3">{{ $notifications->links('pagination::bootstrap-5') }}</div>
 @endsection

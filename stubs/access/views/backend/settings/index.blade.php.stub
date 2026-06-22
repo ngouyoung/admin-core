@@ -61,8 +61,8 @@
                 </div>
             </div>
         @empty
-            <div class="alert alert-info">{{ __('admin-core::admin-core.access.settings_empty') }} <code>Setting::set('key', 'value')</code>.</div>
+            <x-admin-core::alert type="info">{{ __('admin-core::admin-core.access.settings_empty') }} <code>Setting::set('key', 'value')</code>.</x-admin-core::alert>
         @endforelse
-        <button class="btn btn-primary">{{ __('admin-core::admin-core.access.save_settings') }}</button>
+        <x-admin-core::button type="submit">{{ __('admin-core::admin-core.access.save_settings') }}</x-admin-core::button>
     </form>
 @endsection

@@ -2,73 +2,63 @@
 
 @section('title', 'DummyClasses — Trash')
 
-@section('breadcrumb')
-    <div class="row">
-        <div class="col-sm-6"><h3 class="mb-0">DummyClasses — Trash</h3></div>
-        <div class="col-sm-6">
-            <ol class="breadcrumb float-sm-end">
-                <li class="breadcrumb-item"><a href="{{ route('__AC_RNS__dummyModels.index') }}">DummyClasses</a></li>
-                <li class="breadcrumb-item active">{{ __('admin-core::admin-core.nav.trash') }}</li>
-            </ol>
-        </div>
-    </div>
-@endsection
-
 @section('contents')
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <a href="{{ route('__AC_RNS__dummyModels.index') }}" class="{{ config('class.button.back') }}">
-                <i class="{{ config('class.icon.back') }}"></i> {{ __('admin-core::admin-core.actions.back') }}
-            </a>
-            <div id="bulk-actions" class="d-none">
-                <span class="me-2 text-muted small"><span id="bulk-count">0</span> {{ __('admin-core::admin-core.labels.selected') ?? 'selected' }}</span>
-                <button type="button" class="btn btn-sm btn-success" id="bulk-restore">
-                    <i class="bi bi-arrow-counterclockwise"></i> {{ __('admin-core::admin-core.actions.restore') }}
-                </button>
-                <button type="button" class="btn btn-sm btn-danger" id="bulk-force-delete">
-                    <i class="bi bi-trash"></i> {{ __('admin-core::admin-core.actions.delete_permanently') }}
-                </button>
+    <x-admin-core::page-header title="DummyClasses — Trash" parent="DummyClasses" :parent-url="route('__AC_RNS__dummyModels.index')" />
+
+    <x-admin-core::card>
+        <x-slot:header>
+            <div class="d-flex justify-content-between align-items-center">
+                <a href="{{ route('__AC_RNS__dummyModels.index') }}" class="{{ config('class.button.back') }}">
+                    <i class="{{ config('class.icon.back') }}"></i> {{ __('admin-core::admin-core.actions.back') }}
+                </a>
+                <div id="bulk-actions" class="d-none">
+                    <span class="me-2 text-muted small"><span id="bulk-count">0</span> {{ __('admin-core::admin-core.labels.selected') ?? 'selected' }}</span>
+                    <button type="button" class="{{ config('class.button.restore', 'btn btn-sm btn-success') }}" id="bulk-restore">
+                        <i class="{{ config('class.icon.restore', 'bi bi-arrow-counterclockwise') }}"></i> {{ __('admin-core::admin-core.actions.restore') }}
+                    </button>
+                    <button type="button" class="{{ config('class.button.delete') }}" id="bulk-force-delete">
+                        <i class="{{ config('class.icon.delete') }}"></i> {{ __('admin-core::admin-core.actions.delete_permanently') }}
+                    </button>
+                </div>
             </div>
-        </div>
-        <div class="card-body">
-            <table class="{{ config('class.table') }}">
-                <thead>
+        </x-slot:header>
+        <table class="{{ config('class.table') }}">
+            <thead>
+            <tr>
+                <th style="width:1%"><input type="checkbox" id="check-all"></th>
+                <th>{{ __('admin-core::admin-core.labels.record') }}</th>
+                <th>{{ __('admin-core::admin-core.labels.deleted') }}</th>
+                <th>{{ __('admin-core::admin-core.actions.actions') }}</th>
+            </tr>
+            </thead>
+            <tbody>
+            @forelse ($items as $item)
                 <tr>
-                    <th style="width:1%"><input type="checkbox" id="check-all"></th>
-                    <th>{{ __('admin-core::admin-core.labels.record') }}</th>
-                    <th>{{ __('admin-core::admin-core.labels.deleted') }}</th>
-                    <th>{{ __('admin-core::admin-core.actions.actions') }}</th>
+                    <td><input type="checkbox" class="row-check" value="{{ $item->id }}"></td>
+                    <td class="text-capitalize">{{ $item->name ?? $item->id }}</td>
+                    <td>{{ $item->deleted_at }}</td>
+                    <td>
+                        <form action="{{ route('__AC_RNS__dummyModels.restore', $item->id) }}" method="POST" class="d-inline">
+                            @csrf @method('PUT')
+                            <button class="{{ config('class.button.restore', 'btn btn-sm btn-success') }}" data-bs-toggle="tooltip" title="{{ __('admin-core::admin-core.actions.restore') }}">
+                                <i class="{{ config('class.icon.restore', 'bi bi-arrow-counterclockwise') }}"></i>
+                            </button>
+                        </form>
+                        <form action="{{ route('__AC_RNS__dummyModels.forceDelete', $item->id) }}" method="POST"
+                              class="d-inline" data-confirm="{{ __('admin-core::admin-core.messages.confirm_force_delete') }}">
+                            @csrf @method('DELETE')
+                            <button class="{{ config('class.button.delete') }}" data-bs-toggle="tooltip" title="{{ __('admin-core::admin-core.actions.delete_permanently') }}">
+                                <i class="{{ config('class.icon.delete') }}"></i>
+                            </button>
+                        </form>
+                    </td>
                 </tr>
-                </thead>
-                <tbody>
-                @forelse ($items as $item)
-                    <tr>
-                        <td><input type="checkbox" class="row-check" value="{{ $item->id }}"></td>
-                        <td class="text-capitalize">{{ $item->name ?? $item->id }}</td>
-                        <td>{{ $item->deleted_at }}</td>
-                        <td>
-                            <form action="{{ route('__AC_RNS__dummyModels.restore', $item->id) }}" method="POST" class="d-inline">
-                                @csrf @method('PUT')
-                                <button class="btn btn-sm btn-success" data-bs-toggle="tooltip" title="{{ __('admin-core::admin-core.actions.restore') }}">
-                                    <i class="bi bi-arrow-counterclockwise"></i>
-                                </button>
-                            </form>
-                            <form action="{{ route('__AC_RNS__dummyModels.forceDelete', $item->id) }}" method="POST"
-                                  class="d-inline" data-confirm="{{ __('admin-core::admin-core.messages.confirm_force_delete') }}">
-                                @csrf @method('DELETE')
-                                <button class="{{ config('class.button.delete') }}" data-bs-toggle="tooltip" title="{{ __('admin-core::admin-core.actions.delete_permanently') }}">
-                                    <i class="{{ config('class.icon.delete') }}"></i>
-                                </button>
-                            </form>
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="4" class="text-center text-muted">{{ __('admin-core::admin-core.messages.trash_empty') }}</td></tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
+            @empty
+                <tr><td colspan="4" class="text-center text-muted">{{ __('admin-core::admin-core.messages.trash_empty') }}</td></tr>
+            @endforelse
+            </tbody>
+        </table>
+    </x-admin-core::card>
 @endsection
 
 @push('scripts')

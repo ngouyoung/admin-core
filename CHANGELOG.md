@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.48.1
+
+- **Skeleton/HTML consistency.** A full multi-agent audit of every package Blade view found 14 localized
+  hand-rolled deviations (all cosmetic — no behavior change); refactored them to the shipped
+  `x-admin-core::` components: the generated **trash** view now uses `page-header` + `card`; the
+  **profile** and **settings** forms use `input` / `button` / `alert`; the **roles** and
+  **group-permissions** form partials use `input` / `select` (also fixing a value-precedence bug on the
+  name field); the **error-log** and **activity-log** lists use `data-table` (with extracted `thead`
+  partials); and the **sidebar** avatar + **notifications** card use `avatar` / `card`. Added a `restore`
+  key to `config('class.button')` / `config('class.icon')` for the trash restore actions.
+
 ## v2.48.0
 
 - **Two-factor authentication (TOTP).** Opt-in authenticator-app 2FA for the admin login (Google

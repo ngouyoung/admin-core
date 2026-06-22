@@ -1,4 +1,3 @@
-@php($avatarFallback = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA4MCA4MCI+PHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjgwIiByeD0iNDAiIGZpbGw9IiNlMmUzZjMiLz48Y2lyY2xlIGN4PSI0MCIgY3k9IjMxIiByPSIxMyIgZmlsbD0iIzlhYTBkNCIvPjxwYXRoIGQ9Ik0xOCA2NWMyLTEzIDExLTE5IDIyLTE5czIwIDYgMjIgMTl6IiBmaWxsPSIjOWFhMGQ0Ii8+PC9zdmc+')
 <aside class="ac-sidebar">
     <a href="{{ route('admin.dashboard') }}" class="ac-brand">
         @if (setting('site_logo'))
@@ -12,8 +11,8 @@
     @auth
         @php($acUser = auth()->user())
         <a href="{{ route('admin.profile.index') }}" class="ac-user">
-            <img src="{{ $acUser->avatar ? \Ngos\AdminCore\Support\Media::url($acUser->avatar) : $avatarFallback }}"
-                 onerror="this.onerror=null;this.src='{{ $avatarFallback }}'" alt="avatar">
+            <x-admin-core::avatar :src="$acUser->avatar ? \Ngos\AdminCore\Support\Media::url($acUser->avatar) : null"
+                                  :name="$acUser->name" size="38" />
             <span class="ac-user-meta">
                 <span class="ac-user-name d-block">{{ $acUser->name }}</span>
                 <span class="ac-user-role">{{ method_exists($acUser, 'getRoleNames') ? ($acUser->getRoleNames()->first() ?? __('admin-core::admin-core.nav.member')) : __('admin-core::admin-core.nav.member') }}</span>

@@ -9,28 +9,14 @@
             <form action="{{ route('admin.error-logs.clear') }}" method="POST" class="d-inline"
                   data-confirm="{{ __('admin-core::admin-core.confirm.delete_all_errors') }}">
                 @csrf
-                <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Clear all</button>
+                <x-admin-core::button type="submit" variant="danger" outline size="sm" icon="bi bi-trash">Clear all</x-admin-core::button>
             </form>
         </div>
     </div>
 @endsection
 
 @section('contents')
-    <div class="card">
-        <div class="card-body">
-            <table class="{{ config('class.table') }}" id="error_table">
-                <thead>
-                <tr>
-                    <th>When</th>
-                    <th>Type</th>
-                    <th>Message</th>
-                    <th>URL</th>
-                    <th></th>
-                </tr>
-                </thead>
-            </table>
-        </div>
-    </div>
+    <x-admin-core::data-table id="error_table" thead="backend.error_logs.partials.thead" />
 @endsection
 
 @push('scripts')

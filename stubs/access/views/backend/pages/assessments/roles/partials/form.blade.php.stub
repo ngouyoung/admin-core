@@ -1,11 +1,5 @@
-<div class="row mb-3">
-    <label for="name" class="col-md-2 col-sm-3 col-4 col-form-label text-end">{{ __('admin-core::admin-core.access.name') }}:</label>
-    <div class="col-md-8 col-sm-8 col-8">
-        <input type="text" class="form-control @error('name') is-invalid @enderror" name="name" id="name"
-               placeholder="{{ __('admin-core::admin-core.access.name') }}" value="{{ $object->name ?? old('name') }}">
-        @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
-    </div>
-</div>
+<x-admin-core::input name="name" :label="__('admin-core::admin-core.access.name')"
+                     :value="old('name', $object->name ?? null)" :placeholder="__('admin-core::admin-core.access.name')" />
 
 @if(isset($group_permissions) && count($group_permissions) > 0)
     <div class="row mb-3">
