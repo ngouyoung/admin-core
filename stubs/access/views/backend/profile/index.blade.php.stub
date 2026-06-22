@@ -98,24 +98,14 @@
         </div>
     </div>
 
-    {{-- Croppie crop modal --}}
-    <div class="modal fade" id="cropModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">{{ __('admin-core::admin-core.access.crop_avatar') }}</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="croppie-area" style="width:100%;height:300px"></div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ __('admin-core::admin-core.actions.cancel') }}</button>
-                    <button type="button" class="btn btn-primary" id="crop-save">{{ __('admin-core::admin-core.actions.save') }}</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    {{-- Croppie crop modal (the croppie JS still targets #cropModal / #croppie-area / #crop-save) --}}
+    <x-admin-core::modal id="cropModal" :title="__('admin-core::admin-core.access.crop_avatar')" centered>
+        <div id="croppie-area" style="width:100%;height:300px"></div>
+        <x-slot:footer>
+            <x-admin-core::button variant="secondary" data-bs-dismiss="modal">{{ __('admin-core::admin-core.actions.cancel') }}</x-admin-core::button>
+            <x-admin-core::button variant="primary" id="crop-save">{{ __('admin-core::admin-core.actions.save') }}</x-admin-core::button>
+        </x-slot:footer>
+    </x-admin-core::modal>
 @endsection
 
 @push('scripts')

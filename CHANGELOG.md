@@ -2,6 +2,12 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.49.1
+
+- **Profile crop-avatar modal now uses `<x-admin-core::modal>`** (with a new `centered` prop) instead of
+  hand-rolled Bootstrap modal markup — activating the previously-unused `modal` component. The Croppie JS is
+  unchanged (it still targets #cropModal / #croppie-area / #crop-save, which pass through the component). No behavior change.
+
 ## v2.49.0
 
 - **New `detail-list` / `detail-row` components for show / detail pages.** The generated show view, the

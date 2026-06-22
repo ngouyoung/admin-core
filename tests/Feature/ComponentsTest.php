@@ -232,3 +232,20 @@ it('renders a detail-list with detail-row label/value pairs (show pages)', funct
         ->toContain('width: 140px')        // per-row width prop
         ->toContain('<td><code>X</code></td>');
 });
+
+it('renders a modal with id/title/centered, body slot, and footer (button ids pass through)', function () {
+    $html = Blade::render(
+        '<x-admin-core::modal id="cropModal" title="Crop" centered>'
+        . '<div id="croppie-area"></div>'
+        . '<x-slot:footer><x-admin-core::button id="crop-save" variant="primary">Save</x-admin-core::button></x-slot:footer>'
+        . '</x-admin-core::modal>'
+    );
+
+    expect($html)
+        ->toContain('id="cropModal"')
+        ->toContain('modal-dialog-centered')   // centered prop
+        ->toContain('Crop')                    // title
+        ->toContain('id="croppie-area"')       // body slot
+        ->toContain('modal-footer')
+        ->toContain('id="crop-save"');         // button id passthrough — the croppie JS depends on it
+});
