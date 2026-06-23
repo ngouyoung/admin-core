@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
  * DSL:  "name:string, price:decimal?, status:enum:draft|published,
  *        category_id:foreign, avatar:image?, brochure:file?, tags:belongsToMany"
  *   - scalar   string text integer decimal boolean date datetime email
+ *   - decimal  optional precision|scale (pipe-separated):  price:decimal:12|4  (defaults to 10,2)
  *   - enum     values piped:  status:enum:draft|published|archived
  *   - foreign  column ending in _id:  category_id:foreign  (-> belongsTo). Add an explicit
  *              target table for a self-reference / tree or a non-conventional name:
@@ -218,6 +219,16 @@ class FieldSet
                 $spec = 'enum';
             }
 
+            // Optional decimal precision/scale: `price:decimal:12|4` (pipe-separated like enum, since the
+            // field list is comma-split; defaults to 10,2 when omitted).
+            $decimalPrecision = $decimalScale = null;
+            if (str_starts_with($spec, 'decimal:')) {
+                $parts = array_map('trim', explode('|', substr($spec, 8)));
+                $decimalPrecision = ctype_digit($parts[0]) ? (int) $parts[0] : null;
+                $decimalScale = isset($parts[1]) && ctype_digit($parts[1]) ? (int) $parts[1] : null;
+                $spec = 'decimal';
+            }
+
             // Explicit FK target: `parent_id:foreign:categories` (self-reference / tree) or a column whose
             // name doesn't match the table convention (`author_id:foreign:users`). Without the target the
             // table is inferred from the column (parent_id -> parents), which breaks self-refs.
@@ -253,7 +264,12 @@ class FieldSet
                 $this->assertEnumCases($name, $enum);
             }
 
-            $fields[] = $this->field($name, $type, $nullable, $unique, $enum, $writeOnce, $system, $index, $foreignTable);
+            $field = $this->field($name, $type, $nullable, $unique, $enum, $writeOnce, $system, $index, $foreignTable);
+            if ($type === 'decimal') {
+                $field['precision'] = $decimalPrecision ?? 10;
+                $field['scale'] = $decimalScale ?? 2;
+            }
+            $fields[] = $field;
         }
 
         return $fields ?: [$this->field('name', 'string')];
@@ -399,7 +415,7 @@ class FieldSet
             $line = match ($f['type']) {
                 'text', 'richtext' => "\$table->text('{$col}')",
                 'integer' => "\$table->integer('{$col}')",
-                'decimal' => "\$table->decimal('{$col}', 10, 2)",
+                'decimal' => "\$table->decimal('{$col}', " . ($f['precision'] ?? 10) . ', ' . ($f['scale'] ?? 2) . ')',
                 'boolean' => "\$table->boolean('{$col}')" . ($n ? '' : '->default(false)'),
                 'date' => "\$table->date('{$col}')",
                 'datetime' => "\$table->dateTime('{$col}')",
@@ -656,7 +672,7 @@ PHP;
                 $f['name'] === 'email' || $f['type'] === 'email' => 'fake()->safeEmail()',
                 $f['type'] === 'text' => 'fake()->paragraph()',
                 $f['type'] === 'integer' => 'fake()->numberBetween(1, 1000)',
-                $f['type'] === 'decimal' => 'fake()->randomFloat(2, 1, 1000)',
+                $f['type'] === 'decimal' => 'fake()->randomFloat(' . ($f['scale'] ?? 2) . ', 1, 1000)',
                 $f['type'] === 'boolean' => 'fake()->boolean()',
                 $f['type'] === 'date' => 'fake()->date()',
                 $f['type'] === 'datetime' => 'fake()->dateTime()',
@@ -715,7 +731,7 @@ PHP;
             'boolean' => "'boolean'",
             'date' => "'date'",
             'datetime' => "'datetime'",
-            'decimal' => "'decimal:2'",
+            'decimal' => "'decimal:" . ($f['scale'] ?? 2) . "'",
             'json', 'translatable' => "'array'",
             'password' => "'hashed'",
             default => null,
@@ -1024,11 +1040,17 @@ PHP;
 
 @push('scripts')
     <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            if (window.jQuery && $.fn.select2) {
-                $('.admin-core-select').select2({theme: 'bootstrap-5', width: '100%'});
+        (function () {
+            function acInitSelects(scope) {
+                if (!window.jQuery || !$.fn.select2) return;
+                // .not(.select2-hidden-accessible) keeps it idempotent (never double-enhance).
+                $(scope).find('.admin-core-select').not('.select2-hidden-accessible')
+                    .select2({theme: 'bootstrap-5', width: '100%'});
             }
-        });
+            document.addEventListener('DOMContentLoaded', function () { acInitSelects(document); });
+            // Enhance selects inside rows added dynamically by the repeater component.
+            document.addEventListener('ac:repeater:added', function (e) { acInitSelects(e.target); });
+        })();
     </script>
 @endpush
 BLADE;

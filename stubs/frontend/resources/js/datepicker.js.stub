@@ -46,3 +46,5 @@ function initDatepickers(root = document) {
 
 document.addEventListener('DOMContentLoaded', () => initDatepickers());
 window.acInitDatepickers = initDatepickers;
+// Enhance datepickers inside rows added dynamically by <x-admin-core::repeater>.
+document.addEventListener('ac:repeater:added', (e) => initDatepickers(e.target));

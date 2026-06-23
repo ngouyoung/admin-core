@@ -140,7 +140,7 @@ php artisan admin-core:make Order --portal=merchant</code></pre>
                         <thead><tr><th>Type</th><th>Renders</th></tr></thead>
                         <tbody>
                             <tr><td><code>string</code> / <code>text</code></td><td>Input / textarea</td></tr>
-                            <tr><td><code>integer</code> / <code>decimal</code></td><td>Number input</td></tr>
+                            <tr><td><code>integer</code> / <code>decimal</code></td><td>Number input (decimal precision: <code>price:decimal:12|4</code>, default 10,2)</td></tr>
                             <tr><td><code>boolean</code></td><td>Checkbox (Yes/No badge in the list)</td></tr>
                             <tr><td><code>date</code> / <code>datetime</code> / <code>time</code></td><td>Date picker</td></tr>
                             <tr><td><code>email</code> / <code>url</code> / <code>slug</code></td><td>Validated input</td></tr>

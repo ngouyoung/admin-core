@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.8
+
+Batch B (audit improvements), part 1.
+
+### Added
+- **`decimal` fields take precision/scale in the DSL:** `price:decimal:12|4` (pipe-separated — the field
+  list is comma-split; defaults to `10,2`). Threaded through the migration column, the `decimal:{scale}`
+  cast and the factory.
+
+### Fixed
+- **Dynamically-added repeater rows now initialise their field enhancers.** `<x-admin-core::repeater>`
+  dispatches an `ac:repeater:added` event on each new row; the **CKEditor** component, the generated
+  **select2** form script and the **datepicker** stub listen and enhance the new row (a cloned row used to
+  keep a plain, un-enhanced select / date / editor).
+
 ## v2.51.7
 
 Hardening + bug-fix pass from a multi-agent audit (adversarially verified findings).

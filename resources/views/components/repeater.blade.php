@@ -35,8 +35,12 @@
                     var html = wrap.querySelector('[data-ac-repeater-tpl]').innerHTML.replace(/__ROW__/g, uid);
                     var holder = document.createElement('div');
                     holder.innerHTML = html.trim();
+                    var rows = wrap.querySelector('[data-ac-repeater-rows]');
                     while (holder.firstElementChild) {
-                        wrap.querySelector('[data-ac-repeater-rows]').appendChild(holder.firstElementChild);
+                        var node = holder.firstElementChild;
+                        rows.appendChild(node);
+                        // Let field enhancers (select2, datepicker, CKEditor) initialise the new row.
+                        node.dispatchEvent(new CustomEvent('ac:repeater:added', { bubbles: true, detail: { repeater: wrap } }));
                     }
                     return;
                 }

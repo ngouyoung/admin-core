@@ -19,18 +19,24 @@
                 integrity="sha384-69SUO5s28dXCoNTUaA/KXhfDJu21xD394Gxk/S6d/YJZUxrz7Zagi+seruzXFTed"
                 crossorigin="anonymous"></script>
         <script>
-            document.querySelectorAll('textarea.js-editor').forEach(function (el) {
-                if (window.ClassicEditor && !el.dataset.ckInit) {
-                    el.dataset.ckInit = '1';
-                    window.ClassicEditor.create(el).then(function (editor) {
-                        // CKEditor 5 has no height config — set the editable's min-height via the view writer.
-                        var h = el.dataset.minHeight || '250px';
-                        editor.editing.view.change(function (writer) {
-                            writer.setStyle('min-height', h, editor.editing.view.document.getRoot());
-                        });
-                    }).catch(function (e) { console.error(e); });
-                }
-            });
+            // Idempotent (dataset.ckInit guard) + re-runnable on a scope, so editors inside content added
+            // after load — a repeater row, a modal, an AJAX form — get initialised too.
+            window.acInitEditors = function (scope) {
+                (scope || document).querySelectorAll('textarea.js-editor').forEach(function (el) {
+                    if (window.ClassicEditor && !el.dataset.ckInit) {
+                        el.dataset.ckInit = '1';
+                        window.ClassicEditor.create(el).then(function (editor) {
+                            // CKEditor 5 has no height config — set the editable's min-height via the view writer.
+                            var h = el.dataset.minHeight || '250px';
+                            editor.editing.view.change(function (writer) {
+                                writer.setStyle('min-height', h, editor.editing.view.document.getRoot());
+                            });
+                        }).catch(function (e) { console.error(e); });
+                    }
+                });
+            };
+            window.acInitEditors(document);
+            document.addEventListener('ac:repeater:added', function (e) { window.acInitEditors(e.target); });
         </script>
     @endpush
 @endonce
