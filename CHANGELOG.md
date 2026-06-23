@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.5
+
+### Fixed
+- **`--access` install no longer fails with "table 'permissions' already exists".** `--access` ships its own
+  `create_permission_tables` migration (uuid + group_id aware); if Spatie's plain one was also published —
+  which the README *told* you to, and `--seed` then ran `migrate` — the two collided. The installer now
+  **removes the duplicate** (admin-core's is a strict superset) instead of only warning about it, and the
+  README no longer instructs the separate `vendor:publish` of Spatie's permission migration.
+
 ## v2.51.4
 
 ### Added

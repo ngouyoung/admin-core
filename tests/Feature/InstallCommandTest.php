@@ -121,6 +121,34 @@ it('keeps permissions.group_id nullable so a permission can be created before it
         ->not->toContain('->default(1)');
 });
 
+it('removes a duplicate Spatie create_permission_tables migration during --access (self-heal)', function () {
+    // The old docs (and habit) had people `vendor:publish` Spatie's create_permission_tables before
+    // `--access`. --access ships its own (uuid + group_id), so the two collide → `migrate` fails with
+    // "table 'permissions' already exists". The installer must delete the duplicate, keeping its own.
+    File::ensureDirectoryExists(database_path('migrations'));
+    $own = database_path('migrations/0001_01_01_000011_create_permission_tables.php');
+    $dupe = database_path('migrations/2024_01_01_000000_create_permission_tables.php'); // Spatie's publish output
+    File::put($own, "<?php // admin-core --access (uuid + group_id)\n");
+    File::put($dupe, "<?php // Spatie default — would clash\n");
+
+    // Invoke the private remover with a buffered output wired in (same reflection pattern as the trait tests).
+    $command = new \Ngos\AdminCore\Console\AdminCoreInstallCommand();
+    $command->setLaravel(app());
+    (fn ($o) => $this->output = $o)->call(
+        $command,
+        new \Illuminate\Console\OutputStyle(new \Symfony\Component\Console\Input\ArrayInput([]), new \Symfony\Component\Console\Output\BufferedOutput()),
+    );
+    $m = new ReflectionMethod($command, 'removeDuplicatePermissionMigration');
+    $m->setAccessible(true);
+    $m->invoke($command);
+
+    expect(File::exists($dupe))->toBeFalse()  // the clashing duplicate is removed
+        ->and(File::exists($own))->toBeTrue(); // admin-core's own (uuid + group_id) is kept
+
+    File::delete($own);
+    File::delete($dupe); // no-op if already removed
+});
+
 it('registers the permission middleware alias in bootstrap/app.php', function () {
     $this->artisan('admin-core:install')->assertSuccessful();
 

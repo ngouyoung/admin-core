@@ -321,7 +321,7 @@ PHP;
         $this->copyTree("$a/Services", app_path('Services'));
         $this->copyTree("$a/database/seeders", database_path('seeders'));
         $this->copyTree("$a/database/migrations", database_path('migrations'));
-        $this->warnDuplicatePermissionMigration();
+        $this->removeDuplicatePermissionMigration();
         $this->copyTree("$a/views/backend", resource_path('views/backend'));
 
         $this->copy("$a/routes/assessments.php.stub", base_path('routes/Web/Backend/Modules/assessments.php'));
@@ -334,26 +334,23 @@ PHP;
     }
 
     /**
-     * --access ships its own create_permission_tables migration (with the uuid + group_id
-     * columns the App\Models\Permission needs). A second one — Spatie's plain default,
-     * published via `vendor:publish` — makes `migrate` fail with "table permissions already
-     * exists". Warn loudly with the exact file(s) to delete instead of letting it blow up later.
+     * --access ships its own create_permission_tables migration (with the uuid + group_id columns the
+     * App\Models\Permission needs). A second one — Spatie's plain default, published via
+     * `vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"` — makes `migrate` fail
+     * with "table 'permissions' already exists". admin-core's version supersedes Spatie's (it's a strict
+     * superset), so remove any duplicate, leaving exactly one. Self-heals an install that followed the old
+     * docs (or habit) of publishing Spatie's migration first.
      */
-    private function warnDuplicatePermissionMigration(): void
+    private function removeDuplicatePermissionMigration(): void
     {
         $own = '0001_01_01_000011_create_permission_tables.php';
         $dupes = collect(File::glob(database_path('migrations/*_create_permission_tables.php')))
             ->reject(fn ($path) => basename($path) === $own);
 
-        if ($dupes->isEmpty()) {
-            return;
-        }
-
-        $this->warn('  Another create_permission_tables migration exists — admin-core --access ships its own');
-        $this->warn('  (with uuid + group_id). Delete the duplicate(s) or `migrate` will fail with');
-        $this->warn('  "table \'permissions\' already exists":');
         foreach ($dupes as $path) {
-            $this->warn('    - ' . str_replace(base_path() . DIRECTORY_SEPARATOR, '', $path));
+            File::delete($path);
+            $this->line('  <info>removed</info> ' . str_replace(base_path() . DIRECTORY_SEPARATOR, '', $path)
+                . ' (duplicate of the --access permission migration — admin-core ships its own with uuid + group_id)');
         }
     }
 

@@ -36,7 +36,6 @@ A working, authenticated admin in two steps.
 
 ```bash
 composer require ngos/admin-core
-php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
 php artisan admin-core:install --access --build --seed
 ```
 
@@ -85,9 +84,12 @@ Scaffolds only the glue generated pages need (idempotent; `--force` to overwrite
 ### Full access module (`--access`) — login + users/roles/permissions
 
 ```bash
-php artisan vendor:publish --provider="Spatie\Permission\PermissionServiceProvider"
 php artisan admin-core:install --access --build --seed   # or drop --build/--seed to do them yourself
 ```
+
+> `--access` ships its own `create_permission_tables` migration (uuid + group_id aware) — **don't** also
+> `vendor:publish` Spatie's, or `migrate` fails with *"table 'permissions' already exists"*. If you already
+> did, the installer now removes the duplicate for you.
 
 On top of the minimal install, `--access` adds (all in *your* `App\` namespace, yours to edit):
 
