@@ -700,6 +700,18 @@ The `--access` kit ships a custom Bootstrap-5 theme (no AdminLTE) plus reusable 
   — the “Import CSV” button + modal (file upload, optional blank-template link). Gate it with `@can(...)`.
 - **`<x-admin-core::form-row name="price" label="Price">…control…</x-admin-core::form-row>`** — one labelled
   horizontal field row with the validation-error message wired; the generated forms emit one per field.
+- **`<x-admin-core::editor name="description" label="…" :value="old('description', $object?->description)" min-height="250px" />`**
+  — a CKEditor 5 rich-text field (loaded from CDN, paste-from-Word cleanup); `min-height` sets the editable
+  area height (CKEditor 5 otherwise collapses to ~1 line). Generated forms use it for rich `text` fields.
+- **`<x-admin-core::repeater name="units" :rows="old('units', $rows)" row="…partials.unit-row" add-label="Add unit" />`**
+  — repeatable rows for a master-detail form (a variant's units, an order's line items). You supply a **row
+  partial** that renders one row's inputs named with the `:index` it's given (e.g. `name="units[{{ '$index' }}][unit_id]"`),
+  wrapping each row in `[data-ac-repeater-row]` with a `[data-ac-repeater-remove]` button. The component
+  renders it once per existing row, plus a hidden `<template>` the Add button clones with a fresh unique
+  index. Add/remove is inline JS (no build step); it posts `name[i][...]` arrays (indexes need not be
+  sequential — re-index server-side).
+- **`<x-admin-core::page-loader />`** — a thin top progress bar shown during full-page navigation; drop it
+  once in the layout. Pairs with the pre-paint sidebar-state script for a flash-free refresh.
 - **`<x-admin-core::status :value="$object->status" />`** — the soft `.ac-status` pill for an enum value
   (accepts a backed-enum instance or a string; blank renders nothing). Used in the table and show view.
   Semantic colours for common words: published/active → green, pending → amber, failed/cancelled → red,

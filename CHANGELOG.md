@@ -2,6 +2,13 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.6
+
+### Docs
+- Documented the new **`<x-admin-core::repeater>`** (master-detail rows), plus the previously-undocumented
+  **`<x-admin-core::editor>`** (CKEditor 5 + `min-height`) and **`<x-admin-core::page-loader>`** — in the
+  README component reference and the in-app `--access` Documentation page's component list.
+
 ## v2.51.5
 
 ### Fixed
