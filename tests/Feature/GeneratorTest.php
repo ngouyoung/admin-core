@@ -60,6 +60,46 @@ function gizmoFiles(): array
 beforeEach(fn () => cleanupGizmo());
 afterEach(fn () => cleanupGizmo());
 
+it('scaffolds a hasMany master-detail (relation + repeater + row partial + service sync + validation)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, lines:hasMany:gizmo_items',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // Model: a hasMany relation, the import, and NO `lines` column on the parent table.
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->toContain('public function lines(): HasMany')
+        ->toContain('hasMany(\App\Models\GizmoItem::class)')
+        ->toContain('use Illuminate\Database\Eloquent\Relations\HasMany;');
+    expect(File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))->not->toContain("'lines'");
+
+    // Form: repeater wiring + ownership marker + the row-partial reference; and the row partial landed.
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
+        ->toContain('<x-admin-core::repeater')
+        ->toContain('name="lines"')
+        ->toContain('name="_lines_form"')
+        ->toContain('backend.pages.gizmos.partials.lines-row');
+    expect(File::exists(resource_path('views/backend/pages/gizmos/partials/lines-row.blade.php')))->toBeTrue();
+
+    // Service: the reconcile method, called from create/update.
+    expect(File::get(app_path('Services/Gizmos/GizmoService.php')))
+        ->toContain('private function syncLines(Model $model, ?array $rows): void')
+        ->toContain('$this->syncLines($model, $lines);')
+        ->toContain("whereNotIn('id', \$keep)");
+
+    // Request: the items array rule + the blank-row filter in prepareForValidation.
+    expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
+        ->toContain("'lines' => ['nullable', 'array']")
+        ->toContain("boolean('_lines_form')");
+
+    // Generated PHP is syntactically valid.
+    foreach (['Models/Gizmo.php', 'Services/Gizmos/GizmoService.php', 'Http/Requests/Gizmo/StoreGizmoRequest.php'] as $rel) {
+        $lint = Process::run('php -l ' . escapeshellarg(app_path($rel)));
+        expect($lint->successful())->toBeTrue($lint->output());
+    }
+});
+
 it('scaffolds a full resource with valid, token-free PHP', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

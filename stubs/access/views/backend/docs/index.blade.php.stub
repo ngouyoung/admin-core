@@ -150,6 +150,7 @@ php artisan admin-core:make Order --portal=merchant</code></pre>
                             <tr><td><code>password</code></td><td>Hashed, hidden from the list</td></tr>
                             <tr><td><code>foreign</code> (<code>x_id:foreign</code>)</td><td>belongsTo + select2 dropdown</td></tr>
                             <tr><td><code>belongsToMany</code></td><td>Pivot + multi-select</td></tr>
+                            <tr><td><code>hasMany</code> (<code>lines:hasMany:order_items</code>)</td><td>Master-detail line items — repeater form + service sync + a generated row partial</td></tr>
                         </tbody>
                     </table>
                 </div>

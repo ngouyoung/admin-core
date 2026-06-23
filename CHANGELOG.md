@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.9
+
+Batch B (audit improvements), part 2 — the master-detail scaffold.
+
+### Added
+- **`hasMany` field type generates a master-detail scaffold.** `admin-core:make Order
+  --fields="…, lines:hasMany:order_items"` (or `lines:hasMany`, child table inferred from the field name)
+  now generates the whole line-items pattern: the parent `hasMany` relation, a `<x-admin-core::repeater>`
+  block in the form with an ownership marker, a generated **row-partial starting point**, the service
+  `create`/`update` plus a `sync{Relation}()` that reconciles rows (update by id / create new / delete the
+  rest), and the request's array validation + blank-row filter. You lay out the child's columns in the
+  generated `partials/{field}-row.blade.php`. Codifies the master-detail pattern the audit flagged as
+  missing (previously hand-built per resource).
+
 ## v2.51.8
 
 Batch B (audit improvements), part 1.

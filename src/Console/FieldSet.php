@@ -19,6 +19,8 @@ use Illuminate\Support\Str;
  *   - file     any file upload
  *   - translatable  per-locale JSON (name:translatable)  ->  multi-language input + auto-translate
  *   - belongsToMany (aliases manyToMany, m2m)  ->  pivot table + multi-select + sync
+ *   - hasMany  master-detail line items:  lines:hasMany:order_items  (or lines:hasMany, child inferred)
+ *              ->  parent relation + a repeater form block + service sync + a generated row partial
  *   - modifiers trailing  ?  = nullable,  ^  = unique,  #  = index   (e.g. slug:string^?, status:enum:a|b#)
  */
 class FieldSet
@@ -31,7 +33,7 @@ class FieldSet
     private const TYPES = [
         'string', 'text', 'richtext', 'integer', 'decimal', 'boolean', 'date', 'datetime', 'time',
         'email', 'url', 'password', 'slug', 'json', 'translatable', 'image', 'file',
-        'foreign', 'belongsToMany', 'enum', 'auth', 'sku',
+        'foreign', 'belongsToMany', 'hasMany', 'enum', 'auth', 'sku',
     ];
 
     /** @var array<int, array<string, mixed>> */
@@ -242,6 +244,14 @@ class FieldSet
                 $spec = 'belongsToMany';
             }
 
+            // hasMany line-items (master-detail): `lines:hasMany:order_items` (explicit child table) or
+            // `lines:hasMany` (child table inferred from the field name). No parent column — a relation only.
+            $hasManyTable = null;
+            if (str_starts_with(strtolower($spec), 'hasmany')) {
+                $hasManyTable = str_contains($spec, ':') ? trim(substr($spec, strpos($spec, ':') + 1)) : null;
+                $spec = 'hasMany';
+            }
+
             $type = $spec ?: 'string';
 
             // Reject malformed tokens before they reach the migration. The usual culprit is a comma'd or
@@ -268,6 +278,14 @@ class FieldSet
             if ($type === 'decimal') {
                 $field['precision'] = $decimalPrecision ?? 10;
                 $field['scale'] = $decimalScale ?? 2;
+            }
+            if ($type === 'hasMany') {
+                $child = $hasManyTable !== null && $hasManyTable !== ''
+                    ? Str::snake($hasManyTable)
+                    : Str::snake(Str::pluralStudly($name));
+                $field['relation'] = Str::camel($name);
+                $field['relTable'] = $child;
+                $field['relModel'] = Str::studly(Str::singular($child));
             }
             $fields[] = $field;
         }
@@ -352,7 +370,8 @@ class FieldSet
 
     private function isColumn(array $f): bool
     {
-        return $f['type'] !== 'belongsToMany';
+        // belongsToMany (pivot) and hasMany (child rows) are relations, not columns on this table.
+        return ! in_array($f['type'], ['belongsToMany', 'hasMany'], true);
     }
 
     private function isFile(array $f): bool
@@ -381,6 +400,52 @@ class FieldSet
         return collect($this->fields)->contains(fn ($f) => $f['type'] === 'belongsToMany');
     }
 
+    private function hasHasMany(): bool
+    {
+        return collect($this->fields)->contains(fn ($f) => $f['type'] === 'hasMany');
+    }
+
+    /** @return array<int, array<string, mixed>> the hasMany (line-item) fields */
+    private function hasManyFields(): array
+    {
+        return array_values(array_filter($this->fields, fn ($f) => $f['type'] === 'hasMany'));
+    }
+
+    /**
+     * A generated row-partial (one per hasMany field) for the master-detail repeater. It's a starting
+     * point — the wiring (repeater + sync + validation) is complete, but you lay out the child's real
+     * columns in place of the example input. Keyed by field name; the make command writes each file.
+     *
+     * @return array<string, string>
+     */
+    public function hasManyRowPartials(): array
+    {
+        $parentModel = Str::studly(Str::singular($this->table));
+        $out = [];
+        foreach ($this->hasManyFields() as $f) {
+            $model = $f['relModel'];
+            $label = $this->label($f['relation']);
+            $out[$f['name']] = <<<BLADE
+{{-- One {$model} row for the "{$label}" repeater on the {$parentModel} form. The repeater passes \$name,
+     \$index and \$row. Replace the example column with one input per {$model} field, named
+     \$name[\$index][field]; the hidden id tracks existing rows so they update in place. --}}
+@php(\$r = (array) (\$row ?? []))
+<div class="row g-2 align-items-end mb-2" data-ac-repeater-row>
+    <input type="hidden" name="{{ \$name }}[{{ \$index }}][id]" value="{{ \$r['id'] ?? '' }}">
+    <div class="col">
+        <label class="form-label small mb-1">Example</label>
+        <input type="text" name="{{ \$name }}[{{ \$index }}][example]" class="form-control form-control-sm" value="{{ \$r['example'] ?? '' }}">
+    </div>
+    <div class="col-auto d-flex align-items-end">
+        <button type="button" class="btn btn-sm btn-link text-danger p-0" data-ac-repeater-remove title="Remove"><i class="bi bi-x-lg"></i></button>
+    </div>
+</div>
+BLADE;
+        }
+
+        return $out;
+    }
+
     private function hasForeign(): bool
     {
         return collect($this->fields)->contains(fn ($f) => $f['type'] === 'foreign');
@@ -393,7 +458,7 @@ class FieldSet
 
     private function needsServiceBody(): bool
     {
-        return $this->hasFiles() || $this->hasManyToMany();
+        return $this->hasFiles() || $this->hasManyToMany() || $this->hasHasMany();
     }
 
     private function label(string $name): string
@@ -512,6 +577,9 @@ PHP;
         if ($this->hasManyToMany()) {
             $uses[] = 'use Illuminate\Database\Eloquent\Relations\BelongsToMany;';
         }
+        if ($this->hasHasMany()) {
+            $uses[] = 'use Illuminate\Database\Eloquent\Relations\HasMany;';
+        }
         if ($this->softDeletes) {
             $uses[] = 'use Illuminate\Database\Eloquent\SoftDeletes;';
         }
@@ -613,6 +681,10 @@ PHP;
                 $lines[] = "            '{$f['relation']}' => \$this->whenLoaded('{$f['relation']}', fn () => \$this->{$f['relation']}->map(fn (\$i) => ac_localize(\$i->name))),";
                 continue;
             }
+            if ($f['type'] === 'hasMany') {
+                $lines[] = "            '{$f['relation']}' => \$this->whenLoaded('{$f['relation']}'),";
+                continue;
+            }
             if (in_array($f['type'], ['image', 'file'], true)) {
                 $lines[] = "            '{$f['name']}' => \$this->{$f['name']} ? \\Ngos\\AdminCore\\Support\\Media::url(\$this->{$f['name']}) : null,";
                 continue;
@@ -712,6 +784,15 @@ PHP;
     public function {$f['relation']}(): BelongsToMany
     {
         return \$this->belongsToMany(\\App\\Models\\{$f['relModel']}::class);
+    }
+PHP;
+            }
+            if ($f['type'] === 'hasMany') {
+                $methods[] = <<<PHP
+
+    public function {$f['relation']}(): HasMany
+    {
+        return \$this->hasMany(\\App\\Models\\{$f['relModel']}::class);
     }
 PHP;
             }
@@ -857,6 +938,12 @@ PHP;
                     $lines[] = "            '{$f['name']}' => ['array'],";
                     $lines[] = "            '{$f['name']}.*' => ['integer', 'exists:{$f['relTable']},id'],";
                     continue 2;
+                case 'hasMany':
+                    // Master-detail line items: a (possibly empty) array of rows, each with an optional id
+                    // (existing row) plus the child's own fields. Tighten '{$f['name']}.*.<field>' per child.
+                    $lines[] = "            '{$f['name']}' => ['nullable', 'array'],";
+                    $lines[] = "            '{$f['name']}.*.id' => ['nullable'],";
+                    continue 2;
                 case 'translatable':
                     // Per-locale array (name[en], name[km], …). AutoTranslate fills the blanks before
                     // validation, so requiring the default locale is enough; the rest stay optional.
@@ -910,6 +997,14 @@ PHP;
             if ($f['type'] === 'password' && $update) {
                 $lines[] = "        if (blank(\$this->{$f['name']})) {\n"
                     . "            \$this->request->remove('{$f['name']}');\n"
+                    . "        }";
+            }
+            if ($f['type'] === 'hasMany') {
+                // The form owns the items block (marked by a hidden _<field>_form): drop fully-blank rows so
+                // an empty submission validates as "no items" (and the service reads it as "remove all").
+                $lines[] = "        if (\$this->boolean('_{$f['name']}_form')) {\n"
+                    . "            \${$f['name']} = is_array(\$this->{$f['name']}) ? array_values(array_filter(\$this->{$f['name']}, fn (\$r) => is_array(\$r) && array_filter(\$r, fn (\$v) => \$v !== null && \$v !== '') !== [])) : [];\n"
+                    . "            \$this->merge(['{$f['name']}' => \${$f['name']}]);\n"
                     . "        }";
             }
         }
@@ -999,6 +1094,18 @@ PHP;
                 return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->mapWithKeys(fn (\$o) => [\$o->getKey() => ac_localize(\$o->name)])\" :value=\"{$old}\" placeholder=\"— select —\" />";
             case 'belongsToMany':
                 return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->mapWithKeys(fn (\$o) => [\$o->getKey() => ac_localize(\$o->name)])\" :value=\"old('{$col}', \${$f['relation']}Selected)\" multiple />";
+            case 'hasMany':
+                $hmRel = $f['relation'];
+                $hmRows = "old('{$col}', \$object?->{$hmRel}->map(fn (\$i) => \$i->toArray())->all() ?? [])";
+                $hmRow = "backend.pages.{$this->table}.partials.{$col}-row";
+
+                return "<hr class=\"my-4\">\n"
+                    . "<div class=\"d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2\">\n"
+                    . "    <label class=\"form-label fw-semibold mb-0\">{$label}</label>\n"
+                    . "    <small class=\"text-muted\">Line items — add a row per {$f['relModel']}.</small>\n"
+                    . "</div>\n"
+                    . "<input type=\"hidden\" name=\"_{$col}_form\" value=\"1\">\n"
+                    . "<x-admin-core::repeater name=\"{$col}\" :rows=\"{$hmRows}\" row=\"{$hmRow}\" add-label=\"Add row\" />";
             // date/datetime stay text inputs enhanced by Air Datepicker (.js-datepicker + data-adp), value
             // formatted to the shape the picker + 'date' rule parse (Carbon's "Y-m-d H:i:s" wouldn't round-trip).
             case 'date':
@@ -1061,7 +1168,8 @@ BLADE;
     /** Whether a field is shown in the index table / show view. Passwords are write-only. */
     public function isDisplayed(array $f): bool
     {
-        return $f['type'] !== 'password';
+        // password is write-only; hasMany line items aren't a list/show column (shown via the form repeater).
+        return ! in_array($f['type'], ['password', 'hasMany'], true);
     }
 
     public function thead(): string
@@ -1341,10 +1449,42 @@ BLADE;
 
         $extract = '';
         $sync = '';
+        $syncMethods = '';
         foreach ($this->fields as $f) {
             if ($f['type'] === 'belongsToMany') {
                 $extract .= "        \${$f['relation']} = \$data['{$f['name']}'] ?? [];\n        unset(\$data['{$f['name']}']);\n";
                 $sync .= "\n        \$model->{$f['relation']}()->sync(\${$f['relation']});";
+            }
+            if ($f['type'] === 'hasMany') {
+                $rel = $f['relation'];
+                $method = 'sync' . Str::studly($rel);
+                // null = the items block wasn't submitted (e.g. an API/import call) → leave children untouched.
+                $extract .= "        \${$rel} = \$data['{$f['name']}'] ?? null;\n        unset(\$data['{$f['name']}']);\n";
+                $sync .= "\n        \$this->{$method}(\$model, \${$rel});";
+                $syncMethods .= <<<PHP
+
+
+    /** Reconcile the {$rel} line items: update rows with an id, create new ones, delete the rest. */
+    private function {$method}(Model \$model, ?array \$rows): void
+    {
+        if (\$rows === null) {
+            return;
+        }
+        \$keep = [];
+        foreach (\$rows as \$row) {
+            \$id = \$row['id'] ?? null;
+            unset(\$row['id']);
+            \$existing = \$id ? \$model->{$rel}()->whereKey(\$id)->first() : null;
+            if (\$existing) {
+                \$existing->update(\$row);
+                \$keep[] = \$existing->getKey();
+            } else {
+                \$keep[] = \$model->{$rel}()->create(\$row)->getKey();
+            }
+        }
+        \$model->{$rel}()->when(\$keep !== [], fn (\$q) => \$q->whereNotIn('id', \$keep))->delete();
+    }
+PHP;
             }
         }
 
@@ -1410,7 +1550,7 @@ PHP;
         \$model->update(\$data);{$sync}
 
         return \$model;
-    }{$delete}
+    }{$delete}{$syncMethods}
 PHP;
     }
 }

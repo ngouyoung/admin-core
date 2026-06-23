@@ -386,6 +386,20 @@ class AdminCoreMakeCommand extends Command
             $this->line('  <info>created</info> ' . $this->relative($target));
         }
 
+        // One row-partial per hasMany field — the master-detail repeater's row (a generated starting point).
+        if ($web) {
+            foreach ($fields->hasManyRowPartials() as $field => $content) {
+                $target = resource_path("views/backend/pages/{$snakePlural}/partials/{$field}-row.blade.php");
+                if (File::exists($target) && ! $this->option('force')) {
+                    $this->warn('Skipped (exists): ' . $this->relative($target));
+                    continue;
+                }
+                File::ensureDirectoryExists(dirname($target));
+                File::put($target, $content);
+                $this->line('  <info>created</info> ' . $this->relative($target));
+            }
+        }
+
         $this->createPermissions($kebab, $plural, $guard);
         if ($web) {
             $this->registerMenuItem($plural, $snakePlural, $kebab, $menuName, $routeNs);
