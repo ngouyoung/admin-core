@@ -148,7 +148,7 @@ class AdminCoreMakeCommand extends Command
                     <ol class="dd-list">
                         @forelse ($sortItems as $sortItem)
                             <li class="dd-item" data-id="{{ $sortItem->getRouteKey() }}">
-                                <div class="dd-handle">{{ $sortItem->name ?? $sortItem->id }}</div>
+                                <div class="dd-handle">{{ ac_localize($sortItem->name) ?: $sortItem->id }}</div>
                             </li>
                         @empty
                             <li class="dd-item"><div class="dd-handle text-muted">No records yet.</div></li>

@@ -4,6 +4,7 @@ namespace Ngos\AdminCore\Services;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Base service every resource service extends — the shared business core used by
@@ -82,9 +83,12 @@ abstract class BaseService
     public function reorder(array $ids): void
     {
         $key = $this->model->getRouteKeyName();
-        foreach (array_values($ids) as $position => $id) {
-            // Scoped through query() so a reorder can't write `sort` onto rows outside the scope.
-            $this->query()->where($key, $id)->update(['sort' => $position + 1]);
-        }
+        // One transaction so a mid-loop failure can't leave a half-renumbered (corrupt) order.
+        DB::transaction(function () use ($ids, $key) {
+            foreach (array_values($ids) as $position => $id) {
+                // Scoped through query() so a reorder can't write `sort` onto rows outside the scope.
+                $this->query()->where($key, $id)->update(['sort' => $position + 1]);
+            }
+        });
     }
 }

@@ -2,6 +2,30 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.7
+
+Hardening + bug-fix pass from a multi-agent audit (adversarially verified findings).
+
+### Security
+- **CSV import no longer bypasses form sanitisation.** `import()` validated rows with a bare Validator,
+  skipping the store FormRequest's `prepareForValidation` — so rich-text / JSON cells were stored
+  unsanitised (stored XSS). Imports now run through `prepareForValidation` (e.g. `Html::clean`), exactly
+  like a web submission.
+- **Global search is permission-gated.** `Search::query()` skipped no entries, leaking records of resources
+  a user cannot list. Each entry is now gated on its permission — an explicit `permission` key, or the
+  derived `list-{resource}` convention; set `'permission' => null` on an entry to opt out.
+- **Bulk actions are capped.** `bulkDelete` / `bulkRestore` / `bulkForceDelete` / `reorder` accepted an
+  unbounded `ids` array (mass-write / DoS); now validated `max:1000`.
+
+### Fixed
+- **A translatable `name` no longer crashes generated screens / export.** A `[locale => text]` name echoed
+  raw hit `htmlspecialchars(): array given` / `Array to string conversion`. Wrapped in `ac_localize()`
+  across: the **trash** view stub, the **`--sortable`** drag panel, **CSV export** of foreign /
+  belongsToMany related names, and the **API resource** FK / belongsToMany names.
+- **Bulk delete/restore/force-delete are resilient.** One stale id used to 404 and abort the whole batch;
+  missing ids are now skipped and the response reports the count actually affected.
+- **`reorder()` runs in a transaction** — a mid-loop failure can no longer leave a half-renumbered order.
+
 ## v2.51.6
 
 ### Docs

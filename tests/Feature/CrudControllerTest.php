@@ -76,6 +76,45 @@ it('bulk-deletes selected records', function () {
     expect(Widget::count())->toBe(0);
 });
 
+it('bulk-deletes resiliently: a stale id is skipped, not a 404 that aborts the whole batch', function () {
+    $a = Widget::create(['name' => 'a']);
+
+    // One real id + one that no longer exists. The old per-id firstOrFail() 404'd the entire request.
+    $this->post('/admin/widgets/bulkDelete', ['ids' => [$a->id, 999999]])
+        ->assertOk()
+        ->assertJson(['deleted' => 1]); // reports what was actually deleted
+
+    expect(Widget::count())->toBe(0);
+});
+
+it('rejects an oversized bulk id payload (DoS / mass-write cap)', function () {
+    // Bulk actions are posted by the DataTable via XHR (JSON), so a failed cap returns 422.
+    $this->postJson('/admin/widgets/bulkDelete', ['ids' => range(1, 1001)])
+        ->assertStatus(422);
+});
+
+it('runs the store form prepareForValidation on imported rows (a CSV cannot bypass sanitisation → XSS)', function () {
+    $controller = new class(new Ngos\AdminCore\Tests\Fixtures\WidgetService(new Widget)) extends \Ngos\AdminCore\Http\Controllers\WebController {
+        public function __construct($service)
+        {
+            $this->service = $service;
+            $this->routeBase = 'sanwidgets.';
+            $this->storeRequest = \Ngos\AdminCore\Tests\Fixtures\StoreWidgetSanitizeRequest::class;
+        }
+    };
+    app()->instance('ac-san-controller', $controller);
+    \Illuminate\Support\Facades\Route::middleware('web')->post('admin/sanwidgets/import', fn (\Illuminate\Http\Request $r) => app('ac-san-controller')->import($r))->name('admin.sanwidgets.import');
+
+    $csv = "name\n\"<script>alert(1)</script>Hello\"\n";
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);
+
+    $this->post('admin/sanwidgets/import', ['file' => $file])->assertRedirect();
+
+    $widget = Widget::first();
+    expect($widget)->not->toBeNull()
+        ->and($widget->name)->not->toContain('<script>'); // Html::clean ran via prepareForValidation
+});
+
 it('exports a csv', function () {
     Widget::create(['name' => 'Export Me']);
 

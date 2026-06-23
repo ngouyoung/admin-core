@@ -30,6 +30,18 @@ class Search
                 continue;
             }
 
+            // Don't leak records the user can't list: gate each entry on its permission — explicit
+            // (`'permission' => 'list-foo'`) or, by default, the convention `list-{kebab(ClassBasename)}`
+            // that admin-core:make grants. Set `'permission' => null` on an entry to opt out of the gate.
+            if (config('admin-core.permission.enabled', true) && ($user = auth()->user())) {
+                $permission = array_key_exists('permission', $cfg)
+                    ? $cfg['permission']
+                    : 'list-' . \Illuminate\Support\Str::kebab(class_basename($model));
+                if (is_string($permission) && $permission !== '' && ! $user->can($permission)) {
+                    continue;
+                }
+            }
+
             $rows = $model::query()
                 ->where(function ($q) use ($columns, $term) {
                     foreach ($columns as $col) {

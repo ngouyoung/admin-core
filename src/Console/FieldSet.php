@@ -590,11 +590,11 @@ PHP;
                 continue;
             }
             if ($f['type'] === 'foreign') {
-                $lines[] = "            '{$f['relation']}' => \$this->{$f['relation']}?->name,";
+                $lines[] = "            '{$f['relation']}' => ac_localize(\$this->{$f['relation']}?->name),";
                 continue;
             }
             if ($f['type'] === 'belongsToMany') {
-                $lines[] = "            '{$f['relation']}' => \$this->whenLoaded('{$f['relation']}', fn () => \$this->{$f['relation']}->pluck('name')),";
+                $lines[] = "            '{$f['relation']}' => \$this->whenLoaded('{$f['relation']}', fn () => \$this->{$f['relation']}->map(fn (\$i) => ac_localize(\$i->name))),";
                 continue;
             }
             if (in_array($f['type'], ['image', 'file'], true)) {

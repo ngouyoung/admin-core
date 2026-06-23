@@ -184,9 +184,11 @@ abstract class WebController extends BaseController
                 foreach ($relations as $relation) {
                     $related = $row->{$relation};
                     // belongsToMany → a Collection of related models (join their names); belongsTo → one model.
+                    // ac_localize so a translatable related name exports as the localized string, not raw
+                    // JSON (belongsTo) or an "Array to string conversion" crash (belongsToMany).
                     $cells[] = $related instanceof \Illuminate\Support\Collection
-                        ? $this->csvCell($related->map(fn ($i) => $i->name ?? $i->getKey())->implode(', '))
-                        : $this->csvCell($related?->name);
+                        ? $this->csvCell($related->map(fn ($i) => ac_localize($i->name) ?: $i->getKey())->implode(', '))
+                        : $this->csvCell(ac_localize($related?->name));
                 }
                 fputcsv($out, $cells, escape: '');
             });
@@ -226,6 +228,21 @@ abstract class WebController extends BaseController
         }
 
         return $value;
+    }
+
+    /**
+     * Run the store request's prepareForValidation() on a raw import row, so a CSV import gets the SAME
+     * input transforms the web form applies — most importantly Html::clean() on rich-text fields. Without
+     * it, imported HTML/JSON is validated and stored unsanitised (stored XSS). Builds a throwaway request
+     * from the row and invokes the (protected) hook; a request that doesn't override it is a harmless no-op.
+     */
+    protected function prepareImportRow(array $row): array
+    {
+        $request = $this->storeRequest::create('', 'POST', $row);
+        $request->setContainer(app());
+        (new \ReflectionMethod($request, 'prepareForValidation'))->invoke($request);
+
+        return $request->all();
     }
 
     /**
@@ -270,6 +287,10 @@ abstract class WebController extends BaseController
 
             $cells = array_pad(array_slice($cells, 0, count($header)), count($header), null);
             $row = array_intersect_key(array_combine($header, $cells), array_flip($fillable));
+
+            // Run the store form's prepareForValidation (e.g. Html::clean on rich text) so imported rows are
+            // sanitised exactly like web submissions — a CSV must not bypass it into stored XSS.
+            $row = array_intersect_key($this->prepareImportRow($row), array_flip($fillable));
 
             foreach ($arrayColumns as $col) {
                 if (isset($row[$col]) && is_string($row[$col]) && $row[$col] !== '') {
@@ -340,14 +361,31 @@ abstract class WebController extends BaseController
     /** Delete every selected row (soft delete if the model uses SoftDeletes). */
     public function bulkDelete(Request $request): JsonResponse
     {
-        $ids = array_filter((array) $request->input('ids', []));
-        DB::transaction(function () use ($ids) {
-            foreach ($ids as $id) {
+        $ids = $this->bulkIds($request);
+        $key = $this->service->query()->getModel()->getRouteKeyName();
+        $deleted = 0;
+        // Act only on ids that exist in scope — a stale/foreign id is skipped, not a 404 that aborts the
+        // whole batch (the old per-id find()->firstOrFail() did). Routed through the service so soft-delete
+        // + activity logging still fire.
+        DB::transaction(function () use ($ids, $key, &$deleted) {
+            foreach ($this->service->query()->whereIn($key, $ids)->pluck($key) as $id) {
                 $this->service->delete($id);
+                $deleted++;
             }
         });
 
-        return response()->json(['code' => 200, 'deleted' => count($ids)]);
+        return response()->json(['code' => 200, 'deleted' => $deleted]);
+    }
+
+    /**
+     * Validate + cap a bulk id payload: an unbounded `ids` array is a mass-write / DoS vector. Returns the
+     * non-empty ids.
+     */
+    protected function bulkIds(Request $request): array
+    {
+        $request->validate(['ids' => ['array', 'max:1000']]);
+
+        return array_values(array_filter((array) $request->input('ids', []), fn ($v) => $v !== null && $v !== ''));
     }
 
     // -- Soft deletes (routed only for resources generated with --soft-deletes) --
@@ -374,33 +412,39 @@ abstract class WebController extends BaseController
     /** Restore every selected trashed row. */
     public function bulkRestore(Request $request): JsonResponse
     {
-        $ids = array_filter((array) $request->input('ids', []));
-        DB::transaction(function () use ($ids) {
-            foreach ($ids as $id) {
+        $ids = $this->bulkIds($request);
+        $key = $this->service->query()->getModel()->getRouteKeyName();
+        $restored = 0;
+        DB::transaction(function () use ($ids, $key, &$restored) {
+            foreach ($this->service->trashedQuery()->whereIn($key, $ids)->pluck($key) as $id) {
                 $this->service->restore($id);
+                $restored++;
             }
         });
 
-        return response()->json(['code' => 200, 'restored' => count($ids)]);
+        return response()->json(['code' => 200, 'restored' => $restored]);
     }
 
     /** Permanently delete every selected trashed row. */
     public function bulkForceDelete(Request $request): JsonResponse
     {
-        $ids = array_filter((array) $request->input('ids', []));
-        DB::transaction(function () use ($ids) {
-            foreach ($ids as $id) {
+        $ids = $this->bulkIds($request);
+        $key = $this->service->query()->getModel()->getRouteKeyName();
+        $deleted = 0;
+        DB::transaction(function () use ($ids, $key, &$deleted) {
+            foreach ($this->service->trashedQuery()->whereIn($key, $ids)->pluck($key) as $id) {
                 $this->service->forceDelete($id);
+                $deleted++;
             }
         });
 
-        return response()->json(['code' => 200, 'deleted' => count($ids)]);
+        return response()->json(['code' => 200, 'deleted' => $deleted]);
     }
 
     /** Persist a drag-and-drop reorder (resources generated with --sortable). */
     public function reorder(Request $request): JsonResponse
     {
-        $this->service->reorder(array_filter((array) $request->input('ids', [])));
+        $this->service->reorder($this->bulkIds($request));
 
         return response()->json(['code' => 200]);
     }

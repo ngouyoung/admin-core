@@ -566,7 +566,7 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
     expect(File::get(app_path('Http/Resources/GizmoResource.php')))
         ->toContain('class GizmoResource extends JsonResource')
         ->toContain("'id' => \$this->getRouteKey()")
-        ->toContain("'category' => \$this->category?->name")
+        ->toContain("'category' => ac_localize(\$this->category?->name)")
         ->not->toContain("'secret'");
 
     // The web controller appends the belongsTo's related name to the CSV export.
@@ -705,7 +705,7 @@ it('infers fields from the existing model when adding a channel without --fields
         ->toContain("'title' => \$this->title")
         ->toContain("'status' => \$this->status")
         ->toContain("'qty' => \$this->qty")
-        ->toContain("'category' => \$this->category?->name");
+        ->toContain("'category' => ac_localize(\$this->category?->name)");
 
     // Whitelists are type-correct: the integer/time columns stay OUT of $searchable
     // (a LIKE on them errors on Postgres); enum + foreign go to $filterable.
