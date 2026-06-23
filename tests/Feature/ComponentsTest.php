@@ -299,3 +299,28 @@ it('shows a validation error for a bracket-named field (settings[logo] -> settin
 
     expect($html)->toContain('is-invalid')->toContain('The logo must be an image.');
 });
+
+it('renders a repeater: existing rows server-side, a clone template, and an add button', function () {
+    // A throwaway row view for the repeater's @include (same fixture trick as the data-table test).
+    View::addNamespace('actmp', sys_get_temp_dir());
+    $rowView = sys_get_temp_dir() . '/ac_repeater_row.blade.php';
+    File::put($rowView, '<div data-ac-repeater-row><input name="{{ $name }}[{{ $index }}][unit_id]" value="{{ $row[\'unit_id\'] ?? \'\' }}"><button type="button" data-ac-repeater-remove>x</button></div>');
+
+    $html = Blade::render(
+        '<x-admin-core::repeater name="units" :rows="$rows" row="actmp::ac_repeater_row" add-label="Add unit" />',
+        ['rows' => [['unit_id' => 7], ['unit_id' => 9]]]
+    );
+
+    expect($html)
+        ->toContain('data-ac-repeater')
+        ->toContain('name="units[0][unit_id]"')->toContain('value="7"') // existing row 0, server-rendered
+        ->toContain('name="units[1][unit_id]"')->toContain('value="9"') // existing row 1
+        ->toContain('name="units[__ROW__][unit_id]"')                   // clone template — JS swaps __ROW__
+        ->toContain('data-ac-repeater-add')->toContain('Add unit')
+        ->toContain('data-ac-repeater-remove');
+
+    // The template lives inside a <template> so its inputs don't post until cloned.
+    expect($html)->toMatch('/<template[^>]*data-ac-repeater-tpl/');
+
+    File::delete($rowView);
+});

@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.4
+
+### Added
+- **`<x-admin-core::repeater>`** — repeatable form rows for master-detail forms (a variant's units, an
+  order's line items…). You supply a row partial named with the `:index` it's given; the component renders
+  it once per existing row, plus a hidden `<template>` that the Add button clones with a fresh unique index,
+  and each row gets a Remove button. Add/remove is inline JS (no build step). It posts `name[i][...]`
+  arrays (indexes need not be sequential — re-index server-side). Covered by a render test in `ComponentsTest`.
+
 ## v2.51.3
 
 ### Fixed
