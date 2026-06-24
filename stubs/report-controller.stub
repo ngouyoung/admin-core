@@ -1,0 +1,19 @@
+<?php
+
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Controllers\Controller;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\Request;
+
+class __AC_CONTROLLER__ extends Controller
+{
+    public function __invoke(Request $request): View
+    {
+        // Build your report query and return the rows for the table.
+        // e.g. $rows = \App\Models\Order::query()->with('customer')->latest()->limit(200)->get();
+        $rows = collect();
+
+        return view('__AC_VIEW__', compact('rows'));
+    }
+}

@@ -172,7 +172,7 @@ php artisan admin-core:make Order --portal=merchant</code></pre>
                         'export-menu', 'import-modal', 'filter-tabs', 'status', 'badge',
                         'avatar', 'stat-card', 'stat-list', 'alert', 'modal',
                         'empty-state', 'skeleton', 'tabs', 'tab-pane', 'sidebar-menu',
-                        'editor', 'repeater', 'page-loader',
+                        'editor', 'repeater', 'date-input', 'page-loader',
                     ] as $componentName)
                         <x-admin-core::badge tone="secondary">{{ $componentName }}</x-admin-core::badge>
                     @endforeach

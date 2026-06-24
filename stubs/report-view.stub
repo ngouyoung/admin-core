@@ -1,0 +1,42 @@
+@extends('backend.layouts.app')
+
+@section('title', '__AC_TITLE__')
+
+@section('contents')
+    <x-admin-core::page-header title="__AC_TITLE__" description="Describe what this report shows." />
+
+    <x-admin-core::card>
+        <x-slot:header>
+            <div class="d-flex justify-content-between align-items-center">
+                <span>__AC_TITLE__</span>
+                <span class="badge bg-secondary-subtle text-secondary">{{ $rows->count() }}</span>
+            </div>
+        </x-slot:header>
+
+        @if ($rows->isEmpty())
+            <x-admin-core::empty-state icon="bi-clipboard-check" title="Nothing to show"
+                message="No rows match this report right now." />
+        @else
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            {{-- TODO: your column headers --}}
+                            <th>Name</th>
+                            <th class="text-end">Value</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($rows as $row)
+                            <tr>
+                                {{-- TODO: your row cells --}}
+                                <td>{{ $row->name ?? '—' }}</td>
+                                <td class="text-end">{{ $row->value ?? '' }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </x-admin-core::card>
+@endsection

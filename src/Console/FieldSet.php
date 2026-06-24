@@ -1115,12 +1115,12 @@ PHP;
                     . "</div>\n"
                     . "<input type=\"hidden\" name=\"_{$col}_form\" value=\"1\">\n"
                     . "<x-admin-core::repeater name=\"{$col}\" :rows=\"{$hmRows}\" row=\"{$hmRow}\" add-label=\"Add row\" />";
-            // date/datetime stay text inputs enhanced by Air Datepicker (.js-datepicker + data-adp), value
-            // formatted to the shape the picker + 'date' rule parse (Carbon's "Y-m-d H:i:s" wouldn't round-trip).
+            // date/datetime use the date-input component (Air Datepicker via .js-datepicker); it formats a
+            // Carbon value for the picker + 'date' rule and echoes a re-submitted string as-is.
             case 'date':
-                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"text\" class=\"js-datepicker\" data-adp=\"date\" autocomplete=\"off\" :value=\"old('{$col}', \$object?->{$col}?->format('Y-m-d'))\"{$ro} />";
+                return "<x-admin-core::date-input name=\"{$col}\" label=\"{$label}\" :value=\"old('{$col}', \$object?->{$col})\"{$ro} />";
             case 'datetime':
-                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"text\" class=\"js-datepicker\" data-adp=\"datetime\" autocomplete=\"off\" :value=\"old('{$col}', \$object?->{$col}?->format('Y-m-d H:i'))\"{$ro} />";
+                return "<x-admin-core::date-input name=\"{$col}\" label=\"{$label}\" mode=\"datetime\" :value=\"old('{$col}', \$object?->{$col})\"{$ro} />";
             case 'password':
                 return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"password\" autocomplete=\"new-password\" />";
             case 'integer':
@@ -1466,34 +1466,10 @@ BLADE;
             }
             if ($f['type'] === 'hasMany') {
                 $rel = $f['relation'];
-                $method = 'sync' . Str::studly($rel);
                 // null = the items block wasn't submitted (e.g. an API/import call) → leave children untouched.
+                // Reconcile via BaseService::syncHasMany (update by id / create / delete the rest).
                 $extract .= "        \${$rel} = \$data['{$f['name']}'] ?? null;\n        unset(\$data['{$f['name']}']);\n";
-                $sync .= "\n        \$this->{$method}(\$model, \${$rel});";
-                $syncMethods .= <<<PHP
-
-
-    /** Reconcile the {$rel} line items: update rows with an id, create new ones, delete the rest. */
-    private function {$method}(Model \$model, ?array \$rows): void
-    {
-        if (\$rows === null) {
-            return;
-        }
-        \$keep = [];
-        foreach (\$rows as \$row) {
-            \$id = \$row['id'] ?? null;
-            unset(\$row['id']);
-            \$existing = \$id ? \$model->{$rel}()->whereKey(\$id)->first() : null;
-            if (\$existing) {
-                \$existing->update(\$row);
-                \$keep[] = \$existing->getKey();
-            } else {
-                \$keep[] = \$model->{$rel}()->create(\$row)->getKey();
-            }
-        }
-        \$model->{$rel}()->when(\$keep !== [], fn (\$q) => \$q->whereKeyNot(\$keep))->delete();
-    }
-PHP;
+                $sync .= "\n        \$this->syncHasMany(\$model, '{$rel}', \${$rel});";
             }
         }
 

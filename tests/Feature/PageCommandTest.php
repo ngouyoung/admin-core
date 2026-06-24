@@ -60,6 +60,35 @@ it('scaffolds a controller, view and route for a standalone page', function () {
     expect(Process::run('php -l ' . escapeshellarg($routePath))->successful())->toBeTrue();
 });
 
+it('scaffolds a data-driven report with --report', function () {
+    $this->artisan('admin-core:page', ['name' => 'Reports', '--report' => true, '--no-menu' => true])->assertSuccessful();
+
+    // Controller hands the view a rows collection; valid PHP, no tokens.
+    $controllerPath = app_path('Http/Controllers/Backend/ReportsController.php');
+    expect(File::get($controllerPath))
+        ->toContain('public function __invoke(Request $request): View')
+        ->toContain('$rows = collect();')
+        ->toContain("return view('backend.pages.reports', compact('rows'))")
+        ->not->toContain('__AC_');
+    expect(Process::run('php -l ' . escapeshellarg($controllerPath))->successful())->toBeTrue();
+
+    // View: the report table pattern — count badge, empty-state and a rows loop.
+    $viewPath = resource_path('views/backend/pages/reports.blade.php');
+    expect(File::get($viewPath))
+        ->toContain('$rows->count()')
+        ->toContain('$rows->isEmpty()')
+        ->toContain('<x-admin-core::empty-state')
+        ->toContain('@foreach ($rows as $row)')
+        ->toContain('<table');
+
+    // …and it compiles to valid PHP (a malformed directive would break compileString or the lint).
+    $compiled = app('blade.compiler')->compileString(File::get($viewPath));
+    $tmp = sys_get_temp_dir() . '/ac_report_compiled.php';
+    File::put($tmp, $compiled);
+    expect(Process::run('php -l ' . escapeshellarg($tmp))->successful())->toBeTrue();
+    File::delete($tmp);
+});
+
 it('kebab-cases a multi-word name for the slug, route and view', function () {
     $this->artisan('admin-core:page', ['name' => 'Sales Report', '--no-menu' => true])->assertSuccessful();
 

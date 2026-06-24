@@ -108,11 +108,10 @@ it('scaffolds a hasMany master-detail (relation + repeater + row partial + servi
         ->toContain('backend.pages.gizmos.partials.lines-row');
     expect(File::exists(resource_path('views/backend/pages/gizmos/partials/lines-row.blade.php')))->toBeTrue();
 
-    // Service: the reconcile method, called from create/update.
+    // Service: create/update reconcile the line items via the BaseService master-detail helper.
     expect(File::get(app_path('Services/Gizmos/GizmoService.php')))
-        ->toContain('private function syncLines(Model $model, ?array $rows): void')
-        ->toContain('$this->syncLines($model, $lines);')
-        ->toContain('whereKeyNot($keep)'); // respects the related model's actual primary key
+        ->toContain('$lines = $data[\'lines\'] ?? null;')
+        ->toContain("\$this->syncHasMany(\$model, 'lines', \$lines);");
 
     // Request: the items array rule + the blank-row filter in prepareForValidation.
     expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))

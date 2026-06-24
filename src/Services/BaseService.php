@@ -79,6 +79,54 @@ abstract class BaseService
         return $this->query()->onlyTrashed()->where($this->model->getRouteKeyName(), $id)->firstOrFail();
     }
 
+    /**
+     * Reconcile a hasMany relation against a posted set of rows — the master-detail / repeater pattern
+     * (a Purchase + its line items, a Product + its units). Rows carrying an `id` are updated, new rows are
+     * created, and rows no longer present are deleted. Pass $rows === null (the form didn't own the block,
+     * e.g. an API/import call that omitted it) to leave the children untouched.
+     *
+     * Without $attributes each row is persisted as-is (minus its `id`) — so mass-assignment is bounded by
+     * the child model's `$fillable` (give every line-item model an explicit `$fillable`, never `$guarded = []`).
+     * Pass $attributes to whitelist or derive the columns explicitly — return null from it to skip a row:
+     *
+     *   $this->syncHasMany($purchase, 'items', $rows, fn ($r) => empty($r['product_id']) ? null : [
+     *       'product_id' => $r['product_id'],
+     *       'qty'        => $r['qty'] ?? 0,
+     *   ]);
+     *
+     * Each row's `id` (when present) must be the child's primary-key value (what the repeater posts), which
+     * `whereKey()` resolves; new rows omit it.
+     *
+     * @return array<int, mixed> the kept child keys (created + updated)
+     */
+    protected function syncHasMany(Model $parent, string $relation, ?array $rows, ?callable $attributes = null): array
+    {
+        if ($rows === null) {
+            return [];
+        }
+
+        $keep = [];
+        foreach ($rows as $row) {
+            $attrs = $attributes ? $attributes($row) : collect($row)->except('id')->all();
+            if ($attrs === null) {
+                continue; // the transform opted to skip this row (e.g. blank)
+            }
+            $id = $row['id'] ?? null;
+            $existing = $id ? $parent->{$relation}()->whereKey($id)->first() : null;
+            if ($existing) {
+                $existing->update($attrs);
+                $keep[] = $existing->getKey();
+            } else {
+                $keep[] = $parent->{$relation}()->create($attrs)->getKey();
+            }
+        }
+
+        // Anything not in the submission is removed (an empty $rows ⇒ all children cleared).
+        $parent->{$relation}()->when($keep !== [], fn ($q) => $q->whereKeyNot($keep))->delete();
+
+        return $keep;
+    }
+
     /** Persist a new order: each (route-key) id's `sort` becomes its 1-based position. */
     public function reorder(array $ids): void
     {

@@ -3,6 +3,7 @@
 namespace Ngos\AdminCore\Tests\Fixtures;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class RelCategory extends Model
 {
@@ -11,4 +12,9 @@ class RelCategory extends Model
     public $timestamps = false;
 
     protected $guarded = [];
+
+    public function gadgets(): HasMany
+    {
+        return $this->hasMany(RelGadget::class, 'category_id');
+    }
 }

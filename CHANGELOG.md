@@ -2,6 +2,27 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.15
+
+DX features that cut hand-rolled boilerplate (driven by real app usage).
+
+### Added
+- **`<x-admin-core::date-input>` component** — a date / datetime field pre-wired to the bundled
+  AirDatepicker (`.js-datepicker` + `data-adp`, re-inits on repeater rows). Formats a Carbon value and
+  echoes a re-submitted string as-is (so a bad date can't throw on re-render). `mode="datetime"` for
+  date+time. The generator now emits it for `date:` / `datetime:` fields instead of a hand-built input.
+- **`BaseService::syncHasMany()`** — the master-detail reconcile for repeater-backed forms (a parent + its
+  line items): update rows by `id`, create new ones, delete the rest; `null` leaves the relation untouched.
+  Pass an `$attributes` callback to whitelist/derive per-row columns (return `null` to skip a row). Generated
+  resources with a `hasMany` field now call it instead of emitting their own copy.
+- **`admin-core:page --report`** — scaffolds a data-driven read-only report (count badge + empty-state +
+  table) instead of a blank page, reusing the same route / permission / sidebar machinery. Fill in the query
+  and columns. Removes the boilerplate every report screen repeats.
+
+### Tests
+- date-input render (Carbon formatting, datetime mode, raw-string passthrough); `syncHasMany`
+  create/update/delete/null/empty/transform; the `--report` scaffold output.
+
 ## v2.51.14
 
 Correctness + hardening from a focused package self-audit (findings verified against ground truth).

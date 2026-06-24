@@ -23,11 +23,12 @@ class AdminCorePageCommand extends Command
 {
     protected $signature = 'admin-core:page
                             {name : The page name, e.g. Reports or "Sales Report"}
+                            {--report : Scaffold a data-driven read-only report (count badge + empty-state + table) instead of a blank page}
                             {--no-permission : Skip creating + gating a view-<page> permission}
                             {--no-menu : Skip adding the sidebar menu entry}
                             {--force : Overwrite files that already exist}';
 
-    protected $description = 'Scaffold a standalone (non-CRUD) admin page: invokable controller + view + route (+ sidebar menu + permission).';
+    protected $description = 'Scaffold a standalone (non-CRUD) admin page or --report: invokable controller + view + route (+ sidebar menu + permission).';
 
     public function handle(): int
     {
@@ -62,12 +63,13 @@ class AdminCorePageCommand extends Command
             }
         }
 
-        // Controller + view from stubs, route inline (tiny).
-        $this->put($targets['controller'], strtr(File::get($this->stub('page-controller.stub')), [
+        // Controller + view from stubs (report-flavoured when --report), route inline (tiny).
+        $report = (bool) $this->option('report');
+        $this->put($targets['controller'], strtr(File::get($this->stub($report ? 'report-controller.stub' : 'page-controller.stub')), [
             '__AC_CONTROLLER__' => $controller,
             '__AC_VIEW__' => $view,
         ]));
-        $this->put($targets['view'], strtr(File::get($this->stub('page-view.stub')), [
+        $this->put($targets['view'], strtr(File::get($this->stub($report ? 'report-view.stub' : 'page-view.stub')), [
             '__AC_TITLE__' => $label,
         ]));
 
@@ -89,7 +91,8 @@ class AdminCorePageCommand extends Command
             $this->createPermission($permission, $label, $guard);
         }
         if (! $this->option('no-menu')) {
-            $this->registerMenuItem($label, $slug, $route, $withPermission ? $permission : null);
+            $icon = $report ? 'bi bi-table' : 'bi bi-file-earmark-text';
+            $this->registerMenuItem($label, $slug, $route, $withPermission ? $permission : null, $icon);
         }
 
         $this->newLine();
@@ -149,7 +152,7 @@ class AdminCorePageCommand extends Command
      * config/admin-core.php, rendered + permission-filtered by the sidebar-menu
      * component). Idempotent; warns if the marker is missing.
      */
-    private function registerMenuItem(string $label, string $slug, string $route, ?string $can): void
+    private function registerMenuItem(string $label, string $slug, string $route, ?string $can, string $icon = 'bi bi-file-earmark-text'): void
     {
         $config = config_path('admin-core.php');
         $markerRe = '/\/\/ admin-core:menu(?![:\w])/';
@@ -167,7 +170,7 @@ class AdminCorePageCommand extends Command
 
         $canPart = $can ? "'can' => '{$can}', " : '';
         $urlPrefix = rtrim(config('admin-core.route.name_prefix', 'admin.'), '.');
-        $entry = "['label' => '{$label}', 'route' => '{$route}', 'icon' => 'bi bi-file-earmark-text', {$canPart}'match' => '{$urlPrefix}/{$slug}*'],";
+        $entry = "['label' => '{$label}', 'route' => '{$route}', 'icon' => '{$icon}', {$canPart}'match' => '{$urlPrefix}/{$slug}*'],";
         $contents = preg_replace_callback($markerRe, fn () => $entry . "\n        // admin-core:menu", $contents, 1);
         File::put($config, $contents);
         $this->line('  <info>menu</info> added "' . $label . '" to config/admin-core.php (run config:clear if you cache config)');

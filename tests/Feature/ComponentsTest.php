@@ -357,6 +357,39 @@ it('renders the sidebar menu with ARIA: aria-current on the active link, aria-ex
     expect($html)->toContain('id="' . $m[1] . '"');
 });
 
+it('renders a date-input wired to the datepicker, formatting a Carbon value', function () {
+    $html = Blade::render('<x-admin-core::date-input name="received_date" :value="$v" />', ['v' => \Illuminate\Support\Carbon::parse('2026-06-24 13:45')]);
+    expect($html)
+        ->toContain('name="received_date"')
+        ->toContain('data-adp="date"')
+        ->toContain('autocomplete="off"')
+        ->toContain('value="2026-06-24"')                                  // date mode → Y-m-d
+        ->toMatch('/class="[^"]*\bform-control\b[^"]*\bjs-datepicker\b/');  // both classes on the SAME input
+});
+
+it('forwards pass-through attributes (readonly/required) onto the input and wires field errors', function () {
+    // ->class() preserves the rest of the bag, so extra attributes reach the <input>.
+    $html = Blade::render('<x-admin-core::date-input name="d" readonly required placeholder="Pick" />');
+    expect($html)->toContain('readonly')->toContain('required')->toContain('placeholder="Pick"');
+
+    // A non-stringifiable value never throws — it just renders empty.
+    expect(Blade::render('<x-admin-core::date-input name="d" :value="$v" />', ['v' => new stdClass]))->toContain('value=""');
+
+    // is-invalid is wired by field name through the composed input component.
+    View::share('errors', (new ViewErrorBag)->put('default', new \Illuminate\Support\MessageBag(['born_on' => 'Bad date.'])));
+    expect(Blade::render('<x-admin-core::date-input name="born_on" />'))->toContain('is-invalid');
+    View::share('errors', new ViewErrorBag); // reset for later tests
+});
+
+it('renders a datetime date-input and echoes a plain string value verbatim (no parse, no crash)', function () {
+    $dt = Blade::render('<x-admin-core::date-input name="starts_at" mode="datetime" :value="$v" />', ['v' => \Illuminate\Support\Carbon::parse('2026-06-24 13:45')]);
+    expect($dt)->toContain('data-adp="datetime"')->toContain('value="2026-06-24 13:45"'); // datetime → Y-m-d H:i
+
+    // A re-submitted raw string (e.g. after a validation failure) is output as-is — never re-parsed.
+    expect(Blade::render('<x-admin-core::date-input name="d" :value="$v" />', ['v' => 'not-a-date']))
+        ->toContain('value="not-a-date"');
+});
+
 it('renders the global search as an accessible combobox + listbox', function () {
     config(['admin-core.search' => [['model' => \Ngos\AdminCore\Tests\Fixtures\Widget::class, 'columns' => ['name']]]]);
     \Illuminate\Support\Facades\Route::get('/_search', fn () => '')->name('admin.search');

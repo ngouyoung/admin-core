@@ -517,6 +517,14 @@ placeholder), and a **route** under `routes/Web/Backend/Modules/` (auto-loaded i
 Multi-word names kebab-case (`admin-core:page "Sales Report"` → `admin.sales-report`). Flags: `--no-menu`,
 `--no-permission`, `--force`.
 
+Add **`--report`** to scaffold a **data-driven read-only report** instead of a blank page — the controller
+hands the view a `$rows` collection, and the view ships the report shell (a count badge, an empty-state, and
+a `@foreach` table you fill with columns):
+
+```bash
+php artisan admin-core:page "Low Stock" --report
+```
+
 ## Multi-portal
 
 Need a second admin area — a **merchant** or **vendor** portal with its own login, separate from your
@@ -809,6 +817,26 @@ BaseController  (service + FormRequest bindings; your shared seam)
 `BaseService` is the service-layer equivalent: it holds the model binding + the foundational `query()`, and
 `find()` flows through it — so a single `query()` override (e.g. a tenant scope) covers every list, lookup,
 update and delete across both the admin and the API.
+
+For **master-detail** forms (a parent + repeater line items), `BaseService::syncHasMany()` reconciles the
+posted rows — update by `id`, create the new ones, delete the rest (`null` leaves the relation untouched).
+Pass an `$attributes` callback to whitelist/derive per-row columns (return `null` to skip a blank row):
+
+```php
+public function create(array $data): Model
+{
+    $items = $data['items'] ?? null; unset($data['items']);
+    $purchase = parent::create($data);
+    $this->syncHasMany($purchase, 'items', $items, fn ($r) => empty($r['product_id']) ? null : [
+        'product_id' => $r['product_id'],
+        'qty'        => $r['qty'] ?? 0,
+    ]);
+
+    return $purchase;
+}
+```
+
+Generated resources with a `hasMany` field wire this automatically.
 
 ## Testing
 

@@ -121,16 +121,14 @@ it('renders boolean and date columns in the list (not raw true/false or ISO stri
     expect($f->rawColumns())->toContain("'active'");
 });
 
-it('renders date/datetime as Air Datepicker text inputs, value-formatted to the shape it + the date rule parse', function () {
+it('renders date/datetime via the date-input component (Air Datepicker), passing the raw value through', function () {
     $form = fs('born_on:date?, start_at:datetime?')->formFields();
 
-    // Themed picker (theme.js attaches to .js-datepicker, mode from data-adp), not the native input.
-    // A raw Carbon ("Y-m-d H:i:s") wouldn't round-trip; format to Y-m-d / Y-m-d H:i.
+    // The date-input component owns the .js-datepicker wiring + value formatting; the generator just
+    // hands it the raw old()/model value (the component formats a Carbon, echoes a string as-is).
     expect($form)
-        ->toContain('class="js-datepicker" data-adp="date"')
-        ->toContain("old('born_on', \$object?->born_on?->format('Y-m-d'))")
-        ->toContain('data-adp="datetime"')
-        ->toContain("old('start_at', \$object?->start_at?->format('Y-m-d H:i'))")
+        ->toContain("<x-admin-core::date-input name=\"born_on\" label=\"Born On\" :value=\"old('born_on', \$object?->born_on)\"")
+        ->toContain("<x-admin-core::date-input name=\"start_at\" label=\"Start At\" mode=\"datetime\" :value=\"old('start_at', \$object?->start_at)\"")
         ->not->toContain('type="datetime-local"');
 });
 
