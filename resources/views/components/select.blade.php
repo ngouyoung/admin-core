@@ -15,6 +15,7 @@
 @endphp
 <x-admin-core::form-row :name="$name" :label="$label">
     <select name="{{ $name }}{{ $multiple ? '[]' : '' }}" id="{{ $name }}" @if ($multiple) multiple @endif
+        @if ($placeholder !== null) data-placeholder="{{ $placeholder }}" @endif
         {{ $attributes->class(['form-select', 'admin-core-select' => $enhance, 'is-invalid' => $errors->has($name)]) }}>
         @if ($placeholder !== null && ! $multiple)<option value="">{{ $placeholder }}</option>@endif
         @foreach ($options as $val => $text)

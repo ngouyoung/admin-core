@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Session\ArraySessionHandler;
 use Illuminate\Session\Store;
+use Illuminate\Support\Facades\Schema;
 use Ngos\AdminCore\Http\Middleware\AutoTranslate;
 use Ngos\AdminCore\Http\Middleware\SetLocale;
 use Ngos\AdminCore\Translation\Translator;
@@ -106,4 +107,67 @@ it('ignores an unsupported ?setlang value', function () {
     (new SetLocale)->handle($request, fn ($r) => response("ok"));
 
     expect(app()->getLocale())->toBe('en'); // fell back to default, not 'zz'
+});
+
+it('persists the chosen locale to the signed-in user (durable across devices) and prefers it on resolve', function () {
+    Schema::create('loc_users', function ($t) {
+        $t->id();
+        $t->string('locale')->nullable();
+    });
+    $userModel = new class extends \Illuminate\Foundation\Auth\User
+    {
+        protected $table = 'loc_users';
+        public $timestamps = false;
+        protected $guarded = [];
+    };
+    $user = $userModel::create(['locale' => null]);
+
+    // ?setlang=km on an authenticated request → applied AND written back to the user's locale column.
+    $req = Request::create('/admin?setlang=km', 'GET');
+    $req->setLaravelSession(app('session.store'));
+    $req->setUserResolver(fn () => $user);
+    (new SetLocale)->handle($req, fn ($r) => response('ok'));
+    expect(app()->getLocale())->toBe('km')
+        ->and($user->fresh()->locale)->toBe('km'); // durable per-user
+
+    // resolve() prefers the stored user locale over a different session value.
+    $req2 = Request::create('/admin', 'GET');
+    $req2->setLaravelSession(app('session.store'));
+    $req2->session()->put('admin-core.locale', 'en'); // session says en…
+    $req2->setUserResolver(fn () => $user->fresh());   // …but the user says km
+    (new SetLocale)->handle($req2, fn ($r) => response('ok'));
+    expect(app()->getLocale())->toBe('km');
+
+    Schema::dropIfExists('loc_users');
+});
+
+it('caps outbound translate() calls per request at the rate_limit budget', function () {
+    config()->set('admin-core.translation.locales', ['en' => 'EN', 'km' => 'KM', 'fr' => 'FR', 'th' => 'TH']);
+    config()->set('admin-core.translation.rate_limit', 2);
+    app()->setLocale('en');
+
+    $translator = new class implements Translator
+    {
+        public int $calls = 0;
+
+        public function translate(string $text, string $from, string $to): string
+        {
+            $this->calls++;
+
+            return "[{$to}] {$text}";
+        }
+    };
+    app()->instance(Translator::class, $translator);
+
+    // One field, source 'en' filled, 3 locales blank → 3 translations wanted, but the budget caps it.
+    $request = Request::create('/save', 'POST', [
+        '_translate' => ['name'],
+        'name' => ['en' => 'Hello', 'km' => '', 'fr' => '', 'th' => ''],
+    ]);
+    runAutoTranslate($request);
+
+    // No more than the budget of outbound calls; so at least one locale is left untranslated.
+    expect($translator->calls)->toBeLessThanOrEqual(2)->toBeGreaterThan(0);
+    $filled = collect(['km', 'fr', 'th'])->filter(fn ($l) => $request->input("name.{$l}") !== '')->count();
+    expect($filled)->toBeLessThanOrEqual(2);
 });

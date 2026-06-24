@@ -42,10 +42,22 @@ class Search
                 }
             }
 
+            $casts = (new $model)->getCasts();
+            $locale = app()->getLocale();
             $rows = $model::query()
-                ->where(function ($q) use ($columns, $term) {
+                ->where(function ($q) use ($columns, $term, $casts, $locale) {
                     foreach ($columns as $col) {
-                        $q->orWhere($col, 'like', '%' . $term . '%');
+                        if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $col)) {
+                            continue; // only plain column identifiers are searchable
+                        }
+                        if (in_array($casts[$col] ?? null, ['array', 'json', 'object', 'collection'], true)) {
+                            // Translatable / JSON column: match the active locale's value, not the raw JSON
+                            // blob (which would match across locales and JSON syntax). Backtick-quoted
+                            // identifier works on MySQL + SQLite; the column name is validated above.
+                            $q->orWhereRaw("json_extract(`{$col}`, '$.\"{$locale}\"') LIKE ?", ['%' . $term . '%']);
+                        } else {
+                            $q->orWhere($col, 'like', '%' . $term . '%');
+                        }
                     }
                 })
                 ->limit($perGroup)

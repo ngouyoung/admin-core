@@ -324,3 +324,14 @@ it('renders a repeater: existing rows server-side, a clone template, and an add 
 
     File::delete($rowView);
 });
+
+it('renders a select with a placeholder select2 can read (data-placeholder) + the selected option', function () {
+    $html = Blade::render('<x-admin-core::select name="category_id" :options="[\'1\' => \'Phones\', \'2\' => \'Audio\']" :value="\'2\'" placeholder="— choose —" />');
+
+    expect($html)
+        ->toContain('name="category_id"')
+        ->toContain('admin-core-select')                      // select2-enhanced
+        ->toContain('data-placeholder="— choose —"')          // select2 reads this (multi-selects too)
+        ->toContain('<option value="">— choose —</option>')   // leading empty option for the single select
+        ->toContain('value="2" selected');                    // current value preselected
+});

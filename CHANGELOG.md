@@ -2,6 +2,23 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.12
+
+Batch D — final audit polish.
+
+### Fixed
+- **Global search matches a translatable column in the active locale** (via `json_extract`) instead of
+  LIKE-ing the raw JSON blob (which matched across locales + the JSON syntax). Non-JSON columns are
+  unchanged; column names are validated as identifiers before the raw expression.
+- **The API resource exposes a foreign key's id alongside the related name** (`category_id` + `category`),
+  so `?filter[category_id]=…` — already whitelisted by the generated filter list — actually works.
+- **`<x-admin-core::select>` passes its placeholder to select2** (`data-placeholder`) so multi-selects show
+  it too, not just the single-select's empty option.
+
+### Tests
+- Added coverage for SetLocale's **per-user `locale` persistence** ("durable across devices") and
+  AutoTranslate's **`rate_limit` cap** on outbound translate() calls — both features were previously untested.
+
 ## v2.51.11
 
 Batch C — audit polish (security + correctness).

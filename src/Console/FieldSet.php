@@ -674,6 +674,8 @@ PHP;
                 continue;
             }
             if ($f['type'] === 'foreign') {
+                // The FK id (so ?filter[{col}] works — the API whitelists it) + the readable related name.
+                $lines[] = "            '{$f['name']}' => \$this->{$f['name']},";
                 $lines[] = "            '{$f['relation']}' => ac_localize(\$this->{$f['relation']}?->name),";
                 continue;
             }

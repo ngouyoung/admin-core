@@ -632,7 +632,8 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
     expect(File::get(app_path('Http/Resources/GizmoResource.php')))
         ->toContain('class GizmoResource extends JsonResource')
         ->toContain("'id' => \$this->getRouteKey()")
-        ->toContain("'category' => ac_localize(\$this->category?->name)")
+        ->toContain("'category_id' => \$this->category_id")               // the FK id, so ?filter[category_id] works
+        ->toContain("'category' => ac_localize(\$this->category?->name)") // + the readable related name
         ->not->toContain("'secret'");
 
     // The web controller appends the belongsTo's related name to the CSV export.
