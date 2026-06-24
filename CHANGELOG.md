@@ -2,6 +2,34 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.13
+
+Accessibility — keyboard + ARIA for the sidebar and global search (WCAG 2.1 AA). This was the one item
+deferred from the v2.51 audit.
+
+### Added
+- **The sidebar menu is screen-reader navigable.** Collapsible groups carry `aria-expanded` (kept in sync
+  by `shell.js`) and `aria-controls` pointing at their treeview's `id`; the active link is marked
+  `aria-current="page"`; the toggle is a `role="button"`; decorative icons are `aria-hidden`. Pressing
+  `Escape` on a focused open group collapses it.
+- **The global search is a proper ARIA combobox + listbox.** Full keyboard navigation — Arrow Up/Down
+  through results, Enter to open the highlighted one, Escape to close — with `aria-activedescendant`
+  tracking the active option, a `role="search"` landmark + accessible label, and a polite live region
+  announcing the result count ("3 results" / "No results").
+- **Visible focus rings** (`:focus-visible`) on sidebar links and search results, plus a highlight on the
+  arrow-key-active option.
+
+### Tests
+- Component render assertions for the sidebar ARIA attributes (`aria-current`, `aria-expanded`,
+  `aria-controls`/`id` pairing) and the global-search combobox/listbox roles.
+
+### Upgrade note
+- The sidebar's `aria-expanded` is kept in sync by `shell.js`. The initial (server-rendered) state is always
+  correct (progressive enhancement), so nothing breaks on upgrade. To also keep it synced **after** a user
+  expands a group, existing installs should copy the new toggle handler from
+  `stubs/frontend/resources/js/shell.js.stub` into their own `resources/js/shell.js` and rebuild assets — it
+  now sets `aria-expanded` on toggle and collapses on `Escape`. New installs get it automatically.
+
 ## v2.51.12
 
 Batch D — final audit polish.

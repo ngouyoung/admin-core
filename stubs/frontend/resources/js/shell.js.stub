@@ -23,11 +23,19 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Treeview accordion (expand/collapse submenus).
+    // Treeview accordion (expand/collapse submenus). Keep aria-expanded in sync with the .open
+    // state, and let Escape collapse an open group (returning focus to its toggle).
     document.querySelectorAll('.ac-nav-toggle').forEach((link) => {
         link.addEventListener('click', (e) => {
             e.preventDefault();
-            link.closest('.ac-nav-item')?.classList.toggle('open');
+            const open = link.closest('.ac-nav-item')?.classList.toggle('open');
+            link.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+        link.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                link.closest('.ac-nav-item')?.classList.remove('open');
+                link.setAttribute('aria-expanded', 'false');
+            }
         });
     });
 

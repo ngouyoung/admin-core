@@ -200,6 +200,14 @@ body.ac-sidebar-collapsed {
         color: var(--ac-accent); font-weight: 600;
         i { color: var(--ac-accent); }
     }
+    &:focus-visible { outline: 2px solid var(--ac-accent); outline-offset: 2px; }
+}
+
+// Keyboard accessibility: a visible focus ring + the active (arrow-key) search option.
+.ac-global-search input:focus-visible { outline: 2px solid var(--ac-accent); outline-offset: 1px; }
+#ac-gsearch-results .dropdown-item {
+    &:focus-visible { outline: 2px solid var(--ac-accent); outline-offset: -2px; }
+    &.active { background: color-mix(in srgb, var(--ac-accent) 14%, transparent); color: var(--ac-accent); }
 }
 [data-bs-theme="dark"][data-ac-accent="neutral"] .ac-nav-link.active { color: var(--ac-heading); i { color: var(--ac-heading); } }
 .ac-nav-item.open > .ac-nav-link .ac-nav-caret { transform: rotate(90deg); }

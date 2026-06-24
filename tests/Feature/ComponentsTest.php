@@ -335,3 +335,42 @@ it('renders a select with a placeholder select2 can read (data-placeholder) + th
         ->toContain('<option value="">— choose —</option>')   // leading empty option for the single select
         ->toContain('value="2" selected');                    // current value preselected
 });
+
+it('renders the sidebar menu with ARIA: aria-current on the active link, aria-expanded + aria-controls on a collapsible group', function () {
+    $items = [
+        ['label' => 'Dashboard', 'url' => '/admin', 'match' => '*'],            // active: request()->is('*') is true
+        ['label' => 'Catalog', 'icon' => 'bi bi-folder', 'match' => 'nope/*', 'children' => [
+            ['label' => 'Products', 'url' => '/admin/products', 'match' => 'admin/products*'],
+        ]],
+    ];
+    $html = Blade::render('<x-admin-core::sidebar-menu :items="$items" />', ['items' => $items]);
+
+    expect($html)
+        ->toContain('aria-current="page"')           // the active leaf announces it
+        ->toContain('role="button"')                 // the collapsible toggle is a button, not a link to nowhere
+        ->toContain('aria-expanded="false"')         // closed group (its match didn't hit)
+        ->toContain('aria-hidden="true"');           // decorative icons are hidden from SR
+
+    // The toggle's aria-controls must reference an id that actually exists on its treeview (unique per render).
+    expect($html)->toMatch('/aria-controls="(ac-tv-\w+)"/');
+    preg_match('/aria-controls="(ac-tv-\w+)"/', $html, $m);
+    expect($html)->toContain('id="' . $m[1] . '"');
+});
+
+it('renders the global search as an accessible combobox + listbox', function () {
+    config(['admin-core.search' => [['model' => \Ngos\AdminCore\Tests\Fixtures\Widget::class, 'columns' => ['name']]]]);
+    \Illuminate\Support\Facades\Route::get('/_search', fn () => '')->name('admin.search');
+    \Illuminate\Support\Facades\Route::getRoutes()->refreshNameLookups(); // make Route::has see the runtime route
+
+    $html = Blade::render('<x-admin-core::global-search />');
+
+    expect($html)
+        ->toContain('role="search"')                       // landmark
+        ->toContain('role="combobox"')                     // the input
+        ->toContain('aria-expanded="false"')               // closed until results
+        ->toContain('aria-controls="ac-gsearch-results"')  // input → results
+        ->toContain('aria-autocomplete="list"')
+        ->toContain('role="listbox"')                      // the results container
+        ->toContain('aria-live="polite"')                  // SR result-count announcer
+        ->toContain('visually-hidden');                    // the label + status are SR-only
+});
