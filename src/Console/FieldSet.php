@@ -964,11 +964,17 @@ PHP;
 
             if ($f['unique']) {
                 // Ignore self by the route-key column (uuid under hybrid, else id),
-                // since the {id} route param is whatever the URL exposes.
+                // since the {id} route param is whatever the URL exposes. On a soft-deletes
+                // resource, exclude trashed rows so a deleted value can be reused.
                 $ignoreColumn = $this->uuid ? 'uuid' : 'id';
+                $trashed = $this->softDeletes ? '->withoutTrashed()' : '';
+                // Update uses the imported short `Rule` (see updateUses()); store has no import slot, so it
+                // uses the fully-qualified name — same as the enum rule already does.
                 $rules[] = $update
-                    ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'), '{$ignoreColumn}')"
-                    : "'unique:{$this->table},{$f['name']}'";
+                    ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'), '{$ignoreColumn}'){$trashed}"
+                    : ($this->softDeletes
+                        ? "\\Illuminate\\Validation\\Rule::unique('{$this->table}', '{$f['name']}')->withoutTrashed()"
+                        : "'unique:{$this->table},{$f['name']}'");
             }
 
             $lines[] = "            '{$f['name']}' => [" . implode(', ', $rules) . '],';
@@ -1485,7 +1491,7 @@ BLADE;
                 \$keep[] = \$model->{$rel}()->create(\$row)->getKey();
             }
         }
-        \$model->{$rel}()->when(\$keep !== [], fn (\$q) => \$q->whereNotIn('id', \$keep))->delete();
+        \$model->{$rel}()->when(\$keep !== [], fn (\$q) => \$q->whereKeyNot(\$keep))->delete();
     }
 PHP;
             }

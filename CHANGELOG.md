@@ -2,6 +2,24 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.14
+
+Correctness + hardening from a focused package self-audit (findings verified against ground truth).
+
+### Fixed
+- **The generated `unique` rule excludes soft-deleted rows** on a `--soft-deletes` resource
+  (`->withoutTrashed()`), so a value freed by deleting a row can be reused — previously a soft-deleted row
+  silently blocked it. (Store uses the fully-qualified `Rule` since it has no import slot; update keeps the
+  imported short form.)
+- **`Html::clean` strips slash-separated event handlers** (`<svg/onload=…>`), not only whitespace-separated
+  ones — closing a real bypass of the defense-in-depth rich-text sanitizer.
+- **Generated hasMany sync uses `whereKeyNot()`** instead of a hardcoded `'id'` column, so it respects the
+  child model's actual primary key.
+
+### Tests
+- Slash-separated handler stripping; the soft-deletes unique rule (store + update); the hasMany
+  `whereKeyNot` assertion.
+
 ## v2.51.13
 
 Accessibility — keyboard + ARIA for the sidebar and global search (WCAG 2.1 AA). This was the one item

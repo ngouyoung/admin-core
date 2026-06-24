@@ -14,6 +14,12 @@ it('strips inline event handlers and javascript:/data: URLs', function () {
     expect(Html::clean("<div onclick='x'>hi</div>"))->not->toContain('onclick')->toContain('hi');
 });
 
+it('strips a slash-separated event handler (<svg/onload=…>), not just whitespace-separated ones', function () {
+    expect(Html::clean('<svg/onload=alert(1)>'))->not->toContain('onload');
+    expect(Html::clean('<img/onerror="alert(1)" src=x>'))->not->toContain('onerror');
+    expect(Html::clean('<svg/onload=alert(1)>'))->not->toContain('alert'); // the value goes too
+});
+
 it('keeps ordinary rich text and passes null/empty through', function () {
     $safe = Html::clean('<p><strong>Bold</strong> <a href="/page">link</a></p>');
     expect($safe)->toContain('<strong>Bold</strong>')->toContain('href="/page"');

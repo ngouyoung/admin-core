@@ -264,6 +264,19 @@ it('handles a unique field with the Rule import on update', function () {
     expect($f->updateUses())->toContain('use Illuminate\Validation\Rule;');
 });
 
+it('excludes trashed rows from the unique rule on a soft-deletes resource (a deleted value can be reused)', function () {
+    $f = fs('slug:string^')->setSoftDeletes(true);
+    // Store has no Rule import slot, so it uses the fully-qualified name + withoutTrashed.
+    expect($f->storeRules())
+        ->toContain('\Illuminate\Validation\Rule::unique')
+        ->toContain('->withoutTrashed()')
+        ->not->toContain("'unique:products,slug'");
+    // Update keeps the imported short Rule, ignores self, and excludes trashed.
+    expect($f->updateRules())
+        ->toContain("Rule::unique('products', 'slug')->ignore")
+        ->toContain('->withoutTrashed()');
+});
+
 it('uses the hybrid key strategy (bigint id + public uuid, bigint FKs)', function () {
     $f = fs('name:string')->setUuid(true);
     // bigint PK + a unique public uuid column (not a uuid primary key).

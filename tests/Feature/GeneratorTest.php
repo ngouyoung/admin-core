@@ -112,7 +112,7 @@ it('scaffolds a hasMany master-detail (relation + repeater + row partial + servi
     expect(File::get(app_path('Services/Gizmos/GizmoService.php')))
         ->toContain('private function syncLines(Model $model, ?array $rows): void')
         ->toContain('$this->syncLines($model, $lines);')
-        ->toContain("whereNotIn('id', \$keep)");
+        ->toContain('whereKeyNot($keep)'); // respects the related model's actual primary key
 
     // Request: the items array rule + the blank-row filter in prepareForValidation.
     expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))

@@ -24,8 +24,9 @@ class Html
         $html = preg_replace('#<(script|style|iframe|object|embed|form|link|meta|base)\b[^>]*>.*?</\1\s*>#is', '', $html);
         $html = preg_replace('#</?(script|style|iframe|object|embed|form|link|meta|base)\b[^>]*>#is', '', $html);
 
-        // Inline event handlers: on*="…" / on*='…' / on*=value
-        $html = preg_replace('#\son[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)#is', '', $html);
+        // Inline event handlers: on*="…" / on*='…' / on*=value. The separator before the handler may be
+        // whitespace OR a slash (`<svg/onload=…>` is a valid, executable variant), so match both.
+        $html = preg_replace('#[\s/]on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)#is', '', $html);
 
         // javascript:/vbscript:/data: URLs in href/src/xlink:href
         $html = preg_replace('#\s(href|src|xlink:href)\s*=\s*("|\')\s*(?:javascript|vbscript|data)\s*:[^"\']*\2#is', '', $html);
