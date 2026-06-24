@@ -2,6 +2,31 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.17
+
+A small correctness batch — a decimal guard plus two multi-portal fixes surfaced by a focused audit of the
+API / translation / portal subsystems (the audit otherwise confirmed the JSON API is sound: whitelisted
+filter/sort, clamped `per_page`, `$fillable`-guarded mass-assignment, passwords excluded from Resources).
+
+### Added
+- **`DecimalPrecision` validation rule** (`Ngos\AdminCore\Rules`) — rejects a number that wouldn't fit its
+  `decimal(p, s)` column (too many digits before/after the point) instead of letting the database silently
+  truncate it. The generator emits `new DecimalPrecision($p, $s)` for every `decimal:p|s` field; the rule
+  lives in `src/` so a fix reaches every install (not a frozen stub).
+
+### Fixed
+- **`AuthorizeApiPermission` honours a portal's own super role.** It resolved the super-role bypass against
+  the default `super_role` only; on a portal guard it now reads
+  `admin-core.permission.guards.<guard>.super_role` first — matching the web side, so a portal super-admin
+  isn't wrongly 403'd on API routes.
+- **`LogsActivity` attributes a change to the guard that actually made it.** It read the default (`web`)
+  guard's user, so a multi-portal action was logged with the wrong causer (or none). It now resolves the
+  causer from whichever configured guard is authenticated. No change for single-guard apps.
+
+### Tests
+- DecimalPrecision (fit / over-precision / over-scale / scientific / non-numeric passthrough); the
+  guard-specific super-role bypass; multi-guard causer attribution.
+
 ## v2.51.16
 
 The root-cause fix for **stub drift** — the recurring problem where a published frontend file (JS behaviour,

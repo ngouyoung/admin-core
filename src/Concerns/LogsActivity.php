@@ -50,19 +50,42 @@ trait LogsActivity
             return;
         }
 
+        $causer = $this->resolveCauser();
+
         try {
             ActivityLog::create([
                 'log_name' => class_basename($this),
                 'description' => $description,
                 'subject_type' => $this->getMorphClass(),
                 'subject_id' => (string) $this->getKey(),
-                'causer_type' => auth()->check() ? auth()->user()->getMorphClass() : null,
-                'causer_id' => auth()->id() !== null ? (string) auth()->id() : null,
+                'causer_type' => $causer?->getMorphClass(),
+                'causer_id' => $causer !== null ? (string) $causer->getAuthIdentifier() : null,
                 'properties' => $this->filterLoggedProperties($properties),
             ]);
         } catch (\Throwable $e) {
             report($e);
         }
+    }
+
+    /**
+     * The user who caused this change, resolved from whichever guard actually handled the request — so a
+     * multi-portal action is attributed to the portal's user, not the default ('web') guard's. Falls back to
+     * the default guard; for a single-guard app this is exactly auth()->user().
+     */
+    private function resolveCauser(): ?\Illuminate\Contracts\Auth\Authenticatable
+    {
+        $guards = array_unique(array_merge(
+            array_keys((array) config('admin-core.permission.guards', [])), // portal guards first
+            [config('auth.defaults.guard', 'web')],
+        ));
+
+        foreach ($guards as $guard) {
+            if (auth()->guard($guard)->check()) {
+                return auth()->guard($guard)->user();
+            }
+        }
+
+        return null;
     }
 
     protected function filterLoggedProperties(array $properties): array

@@ -59,3 +59,31 @@ it('passes an explicit guard through (a --guard=api resource keeps the multi-por
 
     expect($user->checked)->toBe(['list-thing', 'api']);
 });
+
+it('grants a portal API route via the guard-specific super role, not the default one', function () {
+    config(['admin-core.permission.super_role' => 'admin']);                            // default super role
+    config(['admin-core.permission.guards.merchant.super_role' => 'merchant-admin']);   // the portal names its own
+
+    // A user holding ONLY the portal super role (no direct permission, not the default 'admin' role).
+    $user = new class
+    {
+        public array $roleChecked = [];
+
+        public function hasRole(string $role, ?string $guard = null): bool
+        {
+            $this->roleChecked = [$role, $guard];
+
+            return $role === 'merchant-admin';
+        }
+
+        public function hasPermissionTo(string $permission, ?string $guard = null): bool
+        {
+            return false; // access comes only via the super role
+        }
+    };
+
+    $response = runApiGate($user, 'list-order', 'merchant');
+
+    expect($response->getContent())->toBe('ok')                          // passed via the super role…
+        ->and($user->roleChecked)->toBe(['merchant-admin', 'merchant']); // …the portal's role, not 'admin'
+});

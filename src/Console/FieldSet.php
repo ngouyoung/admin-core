@@ -894,7 +894,9 @@ PHP;
                     $rules = [$required, "'integer'"];
                     break;
                 case 'decimal':
-                    $rules = [$required, "'numeric'"];
+                    // Cap the magnitude/scale to the column's decimal(p,s) so an over-long value can't be
+                    // silently truncated by the database. The rule lives in src/ (FQ, no import needed).
+                    $rules = [$required, "'numeric'", "new \\Ngos\\AdminCore\\Rules\\DecimalPrecision({$f['precision']}, {$f['scale']})"];
                     break;
                 case 'boolean':
                     $rules = ["'nullable'", "'boolean'"];

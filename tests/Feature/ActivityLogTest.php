@@ -83,3 +83,35 @@ it('does not break the write when the activity_logs table is missing (pre-migrat
     expect($widget->exists)->toBeTrue()
         ->and(AuditedWidget::find($widget->id))->not->toBeNull();
 });
+
+it('attributes the change to the active portal guard, not the default web guard', function () {
+    Schema::create('merchant_users', function (Blueprint $t) {
+        $t->id();
+        $t->string('name')->nullable();
+    });
+    $userModel = new class extends \Illuminate\Foundation\Auth\User
+    {
+        protected $table = 'merchant_users';
+
+        public $timestamps = false;
+
+        protected $guarded = [];
+    };
+    $merchant = $userModel::create(['name' => 'Shopkeeper']);
+
+    // A 'merchant' portal guard, authenticated — while the default 'web' guard is NOT.
+    config(['auth.guards.merchant' => ['driver' => 'session', 'provider' => 'merchant_users']]);
+    config(['auth.providers.merchant_users' => ['driver' => 'eloquent', 'model' => $userModel::class]]);
+    config(['admin-core.permission.guards.merchant' => ['super_role' => 'merchant-admin']]);
+    auth()->guard('merchant')->setUser($merchant);
+    expect(auth()->guard('merchant')->check())->toBeTrue()
+        ->and(auth()->check())->toBeFalse(); // default web guard is unauthenticated → old code logged null
+
+    $widget = AuditedWidget::create(['name' => 'Alpha']);
+
+    $log = ActivityLog::where('description', 'created')->first();
+    expect($log->causer_id)->toBe((string) $merchant->getKey())        // the merchant, not null/wrong
+        ->and($log->causer_type)->toBe($merchant->getMorphClass());
+
+    Schema::dropIfExists('merchant_users');
+});

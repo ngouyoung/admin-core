@@ -67,10 +67,12 @@ it('rejects an enum with no values', function () {
         ->toThrow(InvalidArgumentException::class, 'has no values');
 });
 
-it('builds a nullable decimal', function () {
+it('builds a nullable decimal with a precision-capping rule', function () {
     $f = fs('price:decimal?');
     expect($f->migrationColumns())->toContain("\$table->decimal('price', 10, 2)->nullable();");
-    expect($f->storeRules())->toContain("'price' => ['nullable', 'numeric']");
+    // numeric + a DecimalPrecision rule sized to the column so an over-long value can't be truncated.
+    expect($f->storeRules())->toContain("'price' => ['nullable', 'numeric', new \\Ngos\\AdminCore\\Rules\\DecimalPrecision(10, 2)]");
+    expect(fs('price:decimal:12|4')->storeRules())->toContain('new \\Ngos\\AdminCore\\Rules\\DecimalPrecision(12, 4)');
 });
 
 it('builds an enum select backed by a generated enum class', function () {
