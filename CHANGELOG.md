@@ -2,6 +2,24 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.16
+
+The root-cause fix for **stub drift** — the recurring problem where a published frontend file (JS behaviour,
+theme SCSS, layout Blade) freezes at install time and never receives a later package fix.
+
+### Added
+- **`admin-core:doctor`** — compares an app's published admin-core frontend assets against the current
+  package version and reports what has **drifted** or gone **missing**, so a fix doesn't sit silently
+  unapplied. Behaviour files (`.js`) — the ones that usually carry fixes — are flagged distinctly from
+  customisable theme/layout files.
+  - report-only by default (exits non-zero when anything drifted — CI-catchable);
+  - `--diff` prints a unified diff per drifted file;
+  - `--fix` updates the drifted/missing files to the package version (refuses non-interactively without
+    `--force`; review with `git diff` afterwards, since your own theme/layout edits live in these files too).
+
+### Tests
+- In-sync vs drifted vs missing detection; `--fix` restore; the non-interactive `--force` safety guard.
+
 ## v2.51.15
 
 DX features that cut hand-rolled boilerplate (driven by real app usage).

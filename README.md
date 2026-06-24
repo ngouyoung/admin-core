@@ -101,6 +101,22 @@ On top of the minimal install, `--access` adds (all in *your* `App\` namespace, 
 
 `admin-core:make` auto-grants each new resource's permissions to the `admin` role, so there's nothing to re-seed.
 
+### Keeping published assets in sync (`admin-core:doctor`)
+
+The front-end kit (the JS behaviour in `resources/js`, the theme SCSS, the layout Blade) is **copied** out of
+the package at install time — so those copies freeze, and a later package fix to, say, `resources/js/datepicker.js`
+never reaches an app that installed an older version (**stub drift**). After upgrading the package, run:
+
+```bash
+php artisan admin-core:doctor          # report what drifted / went missing (exits non-zero if any)
+php artisan admin-core:doctor --diff   # …with a unified diff per file
+php artisan admin-core:doctor --fix    # update them to the package version (review with `git diff` after)
+```
+
+Behaviour files (`.js`) are flagged distinctly — they're the ones that usually carry bug/security fixes. Your
+own theme/layout edits live in these files too, so `--fix` is opt-in (and refuses non-interactively without
+`--force`); review with `git diff` before committing, then rebuild assets.
+
 ## Generating a resource
 
 ```bash

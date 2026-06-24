@@ -5,6 +5,7 @@ namespace Ngos\AdminCore;
 use Closure;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Ngos\AdminCore\Console\AdminCoreDoctorCommand;
 use Ngos\AdminCore\Console\AdminCoreFieldCommand;
 use Ngos\AdminCore\Console\AdminCoreInstallCommand;
 use Ngos\AdminCore\Console\AdminCoreMakeCommand;
@@ -53,6 +54,7 @@ class AdminCoreServiceProvider extends ServiceProvider
                 AdminCoreMakeCommand::class,
                 AdminCoreFieldCommand::class,
                 AdminCorePageCommand::class,
+                AdminCoreDoctorCommand::class,
                 AdminCoreMenuImportCommand::class,
                 AdminCorePortalCommand::class,
                 AdminCoreReinstallCommand::class,
