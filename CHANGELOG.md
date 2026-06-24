@@ -2,6 +2,24 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.11
+
+Batch C — audit polish (security + correctness).
+
+### Security
+- **Generated `image` uploads now carry an explicit mime allowlist** (`jpg,jpeg,png,webp,gif`). The bare
+  `image` rule also accepts a script-carrying **SVG** (and bmp); the allowlist blocks it (mirrors the
+  hardened `file` rule).
+- **2FA recovery codes are compared in constant time** (`hash_equals`) instead of `in_array`, closing a
+  timing side-channel.
+
+### Fixed
+- **Force-delete is audited distinctly.** A permanent delete was logged as `deleted` (identical to a
+  soft-delete); it now records **`force_deleted`**, and a force-delete no longer double-logs the soft
+  `deleted` it also fires internally.
+- **Generated translatable list/show display uses `ac_localize`** instead of duplicating the locale-resolve
+  logic inline — consistent with the FK display and with the same filled-locale fallback.
+
 ## v2.51.10
 
 ### Fixed

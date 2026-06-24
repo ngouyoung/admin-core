@@ -29,7 +29,7 @@ beforeEach(function () {
     });
 });
 
-it('logs created, updated and deleted activity', function () {
+it('logs created, updated, deleted, restored and (distinctly) force-deleted activity', function () {
     $widget = AuditedWidget::create(['name' => 'Alpha']);
     expect(ActivityLog::where('description', 'created')->count())->toBe(1);
 
@@ -41,6 +41,11 @@ it('logs created, updated and deleted activity', function () {
 
     $widget->restore();
     expect(ActivityLog::where('description', 'restored')->count())->toBe(1); // un-delete is audited too
+
+    $widget->forceDelete();
+    // A permanent delete is logged distinctly as force_deleted — not counted again as a soft 'deleted'.
+    expect(ActivityLog::where('description', 'force_deleted')->count())->toBe(1)
+        ->and(ActivityLog::where('description', 'deleted')->count())->toBe(1);
 });
 
 it('never logs a password/hashed column (even when not named "password")', function () {

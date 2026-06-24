@@ -924,7 +924,8 @@ PHP;
                     $rules = [$required, "\\Illuminate\\Validation\\Rule::enum(\\App\\Enums\\{$this->enumClass($f)}::class)"];
                     break;
                 case 'image':
-                    $rules = [$update ? "'nullable'" : $required, "'image'", "'max:2048'"];
+                    // Explicit allowlist — the bare `image` rule also accepts SVG (script-carrying) and bmp.
+                    $rules = [$update ? "'nullable'" : $required, "'image'", "'mimes:jpg,jpeg,png,webp,gif'", "'max:2048'"];
                     break;
                 case 'file':
                     // An explicit allowlist — never accept executable/markup uploads (php, phtml, svg, html…)
@@ -1356,7 +1357,7 @@ BLADE;
             'image' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')",
             'file' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<a href=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" target=\"_blank\">file</a>' : '')",
             // Translatable JSON: show the current locale (fall back to the first filled one).
-            'translatable' => "            ->editColumn('{$f['name']}', fn (\$row) => is_array(\$row->{$f['name']}) ? (\$row->{$f['name']}[app()->getLocale()] ?? collect(\$row->{$f['name']})->first()) : \$row->{$f['name']})",
+            'translatable' => "            ->editColumn('{$f['name']}', fn (\$row) => ac_localize(\$row->{$f['name']}))",
             // Rich text: strip HTML to a short plain-text preview in the list.
             'richtext' => "            ->editColumn('{$f['name']}', fn (\$row) => \\Illuminate\\Support\\Str::limit(strip_tags((string) \$row->{$f['name']}), 60))",
             default => null,
@@ -1398,7 +1399,7 @@ BLADE;
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
                 'enum' => "<x-admin-core::status :value=\"\$object->{$f['name']}\" />",
-                'translatable' => "{{ is_array(\$object->{$f['name']}) ? (\$object->{$f['name']}[app()->getLocale()] ?? collect(\$object->{$f['name']})->first()) : \$object->{$f['name']} }}",
+                'translatable' => "{{ ac_localize(\$object->{$f['name']}) }}",
                 'richtext' => "{!! \$object->{$f['name']} !!}",
                 default => "{{ \$object->{$f['name']} }}",
             };

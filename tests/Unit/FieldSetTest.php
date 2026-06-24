@@ -218,9 +218,9 @@ it('builds a translatable field (JSON + array cast + translatable-input + per-lo
         ->toContain("'name.km' => ['nullable', 'string', 'max:255']");
     // Factory builds a per-locale array (no scalar / recursion).
     expect($f->factoryDefinition())->toContain("'en' =>")->toContain("'km' =>");
-    // List + show render the active locale, never the raw array.
-    expect($f->getDataColumns())->toContain('app()->getLocale()');
-    expect($f->showRows())->toContain('app()->getLocale()');
+    // List + show render the active locale via ac_localize (same helper as FK display), never the raw array.
+    expect($f->getDataColumns())->toContain('ac_localize($row->name)');
+    expect($f->showRows())->toContain('ac_localize($object->name)');
 });
 
 it('derives a slug from a translatable name using the default locale (never Str::slug an array)', function () {
@@ -286,7 +286,8 @@ it('handles image uploads with service-side storage', function () {
     expect($f->migrationColumns())->toContain("\$table->string('photo')->nullable();");
     expect($f->enctype())->toContain('multipart/form-data');
     expect($f->serviceBody())->toContain("Media::store(\$data['photo'], 'products')");
-    expect($f->storeRules())->toContain("'image'");
+    // Explicit mime allowlist — the bare `image` rule would also accept a script-carrying SVG.
+    expect($f->storeRules())->toContain("'image'")->toContain("'mimes:jpg,jpeg,png,webp,gif'")->not->toContain('svg');
 
     // No soft deletes: delete() is permanent, so the file is removed there.
     expect($f->serviceBody())

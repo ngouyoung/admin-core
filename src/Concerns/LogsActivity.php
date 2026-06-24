@@ -19,10 +19,18 @@ trait LogsActivity
     {
         static::created(fn ($model) => $model->recordActivity('created'));
         static::updated(fn ($model) => $model->recordActivity('updated'));
-        static::deleted(fn ($model) => $model->recordActivity('deleted'));
-        // 'restored' only ever fires for SoftDeletes models; harmless (never dispatched) otherwise.
-        // Without it, un-deleting a record left no audit trail.
+        static::deleted(function ($model) {
+            // forceDelete() on a SoftDeletes model also fires `deleted` (with isForceDeleting() true);
+            // let the forceDeleted hook record that case so a permanent delete isn't logged as a soft one.
+            if (method_exists($model, 'isForceDeleting') && $model->isForceDeleting()) {
+                return;
+            }
+            $model->recordActivity('deleted');
+        });
+        // 'restored' / 'forceDeleted' only ever fire for SoftDeletes models; harmless (never dispatched)
+        // otherwise. Without them, un-deleting or permanently deleting a record left no (accurate) audit trail.
         static::restored(fn ($model) => $model->recordActivity('restored'));
+        static::forceDeleted(fn ($model) => $model->recordActivity('force_deleted'));
     }
 
     public function recordActivity(string $description): void

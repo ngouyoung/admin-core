@@ -59,7 +59,8 @@ class TwoFactorChallengeController extends Controller
         $passed = false;
 
         if ($recovery !== '') {
-            if (in_array($recovery, $user->recoveryCodes(), true)) {
+            // Constant-time compare each stored code (hash_equals) so a timing side-channel can't leak it.
+            if (collect($user->recoveryCodes())->first(fn ($c) => hash_equals((string) $c, $recovery)) !== null) {
                 $user->replaceRecoveryCode($recovery); // single-use: burn it
                 $passed = true;
             }
