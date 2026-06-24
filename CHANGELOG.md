@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.51.10
+
+### Fixed
+- **`admin-core:make` registers the resource in the database menu when `menu_source=database`.** It only
+  edited `config/admin-core.php` (or the legacy Blade sidebar), so a database-menu install never saw a newly
+  generated resource in the sidebar (you had to add the `menu_items` row by hand). It now also inserts a
+  `menu_items` row — idempotent, default menu only, guarded by the table's presence — and skips the legacy
+  Blade-sidebar injection for a database menu. The config edit still runs as the seed for
+  `admin-core:menu:import`. (Routes/menu audit finding.)
+
 ## v2.51.9
 
 Batch B (audit improvements), part 2 — the master-detail scaffold.

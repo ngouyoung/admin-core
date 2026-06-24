@@ -471,6 +471,18 @@ PHP);
     {
         $label = \Illuminate\Support\Str::headline($plural);
         $route = "{$routeNs}{$snakePlural}.index";
+
+        // Database-driven menu: insert a menu_items row so the resource shows in the sidebar immediately.
+        // Without this, a `menu_source=database` install only got the config-menu edit below — which isn't
+        // the active source — so generated resources never appeared. Default menu only (named portals use
+        // the config menu); the config edit still runs as the seed for `admin-core:menu:import`.
+        $dbMenu = $menu === null
+            && config('admin-core.menu_source') === 'database'
+            && \Illuminate\Support\Facades\Schema::hasTable('menu_items');
+        if ($dbMenu) {
+            $this->addDatabaseMenuItem($label, $route, $kebab, rtrim($routeNs, '.') . "/{$snakePlural}*");
+        }
+
         $config = config_path('admin-core.php');
         // Named portals append at `// admin-core:menu:<name>`; the default menu at `// admin-core:menu`.
         // The default marker is a *prefix* of the named ones, so match it with a boundary
@@ -508,7 +520,29 @@ PHP);
             return;
         }
 
-        $this->injectSidebarBladeLink($label, $snakePlural);
+        // A database menu already got its row above; don't also inject the legacy Blade sidebar link.
+        if (! $dbMenu) {
+            $this->injectSidebarBladeLink($label, $snakePlural);
+        }
+    }
+
+    /** Insert a menu_items row for a generated resource (database-driven menu). Idempotent by route. */
+    private function addDatabaseMenuItem(string $label, string $route, string $kebab, string $match): void
+    {
+        $model = \Ngos\AdminCore\Models\MenuItem::class;
+        if ($model::where('route', $route)->exists()) {
+            return; // already in the menu — idempotent
+        }
+        $model::create([
+            'label' => $label,
+            'route' => $route,
+            'icon' => 'bi bi-circle',
+            'match' => $match,
+            'permission' => "list-{$kebab}",
+            'sort' => (int) $model::max('sort') + 1,
+            'is_active' => true,
+        ]);
+        $this->line('  <info>menu</info> added "' . $label . '" to the menu_items table');
     }
 
     /** Legacy path: inject a nav `<li>` at the `{{-- admin-core:menu --}}` marker in the static sidebar. */

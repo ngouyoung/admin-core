@@ -60,6 +60,32 @@ function gizmoFiles(): array
 beforeEach(fn () => cleanupGizmo());
 afterEach(fn () => cleanupGizmo());
 
+it('adds a menu_items row for a generated resource when menu_source=database (so it shows in the sidebar)', function () {
+    config(['admin-core.menu_source' => 'database']);
+    Schema::dropIfExists('menu_items');
+    Schema::create('menu_items', function ($t) {
+        $t->id();
+        $t->unsignedBigInteger('parent_id')->nullable();
+        $t->string('label');
+        $t->string('icon')->nullable();
+        $t->string('route')->nullable();
+        $t->string('url')->nullable();
+        $t->string('match')->nullable();
+        $t->string('permission')->nullable();
+        $t->string('target')->nullable();
+        $t->unsignedInteger('sort')->default(0);
+        $t->boolean('is_active')->default(true);
+        $t->timestamps();
+    });
+
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+
+    // The resource landed in the DATABASE menu (not just config) — otherwise it never appears in the sidebar.
+    expect(\Ngos\AdminCore\Models\MenuItem::where('route', 'admin.gizmos.index')->where('permission', 'list-gizmo')->exists())->toBeTrue();
+
+    Schema::dropIfExists('menu_items');
+});
+
 it('scaffolds a hasMany master-detail (relation + repeater + row partial + service sync + validation)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
