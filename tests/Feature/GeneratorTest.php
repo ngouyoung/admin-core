@@ -388,7 +388,10 @@ it('composes the index from the reusable UI components (not hand-rolled markup)'
     // The card/toolbar/table shell, the export dropdown and the import modal are now components — the export
     // field-picker is passed as a value => label literal rather than baked-in checkbox HTML.
     expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
-        ->toContain('<x-admin-core::data-table id="gizmos_table" thead="backend.pages.gizmos.partials.thead">')
+        ->toContain('<x-admin-core::data-table id="gizmos_table" thead="backend.pages.gizmos.partials.thead"')
+        ->toContain(':ajax="route(\'admin.gizmos.getData\')"')   // table still loads server-side via getData
+        ->toContain("'type' => 'check'")                          // data-driven :columns config (no inline JS)
+        ->toContain("['data' => 'name', 'name' => 'name']")
         ->toContain('<x-admin-core::export-menu :route="route(\'admin.gizmos.export\')"')
         ->toContain("'name' => 'Name', 'price' => 'Price'")
         ->toContain('<x-admin-core::import-modal :route="route(\'admin.gizmos.import\')"')
@@ -569,7 +572,8 @@ it('scaffolds the extended field types (time / url / slug / json / password)', f
     // password is write-only: it has a form input (above) but is NOT shown in the index
     // table, the DataTable columns, or the detail view (no bcrypt hash on display).
     expect(File::get(resource_path('views/backend/pages/articles/partials/thead.blade.php')))->not->toContain('Secret');
-    expect(File::get(resource_path('views/backend/pages/articles/partials/scripts.blade.php')))->not->toContain("data: 'secret'");
+    expect(File::get(resource_path('views/backend/pages/articles/index.blade.php')))->not->toContain("'data' => 'secret'");
+    expect(File::exists(resource_path('views/backend/pages/articles/partials/scripts.blade.php')))->toBeFalse(); // shared datatable.js drives it now
     expect(File::get(resource_path('views/backend/pages/articles/show.blade.php')))->not->toContain('$object->secret');
 
     // Clean up Article (not part of the standard gizmo target set).
@@ -793,8 +797,8 @@ it('points filter-tabs at the enum column counting only displayed columns (passw
     $index = File::get(resource_path('views/backend/pages/gizmos/index.blade.php'));
     expect($index)->toContain('filter-tabs')->toContain(':column="2"');
 
-    expect(File::get(resource_path('views/backend/pages/gizmos/partials/scripts.blade.php')))
-        ->not->toContain("data: 'secret'");           // password is not a table column
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->not->toContain("'data' => 'secret'");        // password is not a table column
 });
 
 it('routes a resource into a portal with --portal (dir + route-names + controller prefix + guard)', function () {

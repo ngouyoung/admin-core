@@ -260,7 +260,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_FORM__' => $fields->formFields(),
             '__AC_FORM_SCRIPTS__' => $fields->formScripts(),
             '__AC_THEAD__' => $fields->thead(),
-            '__AC_COLS__' => $fields->columnsJs(),
+            '__AC_COLS_PHP__' => $fields->columnsConfig(),
             '__AC_EAGER__' => $fields->eager(),
             '__AC_GETDATA__' => $fields->getDataColumns(),
             '__AC_RAW__' => $fields->rawColumns(),
@@ -311,7 +311,8 @@ class AdminCoreMakeCommand extends Command
                 'views/edit.stub' => resource_path("views/backend/pages/{$snakePlural}/edit.blade.php"),
                 'views/form.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"),
                 'views/thead.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"),
-                'views/scripts.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/scripts.blade.php"),
+                // No scripts.blade.php — the shared datatable.js drives the table from the
+                // data-table component's :columns config (see views/index.stub).
             ];
         }
 

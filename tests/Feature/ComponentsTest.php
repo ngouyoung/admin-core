@@ -217,6 +217,50 @@ it('renders the data-table shell with a toolbar slot and the thead included', fu
     File::delete($thead);
 });
 
+it('emits a data-ac-datatable config (columns + ajax + bulk + i18n) when :columns is given', function () {
+    View::addNamespace('actmp', sys_get_temp_dir());
+    $thead = sys_get_temp_dir() . '/ac_thead.blade.php';
+    File::put($thead, '<tr><th>Name</th></tr>');
+
+    $html = Blade::render(
+        '<x-admin-core::data-table id="t_table" thead="actmp::ac_thead" :ajax="$ajax" :bulk-delete="$bulk" :columns="$columns" />',
+        [
+            'ajax' => '/admin/widgets/getData',
+            'bulk' => '/admin/widgets/bulkDelete',
+            'columns' => [
+                ['type' => 'check', 'data' => 'uuid'],
+                ['data' => 'name', 'name' => 'name'],
+                ['data' => 'actions', 'orderable' => false, 'searchable' => false],
+            ],
+        ]
+    );
+
+    expect($html)->toContain('data-ac-datatable=');
+    preg_match('/data-ac-datatable="([^"]*)"/', $html, $m);
+    $cfg = json_decode(html_entity_decode($m[1], ENT_QUOTES), true); // attribute is HTML-escaped JSON
+
+    expect($cfg['ajax'])->toBe('/admin/widgets/getData')
+        ->and($cfg['bulk']['url'])->toBe('/admin/widgets/bulkDelete')
+        ->and($cfg['columns'][0]['type'])->toBe('check')   // the only client-rendered type
+        ->and($cfg['columns'][1]['data'])->toBe('name')
+        ->and($cfg['i18n'])->toHaveKey('deleted')          // locale-aware strings ship in the config
+        ->and($cfg['i18n'])->toHaveKey('confirmDelete');
+
+    File::delete($thead);
+});
+
+it('omits the data-ac-datatable attribute without :columns (backward-compatible)', function () {
+    View::addNamespace('actmp', sys_get_temp_dir());
+    $thead = sys_get_temp_dir() . '/ac_thead.blade.php';
+    File::put($thead, '<tr><th>Name</th></tr>');
+
+    $html = Blade::render('<x-admin-core::data-table id="t_table" thead="actmp::ac_thead" />');
+
+    expect($html)->not->toContain('data-ac-datatable'); // existing per-resource scripts still drive it
+
+    File::delete($thead);
+});
+
 it('renders a detail-list with detail-row label/value pairs (show pages)', function () {
     $html = Blade::render(
         '<x-admin-core::detail-list>'

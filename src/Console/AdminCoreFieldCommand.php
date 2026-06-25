@@ -113,6 +113,7 @@ class AdminCoreFieldCommand extends Command
         $this->patchForm(resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"), $fs->formFields());
         $this->patchThead(resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"), $fields, $fs);
         $this->patchScripts(resource_path("views/backend/pages/{$snakePlural}/partials/scripts.blade.php"), $fields, $fs);
+        $this->patchIndexColumns(resource_path("views/backend/pages/{$snakePlural}/index.blade.php"), $fields, $fs);
         $this->patchController(app_path("Http/Controllers/Backend/{$class}Controller.php"), $fs, $fields);
         $this->patchShow(resource_path("views/backend/pages/{$snakePlural}/show.blade.php"), $fs->showRows());
         $this->patchFactory(database_path("factories/{$class}Factory.php"), $fs->factoryDefinition());
@@ -360,6 +361,31 @@ class AdminCoreFieldCommand extends Command
         $cols = implode("\n", array_map(fn ($f) => $fs->fieldColumn($f), $shown));
         $contents = File::get($path);
         $patched = preg_replace("/(\n\s*\{data: 'actions')/", "\n{$cols}$1", $contents, 1);
+
+        if ($patched !== null && $patched !== $contents) {
+            File::put($path, $patched);
+            $this->line('  <info>patched</info> ' . $this->relative($path));
+        }
+    }
+
+    /**
+     * Insert new entries into the data-driven `:columns` array of index.blade.php (resources generated
+     * with v2.53+ have no scripts.blade.php — the shared datatable.js builds the table from this config).
+     * No-ops on the older layout (where patchScripts handles the columns instead).
+     */
+    private function patchIndexColumns(string $path, array $fields, FieldSet $fs): void
+    {
+        if (! File::exists($path)) {
+            return;
+        }
+
+        $shown = array_filter($fields, fn ($f) => $fs->isDisplayed($f));
+        if (! $shown) {
+            return;
+        }
+        $cols = implode("\n", array_map(fn ($f) => $fs->fieldColumnConfig($f), $shown));
+        $contents = File::get($path);
+        $patched = preg_replace("/(\n\s*\['data' => 'actions')/", "\n{$cols}$1", $contents, 1);
 
         if ($patched !== null && $patched !== $contents) {
             File::put($path, $patched);

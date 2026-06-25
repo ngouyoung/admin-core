@@ -1,0 +1,147 @@
+// ---------------------------------------------------------------------------
+// Data-driven DataTables — one shared init for every list page.
+//
+// A `<x-admin-core::data-table :columns=... :ajax=...>` emits a `<table
+// data-ac-datatable='{…}'>` whose JSON config carries the ajax (getData) url,
+// the column list, optional default sort, the bulk-delete url and the (locale-
+// aware) confirm/toast strings. This module reads it, builds the DataTable, and
+// wires select-all + bulk-delete + single-delete ONCE via event delegation —
+// replacing the ~70 lines of identical JS each resource used to hand-write.
+//
+// Backward-compatible: every handler bails unless the page has a
+// `[data-ac-datatable]` table, so a resource still using its own
+// partials/scripts.blade.php is left entirely untouched.
+// ---------------------------------------------------------------------------
+
+// Build DataTables column defs from the JSON config. Only `type:'check'` needs a
+// client render (the row-select checkbox); everything else is server-rendered.
+function acBuildColumns(cols) {
+    return (cols || []).map((c) => {
+        if (c.type === 'check') {
+            return {
+                data: c.data, name: c.data, orderable: false, searchable: false,
+                className: 'text-center',
+                render: (d) => '<input type="checkbox" class="row-check" value="' + d + '">',
+            };
+        }
+        const col = { data: c.data };
+        if (c.name) col.name = c.name;
+        if (c.orderable === false) col.orderable = false;
+        if (c.searchable === false) col.searchable = false;
+        if (c.className) col.className = c.className;
+        return col;
+    });
+}
+
+function acInitTables(scope) {
+    const $ = window.jQuery;
+    if (!$ || !$.fn || !$.fn.dataTable) {
+        return;
+    }
+    $(scope).find('[data-ac-datatable]').each(function () {
+        if ($.fn.dataTable.isDataTable(this)) {
+            return; // already initialised
+        }
+        let cfg;
+        try {
+            cfg = JSON.parse(this.dataset.acDatatable);
+        } catch (e) {
+            return; // malformed config — leave the table alone
+        }
+        const opts = {
+            ajax: { url: cfg.ajax, type: 'GET' },
+            pageLength: cfg.pageLength || 10,
+            columns: acBuildColumns(cfg.columns),
+        };
+        if (cfg.order) {
+            opts.order = cfg.order;
+        }
+        this._acConfig = cfg;                 // stash for the delete/bulk handlers
+        this._acTable = $(this).DataTable(opts);
+    });
+}
+
+// The page's (single) data-driven table, its DataTable instance and config — or
+// null, which is how every handler knows to no-op on a non-migrated page.
+function acPageTable() {
+    const el = document.querySelector('[data-ac-datatable]');
+    return el && el._acTable ? { el, dt: el._acTable, cfg: el._acConfig || {} } : null;
+}
+
+function acReload() {
+    const t = acPageTable();
+    if (t) {
+        t.dt.ajax.reload(null, false); // keep the current page
+    }
+}
+
+let acBound = false;
+function acBindHandlers() {
+    const $ = window.jQuery;
+    if (acBound || !$) {
+        return;
+    }
+    acBound = true;
+
+    const refreshBulk = () => {
+        const n = $('.row-check:checked').length;
+        $('#bulk-count').text(n);
+        $('#bulk-delete').toggleClass('d-none', n === 0);
+    };
+
+    $(document).on('change', '#check-all', function () {
+        if (!acPageTable()) return;
+        $('.row-check').prop('checked', this.checked);
+        refreshBulk();
+    });
+
+    $(document).on('change', '.row-check', function () {
+        if (acPageTable()) refreshBulk();
+    });
+
+    $(document).on('click', '#bulk-delete', function () {
+        const t = acPageTable();
+        if (!t || !t.cfg.bulk) return;
+        const i18n = t.cfg.i18n || {};
+        const ids = $('.row-check:checked').map(function () { return this.value; }).get();
+        if (!ids.length) return;
+        window.Swal.fire({
+            title: (i18n.confirmDeleteMany || 'Delete the selected rows?').replace(':count', ids.length),
+            text: i18n.recoverMany || '', icon: 'warning', showCancelButton: true,
+            confirmButtonText: i18n.yesDeleteMany || 'Delete', cancelButtonText: i18n.cancel || 'Cancel',
+        }).then((r) => {
+            if (!r.value) return;
+            $.ajax({
+                type: 'POST', url: t.cfg.bulk.url, data: { ids },
+                success: () => {
+                    acReload();
+                    $('#check-all').prop('checked', false);
+                    refreshBulk();
+                    window.toastr.success((i18n.deletedMany || 'Deleted').replace(':count', ids.length));
+                },
+            });
+        });
+    });
+
+    $(document).on('click', '#delete', function (e) {
+        const t = acPageTable();
+        if (!t) return; // a non-migrated page handles its own #delete
+        e.preventDefault();
+        const i18n = t.cfg.i18n || {};
+        const url = $(this).attr('data-remote');
+        window.Swal.fire({
+            title: i18n.confirmDelete || 'Are you sure?',
+            text: i18n.recoverOne || '', icon: 'warning', showCancelButton: true,
+            confirmButtonText: i18n.yesDelete || 'Delete', cancelButtonText: i18n.noKeep || 'Cancel',
+        }).then((r) => {
+            if (!r.value) return;
+            $.ajax({
+                type: 'DELETE', url,
+                success: () => { acReload(); window.toastr.success(i18n.deleted || 'Deleted'); },
+            });
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => { acBindHandlers(); acInitTables(document); });
+document.addEventListener('ac:repeater:added', (e) => acInitTables((e.detail && e.detail.repeater) || e.target || document));

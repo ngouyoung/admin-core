@@ -13,7 +13,12 @@
         </x-slot:actions>
     </x-admin-core::page-header>
 
-__AC_FILTER_TABS__    <x-admin-core::data-table id="dummyModels_table" thead="backend.pages.dummyModels.partials.thead">
+__AC_FILTER_TABS__    <x-admin-core::data-table id="dummyModels_table" thead="backend.pages.dummyModels.partials.thead"
+        :ajax="route('__AC_RNS__dummyModels.getData')"
+        :bulk-delete="auth()->guard($acGuard ?? null)->user()?->can('delete-dummy-model') ? route('__AC_RNS__dummyModels.bulkDelete') : null"
+        :columns="[
+__AC_COLS_PHP__
+        ]">
         <x-slot:toolbar>
             <x-admin-core::export-menu :route="route('__AC_RNS__dummyModels.export')" :fields="__AC_EXPORT_FIELDS__" />
             @if (auth()->guard($acGuard ?? null)->user()?->can('create-dummy-model'))
@@ -27,7 +32,3 @@ __AC_FILTER_TABS__    <x-admin-core::data-table id="dummyModels_table" thead="ba
         </x-slot:toolbar>
 __AC_SORT_PANEL__    </x-admin-core::data-table>
 @endsection
-
-@push('scripts')
-    @include('backend.pages.dummyModels.partials.scripts')
-@endpush

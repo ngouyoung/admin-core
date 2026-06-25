@@ -1241,6 +1241,44 @@ BLADE;
         return "                {data: '{$f['name']}', name: '{$f['name']}'},";
     }
 
+    /**
+     * The same column list as columnsJs(), but as a PHP array literal for the data-driven
+     * `<x-admin-core::data-table :columns=…>` (the shared datatable.js builds the DataTable from it).
+     * The checkbox is the one client-rendered type; everything else is server-rendered.
+     */
+    public function columnsConfig(): string
+    {
+        $pk = $this->uuid ? 'uuid' : 'id';
+        $cols = ["            ['type' => 'check', 'data' => '{$pk}'],"];
+        foreach ($this->fields as $f) {
+            if ($this->isDisplayed($f)) {
+                $cols[] = $this->fieldColumnConfig($f);
+            }
+        }
+        $cols[] = "            ['data' => 'actions', 'orderable' => false, 'searchable' => false],";
+
+        return implode("\n", $cols);
+    }
+
+    /** One `:columns` array entry for a field — the PHP-array twin of fieldColumn(). */
+    public function fieldColumnConfig(array $f): string
+    {
+        if ($f['type'] === 'foreign') {
+            return "            ['data' => '{$f['relation']}', 'name' => '{$f['relation']}'],";
+        }
+        if ($f['type'] === 'belongsToMany') {
+            return "            ['data' => '{$f['relation']}', 'name' => '{$f['relation']}', 'orderable' => false],";
+        }
+        if (in_array($f['type'], ['image', 'file'], true)) {
+            return "            ['data' => '{$f['name']}', 'orderable' => false, 'searchable' => false],";
+        }
+        if ($f['type'] === 'translatable') {
+            return "            ['data' => '{$f['name']}', 'name' => '{$f['name']}', 'orderable' => false],";
+        }
+
+        return "            ['data' => '{$f['name']}', 'name' => '{$f['name']}'],";
+    }
+
     /** Parsed fields (read-only access for the add-field command). */
     public function fields(): array
     {

@@ -2,6 +2,45 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.53.0
+
+Data-driven DataTables — list pages no longer carry per-resource init JS. Until now every generated list page
+shipped ~70 lines of near-identical DataTable init in its own `partials/scripts.blade.php` (the `.DataTable()`
+call, select-all, bulk-delete and single-delete handlers); only the column list varied, the rest was
+copy-paste, and a fix never reached already-generated tables. This moves all of it into one shared module
+driven by a config the `data-table` component emits.
+
+### Added
+- **`datatable.js` frontend module** (`stubs/frontend/resources/js/datatable.js`, wired into `app.js`) —
+  auto-initialises every `<table data-ac-datatable='{…}'>`: builds the DataTable from the config and wires
+  select-all + bulk-delete + single-delete once via event delegation. The table still loads its rows
+  **server-side from `getData`** (yajra) — only the boilerplate moved. Backward-compatible: it acts only on
+  tables carrying `data-ac-datatable`, so a resource still using its own `partials/scripts.blade.php` is
+  untouched.
+- **`<x-admin-core::data-table>` data-driven mode** — new `:columns`, `:ajax`, `:bulk-delete`, `:order`
+  props. With `:columns` it emits a `data-ac-datatable` config (page length, the column list, the bulk url,
+  and the locale-aware confirm/toast strings via `__()`); without them it renders exactly as before.
+- **`FieldSet::columnsConfig()`** — the same column list as `columnsJs()`, as a PHP array literal for the
+  component.
+
+### Changed
+- **The generator emits the slim, data-driven list page.** `admin-core:make` no longer writes a
+  `partials/scripts.blade.php`; `index.blade.php` passes `:columns` / `:ajax` / `:bulk-delete` to the
+  data-table component (still server-driven via `getData`). `admin-core:field` inserts new columns into that
+  `:columns` array (older resources with a `scripts.blade.php` keep being patched there).
+
+### Upgrade (existing installs)
+Backward-compatible — existing resources keep their `partials/scripts.blade.php` and work unchanged. To use
+the shared module, publish the new `datatable.js`: add `import './datatable';` to `resources/js/app.js`, copy
+`datatable.js` from the stubs, and rebuild assets (`admin-core:doctor` flags the `app.js` drift). You can then
+migrate a list page by passing `:columns` to `<x-admin-core::data-table>` and deleting its
+`partials/scripts.blade.php`.
+
+### Tests
+- The data-table component emits a valid `data-ac-datatable` config (checkbox type, ajax, bulk, i18n) and
+  omits it without `:columns`; the generator produces the data-driven index and no `scripts.blade.php`;
+  `admin-core:field` patches the `:columns` array.
+
 ## v2.52.1
 
 The sidebar menu is now translatable.
