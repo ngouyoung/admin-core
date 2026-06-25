@@ -67,6 +67,29 @@ it('returns datatable json from getData', function () {
         ->assertJsonFragment(['name' => 'Listme']);
 });
 
+it('returns select2-shaped {id,text} results from the remote select source, filtered by the term', function () {
+    Widget::create(['name' => 'Apple']);
+    Widget::create(['name' => 'Banana']);
+
+    $this->getJson('/admin/widgets/select?term=app')
+        ->assertOk()
+        ->assertJsonStructure(['results' => [['id', 'text']], 'pagination' => ['more']])
+        ->assertJsonFragment(['text' => 'Apple'])      // matches the term
+        ->assertJsonMissing(['text' => 'Banana']);     // filtered out
+});
+
+it('paginates the remote select source (more=true while another page exists)', function () {
+    foreach (range(1, 45) as $i) {
+        Widget::create(['name' => 'W' . str_pad((string) $i, 3, '0', STR_PAD_LEFT)]);
+    }
+
+    // Default page size is 20 (config admin-core.select.per_page), so 45 rows → more pages remain.
+    $this->getJson('/admin/widgets/select')
+        ->assertOk()
+        ->assertJsonPath('pagination.more', true)
+        ->assertJsonCount(20, 'results');
+});
+
 it('bulk-deletes selected records', function () {
     $a = Widget::create(['name' => 'a']);
     $b = Widget::create(['name' => 'b']);

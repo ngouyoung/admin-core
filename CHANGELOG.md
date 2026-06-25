@@ -2,6 +2,37 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.52.0
+
+Searchable, paginated dropdowns for big lists. A static `<select>` ships every option in the HTML — fine for
+a handful of categories, slow and heavy for thousands of products. This adds an opt-in **remote (ajax)
+Select2** that searches and pages server-side, available to every resource without per-model wiring.
+
+### Added
+- **`WebController::select()` — a Select2 remote source on every resource.** Returns one page of
+  `{results: [{id, text}], pagination: {more}}`, filtered by the typed `term` and ordered by the label.
+  It's auto-registered as the `select` route inside the `crud` macro, under the **same `list` permission as
+  `getData`**, so each resource gets `…{resource}.select` for free. The searchable columns and label are
+  chosen **server-side** via `$selectSearch` / `$selectLabel` (default `['name']`) — the client can never
+  point it at an arbitrary model or column, and it rides the resource's own `query()` so scopes / soft
+  deletes still apply. Page size is `config('admin-core.select.per_page', 20)`.
+- **`<x-admin-core::select :ajax-url="…">` — remote mode for the select component.** Point it at a
+  resource's `select` route and it renders only the currently-selected option (so an edit form shows it),
+  loading the rest on search. Emits `.admin-core-select-ajax` + `data-ajax-url` instead of the static
+  `.admin-core-select` class, so the two never collide.
+- **`select-ajax.js` frontend module** (wired into the `app.js` stub) — binds every remote select on load
+  and **re-binds rows the repeater adds** (`ac:repeater:added`), so it works in master-detail forms too.
+
+### Tests
+- The remote source returns `{id, text}` filtered by the term, and paginates (`more` flips false on the last
+  page) — in the package suite against the `Widget` fixture.
+
+### Upgrade (existing installs)
+Backward-compatible — nothing breaks. To use the new ajax mode in an app installed before v2.52.0, add
+`import './select-ajax';` to `resources/js/app.js` and copy the new `select-ajax.js` module from the stubs,
+then rebuild assets. (`admin-core:doctor` flags the `app.js` stub drift.) The `select` endpoint and the
+component's `:ajax-url` prop work immediately on upgrade; only the JS needs publishing.
+
 ## v2.51.17
 
 A small correctness batch — a decimal guard plus two multi-portal fixes surfaced by a focused audit of the

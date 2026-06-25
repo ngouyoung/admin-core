@@ -167,6 +167,7 @@ class AdminCoreServiceProvider extends ServiceProvider
                 $guard('list', function () {
                     Route::get('/', 'index')->name('index');
                     Route::get('getData', 'getData')->name('getData');
+                    Route::get('select', 'select')->name('select'); // Select2 remote source (search + paginate)
                 });
                 $guard('create', function () {
                     Route::get('create', 'create')->name('create');

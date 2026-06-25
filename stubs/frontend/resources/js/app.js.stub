@@ -61,6 +61,7 @@ import './checktree';
 import './theme';
 import './datepicker';
 import './customize';
+import './select-ajax'; // searchable + paginated Select2 for big dropdowns
 import './filter-tabs';
 import './notify';
 import './echo';      // Laravel Echo (guarded — only if a broadcaster key is configured)

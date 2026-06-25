@@ -7,16 +7,30 @@
 
      `name` field name · `label` row label · `value` selected value (array when multiple)
      `options` [value => label] · `placeholder` empty first option (single only)
-     `multiple` multi-select · `enhance` add the select2 class (default true). Extra attrs pass through. --}}
-@props(['name', 'label' => null, 'value' => null, 'options' => [], 'placeholder' => null, 'multiple' => false, 'enhance' => true])
+     `multiple` multi-select · `enhance` add the select2 class (default true). Extra attrs pass through.
+
+     `ajax-url` turns it into a REMOTE select that searches + paginates server-side (for big lists) instead
+     of rendering every option — point it at a resource's `select` route, e.g.
+       <x-admin-core::select name="product_id" :ajax-url="route('admin.products.select')"
+            :options="$object?->product ? [$object->product_id => ac_localize($object->product->name)] : []"
+            :value="old('product_id', $object?->product_id)" placeholder="— search —" />
+     Pass only the currently-selected option as `options` (so an edit form shows it); the rest load on search. --}}
+@props(['name', 'label' => null, 'value' => null, 'options' => [], 'placeholder' => null, 'multiple' => false, 'enhance' => true, 'ajaxUrl' => null])
 @php
     $label ??= \Illuminate\Support\Str::headline($name);
     $selected = array_map('strval', (array) $value);
+    $remote = $ajaxUrl !== null;
 @endphp
 <x-admin-core::form-row :name="$name" :label="$label">
     <select name="{{ $name }}{{ $multiple ? '[]' : '' }}" id="{{ $name }}" @if ($multiple) multiple @endif
         @if ($placeholder !== null) data-placeholder="{{ $placeholder }}" @endif
-        {{ $attributes->class(['form-select', 'admin-core-select' => $enhance, 'is-invalid' => $errors->has($name)]) }}>
+        @if ($remote) data-ajax-url="{{ $ajaxUrl }}" @endif
+        {{ $attributes->class([
+            'form-select',
+            'admin-core-select' => $enhance && ! $remote,
+            'admin-core-select-ajax' => $remote,
+            'is-invalid' => $errors->has($name),
+        ]) }}>
         @if ($placeholder !== null && ! $multiple)<option value="">{{ $placeholder }}</option>@endif
         @foreach ($options as $val => $text)
             <option value="{{ $val }}" @selected(in_array((string) $val, $selected, true))>{{ $text }}</option>

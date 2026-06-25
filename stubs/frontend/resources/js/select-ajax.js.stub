@@ -1,0 +1,41 @@
+// ---------------------------------------------------------------------------
+// Remote (ajax) Select2 — searchable + paginated dropdowns for big lists.
+//
+// Any <select class="admin-core-select-ajax" data-ajax-url="..."> (emitted by
+// <x-admin-core::select :ajax-url="...">) searches its resource's `select`
+// endpoint server-side and pages results in as you type/scroll — instead of
+// rendering every option into the page. Bound on load, and re-bound for rows
+// the repeater component adds (master-detail forms), via `ac:repeater:added`.
+// ---------------------------------------------------------------------------
+function enhanceAjaxSelects(scope) {
+    const $ = window.jQuery;
+    if (!$ || !$.fn || !$.fn.select2) {
+        return; // select2 not loaded on this page
+    }
+
+    $(scope).find('.admin-core-select-ajax').each(function () {
+        const $el = $(this);
+        if ($el.hasClass('select2-hidden-accessible')) {
+            return; // already enhanced
+        }
+        const placeholder = $el.data('placeholder');
+        $el.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: placeholder || '',
+            allowClear: !!placeholder && !$el.prop('multiple'),
+            minimumInputLength: 0,
+            ajax: {
+                url: $el.data('ajax-url'),
+                dataType: 'json',
+                delay: 250,
+                cache: true,
+                data: (params) => ({ term: params.term || '', page: params.page || 1 }),
+                processResults: (data) => data, // endpoint already returns {results, pagination:{more}}
+            },
+        });
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => enhanceAjaxSelects(document));
+document.addEventListener('ac:repeater:added', (e) => enhanceAjaxSelects((e.detail && e.detail.repeater) || e.target || document));

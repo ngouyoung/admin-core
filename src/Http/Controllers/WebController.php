@@ -132,6 +132,47 @@ abstract class WebController extends BaseController
         return DataTables::of($this->service->query($relation));
     }
 
+    /** The column shown as each option's label in the Select2 remote source ({@see select()}). */
+    protected string $selectLabel = 'name';
+
+    /** Columns the Select2 remote source matches the typed term against (defaults to [$selectLabel]). */
+    protected array $selectSearch = [];
+
+    /**
+     * Select2 remote source: search this resource by keyword, return one page of {id, text}.
+     *
+     * Powers an ajax `<x-admin-core::select :ajax-url="route('...select')">` so a big dropdown searches
+     * + pages server-side instead of dumping every row into the HTML. Rides the resource's own query()
+     * (global scopes / soft-deletes still apply) and the `list` permission (registered in the same route
+     * group as getData). The searchable columns and label come from $selectSearch / $selectLabel — chosen
+     * server-side, so the client can never point this at an arbitrary model or column.
+     */
+    public function select(Request $request): JsonResponse
+    {
+        $label = $this->selectLabel;
+        $columns = $this->selectSearch ?: [$label];
+        $term = trim((string) $request->query('term', ''));
+
+        $query = $this->service->query();
+        if ($term !== '') {
+            $query->where(function ($q) use ($columns, $term) {
+                foreach ($columns as $column) {
+                    $q->orWhere($column, 'like', '%' . $term . '%');
+                }
+            });
+        }
+
+        $page = $query->orderBy($label)->paginate((int) config('admin-core.select.per_page', 20));
+
+        return response()->json([
+            'results' => $page->getCollection()->map(fn ($row) => [
+                'id' => $row->getKey(),
+                'text' => ac_localize($row->{$label}) ?: (string) $row->getKey(),
+            ])->values(),
+            'pagination' => ['more' => $page->hasMorePages()],
+        ]);
+    }
+
     /**
      * belongsTo relations whose related `name` is appended to the CSV export as a readable column
      * (e.g. `category` next to `category_id`). Kept alongside the FK so a round-tripped export still
