@@ -2,10 +2,14 @@
 // Remote (ajax) Select2 — searchable + paginated dropdowns for big lists.
 //
 // Any <select class="admin-core-select-ajax" data-ajax-url="..."> (emitted by
-// <x-admin-core::select :ajax-url="...">) searches its resource's `select`
-// endpoint server-side and pages results in as you type/scroll — instead of
-// rendering every option into the page. Bound on load, and re-bound for rows
-// the repeater component adds (master-detail forms), via `ac:repeater:added`.
+// <x-admin-core::select :ajax-url="..." | source="...">) searches its resource's
+// `select` endpoint server-side and pages results in as you type/scroll —
+// instead of rendering every option into the page. Bound on load, and re-bound
+// for rows the repeater adds (master-detail forms), via `ac:repeater:added`.
+//
+// CASCADING selects: data-ac-depends='{"province_id":"#province_id"}' makes the
+// select send the parent field's value as a `filter` and reload when it changes,
+// so Province → Commune → Village narrows each level to the one above.
 // ---------------------------------------------------------------------------
 function enhanceAjaxSelects(scope) {
     const $ = window.jQuery;
@@ -19,6 +23,15 @@ function enhanceAjaxSelects(scope) {
             return; // already enhanced
         }
         const placeholder = $el.data('placeholder');
+
+        // { column: '#parentSelector' } — parent fields this select cascades from.
+        let depends = {};
+        try {
+            depends = JSON.parse($el.attr('data-ac-depends') || '{}');
+        } catch (e) {
+            depends = {};
+        }
+
         $el.select2({
             theme: 'bootstrap-5',
             width: '100%',
@@ -30,9 +43,28 @@ function enhanceAjaxSelects(scope) {
                 dataType: 'json',
                 delay: 250,
                 cache: true,
-                data: (params) => ({ term: params.term || '', page: params.page || 1 }),
+                data: (params) => {
+                    const q = { term: params.term || '', page: params.page || 1 };
+                    const filter = {};
+                    Object.keys(depends).forEach((col) => {
+                        const val = $(depends[col]).val();
+                        if (val) {
+                            filter[col] = val; // narrow by the parent's value
+                        }
+                    });
+                    if (Object.keys(filter).length) {
+                        q.filter = filter;
+                    }
+                    return q;
+                },
                 processResults: (data) => data, // endpoint already returns {results, pagination:{more}}
             },
+        });
+
+        // Cascade: when a parent changes, clear this select so it re-queries with the new value.
+        // Clearing fires `change`, so a deeper child (Village ← Commune ← Province) clears in turn.
+        Object.keys(depends).forEach((col) => {
+            $(document).on('change', depends[col], () => $el.val(null).trigger('change'));
         });
     });
 }

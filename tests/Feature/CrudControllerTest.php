@@ -90,6 +90,31 @@ it('paginates the remote select source (more=true while another page exists)', f
         ->assertJsonCount(20, 'results');
 });
 
+it('narrows the remote select by an allowlisted parent filter (cascading), ignoring others', function () {
+    Widget::create(['name' => 'Apple'])->forceFill(['sort' => 1])->save();
+    Widget::create(['name' => 'Banana'])->forceFill(['sort' => 2])->save();
+
+    // a controller that allowlists `sort` as a Select2 filter (what admin-core:make sets to the FK columns)
+    $controller = new class(new Ngos\AdminCore\Tests\Fixtures\WidgetService(new Widget)) extends \Ngos\AdminCore\Http\Controllers\WebController {
+        protected array $selectFilters = ['sort'];
+
+        public function __construct($service)
+        {
+            $this->service = $service;
+        }
+    };
+    app()->instance('ac-cascade-controller', $controller);
+    \Illuminate\Support\Facades\Route::middleware('web')->get('admin/cascadewidgets/select', fn (\Illuminate\Http\Request $r) => app('ac-cascade-controller')->select($r))->name('admin.cascadewidgets.select');
+
+    // filter[sort]=2 narrows to Banana
+    $this->getJson('/admin/cascadewidgets/select?filter[sort]=2')
+        ->assertOk()->assertJsonFragment(['text' => 'Banana'])->assertJsonMissing(['text' => 'Apple']);
+
+    // a column NOT in $selectFilters is ignored — both rows returned (no arbitrary-column filtering)
+    $this->getJson('/admin/cascadewidgets/select?filter[secret]=zzz')
+        ->assertOk()->assertJsonFragment(['text' => 'Apple'])->assertJsonFragment(['text' => 'Banana']);
+});
+
 it('bulk-deletes selected records', function () {
     $a = Widget::create(['name' => 'a']);
     $b = Widget::create(['name' => 'b']);

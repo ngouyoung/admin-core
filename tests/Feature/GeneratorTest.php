@@ -218,6 +218,10 @@ it('uses the hybrid key strategy with --uuid (bigint PK + public uuid + bigint F
     expect(File::get(app_path('Models/Gizmo.php')))
         ->toContain('HasPublicUuid')
         ->toContain('Ngos\AdminCore\Concerns\HasPublicUuid');
+
+    // the foreign key is allowlisted as a Select2 filter, so a child select can cascade off this resource
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->toContain("\$this->selectFilters = ['category_id'];");
 });
 
 it('soft-deletes every resource when generator.soft_deletes is on, and --no-soft-deletes opts out', function () {
@@ -397,6 +401,29 @@ it('composes the index from the reusable UI components (not hand-rolled markup)'
         ->toContain('<x-admin-core::import-modal :route="route(\'admin.gizmos.import\')"')
         ->not->toContain('class="card-header')   // the shell is the component's job now
         ->not->toContain('id="importModal"');    // ditto the modal
+});
+
+it('auto-wires cascading selects: :depends-on from the related table + the $selectFilters allowlist', function () {
+    \Illuminate\Support\Facades\Schema::create('xprovinces', fn (\Illuminate\Database\Schema\Blueprint $t) => $t->id());
+    \Illuminate\Support\Facades\Schema::create('xcommunes', function (\Illuminate\Database\Schema\Blueprint $t) {
+        $t->id();
+        $t->unsignedBigInteger('province_id');
+    });
+
+    $fs = (new \Ngos\AdminCore\Console\FieldSet('province_id:foreign:xprovinces, commune_id:foreign:xcommunes'))->setTable('addresses');
+
+    // every foreign key is allowlisted as a Select2 filter (so a child select can narrow this resource by it)
+    expect($fs->foreignColumns())->toBe(['province_id', 'commune_id']);
+
+    $form = $fs->formFields();
+    // commune_id cascades on province_id — xcommunes has a province_id column AND province_id is a field here
+    expect($form)->toContain(":depends-on=\"['province_id' => '#province_id']\"");
+    // province_id has no parent in this form (xprovinces carries no other FK column) → no depends-on on its line
+    $provinceLine = collect(explode("\n", $form))->first(fn ($l) => str_contains($l, 'name="province_id"'));
+    expect($provinceLine)->not->toContain('depends-on');
+
+    \Illuminate\Support\Facades\Schema::dropIfExists('xcommunes');
+    \Illuminate\Support\Facades\Schema::dropIfExists('xprovinces');
 });
 
 it('generates a backed enum as the single source of truth for an enum field', function () {

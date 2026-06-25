@@ -15,7 +15,7 @@ class DummyClassController extends WebController
         $this->routeBase = 'dummyModels.';__AC_ROUTE_PREFIX__
         $this->service = $service;
         $this->storeRequest = StoreDummyClassRequest::class;
-        $this->updateRequest = UpdateDummyClassRequest::class;__AC_EXPORT_RELATIONS__
+        $this->updateRequest = UpdateDummyClassRequest::class;__AC_EXPORT_RELATIONS____AC_SELECT_FILTERS__
     }
 
     public function getData($relation = null)

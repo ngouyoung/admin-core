@@ -213,6 +213,9 @@ class AdminCoreMakeCommand extends Command
         // Append the related name to CSV exports for each belongsTo (readable next to the FK id).
         $exportRelations = $fields->exportRelations();
         $exportRelationsLine = $exportRelations === '' ? '' : "\n        \$this->exportRelations = [{$exportRelations}];";
+        // Allowlist this resource's foreign keys as Select2 filters so a cascading child select can narrow by them.
+        $selectFilters = $fields->foreignColumns();
+        $selectFiltersLine = $selectFilters === [] ? '' : "\n        \$this->selectFilters = ['" . implode("', '", $selectFilters) . "'];";
         // Export columns as a value => label literal for <x-admin-core::export-menu> (which renders the
         // checkboxes — all checked = export everything; unticking narrows ?columns[]).
         $exportFieldsLiteral = '[' . collect($fields->exportFields())
@@ -240,6 +243,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_LAYOUT__' => $layoutView,
             '__AC_ROUTE_PREFIX__' => $routePrefixLine,
             '__AC_EXPORT_RELATIONS__' => $exportRelationsLine,
+            '__AC_SELECT_FILTERS__' => $selectFiltersLine,
             '__AC_EXPORT_FIELDS__' => $exportFieldsLiteral,
             '__AC_PK__' => $fields->primaryKey(),
             '__AC_MODEL_TRAITS__' => $fields->modelTraits(),

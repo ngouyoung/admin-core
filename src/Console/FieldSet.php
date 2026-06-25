@@ -2,6 +2,7 @@
 
 namespace Ngos\AdminCore\Console;
 
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -1104,8 +1105,15 @@ PHP;
                 // dynamically (falls back to a plain select if it has none). Only the current value is rendered —
                 // the rest load on search, so the form never eager-loads the whole related table.
                 $sel = "\$object?->{$f['relation']} ? [\$object->{$col} => ac_localize(\$object->{$f['relation']}->name)] : []";
+                // Cascade: if the related table carries another of this form's foreign keys, narrow by it.
+                $deps = $this->dependsOn($f);
+                $dependsAttr = '';
+                if ($deps !== []) {
+                    $pairs = implode(', ', array_map(fn ($c, $s) => "'{$c}' => '{$s}'", array_keys($deps), $deps));
+                    $dependsAttr = " :depends-on=\"[{$pairs}]\"";
+                }
 
-                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" source=\"{$f['relTable']}\" :options=\"{$sel}\" :value=\"{$old}\" placeholder=\"— search —\" />";
+                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" source=\"{$f['relTable']}\"{$dependsAttr} :options=\"{$sel}\" :value=\"{$old}\" placeholder=\"— search —\" />";
             case 'belongsToMany':
                 return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->mapWithKeys(fn (\$o) => [\$o->getKey() => ac_localize(\$o->name)])\" :value=\"old('{$col}', \${$f['relation']}Selected)\" multiple />";
             case 'hasMany':
@@ -1280,6 +1288,41 @@ BLADE;
         }
 
         return "            ['data' => '{$f['name']}', 'name' => '{$f['name']}'],";
+    }
+
+    /** This resource's foreign-key columns — the allowlist a cascading child select may filter by. */
+    public function foreignColumns(): array
+    {
+        return array_values(array_map(
+            fn ($f) => $f['name'],
+            array_filter($this->fields, fn ($f) => $f['type'] === 'foreign'),
+        ));
+    }
+
+    /**
+     * Parent fields a foreign select cascades from — another foreign field in this form whose column also
+     * exists on the related table (e.g. commune_id → the communes table has province_id → depends on
+     * province_id). Schema-probed, so the related table must be migrated; degrades to none otherwise.
+     *
+     * @return array<string, string>  [column => '#selector']
+     */
+    public function dependsOn(array $f): array
+    {
+        $deps = [];
+        foreach ($this->fields as $g) {
+            if ($g['type'] !== 'foreign' || $g['name'] === $f['name']) {
+                continue;
+            }
+            try {
+                if (Schema::hasTable($f['relTable']) && Schema::hasColumn($f['relTable'], $g['name'])) {
+                    $deps[$g['name']] = '#' . $g['name'];
+                }
+            } catch (\Throwable $e) {
+                // no DB / table not migrated — skip; the select still works, just without cascading.
+            }
+        }
+
+        return $deps;
     }
 
     /** Parsed fields (read-only access for the add-field command). */

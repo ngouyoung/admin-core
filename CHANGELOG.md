@@ -2,6 +2,37 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.55.0
+
+Dependent (cascading) selects — Province → Commune → Village, auto-wired by the generator. A foreign-key
+select can now narrow itself by a parent field: pick a Province and the Commune dropdown shows only that
+province's communes; pick a Commune and the Village dropdown narrows in turn, for as many levels as the chain
+has.
+
+### Added
+- **`:depends-on` on `<x-admin-core::select>`** — a `[column => '#selector']` map. The child sends the
+  parent's value as a `filter` to its `select` endpoint and reloads when the parent changes; clearing
+  cascades down the chain (new Province → Commune clears → Village clears).
+- **`$selectFilters` on the controller** — the allowlist of columns a child may filter the remote source by.
+  `select()` applies `filter[col]=val` only for these, parameter-bound — the client can't filter by an
+  arbitrary column (same safety model as `$selectSearch`).
+- **Generator auto-wiring** — `admin-core:make` sets `$selectFilters` to the resource's foreign keys, and a
+  generated form **infers `:depends-on`** for a foreign field when its related table carries another of the
+  form's foreign keys (e.g. `commune_id` → the `communes` table has `province_id` → depends on `province_id`).
+  Schema-probed, so the related tables must be migrated; degrades to a plain remote select otherwise.
+
+### Tests
+- The remote source filters by an allowlisted column and ignores others; the component emits
+  `data-ac-depends`; the generator infers `:depends-on` from the related schema and sets `$selectFilters`.
+
+### Usage
+```blade
+<x-admin-core::select name="province_id" source="provinces" />
+<x-admin-core::select name="commune_id"  source="communes"  :depends-on="['province_id' => '#province_id']" />
+<x-admin-core::select name="village_id"  source="villages"  :depends-on="['commune_id' => '#commune_id']" />
+```
+(emitted automatically when you scaffold a resource whose form holds the whole chain.)
+
 ## v2.54.0
 
 Generated foreign-key form fields are now **searchable + paginated** out of the box.

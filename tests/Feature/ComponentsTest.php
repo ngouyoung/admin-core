@@ -280,6 +280,16 @@ it('falls back to a static select when :source has no select route (prefix-safe,
         ->toContain('>One</option>');      // renders the given options
 });
 
+it('emits data-ac-depends for a cascading (dependent) remote select', function () {
+    $html = Blade::render('<x-admin-core::select name="commune_id" source="widgets" :depends-on="[\'province_id\' => \'#province_id\']" placeholder="—" />');
+
+    expect($html)
+        ->toContain('admin-core-select-ajax')
+        ->toContain('data-ac-depends=')   // the cascade map the JS reads
+        ->toContain('province_id')
+        ->toContain('#province_id');
+});
+
 it('renders a detail-list with detail-row label/value pairs (show pages)', function () {
     $html = Blade::render(
         '<x-admin-core::detail-list>'

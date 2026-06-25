@@ -139,6 +139,13 @@ abstract class WebController extends BaseController
     protected array $selectSearch = [];
 
     /**
+     * Columns a dependent (cascading) select may narrow the remote source by — e.g. ['province_id'] so a
+     * Commune dropdown shows only the chosen province's communes. Allowlisted: the client can filter only by
+     * these columns (parameter-bound). admin-core:make sets it to the resource's foreign keys.
+     */
+    protected array $selectFilters = [];
+
+    /**
      * Select2 remote source: search this resource by keyword, return one page of {id, text}.
      *
      * Powers an ajax `<x-admin-core::select :ajax-url="route('...select')">` so a big dropdown searches
@@ -154,6 +161,14 @@ abstract class WebController extends BaseController
         $term = trim((string) $request->query('term', ''));
 
         $query = $this->service->query();
+
+        // Cascading selects: narrow by an allowlisted parent value (e.g. communes where province_id = X).
+        foreach ((array) $request->query('filter', []) as $col => $val) {
+            if (in_array($col, $this->selectFilters, true) && $val !== '' && $val !== null) {
+                $query->where($col, $val);
+            }
+        }
+
         if ($term !== '') {
             $query->where(function ($q) use ($columns, $term) {
                 foreach ($columns as $column) {

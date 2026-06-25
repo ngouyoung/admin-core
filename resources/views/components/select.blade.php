@@ -18,8 +18,13 @@
                 :options="$object?->product ? [$object->product_id => ac_localize($object->product->name)] : []"
                 :value="old('product_id', $object?->product_id)" placeholder="— search —" />
        • `ajax-url` — an explicit URL (wins over `source`), e.g. :ajax-url="route('admin.products.select')".
-     Pass only the currently-selected option as `options` (so an edit form shows it); the rest load on search. --}}
-@props(['name', 'label' => null, 'value' => null, 'options' => [], 'placeholder' => null, 'multiple' => false, 'enhance' => true, 'ajaxUrl' => null, 'source' => null])
+     Pass only the currently-selected option as `options` (so an edit form shows it); the rest load on search.
+
+     `depends-on` makes a remote select CASCADE on a parent field — a [column => selector] map. The child
+     sends the parent's value as a filter and reloads when it changes (Province → Commune → Village):
+       <x-admin-core::select name="commune_id" source="communes" :depends-on="['province_id' => '#province_id']" />
+     The parent resource's controller must allowlist the column in $selectFilters (admin-core:make does this). --}}
+@props(['name', 'label' => null, 'value' => null, 'options' => [], 'placeholder' => null, 'multiple' => false, 'enhance' => true, 'ajaxUrl' => null, 'source' => null, 'dependsOn' => []])
 @php
     $label ??= \Illuminate\Support\Str::headline($name);
     $selected = array_map('strval', (array) $value);
@@ -35,6 +40,7 @@
     <select name="{{ $name }}{{ $multiple ? '[]' : '' }}" id="{{ $name }}" @if ($multiple) multiple @endif
         @if ($placeholder !== null) data-placeholder="{{ $placeholder }}" @endif
         @if ($remote) data-ajax-url="{{ $ajaxUrl }}" @endif
+        @if ($remote && ! empty($dependsOn)) data-ac-depends="{{ json_encode($dependsOn, JSON_UNESCAPED_SLASHES) }}" @endif
         {{ $attributes->class([
             'form-select',
             'admin-core-select' => $enhance && ! $remote,
