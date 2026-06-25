@@ -26,14 +26,14 @@
 
 @foreach ($list as $item)
     @if (isset($item['header']))
-        <li class="ac-nav-header">{{ $item['header'] }}</li>
+        <li class="ac-nav-header">{{ __($item['header']) }}</li>
     @elseif (isset($item['children']))
         @php($open = isset($item['match']) && request()->is($item['match']))
         @php($tvId = 'ac-tv-' . \Illuminate\Support\Str::random(8)) {{-- unique per render: no id collision even with duplicate labels --}}
         <li class="ac-nav-item {{ $open ? 'open' : '' }}">
             <a href="#" role="button" class="ac-nav-link ac-nav-toggle"
                aria-expanded="{{ $open ? 'true' : 'false' }}" aria-controls="{{ $tvId }}">
-                <i class="{{ $item['icon'] ?? 'bi bi-circle' }}" aria-hidden="true"></i><span>{{ $item['label'] }}</span>
+                <i class="{{ $item['icon'] ?? 'bi bi-circle' }}" aria-hidden="true"></i><span>{{ __($item['label']) }}</span>
                 <i class="bi bi-chevron-right ac-nav-caret" aria-hidden="true"></i>
             </a>
             <ul class="ac-treeview" id="{{ $tvId }}">
@@ -45,7 +45,7 @@
         <li class="ac-nav-item">
             <a href="{{ isset($item['route']) ? route($item['route']) : ($item['url'] ?? '#') }}"
                class="ac-nav-link {{ $active ? 'active' : '' }}" @if ($active) aria-current="page" @endif>
-                <i class="{{ $item['icon'] ?? 'bi bi-circle' }}" aria-hidden="true"></i><span>{{ $item['label'] }}</span>
+                <i class="{{ $item['icon'] ?? 'bi bi-circle' }}" aria-hidden="true"></i><span>{{ __($item['label']) }}</span>
             </a>
         </li>
     @endif

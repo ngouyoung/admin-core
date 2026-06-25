@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.52.1
+
+The sidebar menu is now translatable.
+
+### Changed
+- **Sidebar menu labels render through `__()`.** Section headers, group (treeview) labels and leaf labels
+  now pass through the translator, so a `lang/<locale>.json` entry renders the menu in that language. The
+  stored (English) text is the lookup key, which means it works for **both** config- and database-driven
+  menus without a schema change. Backward-compatible: a label with no matching translation falls through to
+  itself, so existing menus are unaffected. Switch with the app locale (e.g. `APP_LOCALE`) or a per-request
+  locale.
+
+### Tests
+- The sidebar renders translated headers, group labels and leaf labels at a non-default locale, and
+  untranslated text falls through unchanged.
+
 ## v2.52.0
 
 Searchable, paginated dropdowns for big lists. A static `<select>` ships every option in the HTML — fine for

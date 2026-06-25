@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
@@ -177,4 +178,34 @@ it('ships the access stubs for the Menu manager', function () {
 
     expect(menuStub('access/database/migrations/0001_01_01_000014_create_menu_items_table.php.stub'))
         ->toContain("Schema::create('menu_items'");
+});
+
+it('translates menu headers, group labels and leaf labels via __() — untranslated text falls through', function () {
+    // A JSON lang file maps the (English) menu text to Khmer — the same way a real install would.
+    $dir = sys_get_temp_dir() . '/ac-menu-lang-' . uniqid('', true);
+    File::ensureDirectoryExists($dir);
+    File::put($dir . '/km.json', json_encode([
+        'Catalog' => 'បញ្ជី',      // a section header
+        'Inventory' => 'ស្តុក',     // a group (treeview) label
+        'Reports' => 'របាយការណ៍',  // a leaf label
+    ], JSON_UNESCAPED_UNICODE));
+    app('translator')->addJsonPath($dir);
+    app()->setLocale('km');
+
+    $items = [
+        ['header' => 'Catalog'],
+        ['label' => 'Reports', 'url' => '#', 'icon' => 'bi bi-graph-up'],
+        ['label' => 'Inventory', 'icon' => 'bi bi-box', 'children' => [
+            ['label' => 'Untranslated', 'url' => '#'], // no km entry
+        ]],
+    ];
+    $html = Blade::render('<x-admin-core::sidebar-menu :items="$items" />', compact('items'));
+
+    expect($html)
+        ->toContain('បញ្ជី')        // header translated
+        ->toContain('របាយការណ៍')   // leaf label translated
+        ->toContain('ស្តុក')        // group label translated
+        ->toContain('Untranslated'); // no translation → original shown (backward-compatible)
+
+    File::deleteDirectory($dir);
 });
