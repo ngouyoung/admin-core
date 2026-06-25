@@ -166,7 +166,9 @@ it('localizes a foreign relation display so a translatable related name never br
 
     // list column, form <select> options, and show row all run the value through ac_localize()
     expect($f->getDataColumns())->toContain('ac_localize($row->category?->name)');
-    expect($f->formFields())->toContain('ac_localize($o->name)');
+    expect($f->formFields())
+        ->toContain('source="categories"')                   // searchable + paginated remote select (no eager-load)
+        ->toContain('ac_localize($object->category->name)');  // preselected option label, localized
     expect($f->showRows())->toContain('ac_localize($object->category?->name)');
 
     // and the helper resolves a translatable array to the locale string, passing plain strings through

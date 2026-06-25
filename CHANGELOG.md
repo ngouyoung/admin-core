@@ -2,6 +2,37 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.54.0
+
+Generated foreign-key form fields are now **searchable + paginated** out of the box.
+
+Until now `admin-core:make` emitted a **static** `<select>` for every `foreign` field — it eager-loaded the
+*entire* related table into the form (`Category::orderBy('id')->get()`) and rendered every row as an
+`<option>`. Fine for a handful of rows; with thousands it bloats the page, and with tens of thousands it's
+effectively unusable (no server pagination, only client-side search over a giant DOM). The remote Select2
+added in v2.52.0 existed, but you had to wire `:ajax-url` by hand — generated forms never used it.
+
+### Changed
+- **`admin-core:make` generates a remote (ajax) select for `foreign` fields.** It emits
+  `<x-admin-core::select source="categories" …>` with only the currently-selected option pre-rendered (so an
+  edit form still shows it) — the rest load on demand from the resource's `select` endpoint. **No more
+  eager-loading the whole related table.** (belongsToMany multi-selects stay static for now.)
+
+### Added
+- **`:source` on `<x-admin-core::select>`** — point it at a resource's route base and the component resolves
+  the `…select` endpoint **dynamically** from `config('admin-core.route.name_prefix')`, so it's
+  **portal/prefix-safe** (no hardcoded `admin.`). Guarded by `Route::has`: if that resource has no `select`
+  route, it **falls back to a plain static select** and never errors. An explicit `:ajax-url` still wins.
+
+### Tests
+- `:source` resolves to the prefixed `…select` route (ajax mode) and falls back to a static select when the
+  route is absent; FieldSet emits `source="…"` + a localized preselected option for foreign fields.
+
+### Upgrade
+Backward-compatible. **Existing** generated forms keep their static selects until regenerated — re-run
+`admin-core:make <Name> --force`, or just add `source="…"` to a `<x-admin-core::select>`, to switch a form to
+the searchable/paginated picker. (Relies on the per-resource `select` endpoint shipped in v2.52.0.)
+
 ## v2.53.0
 
 Data-driven DataTables — list pages no longer carry per-resource init JS. Until now every generated list page

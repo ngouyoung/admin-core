@@ -261,6 +261,25 @@ it('omits the data-ac-datatable attribute without :columns (backward-compatible)
     File::delete($thead);
 });
 
+it('resolves a remote select from :source via the route prefix (searchable + paginated)', function () {
+    // admin.widgets.select is registered by the test harness's Route::crud('widget', …).
+    $html = Blade::render('<x-admin-core::select name="widget_id" source="widgets" placeholder="— search —" />');
+
+    expect($html)
+        ->toContain('admin-core-select-ajax')                 // ajax mode (not the static class)
+        ->toContain('data-ajax-url="http://localhost/admin/widgets/select"'); // built from the config prefix
+});
+
+it('falls back to a static select when :source has no select route (prefix-safe, never errors)', function () {
+    $html = Blade::render('<x-admin-core::select name="x_id" source="nopesnothere" :options="[1 => \'One\']" placeholder="— pick —" />');
+
+    expect($html)
+        ->not->toContain('admin-core-select-ajax')
+        ->not->toContain('data-ajax-url')
+        ->toContain('admin-core-select')   // plain static select
+        ->toContain('>One</option>');      // renders the given options
+});
+
 it('renders a detail-list with detail-row label/value pairs (show pages)', function () {
     $html = Blade::render(
         '<x-admin-core::detail-list>'

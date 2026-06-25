@@ -1052,9 +1052,7 @@ PHP;
     {
         $out = [];
         foreach ($this->fields as $f) {
-            if ($f['type'] === 'foreign') {
-                $out[] = "@php(\${$f['relation']}Options = \\App\\Models\\{$f['relModel']}::orderBy('id')->get())";
-            }
+            // foreign keys render a remote (searchable + paginated) select — no eager-load of the whole table.
             if ($f['type'] === 'belongsToMany') {
                 $out[] = "@php(\${$f['relation']}Options = \\App\\Models\\{$f['relModel']}::orderBy('id')->get())";
                 $out[] = "@php(\${$f['relation']}Selected = isset(\$object) ? \$object->{$f['relation']}->pluck('id')->all() : [])";
@@ -1102,7 +1100,12 @@ PHP;
 
                 return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"{$opts}\" :value=\"old('{$col}', \$object?->{$col}?->value)\" />";
             case 'foreign':
-                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->mapWithKeys(fn (\$o) => [\$o->getKey() => ac_localize(\$o->name)])\" :value=\"{$old}\" placeholder=\"— select —\" />";
+                // Searchable + paginated remote select. `source` resolves the related resource's `select` route
+                // dynamically (falls back to a plain select if it has none). Only the current value is rendered —
+                // the rest load on search, so the form never eager-loads the whole related table.
+                $sel = "\$object?->{$f['relation']} ? [\$object->{$col} => ac_localize(\$object->{$f['relation']}->name)] : []";
+
+                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" source=\"{$f['relTable']}\" :options=\"{$sel}\" :value=\"{$old}\" placeholder=\"— search —\" />";
             case 'belongsToMany':
                 return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->mapWithKeys(fn (\$o) => [\$o->getKey() => ac_localize(\$o->name)])\" :value=\"old('{$col}', \${$f['relation']}Selected)\" multiple />";
             case 'hasMany':
