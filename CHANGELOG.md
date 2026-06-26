@@ -2,6 +2,43 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.56.0
+
+Three follow-ups that finish the searchable-select story and make generated menus translatable.
+
+### Changed
+- **`belongsToMany` fields now generate a searchable, paginated remote multi-select** — closing the gap left
+  in v2.54.0. `admin-core:make` emits `<x-admin-core::select source="tags" … multiple>` that pre-renders only
+  the currently-attached rows and loads the rest on demand from the related resource's `select` endpoint. **No
+  more eager-loading the entire related table** into `<option>`s (the same change `foreign` got in v2.54.0).
+  Validation, the pivot `->sync()`, and the export columns are unchanged.
+- **The unsearched remote select opens on the indexed primary key, not the label.** `WebController::select()`
+  sorted *every* row by `name` before taking the first page — a filesort over the whole table on a plain open
+  (painful at tens of thousands of rows). It now orders an un-narrowed open by the primary key (an index range
+  scan + `LIMIT`) and only sorts by the human label once a search term or cascade filter has narrowed the set.
+  The only visible change: the pre-typing dropdown page is in id order instead of alphabetical; search and
+  cascade-filtered results stay alphabetical.
+
+### Added
+- **Generated menu labels are registered for translation.** `admin-core:make` now seeds the new resource's
+  sidebar label into each configured non-default locale's `lang/<locale>.json` (e.g. `lang/km.json`), with the
+  English text as a safe placeholder, so `__($label)` resolves and a translator (or `admin-core:translate`)
+  can fill it in. It only ever *appends* to a locale file the host already ships — never creates one, never
+  overwrites an existing value, skips the source locale, and is a no-op when no JSON lang files are present.
+
+### Tests
+- The generator emits a `multiple` remote select with `source="…"` for a belongsToMany field and no longer
+  eager-loads the whole related table; the select endpoint orders an empty open by primary key but by label
+  under a term; `admin-core:make` seeds the menu label into a non-default locale JSON while leaving the source
+  locale untouched.
+
+### Upgrade
+Backward-compatible. **Existing** generated forms keep their static multi-selects until regenerated — re-run
+`admin-core:make <Name> --force` to switch a belongsToMany field to the searchable picker. The select-ordering
+and menu-label changes take effect immediately and need no action. (One known parity limitation, shared with
+`foreign`: after a validation error a just-added-but-unsaved selection stays in the submitted data but its
+chip isn't re-rendered until you search again.)
+
 ## v2.55.0
 
 Dependent (cascading) selects — Province → Commune → Village, auto-wired by the generator. A foreign-key

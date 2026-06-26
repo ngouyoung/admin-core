@@ -330,6 +330,20 @@ it('handles belongsToMany with a pivot migration and sync', function () {
     expect($f->serviceBody())->toContain('->sync(');
 });
 
+it('renders a belongsToMany field as a searchable remote multi-select (no whole-table eager-load)', function () {
+    $form = fs('tags:belongsToMany')->formFields();
+
+    // Remote + searchable + multiple, mirroring the foreign select (source resolves the related select route).
+    expect($form)->toContain('<x-admin-core::select name="tags"')
+        ->toContain('source="tags"')
+        ->toContain('multiple');
+
+    // Preselect only the attached pivot rows; never eager-load the whole related table into <option>s.
+    expect($form)->toContain('$object->tags->mapWithKeys')
+        ->toContain("old('tags', array_keys(\$tagsSelected))")
+        ->not->toContain("Tag::orderBy('id')");
+});
+
 it('includes belongsTo + belongsToMany in the export relations, and lists export-picker fields', function () {
     $f = fs('name:string, category_id:foreign, tags:belongsToMany');
 

@@ -90,6 +90,24 @@ it('paginates the remote select source (more=true while another page exists)', f
         ->assertJsonCount(20, 'results');
 });
 
+it('orders the unsearched select by primary key (cheap), but by label once a term narrows it', function () {
+    Widget::create(['name' => 'Zebra']);  // id 1
+    Widget::create(['name' => 'Apple']);  // id 2
+
+    // Empty open: primary-key order — an index range scan + LIMIT, not a filesort over the whole table —
+    // so the lowest id comes first, NOT the alphabetically-first row.
+    $this->getJson('/admin/widgets/select')
+        ->assertOk()
+        ->assertJsonPath('results.0.text', 'Zebra')
+        ->assertJsonPath('results.1.text', 'Apple');
+
+    // With a term the set is already narrow, so it sorts by the human label (alphabetical).
+    $this->getJson('/admin/widgets/select?term=e') // both 'Zebra' and 'Apple' contain "e"
+        ->assertOk()
+        ->assertJsonPath('results.0.text', 'Apple')
+        ->assertJsonPath('results.1.text', 'Zebra');
+});
+
 it('narrows the remote select by an allowlisted parent filter (cascading), ignoring others', function () {
     Widget::create(['name' => 'Apple'])->forceFill(['sort' => 1])->save();
     Widget::create(['name' => 'Banana'])->forceFill(['sort' => 2])->save();

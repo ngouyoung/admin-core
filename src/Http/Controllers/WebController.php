@@ -161,11 +161,13 @@ abstract class WebController extends BaseController
         $term = trim((string) $request->query('term', ''));
 
         $query = $this->service->query();
+        $narrowed = false;
 
         // Cascading selects: narrow by an allowlisted parent value (e.g. communes where province_id = X).
         foreach ((array) $request->query('filter', []) as $col => $val) {
             if (in_array($col, $this->selectFilters, true) && $val !== '' && $val !== null) {
                 $query->where($col, $val);
+                $narrowed = true;
             }
         }
 
@@ -175,9 +177,14 @@ abstract class WebController extends BaseController
                     $q->orWhere($column, 'like', '%' . $term . '%');
                 }
             });
+            $narrowed = true;
         }
 
-        $page = $query->orderBy($label)->paginate((int) config('admin-core.select.per_page', 20));
+        // On an unnarrowed open (the whole table) sort by the indexed primary key — an index range scan + LIMIT
+        // instead of a filesort over every row (a big win on large tables). Once narrowed by a search term or a
+        // cascade filter the set is small, so sort by the human label for a tidy alphabetical dropdown.
+        $sort = $narrowed ? $label : $query->getModel()->getQualifiedKeyName();
+        $page = $query->orderBy($sort)->paginate((int) config('admin-core.select.per_page', 20));
 
         return response()->json([
             'results' => $page->getCollection()->map(fn ($row) => [

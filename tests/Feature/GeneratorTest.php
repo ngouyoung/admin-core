@@ -86,6 +86,35 @@ it('adds a menu_items row for a generated resource when menu_source=database (so
     Schema::dropIfExists('menu_items');
 });
 
+it('seeds a generated menu label into the host locale JSON so it can be translated', function () {
+    config([
+        'admin-core.translation.locales' => ['en' => 'English', 'km' => 'ខ្មែរ'],
+        'admin-core.translation.default' => 'en',
+    ]);
+    // A host that ships a km.json (km is a configured, non-default locale).
+    $km = lang_path('km.json');
+    $en = lang_path('en.json');
+    File::ensureDirectoryExists(dirname($km));
+    File::put($km, json_encode(['Existing' => 'ស្រាប់'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    $enBefore = File::exists($en) ? File::get($en) : null;
+
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+
+    $messages = json_decode(File::get($km), true);
+    // The headline menu label is registered for translation with a safe English placeholder (never blank),
+    // and pre-existing keys are preserved.
+    expect($messages)->toHaveKey('Gizmos')
+        ->and($messages['Gizmos'])->toBe('Gizmos')
+        ->and($messages)->toHaveKey('Existing');
+
+    // The source locale (en) is skipped — its file (if the skeleton ships one) is left byte-for-byte untouched.
+    if ($enBefore !== null) {
+        expect(File::get($en))->toBe($enBefore);
+    }
+
+    File::delete($km);
+});
+
 it('scaffolds a hasMany master-detail (relation + repeater + row partial + service sync + validation)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

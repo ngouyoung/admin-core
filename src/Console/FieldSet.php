@@ -1053,10 +1053,10 @@ PHP;
     {
         $out = [];
         foreach ($this->fields as $f) {
-            // foreign keys render a remote (searchable + paginated) select — no eager-load of the whole table.
+            // belongsToMany renders a remote (searchable + paginated) multi-select — preselect only the currently
+            // attached rows as an id => label map; the rest load on search (no eager-load of the whole table).
             if ($f['type'] === 'belongsToMany') {
-                $out[] = "@php(\${$f['relation']}Options = \\App\\Models\\{$f['relModel']}::orderBy('id')->get())";
-                $out[] = "@php(\${$f['relation']}Selected = isset(\$object) ? \$object->{$f['relation']}->pluck('id')->all() : [])";
+                $out[] = "@php(\${$f['relation']}Selected = isset(\$object) ? \$object->{$f['relation']}->mapWithKeys(fn (\$i) => [\$i->getKey() => ac_localize(\$i->name)])->all() : [])";
             }
         }
         foreach ($this->fields as $f) {
@@ -1115,7 +1115,9 @@ PHP;
 
                 return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" source=\"{$f['relTable']}\"{$dependsAttr} :options=\"{$sel}\" :value=\"{$old}\" placeholder=\"— search —\" />";
             case 'belongsToMany':
-                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"\${$f['relation']}Options->mapWithKeys(fn (\$o) => [\$o->getKey() => ac_localize(\$o->name)])\" :value=\"old('{$col}', \${$f['relation']}Selected)\" multiple />";
+                // Searchable + paginated remote multi-select (mirrors `foreign`). Only the already-attached rows
+                // are pre-rendered as options; the rest load on search, so the form never eager-loads the table.
+                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" source=\"{$f['relTable']}\" :options=\"\${$f['relation']}Selected\" :value=\"old('{$col}', array_keys(\${$f['relation']}Selected))\" multiple placeholder=\"— search —\" />";
             case 'hasMany':
                 $hmRel = $f['relation'];
                 $hmRows = "old('{$col}', \$object?->{$hmRel}->map(fn (\$i) => \$i->toArray())->all() ?? [])";

@@ -475,6 +475,7 @@ PHP);
     private function registerMenuItem(string $plural, string $snakePlural, string $kebab, ?string $menu = null, string $routeNs = 'admin.'): void
     {
         $label = \Illuminate\Support\Str::headline($plural);
+        $this->registerMenuLabelTranslation($label);
         $route = "{$routeNs}{$snakePlural}.index";
 
         // Database-driven menu: insert a menu_items row so the resource shows in the sidebar immediately.
@@ -528,6 +529,34 @@ PHP);
         // A database menu already got its row above; don't also inject the legacy Blade sidebar link.
         if (! $dbMenu) {
             $this->injectSidebarBladeLink($label, $snakePlural);
+        }
+    }
+
+    /**
+     * Seed the new menu label into the host app's locale JSON files so __($label) is translatable.
+     * Appends "Label" => "Label" to lang/<locale>.json for every configured non-default locale whose file
+     * already exists — never creating a file (a no-op on installs without JSON lang files) and never
+     * overwriting an existing value. Idempotent.
+     */
+    private function registerMenuLabelTranslation(string $label): void
+    {
+        $default = (string) config('admin-core.translation.default', config('app.fallback_locale', 'en'));
+        foreach (array_keys((array) config('admin-core.translation.locales', [])) as $locale) {
+            if (! is_string($locale) || $locale === $default) {
+                continue; // skip the source locale (falls back to the key) and any non-string code (list-shaped config)
+            }
+            $path = lang_path("{$locale}.json");
+            if (! File::exists($path)) {
+                continue; // don't create lang files the host hasn't opted into
+            }
+            $messages = json_decode(File::get($path), true);
+            if (! is_array($messages) || array_key_exists($label, $messages)) {
+                continue; // malformed, or already present — leave it alone
+            }
+            $messages[$label] = $label; // English placeholder; a translator / admin-core:translate fills it in
+            ksort($messages);
+            File::put($path, json_encode($messages, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) . "\n");
+            $this->line("  <info>i18n</info> seeded \"{$label}\" into lang/{$locale}.json (translate it for {$locale})");
         }
     }
 
