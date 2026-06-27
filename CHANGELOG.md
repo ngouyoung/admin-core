@@ -2,6 +2,36 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.58.0
+
+Generated **create forms are now duplicate-submit-proof** out of the box — a double-click, a frantic re-tap,
+or a browser retry can no longer create two records.
+
+### Added
+- **Idempotent create submits.** Every generated create form carries a one-time
+  `<x-admin-core::idempotency-key />` token, and `WebController::store()` claims it atomically (`cache()->add`)
+  before creating: a repeated POST with the same token returns success **without** creating a duplicate. No
+  per-resource column or migration — the token lives briefly in the cache. The claim is released if the create
+  fails, so a genuine retry still works; validation runs first, so a validation error never wastes the token.
+- **`<x-admin-core::idempotency-key />`** — drop it into any custom create form (after `@csrf`) for the same
+  protection. The token survives a validation-error redisplay (via `old()`), so the corrected resubmit dedupes
+  against the right token.
+- A client-side **disable-on-submit** (`forms.js`) on idempotent forms as a first line of defence.
+
+### Config
+- `admin-core.forms.idempotency` (default `true`) toggles the guard; `forms.idempotency_ttl` (minutes) is how
+  long a token is remembered. Best-effort on the `file` cache driver (no atomic `add`) — use
+  redis/memcached/database for strict dedup under true concurrency.
+
+### Tests
+- A duplicate submit creates one record (not two); no token → unguarded (backward-compatible); a failed create
+  releases the token so the retry succeeds; the generator emits the token in the create view.
+
+### Upgrade
+Backward-compatible. Existing create forms (no token) keep their current behaviour; re-generate a resource
+(`admin-core:make <Name> --force`) or add `<x-admin-core::idempotency-key />` after `@csrf` to opt a form in.
+The disable-on-submit JS arrives via `admin-core:doctor --fix && npm run build`.
+
 ## v2.57.0
 
 A generic, config-driven **dashboard widget framework** — drop `<x-admin-core::dashboard />` into your

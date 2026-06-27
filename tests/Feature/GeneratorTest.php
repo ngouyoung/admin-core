@@ -129,6 +129,13 @@ it('scaffolds a dashboard count widget with --widget', function () {
     File::deleteDirectory(app_path('Dashboard'));
 });
 
+it('puts an idempotency token in the generated create form', function () {
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+
+    expect(File::get(resource_path('views/backend/pages/gizmos/create.blade.php')))
+        ->toContain('<x-admin-core::idempotency-key />'); // every new resource is duplicate-submit-proof
+});
+
 it('scaffolds a hasMany master-detail (relation + repeater + row partial + service sync + validation)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

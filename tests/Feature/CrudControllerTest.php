@@ -23,6 +23,41 @@ it('stores a record and redirects to index with a success flash', function () {
     expect(Widget::where('name', 'Alpha')->exists())->toBeTrue();
 });
 
+it('short-circuits a duplicate create submit carrying the same idempotency token', function () {
+    cache()->flush();
+    $payload = ['name' => 'Once', '_idempotency_key' => (string) \Illuminate\Support\Str::uuid()];
+
+    $this->post('/admin/widgets', $payload)->assertRedirect();
+    $this->post('/admin/widgets', $payload)->assertRedirect(); // double submit, same token
+
+    expect(Widget::where('name', 'Once')->count())->toBe(1); // created once, not twice
+});
+
+it('creates normally when no idempotency token is present (backward-compatible)', function () {
+    $this->post('/admin/widgets', ['name' => 'NoToken'])->assertRedirect();
+
+    expect(Widget::where('name', 'NoToken')->count())->toBe(1);
+});
+
+it('releases the token after a failed create so a retry with the same token succeeds', function () {
+    cache()->flush();
+    $token = (string) \Illuminate\Support\Str::uuid();
+
+    // Make the first create throw; store() must release the token on failure so the retry is not blocked.
+    $failOnce = true;
+    Widget::creating(function () use (&$failOnce) {
+        if ($failOnce) {
+            $failOnce = false;
+            throw new \RuntimeException('boom');
+        }
+    });
+
+    $this->post('/admin/widgets', ['name' => 'Retry', '_idempotency_key' => $token]); // first: throws → token released
+    $this->post('/admin/widgets', ['name' => 'Retry', '_idempotency_key' => $token])->assertRedirect(); // retry creates
+
+    expect(Widget::where('name', 'Retry')->count())->toBe(1);
+});
+
 it('validates store input', function () {
     $this->post('/admin/widgets', ['name' => ''])->assertSessionHasErrors('name');
 

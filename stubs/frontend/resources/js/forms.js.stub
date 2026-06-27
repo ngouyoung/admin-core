@@ -1,0 +1,14 @@
+// admin-core forms: once an idempotent create form is submitted, disable its submit button so a frantic
+// double-click can't fire a second POST. The server is the authoritative guard (the one-time _idempotency_key
+// token short-circuits a repeat in WebController::store()); this is just UX. The button re-enables after a few
+// seconds as a fallback — a server-side validation error re-renders a fresh button anyway, and HTML5 constraint
+// validation stops the submit event from firing at all when the form is invalid.
+document.addEventListener('submit', (e) => {
+    const form = e.target;
+    if (!(form instanceof HTMLFormElement) || !form.querySelector('input[name="_idempotency_key"]')) return;
+    const btn = form.querySelector('[type="submit"]');
+    if (btn) {
+        btn.disabled = true;
+        setTimeout(() => { btn.disabled = false; }, 6000);
+    }
+});

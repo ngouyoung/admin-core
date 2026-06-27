@@ -145,6 +145,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Forms
+    |--------------------------------------------------------------------------
+    | idempotency: generated create forms carry a one-time <x-admin-core::idempotency-key /> token, and
+    | WebController::store() short-circuits a repeated submit (double-click / browser retry) carrying the same
+    | token instead of creating a duplicate — no per-resource column needed (the token is held briefly in the
+    | cache). idempotency_ttl is how long (minutes) a token is remembered. Best-effort on the `file` cache driver
+    | (no atomic add); use redis/memcached/database for strict dedup under true concurrency.
+    */
+    'forms' => [
+        'idempotency' => true,
+        'idempotency_ttl' => 5,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Global search (<x-admin-core::global-search /> + Route::adminCoreSearch())
     |--------------------------------------------------------------------------
     | A dependency-free, offline-friendly LIKE search across the resources you list here — no Scout /

@@ -90,9 +90,56 @@ abstract class WebController extends BaseController
     public function store(): RedirectResponse
     {
         $data = app($this->storeRequest)->validated();
-        DB::transaction(fn () => $this->service->create($data));
+
+        if (! $this->claimSubmitToken()) {
+            // A repeated submit (double-click / retry) carrying the same one-time token — the first claim won,
+            // so report success without creating a duplicate. (Optimistic: in the rare case the first submit is
+            // still in-flight and then fails, this reports success though nothing was created — an accepted edge
+            // for an admin UI; the user simply re-submits.)
+            return $this->toIndex($this->message('created'));
+        }
+
+        try {
+            DB::transaction(fn () => $this->service->create($data));
+        } catch (\Throwable $e) {
+            $this->releaseSubmitToken(); // a real failure — let the user retry the same token
+            throw $e;
+        }
 
         return $this->toIndex($this->message('created'));
+    }
+
+    /**
+     * Claim the create form's one-time submit token via an atomic cache put-if-absent. Returns false when this
+     * POST repeats one already claimed (so store() short-circuits instead of duplicating). With no token (an
+     * older form) or the feature disabled it always returns true — unguarded, exactly the prior behaviour.
+     */
+    protected function claimSubmitToken(): bool
+    {
+        $token = $this->submitToken();
+        if ($token === null) {
+            return true;
+        }
+
+        return cache()->add('admin-core:idem:' . $token, true, now()->addMinutes((int) config('admin-core.forms.idempotency_ttl', 5)));
+    }
+
+    /** Release a claimed token (after a failed create) so a genuine retry is allowed through. */
+    protected function releaseSubmitToken(): void
+    {
+        if ($token = $this->submitToken()) {
+            cache()->forget('admin-core:idem:' . $token);
+        }
+    }
+
+    private function submitToken(): ?string
+    {
+        if (! config('admin-core.forms.idempotency', true)) {
+            return null;
+        }
+        $token = request()->input('_idempotency_key');
+
+        return is_string($token) && $token !== '' ? $token : null;
     }
 
     public function show(int|string $id)

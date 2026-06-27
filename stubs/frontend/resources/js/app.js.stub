@@ -64,6 +64,7 @@ import './customize';
 import './select-ajax'; // searchable + paginated Select2 for big dropdowns
 import './datatable';   // data-driven DataTables init (shared across every list page)
 import './dashboard';   // dashboard widget framework: ApexCharts render + lazy-load + auto-refresh
+import './forms';       // disable-on-submit for idempotent create forms (double-submit guard)
 import './filter-tabs';
 import './notify';
 import './echo';      // Laravel Echo (guarded — only if a broadcaster key is configured)
