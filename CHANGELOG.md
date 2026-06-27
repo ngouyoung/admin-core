@@ -2,6 +2,41 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.57.0
+
+A generic, config-driven **dashboard widget framework** — drop `<x-admin-core::dashboard />` into your
+dashboard view and declare widgets in `config('admin-core.dashboard.widgets')`. The package lays them out;
+your app supplies the data, so it's entirely app-agnostic (a POS, a CRM, a blog — all just config + a callback).
+
+### Added
+- **Widgets** — `StatWidget` (a KPI with an automatic trend arrow vs the previous period + a drill-down link),
+  `ChartWidget` (ApexCharts), `ListWidget` (recent/top rows), or the base `Widget` for a custom partial. Declare
+  each as a class-string **or** an inline config array (closures receive a `DashboardContext`).
+- **`<x-admin-core::dashboard />`** — renders the widgets in a responsive grid, permission-filtered, in each
+  user's saved arrangement.
+- **Date-range toolbar** (Today / 7d / 30d / This month / All time, or `?from=&to=`) every widget respects via
+  `DashboardContext::scope()` / `scopePrevious()` — the previous window (disjoint, no double-count) drives the
+  trend deltas.
+- **Lazy-load + auto-refresh** — `lazy()` widgets render a skeleton then load from the
+  `Route::adminCoreDashboard()` endpoint; `refreshSeconds()` widgets re-poll. Wired by `admin-core:install`;
+  degrades to inline render where the endpoint isn't present.
+- **Server-side caching** — `cacheSeconds()` caches a widget's data per (key + range + user).
+- **Per-user layouts** — a Customize mode (drag to reorder, hide widgets) saved per user in a package-owned
+  `dashboard_layouts` table (auto-migrated; saved keys are validated + size-capped).
+- **Generators** — `admin-core:make-widget {Name} [--type=stat|chart|list]` scaffolds a widget class, and
+  `admin-core:make … --widget` auto-scaffolds a count widget for a resource.
+
+### Tests
+- Widget resolution (class + config), trends, permission filtering, date-range presets + disjoint previous
+  windows, custom-range cache isolation, duplicate-key dedupe, the lazy endpoint, per-user arrangement
+  (order/hidden + append-new), and the layout save endpoint (filtered to real keys + size-capped).
+
+### Upgrade
+Backward-compatible. Existing dashboards are untouched — the framework is opt-in (add
+`<x-admin-core::dashboard />` to a view and declare widgets). For lazy-load/charts/customize on an existing
+install, run `php artisan admin-core:install` (adds the route) and `admin-core:doctor --fix && npm run build`
+(publishes `dashboard.js`); the `dashboard_layouts` table is created on the next `php artisan migrate`.
+
 ## v2.56.0
 
 Three follow-ups that finish the searchable-select story and make generated menus translatable.

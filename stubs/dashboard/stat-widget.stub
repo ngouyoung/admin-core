@@ -1,0 +1,37 @@
+<?php
+
+namespace App\Dashboard;
+
+use Ngos\AdminCore\Dashboard\DashboardContext;
+use Ngos\AdminCore\Dashboard\Widgets\StatWidget;
+
+class {{ class }} extends StatWidget
+{
+    public function title(): string
+    {
+        return '{{ title }}';
+    }
+
+    public function value(DashboardContext $context): float|int|string
+    {
+        // TODO: return the metric for the active range, e.g.
+        // return \App\Models\Order::query()->tap(fn ($q) => $context->scope($q))->count();
+        return 0;
+    }
+
+    // Uncomment for a trend arrow vs the previous period:
+    // public function previousValue(DashboardContext $context): float|int|null
+    // {
+    //     return \App\Models\Order::query()->tap(fn ($q) => $context->scopePrevious($q))->count();
+    // }
+
+    public function icon(): ?string
+    {
+        return 'bi-graph-up';
+    }
+
+    public function colSpan(): int
+    {
+        return 3;
+    }
+}

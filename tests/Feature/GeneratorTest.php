@@ -115,6 +115,20 @@ it('seeds a generated menu label into the host locale JSON so it can be translat
     File::delete($km);
 });
 
+it('scaffolds a dashboard count widget with --widget', function () {
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--widget' => true])->assertSuccessful();
+
+    $path = app_path('Dashboard/GizmoWidget.php');
+    expect(File::exists($path))->toBeTrue();
+    expect(File::get($path))
+        ->toContain('class GizmoWidget extends StatWidget')
+        ->toContain('\App\Models\Gizmo::query()')        // counts the resource
+        ->toContain("return 'list-gizmo';")              // permission-gated
+        ->toContain("route('admin.gizmos.index')");      // drill-down
+
+    File::deleteDirectory(app_path('Dashboard'));
+});
+
 it('scaffolds a hasMany master-detail (relation + repeater + row partial + service sync + validation)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

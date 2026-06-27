@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Dashboard;
+
+use Ngos\AdminCore\Dashboard\DashboardContext;
+use Ngos\AdminCore\Dashboard\Widgets\ListWidget;
+
+class {{ class }} extends ListWidget
+{
+    public function title(): string
+    {
+        return '{{ title }}';
+    }
+
+    public function rows(DashboardContext $context): iterable
+    {
+        // TODO: return rows for the active range — each: ['label', 'meta'?, 'link'?, 'badge'?].
+        // return \App\Models\Order::latest()->take(5)->get()->map(fn ($o) => [
+        //     'label' => $o->number, 'meta' => $o->created_at->diffForHumans(), 'link' => '#', 'badge' => $o->status,
+        // ]);
+        return [];
+    }
+
+    public function colSpan(): int
+    {
+        return 6;
+    }
+}

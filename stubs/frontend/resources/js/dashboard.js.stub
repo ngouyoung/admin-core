@@ -1,0 +1,139 @@
+// admin-core dashboard front-end: renders ApexCharts widgets from their server-emitted config, swaps in
+// "lazy" widgets from their endpoint, and auto-refreshes widgets that opt in. ApexCharts is loaded on demand
+// by app.js when a [data-apexchart] container is on the page (it then fires `apexcharts:ready`).
+
+function renderCharts(root = document) {
+    if (!window.ApexCharts) return;
+    root.querySelectorAll('[data-ac-chart]:not([data-ac-chart-done])').forEach((el) => {
+        let cfg;
+        try {
+            cfg = JSON.parse(el.dataset.acChartConfig || '{}');
+        } catch (e) {
+            return;
+        }
+        if (!cfg.type) return;
+        el.dataset.acChartDone = '1';
+        const chart = new window.ApexCharts(el, {
+            chart: { type: cfg.type, height: cfg.height || 280, toolbar: { show: false }, fontFamily: 'inherit' },
+            series: cfg.series || [],
+            labels: cfg.labels,
+            xaxis: cfg.categories ? { categories: cfg.categories } : undefined,
+            colors: cfg.colors,
+            dataLabels: { enabled: cfg.dataLabels ?? false },
+            stroke: { curve: 'smooth', width: 2 },
+            legend: { position: 'bottom' },
+            ...(cfg.options || {}),
+        });
+        el._acChart = chart; // keep a handle so a re-render (lazy/refresh swap) can destroy it first
+        chart.render();
+    });
+}
+
+// Tear down any live ApexCharts in a subtree before we replace its HTML, so refresh/lazy don't leak instances.
+function destroyCharts(root) {
+    root.querySelectorAll('[data-ac-chart-done]').forEach((node) => {
+        if (node._acChart) {
+            try { node._acChart.destroy(); } catch (e) { /* already gone */ }
+            node._acChart = null;
+        }
+    });
+}
+
+function swap(el, html) {
+    destroyCharts(el);
+    el.innerHTML = html;
+    renderCharts(el);
+}
+
+function fetchWidget(url) {
+    return fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } }).then((r) => (r.ok ? r.text() : Promise.reject(r)));
+}
+
+function initDashboard() {
+    // Lazy widgets: replace the skeleton with the fetched partial.
+    document.querySelectorAll('[data-ac-widget-lazy][data-ac-widget-url]').forEach((el) => {
+        fetchWidget(el.dataset.acWidgetUrl).then((html) => swap(el, html)).catch(() => {});
+    });
+
+    // Auto-refresh: re-fetch on the widget's interval.
+    document.querySelectorAll('[data-ac-refresh][data-ac-widget-url]').forEach((el) => {
+        const secs = parseInt(el.dataset.acRefresh, 10);
+        const body = el.querySelector('[data-ac-widget-body]') || el; // refresh the body, not the col (keeps the customize tools)
+        if (secs > 0) {
+            setInterval(() => {
+                fetchWidget(el.dataset.acWidgetUrl).then((html) => swap(body, html)).catch(() => {});
+            }, secs * 1000);
+        }
+    });
+
+    renderCharts();
+    initCustomize();
+}
+
+// Customize mode: drag to reorder + hide widgets, then POST the new arrangement to the layout endpoint.
+function initCustomize() {
+    const grid = document.querySelector('[data-ac-dashboard][data-ac-layout-url]');
+    const toggle = document.querySelector('[data-ac-customize]');
+    if (!grid || !toggle) return;
+
+    const actions = document.querySelector('[data-ac-customize-actions]');
+    const hidden = new Set();
+    let dragEl = null;
+
+    const setTools = (show) => grid.querySelectorAll('.ac-widget-tools').forEach((t) => t.classList.toggle('d-none', !show));
+    const setDraggable = (on) => grid.querySelectorAll('[data-ac-widget]').forEach((c) => (on ? c.setAttribute('draggable', 'true') : c.removeAttribute('draggable')));
+    const exit = () => {
+        grid.classList.remove('ac-customizing');
+        toggle.classList.remove('d-none');
+        if (actions) actions.classList.add('d-none');
+        setTools(false);
+        setDraggable(false);
+    };
+
+    toggle.addEventListener('click', () => {
+        grid.classList.add('ac-customizing');
+        toggle.classList.add('d-none');
+        if (actions) actions.classList.remove('d-none');
+        setTools(true);
+        setDraggable(true);
+    });
+
+    document.querySelector('[data-ac-customize-cancel]')?.addEventListener('click', () => window.location.reload());
+
+    document.querySelector('[data-ac-customize-save]')?.addEventListener('click', () => {
+        const order = [...grid.querySelectorAll('[data-ac-widget]')].map((c) => c.getAttribute('data-ac-widget'));
+        const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        fetch(grid.getAttribute('data-ac-layout-url'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ order, hidden: [...hidden] }),
+        }).then(() => { if (window.toastr) window.toastr.success('Dashboard layout saved'); exit(); }).catch(() => {});
+    });
+
+    grid.addEventListener('click', (e) => {
+        const btn = e.target.closest('.ac-widget-hide');
+        if (!btn) return;
+        const col = btn.closest('[data-ac-widget]');
+        hidden.add(col.getAttribute('data-ac-widget'));
+        col.classList.add('d-none');
+    });
+
+    grid.addEventListener('dragstart', (e) => {
+        if (!grid.classList.contains('ac-customizing')) return;
+        dragEl = e.target.closest('[data-ac-widget]');
+        if (dragEl) dragEl.classList.add('ac-dragging');
+    });
+    grid.addEventListener('dragend', () => { if (dragEl) dragEl.classList.remove('ac-dragging'); dragEl = null; });
+    grid.addEventListener('dragover', (e) => {
+        if (!dragEl) return;
+        e.preventDefault();
+        const over = e.target.closest('[data-ac-widget]');
+        if (!over || over === dragEl) return;
+        const rect = over.getBoundingClientRect();
+        const after = (e.clientY - rect.top) / rect.height > 0.5;
+        grid.insertBefore(dragEl, after ? over.nextSibling : over);
+    });
+}
+
+window.addEventListener('apexcharts:ready', () => renderCharts());
+document.addEventListener('DOMContentLoaded', initDashboard);

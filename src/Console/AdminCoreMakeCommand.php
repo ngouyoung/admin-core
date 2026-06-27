@@ -27,6 +27,7 @@ class AdminCoreMakeCommand extends Command
                             {--menu= : Register the sidebar link in a named portal menu (config admin-core.menus.NAME) instead of the default}
                             {--guard= : Auth guard for the permissions + route gates (multi-portal, e.g. merchant). Defaults to the app guard.}
                             {--portal= : Generate the resource INTO a portal (created by admin-core:portal): routes under routes/Portal/Modules with NAME. route-names, its guard + menu. Implies --guard/--menu=NAME.}
+                            {--widget : Also scaffold a count stat widget (app/Dashboard) for the dashboard framework}
                             {--force : Overwrite existing files}';
 
     protected $description = 'Scaffold a full admin-core CRUD resource (model, service, controller, requests, routes, views, permissions).';
@@ -409,6 +410,9 @@ class AdminCoreMakeCommand extends Command
         if ($web) {
             $this->registerMenuItem($plural, $snakePlural, $kebab, $menuName, $routeNs);
         }
+        if ($web && $this->option('widget')) {
+            $this->registerDashboardWidget($class, $plural, $snakePlural, $kebab, $routeNs);
+        }
         if ($api) {
             $this->ensureApiModulesLoaded();
         }
@@ -472,6 +476,33 @@ PHP);
      * admin-core::sidebar-menu component). Falls back to injecting Blade into the
      * static sidebar for installs that predate the data-driven menu. Idempotent.
      */
+    /**
+     * Scaffold a count stat widget (app/Dashboard/{Class}Widget) for the dashboard framework — how many of
+     * this resource were created in the active range, with a trend + drill-down + permission. The user just
+     * registers it in config('admin-core.dashboard.widgets'). Idempotent.
+     */
+    private function registerDashboardWidget(string $class, string $plural, string $snakePlural, string $kebab, string $routeNs): void
+    {
+        $path = app_path("Dashboard/{$class}Widget.php");
+        if (File::exists($path) && ! $this->option('force')) {
+            $this->line('  <comment>exists</comment>  ' . $this->relative($path));
+
+            return;
+        }
+
+        $contents = strtr(File::get(__DIR__ . '/../../stubs/dashboard/resource-widget.stub'), [
+            '{{ class }}' => $class,
+            '{{ title }}' => $plural,
+            '{{ route }}' => "{$routeNs}{$snakePlural}.index",
+            '{{ kebab }}' => $kebab,
+        ]);
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, $contents);
+
+        $this->line('  <info>widget</info>  ' . $this->relative($path));
+        $this->line("    register it in <comment>config('admin-core.dashboard.widgets')</comment>: \\App\\Dashboard\\{$class}Widget::class");
+    }
+
     private function registerMenuItem(string $plural, string $snakePlural, string $kebab, ?string $menu = null, string $routeNs = 'admin.'): void
     {
         $label = \Illuminate\Support\Str::headline($plural);

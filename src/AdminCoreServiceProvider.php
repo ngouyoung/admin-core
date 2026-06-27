@@ -9,6 +9,7 @@ use Ngos\AdminCore\Console\AdminCoreDoctorCommand;
 use Ngos\AdminCore\Console\AdminCoreFieldCommand;
 use Ngos\AdminCore\Console\AdminCoreInstallCommand;
 use Ngos\AdminCore\Console\AdminCoreMakeCommand;
+use Ngos\AdminCore\Console\AdminCoreMakeWidgetCommand;
 use Ngos\AdminCore\Console\AdminCoreMenuImportCommand;
 use Ngos\AdminCore\Console\AdminCorePageCommand;
 use Ngos\AdminCore\Console\AdminCorePortalCommand;
@@ -16,6 +17,7 @@ use Ngos\AdminCore\Console\AdminCoreReinstallCommand;
 use Ngos\AdminCore\Console\AdminCoreTranslateCommand;
 use Ngos\AdminCore\Console\AdminCoreUninstallCommand;
 use Ngos\AdminCore\Console\AdminCoreVersionCommand;
+use Ngos\AdminCore\Http\Controllers\DashboardController;
 use Ngos\AdminCore\Http\Controllers\NotificationController;
 use Ngos\AdminCore\Http\Controllers\SearchController;
 use Ngos\AdminCore\Http\Middleware\AutoTranslate;
@@ -32,6 +34,7 @@ class AdminCoreServiceProvider extends ServiceProvider
         $this->registerCrudMacro();
         $this->registerNotificationsMacro();
         $this->registerSearchMacro();
+        $this->registerDashboardMacro();
 
         // The configured translation driver, resolved through the manager so
         // config('admin-core.translation.driver') is the only switch.
@@ -42,6 +45,7 @@ class AdminCoreServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadViewsFrom(__DIR__ . '/../resources/views', 'admin-core');
+        $this->loadMigrationsFrom(__DIR__ . '/../database/migrations'); // package-owned tables (e.g. dashboard_layouts)
         $this->loadTranslationsFrom(__DIR__ . '/../lang', 'admin-core');
         $this->registerLocalization();
         $this->registerTwoFactor();
@@ -52,6 +56,7 @@ class AdminCoreServiceProvider extends ServiceProvider
             $this->commands([
                 AdminCoreInstallCommand::class,
                 AdminCoreMakeCommand::class,
+                AdminCoreMakeWidgetCommand::class,
                 AdminCoreFieldCommand::class,
                 AdminCorePageCommand::class,
                 AdminCoreDoctorCommand::class,
@@ -213,6 +218,19 @@ class AdminCoreServiceProvider extends ServiceProvider
     {
         Route::macro('adminCoreSearch', function () {
             Route::get('search', [SearchController::class, 'index'])->name('search');
+        });
+    }
+
+    /**
+     * Route::adminCoreDashboard() — the dashboard widget framework's AJAX endpoint
+     * (admin.dashboard.widget), used by lazy-load + auto-refresh of <x-admin-core::dashboard /> widgets.
+     * Call it inside your admin route group (admin-core:install adds it).
+     */
+    protected function registerDashboardMacro(): void
+    {
+        Route::macro('adminCoreDashboard', function () {
+            Route::get('dashboard/widget/{key}', [DashboardController::class, 'widget'])->name('dashboard.widget');
+            Route::post('dashboard/layout', [DashboardController::class, 'saveLayout'])->name('dashboard.layout');
         });
     }
 }

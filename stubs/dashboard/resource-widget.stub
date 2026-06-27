@@ -1,0 +1,40 @@
+<?php
+
+namespace App\Dashboard;
+
+use Ngos\AdminCore\Dashboard\DashboardContext;
+use Ngos\AdminCore\Dashboard\Widgets\StatWidget;
+
+/** How many {{ title }} were created in the active range, with a trend vs the previous period. */
+class {{ class }}Widget extends StatWidget
+{
+    public function title(): string
+    {
+        return '{{ title }}';
+    }
+
+    public function value(DashboardContext $context): float|int|string
+    {
+        return \App\Models\{{ class }}::query()->tap(fn ($q) => $context->scope($q))->count();
+    }
+
+    public function previousValue(DashboardContext $context): float|int|null
+    {
+        return \App\Models\{{ class }}::query()->tap(fn ($q) => $context->scopePrevious($q))->count();
+    }
+
+    public function link(): ?string
+    {
+        return route('{{ route }}');
+    }
+
+    public function permission(): ?string
+    {
+        return 'list-{{ kebab }}';
+    }
+
+    public function icon(): ?string
+    {
+        return 'bi-collection';
+    }
+}

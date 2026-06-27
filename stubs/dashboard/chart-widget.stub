@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Dashboard;
+
+use Ngos\AdminCore\Dashboard\DashboardContext;
+use Ngos\AdminCore\Dashboard\Widgets\ChartWidget;
+
+class {{ class }} extends ChartWidget
+{
+    public function title(): string
+    {
+        return '{{ title }}';
+    }
+
+    public function chart(DashboardContext $context): array
+    {
+        // TODO: build the ApexCharts config for the active range (type: line|bar|area|pie|donut).
+        return [
+            'type' => 'line',
+            'series' => [['name' => '{{ title }}', 'data' => [0, 0, 0]]],
+            'categories' => ['A', 'B', 'C'],
+        ];
+    }
+
+    public function colSpan(): int
+    {
+        return 6;
+    }
+}

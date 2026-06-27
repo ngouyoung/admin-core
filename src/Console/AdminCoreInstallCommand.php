@@ -153,6 +153,18 @@ class AdminCoreInstallCommand extends Command
                 $changed = true;
             }
 
+            // Add the dashboard widget endpoint (lazy-load + auto-refresh) to an existing group.
+            if (! str_contains($contents, 'Route::adminCoreDashboard')) {
+                $contents = preg_replace(
+                    "/(Route::view\('\/', 'backend\.dashboard'\)->name\('dashboard'\);)/",
+                    "$1\n    Route::adminCoreDashboard();",
+                    $contents,
+                    1,
+                );
+                $this->line('  <info>updated</info> routes/web.php (added the dashboard widget endpoint)');
+                $changed = true;
+            }
+
             if ($changed) {
                 File::put($web, $contents);
             } else {
@@ -170,7 +182,8 @@ class AdminCoreInstallCommand extends Command
 
 // >>> admin-core:routes (managed by admin-core:install — do not edit the markers)
 Route::group([{$middleware}'prefix' => 'admin', 'as' => 'admin.'], function () {
-    Route::view('/', 'backend.dashboard')->name('dashboard');{$notifications}
+    Route::view('/', 'backend.dashboard')->name('dashboard');
+    Route::adminCoreDashboard();{$notifications}
 
     foreach (glob(base_path('routes/Web/Backend/Modules/*.php')) ?: [] as \$module) {
         require \$module;

@@ -159,6 +159,36 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Dashboard (<x-admin-core::dashboard /> widget framework)
+    |--------------------------------------------------------------------------
+    | Drop <x-admin-core::dashboard /> into your dashboard view and declare the widgets here. A widget is
+    | either a class extending Ngos\AdminCore\Dashboard\Widgets\{StatWidget|ChartWidget|ListWidget} (or the
+    | base Widget for a custom partial), or — for simple cases — an inline config array. Each widget receives a
+    | DashboardContext carrying the active date range (the toolbar preset / ?from=&to=) so it can scope its
+    | own queries and compare against the previous period for a trend arrow. Everything below is YOUR app's
+    | data — the package only lays the widgets out, so this is fully app-agnostic.
+    |
+    |   'widgets' => [
+    |       \App\Dashboard\RevenueWidget::class,                              // a class widget
+    |       ['type' => 'stat', 'title' => 'Users', 'icon' => 'bi-people',     // an inline widget
+    |        'value'    => fn ($c) => \App\Models\User::query()->tap(fn ($q) => $c->scope($q))->count(),
+    |        'previous' => fn ($c) => \App\Models\User::query()->tap(fn ($q) => $c->scopePrevious($q))->count(),
+    |        'link'     => '/admin/users'],
+    |       ['type' => 'chart', 'title' => 'Signups', 'col' => 6,
+    |        'chart' => fn ($c) => ['type' => 'line', 'series' => [...], 'categories' => [...]]],
+    |       ['type' => 'list', 'title' => 'Latest orders',
+    |        'rows' => fn ($c) => [['label' => '...', 'meta' => '...', 'link' => '...', 'badge' => '...']]],
+    |   ],
+    */
+    'dashboard' => [
+        'widgets' => [],
+        'default_range' => '30d',  // today | 7d | 30d | month | all
+        'date_filter' => true,     // show the date-range toolbar
+        'customizable' => true,    // let each user drag-reorder + hide their widgets (saved per user)
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Notifications
     |--------------------------------------------------------------------------
     | In-app notifications are always on (the bell + /admin/notifications, Laravel
