@@ -53,6 +53,7 @@ return [
             ['label' => 'Permissions', 'route' => 'admin.assessments.permissions.index', 'icon' => 'bi bi-key', 'can' => 'list-permission', 'match' => 'admin/assessments/permissions*'],
         ]],
         ['header' => 'System'],
+        ['label' => 'Media', 'route' => 'admin.media.index', 'icon' => 'bi bi-images', 'can' => 'manage-media', 'match' => 'admin/media*'],
         ['label' => 'Settings', 'route' => 'admin.settings.index', 'icon' => 'bi bi-gear', 'can' => 'manage-settings', 'match' => 'admin/settings*'],
         ['label' => 'Activity Log', 'route' => 'admin.activity-logs.index', 'icon' => 'bi bi-clock-history', 'can' => 'list-activity', 'match' => 'admin/activity-logs*'],
         ['label' => 'Error Log', 'route' => 'admin.error-logs.index', 'icon' => 'bi bi-bug', 'can' => 'view-error-log', 'match' => 'admin/error-logs*'],
@@ -240,6 +241,10 @@ return [
         'compress' => true,
         'max_width' => 1600,
         'quality' => 82,
+        'max_kb' => 12288, // per-file size cap for the media library uploader (12 MB)
+        // The media library upload allowlist. NEVER includes executable/markup types (php, phtml, svg, html…)
+        // — they would be served from the public disk (stored XSS / RCE). Widen per project if you need more.
+        'allowed_mimes' => 'jpg,jpeg,png,webp,gif,pdf,doc,docx,xls,xlsx,csv,txt,zip',
     ],
 
     /*

@@ -165,6 +165,18 @@ class AdminCoreInstallCommand extends Command
                 $changed = true;
             }
 
+            // Add the media library endpoints to an existing group (anchored on the dashboard macro just above).
+            if (! str_contains($contents, 'Route::adminCoreMedia')) {
+                $contents = preg_replace(
+                    "/(Route::adminCoreDashboard\(\);)/",
+                    "$1\n    Route::adminCoreMedia();",
+                    $contents,
+                    1,
+                );
+                $this->line('  <info>updated</info> routes/web.php (added the media library endpoints)');
+                $changed = true;
+            }
+
             if ($changed) {
                 File::put($web, $contents);
             } else {
@@ -183,7 +195,8 @@ class AdminCoreInstallCommand extends Command
 // >>> admin-core:routes (managed by admin-core:install — do not edit the markers)
 Route::group([{$middleware}'prefix' => 'admin', 'as' => 'admin.'], function () {
     Route::view('/', 'backend.dashboard')->name('dashboard');
-    Route::adminCoreDashboard();{$notifications}
+    Route::adminCoreDashboard();
+    Route::adminCoreMedia();{$notifications}
 
     foreach (glob(base_path('routes/Web/Backend/Modules/*.php')) ?: [] as \$module) {
         require \$module;

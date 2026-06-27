@@ -35,6 +35,7 @@ class AccessSeeder extends Seeder
             'activity' => GroupPermission::firstOrCreate(['name' => 'Activity Log'], ['parent_id' => $all->id, 'sort' => 3]),
             'error-log' => GroupPermission::firstOrCreate(['name' => 'Error Log'], ['parent_id' => $all->id, 'sort' => 4]),
             'menu' => GroupPermission::firstOrCreate(['name' => 'Menu Management'], ['parent_id' => $all->id, 'sort' => 5]),
+            'media' => GroupPermission::firstOrCreate(['name' => 'Media Management'], ['parent_id' => $all->id, 'sort' => 6]),
         ];
 
         // 2. Permissions for the built-in screens, filed under their group.
@@ -47,6 +48,7 @@ class AccessSeeder extends Seeder
             'activity' => ['list'],
             'error-log' => ['view'],
             'menu' => ['manage'],
+            'media' => ['manage'],
         ];
         foreach ($matrix as $resource => $actions) {
             foreach ($actions as $action) {

@@ -2,6 +2,37 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.59.0
+
+A **media library** — browse, drag-drop upload, search, and manage every uploaded file in one place
+(`/admin/media`), built on the existing WebP / disk / CDN upload pipeline.
+
+### Added
+- **Media library screen** — a paginated grid of every uploaded file: drag-drop (or click) upload, search by
+  name, filter by collection, copy a file's URL, delete. Images show a thumbnail; other files (PDF, doc, csv,
+  zip…) show a type icon. Reached from the sidebar **Media** link.
+- **`media_items` registry + `MediaLibrary` service** — `store()` / `delete()` / `query()` / `collections()`,
+  riding `Support\Media` (WebP compression, disk, and CDN configured once). Images record width/height.
+- **`Route::adminCoreMedia()`** macro (index + upload + delete), permission-gated by `manage-media` when
+  permissions are enabled; wired into the admin group by `admin-core:install`.
+- Config: `admin-core.uploads.allowed_mimes` (the upload allowlist) + `uploads.max_kb`.
+
+### Security
+- The uploader enforces an **allowlist** (`uploads.allowed_mimes`, default images + common docs) and rejects
+  executable / markup uploads (php, phtml, svg, html…) that would otherwise be served from the public disk.
+
+### Tests
+- The service (store + register, delete + file removal, search / collection filter) and the endpoints
+  (multi-file upload, a dangerous-type upload rejected, delete).
+
+### Upgrade
+Backward-compatible. The `media_items` table is created on the next `php artisan migrate`. The sidebar link +
+upload/delete routes are gated by a new `manage-media` permission: super-admins have it via the super-role; to
+grant it to other admins, **re-run your AccessSeeder** (or add the `manage-media` permission) — until then a
+non-super user gets a 403 on `/admin/media` (no hard error). The `media.js` behaviour arrives via
+`admin-core:doctor --fix && npm run build`. A media **picker** (reuse library files inside image/file form
+fields) and polymorphic `HasMedia` model attachments are planned next.
+
 ## v2.58.0
 
 Generated **create forms are now duplicate-submit-proof** out of the box — a double-click, a frantic re-tap,

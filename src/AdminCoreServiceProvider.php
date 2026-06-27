@@ -18,6 +18,7 @@ use Ngos\AdminCore\Console\AdminCoreTranslateCommand;
 use Ngos\AdminCore\Console\AdminCoreUninstallCommand;
 use Ngos\AdminCore\Console\AdminCoreVersionCommand;
 use Ngos\AdminCore\Http\Controllers\DashboardController;
+use Ngos\AdminCore\Http\Controllers\MediaController;
 use Ngos\AdminCore\Http\Controllers\NotificationController;
 use Ngos\AdminCore\Http\Controllers\SearchController;
 use Ngos\AdminCore\Http\Middleware\AutoTranslate;
@@ -35,6 +36,7 @@ class AdminCoreServiceProvider extends ServiceProvider
         $this->registerNotificationsMacro();
         $this->registerSearchMacro();
         $this->registerDashboardMacro();
+        $this->registerMediaMacro();
 
         // The configured translation driver, resolved through the manager so
         // config('admin-core.translation.driver') is the only switch.
@@ -231,6 +233,27 @@ class AdminCoreServiceProvider extends ServiceProvider
         Route::macro('adminCoreDashboard', function () {
             Route::get('dashboard/widget/{key}', [DashboardController::class, 'widget'])->name('dashboard.widget');
             Route::post('dashboard/layout', [DashboardController::class, 'saveLayout'])->name('dashboard.layout');
+        });
+    }
+
+    /**
+     * Route::adminCoreMedia() — the media library screen + upload/delete endpoints (admin.media.*), surfaced
+     * by the sidebar "Media" link and the <x-admin-core::media-picker /> field. Permission-gated by
+     * `manage-media` when permissions are enabled. Call it inside your admin route group (admin-core:install adds it).
+     */
+    protected function registerMediaMacro(): void
+    {
+        Route::macro('adminCoreMedia', function () {
+            $middleware = config('admin-core.permission.enabled') ? ['permission:manage-media'] : [];
+            Route::controller(MediaController::class)
+                ->prefix('media')
+                ->name('media.')
+                ->middleware($middleware)
+                ->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('upload', 'upload')->name('upload');
+                    Route::delete('{media}', 'destroy')->name('destroy');
+                });
         });
     }
 }

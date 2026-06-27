@@ -1,0 +1,49 @@
+// admin-core media library: drag-drop / click upload, delete a tile, copy a file URL. The grid itself is
+// server-rendered + paginated; uploading reloads to show the new files.
+function initMedia() {
+    const dz = document.querySelector('[data-ac-media-dropzone]');
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    if (dz) {
+        const input = dz.querySelector('[data-ac-media-input]');
+
+        const upload = (files) => {
+            if (!files || !files.length) return;
+            const data = new FormData();
+            [...files].forEach((f) => data.append('files[]', f));
+            data.append('collection', dz.dataset.acCollection || '');
+            dz.classList.add('opacity-50');
+            fetch(dz.dataset.acUploadUrl, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' },
+                body: data,
+            })
+                .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+                .then(() => window.location.reload())
+                .catch(() => { dz.classList.remove('opacity-50'); if (window.toastr) window.toastr.error('Upload failed'); });
+        };
+
+        dz.addEventListener('click', () => input && input.click());
+        if (input) input.addEventListener('change', () => upload(input.files));
+        ['dragover', 'dragenter'].forEach((e) => dz.addEventListener(e, (ev) => { ev.preventDefault(); dz.classList.add('border-primary'); }));
+        ['dragleave', 'drop'].forEach((e) => dz.addEventListener(e, () => dz.classList.remove('border-primary')));
+        dz.addEventListener('drop', (ev) => { ev.preventDefault(); upload(ev.dataTransfer.files); });
+    }
+
+    document.addEventListener('click', (e) => {
+        const copy = e.target.closest('[data-ac-media-copy]');
+        if (copy) {
+            navigator.clipboard?.writeText(copy.dataset.acUrl);
+            if (window.toastr) window.toastr.success('URL copied');
+            return;
+        }
+        const del = e.target.closest('[data-ac-media-delete]');
+        if (del) {
+            if (!window.confirm('Delete this file?')) return;
+            fetch(del.dataset.acUrl, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' } })
+                .then((r) => { if (r.ok) del.closest('[data-ac-media-tile]')?.remove(); });
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', initMedia);
