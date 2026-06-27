@@ -322,6 +322,17 @@ it('deletes a file only on force-delete for a soft-deletable resource (keeps it 
         ->not->toContain('public function delete('); // soft delete() keeps the file
 });
 
+it('handles media/gallery as HasMedia collections (trait, no column, syncMedia, picker)', function () {
+    $gallery = fs('photos:gallery');
+    expect($gallery->modelTraits())->toContain('HasMedia');
+    expect($gallery->fillable())->not->toContain('photos');          // a relation, not a column
+    expect($gallery->serviceBody())->toContain("syncMedia(\$photos, 'photos')");
+    expect($gallery->formFields())->toContain('<x-admin-core::media-collection name="photos"')->toContain(':multiple="true"');
+
+    // a single `media` field renders a non-multiple picker
+    expect(fs('hero:media')->formFields())->toContain('<x-admin-core::media-collection name="hero"')->toContain(':multiple="false"');
+});
+
 it('handles belongsToMany with a pivot migration and sync', function () {
     $f = fs('tags:belongsToMany');
     expect($f->fillable())->not->toContain('tags');

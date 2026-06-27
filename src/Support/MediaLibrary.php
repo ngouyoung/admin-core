@@ -4,6 +4,8 @@ namespace Ngos\AdminCore\Support;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Ngos\AdminCore\Models\MediaItem;
 
 /**
@@ -19,7 +21,9 @@ class MediaLibrary
         [$width, $height] = $this->dimensions($file);
 
         return MediaItem::create([
-            'name' => mb_substr($file->getClientOriginalName(), 0, 255), // the column is string(255); a longer name would 500
+            // Strip HTML-dangerous chars from the user-supplied filename (defense-in-depth vs an XSS payload in the
+            // name) and cap at the column length (255) so a long name can't 500.
+            'name' => mb_substr(str_replace(['<', '>', '"', "'"], '', $file->getClientOriginalName()), 0, 255),
 
             'path' => Media::store($file, 'media/' . $collection),
             'disk' => Media::disk(),
@@ -32,14 +36,35 @@ class MediaLibrary
         ]);
     }
 
-    /** Remove a library item — both the row and the underlying file. */
-    public function delete(MediaItem $item): void
+    /**
+     * Remove a library item — the row and the underlying file. Refuses (returns false) while it's still
+     * attached to any record via HasMedia, so deleting from the library can't silently strip a file out of
+     * galleries that still reference it.
+     */
+    public function delete(MediaItem $item): bool
     {
+        if ($this->inUse($item)) {
+            return false;
+        }
+
         Media::delete($item->path);
         $item->delete();
+
+        return true;
     }
 
-    /** A query over the library, newest first, optionally narrowed by a name search + a collection. */
+    /** Is this library item attached to any model (a HasMedia collection)? */
+    public function inUse(MediaItem $item): bool
+    {
+        return Schema::hasTable('mediables')
+            && DB::table('mediables')->where('media_item_id', $item->getKey())->exists();
+    }
+
+    /**
+     * A query over the library, newest first, optionally narrowed by a name search + a collection.
+     *
+     * @return Builder<MediaItem>
+     */
     public function query(?string $search = null, ?string $collection = null): Builder
     {
         return MediaItem::query()

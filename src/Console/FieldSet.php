@@ -18,6 +18,8 @@ use Illuminate\Support\Str;
  *              parent_id:foreign:categories,  author_id:foreign:users
  *   - image    file upload, stored on the public disk, thumbnailed in the table
  *   - file     any file upload
+ *   - media    one library file (HasMedia) — pick from the media library or upload
+ *   - gallery  many library files (HasMedia) — browse / upload / reorder; the model gains `use HasMedia`
  *   - translatable  per-locale JSON (name:translatable)  ->  multi-language input + auto-translate
  *   - belongsToMany (aliases manyToMany, m2m)  ->  pivot table + multi-select + sync
  *   - hasMany  master-detail line items:  lines:hasMany:order_items  (or lines:hasMany, child inferred)
@@ -34,7 +36,7 @@ class FieldSet
     private const TYPES = [
         'string', 'text', 'richtext', 'integer', 'decimal', 'boolean', 'date', 'datetime', 'time',
         'email', 'url', 'password', 'slug', 'json', 'translatable', 'image', 'file',
-        'foreign', 'belongsToMany', 'hasMany', 'enum', 'auth', 'sku',
+        'foreign', 'belongsToMany', 'hasMany', 'media', 'gallery', 'enum', 'auth', 'sku',
     ];
 
     /** @var array<int, array<string, mixed>> */
@@ -175,6 +177,9 @@ class FieldSet
         }
         if ($this->audit) {
             $traits[] = 'LogsActivity';
+        }
+        if ($this->hasMedia()) {
+            $traits[] = 'HasMedia';
         }
 
         return implode(', ', $traits);
@@ -364,6 +369,13 @@ class FieldSet
             $f['relTable'] = Str::snake(Str::pluralStudly($name));
         }
 
+        // media (single) / gallery (multiple): a HasMedia collection named after the field — no column, no
+        // relation method (the trait provides media()); the service syncs the picked library ids.
+        if (in_array($type, ['media', 'gallery'], true)) {
+            $f['collection'] = $name;
+            $f['single'] = $type === 'media';
+        }
+
         return $f;
     }
 
@@ -371,8 +383,9 @@ class FieldSet
 
     private function isColumn(array $f): bool
     {
-        // belongsToMany (pivot) and hasMany (child rows) are relations, not columns on this table.
-        return ! in_array($f['type'], ['belongsToMany', 'hasMany'], true);
+        // belongsToMany (pivot), hasMany (child rows), and media/gallery (HasMedia attachments) are relations,
+        // not columns on this table.
+        return ! in_array($f['type'], ['belongsToMany', 'hasMany', 'media', 'gallery'], true);
     }
 
     private function isFile(array $f): bool
@@ -404,6 +417,11 @@ class FieldSet
     private function hasHasMany(): bool
     {
         return collect($this->fields)->contains(fn ($f) => $f['type'] === 'hasMany');
+    }
+
+    private function hasMedia(): bool
+    {
+        return collect($this->fields)->contains(fn ($f) => in_array($f['type'], ['media', 'gallery'], true));
     }
 
     /** @return array<int, array<string, mixed>> the hasMany (line-item) fields */
@@ -459,7 +477,7 @@ BLADE;
 
     private function needsServiceBody(): bool
     {
-        return $this->hasFiles() || $this->hasManyToMany() || $this->hasHasMany();
+        return $this->hasFiles() || $this->hasManyToMany() || $this->hasHasMany() || $this->hasMedia();
     }
 
     private function label(string $name): string
@@ -587,6 +605,9 @@ PHP;
         if ($this->audit) {
             $uses[] = 'use Ngos\AdminCore\Concerns\LogsActivity;';
         }
+        if ($this->hasMedia()) {
+            $uses[] = 'use Ngos\AdminCore\Concerns\HasMedia;';
+        }
 
         return $uses ? implode("\n", $uses) . "\n" : '';
     }
@@ -686,6 +707,10 @@ PHP;
             }
             if ($f['type'] === 'hasMany') {
                 $lines[] = "            '{$f['relation']}' => \$this->whenLoaded('{$f['relation']}'),";
+                continue;
+            }
+            if (in_array($f['type'], ['media', 'gallery'], true)) {
+                $lines[] = "            '{$f['name']}' => \$this->mediaIn('{$f['collection']}')->map(fn (\$m) => \$m->url)->all(),";
                 continue;
             }
             if (in_array($f['type'], ['image', 'file'], true)) {
@@ -944,6 +969,12 @@ PHP;
                     $lines[] = "            '{$f['name']}' => ['array'],";
                     $lines[] = "            '{$f['name']}.*' => ['integer', 'exists:{$f['relTable']},id'],";
                     continue 2;
+                case 'media':
+                case 'gallery':
+                    // An ordered array of media_items ids (the picked library files); a bad id fails clean (422).
+                    $lines[] = "            '{$f['name']}' => ['nullable', 'array'],";
+                    $lines[] = "            '{$f['name']}.*' => ['integer', 'exists:media_items,id'],";
+                    continue 2;
                 case 'hasMany':
                     // Master-detail line items: a (possibly empty) array of rows, each with an optional id
                     // (existing row) plus the child's own fields. Tighten '{$f['name']}.*.<field>' per child.
@@ -1118,6 +1149,12 @@ PHP;
                 // Searchable + paginated remote multi-select (mirrors `foreign`). Only the already-attached rows
                 // are pre-rendered as options; the rest load on search, so the form never eager-loads the table.
                 return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" source=\"{$f['relTable']}\" :options=\"\${$f['relation']}Selected\" :value=\"old('{$col}', array_keys(\${$f['relation']}Selected))\" multiple placeholder=\"— search —\" />";
+            case 'media':
+            case 'gallery':
+                // A HasMedia collection: browse the library + upload + reorder, submitting an array of media ids.
+                $mItems = "\$object?->mediaIn('{$f['collection']}')->map(fn (\$m) => ['id' => \$m->getKey(), 'url' => \$m->url, 'is_image' => \$m->is_image])->all() ?? []";
+
+                return "<x-admin-core::media-collection name=\"{$col}\" label=\"{$label}\" collection=\"{$f['collection']}\" :items=\"{$mItems}\" :multiple=\"" . ($f['single'] ? 'false' : 'true') . "\" />";
             case 'hasMany':
                 $hmRel = $f['relation'];
                 $hmRows = "old('{$col}', \$object?->{$hmRel}->map(fn (\$i) => \$i->toArray())->all() ?? [])";
@@ -1192,8 +1229,9 @@ BLADE;
     /** Whether a field is shown in the index table / show view. Passwords are write-only. */
     public function isDisplayed(array $f): bool
     {
-        // password is write-only; hasMany line items aren't a list/show column (shown via the form repeater).
-        return ! in_array($f['type'], ['password', 'hasMany'], true);
+        // password is write-only; hasMany line items + media/gallery attachments aren't a list/show column
+        // (media is managed via the form's <x-admin-core::media-collection> control).
+        return ! in_array($f['type'], ['password', 'hasMany', 'media', 'gallery'], true);
     }
 
     public function thead(): string
@@ -1558,6 +1596,11 @@ BLADE;
                 // Reconcile via BaseService::syncHasMany (update by id / create / delete the rest).
                 $extract .= "        \${$rel} = \$data['{$f['name']}'] ?? null;\n        unset(\$data['{$f['name']}']);\n";
                 $sync .= "\n        \$this->syncHasMany(\$model, '{$rel}', \${$rel});";
+            }
+            if (in_array($f['type'], ['media', 'gallery'], true)) {
+                // The picked media_items ids → the model's HasMedia collection (the HasMedia trait drops unknowns).
+                $extract .= "        \${$f['name']} = \$data['{$f['name']}'] ?? [];\n        unset(\$data['{$f['name']}']);\n";
+                $sync .= "\n        \$model->syncMedia(\${$f['name']}, '{$f['collection']}');";
             }
         }
 

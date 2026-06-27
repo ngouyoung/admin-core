@@ -1,0 +1,110 @@
+// admin-core media picker: the shared modal browses the library + uploads, feeding the
+// <x-admin-core::media-collection> field that opened it. Also handles drag-reorder + remove inside a field.
+function initMediaPicker() {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+    // Escape any value interpolated into innerHTML — a media `name` is the user-supplied filename, so a file
+    // named `"><img onerror=…>.jpg` would otherwise be stored DOM XSS when an admin opens the picker.
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    // ---- Field-side behaviour (works with or without the modal present) ----
+    document.addEventListener('click', (e) => {
+        const rm = e.target.closest('[data-ac-media-remove]');
+        if (rm) rm.closest('[data-ac-media-tile]')?.remove();
+    });
+
+    let dragTile = null;
+    document.addEventListener('dragstart', (e) => {
+        const tile = e.target.closest('[data-ac-media-tile]');
+        if (!tile) return;
+        dragTile = tile;
+        tile.classList.add('ac-dragging');
+    });
+    document.addEventListener('dragend', () => { dragTile?.classList.remove('ac-dragging'); dragTile = null; });
+    document.addEventListener('dragover', (e) => {
+        if (!dragTile) return;
+        const box = dragTile.closest('[data-ac-media-items]');
+        const over = e.target.closest('[data-ac-media-tile]');
+        if (!over || over === dragTile || !box || !box.contains(over)) return;
+        e.preventDefault();
+        const r = over.getBoundingClientRect();
+        box.insertBefore(dragTile, (e.clientX - r.left) / r.width > 0.5 ? over.nextSibling : over);
+    });
+
+    // ---- The shared picker modal ----
+    const modal = document.getElementById('acMediaPicker');
+    if (!modal) return;
+    const grid = modal.querySelector('[data-ac-picker-grid]');
+    const search = modal.querySelector('[data-ac-picker-search]');
+    const dz = modal.querySelector('[data-ac-picker-dropzone]');
+    const input = modal.querySelector('[data-ac-picker-input]');
+    let active = null; // the field that opened the modal
+
+    const fieldTile = (m, name) =>
+        `<div class="ac-media-tile position-relative" data-ac-media-tile draggable="true">
+            <input type="hidden" name="${name}[]" value="${m.id}">
+            <div class="ratio ratio-1x1 rounded border overflow-hidden bg-light">
+                ${m.is_image
+                    ? `<img src="${esc(m.url)}" class="w-100 h-100" style="object-fit:cover" alt="">`
+                    : `<span class="d-flex align-items-center justify-content-center h-100"><i class="bi bi-file-earmark fs-3 text-muted"></i></span>`}
+            </div>
+            <button type="button" class="btn-close position-absolute top-0 end-0 m-1 bg-white rounded-circle" data-ac-media-remove style="font-size:.55rem"></button>
+        </div>`;
+
+    const addToField = (m) => {
+        if (!active) return;
+        const box = active.querySelector('[data-ac-media-items]');
+        const single = active.dataset.acMultiple !== '1';
+        if (single) box.innerHTML = '';
+        else if (box.querySelector(`input[value="${m.id}"]`)) return; // no duplicate in a gallery
+        box.insertAdjacentHTML('beforeend', fieldTile(m, active.dataset.acName));
+        if (single) modal.querySelector('[data-bs-dismiss="modal"]')?.click();
+    };
+
+    const loadGrid = () => {
+        grid.innerHTML = '<div class="text-muted small p-3">Loading…</div>';
+        fetch(modal.dataset.acListUrl + '?search=' + encodeURIComponent(search.value || ''), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then((r) => r.json())
+            .then((d) => {
+                grid.innerHTML = d.data.length ? '' : '<div class="text-muted small p-3">No media yet — upload above.</div>';
+                d.data.forEach((m) => {
+                    const col = document.createElement('div');
+                    col.className = 'col-4 col-md-3 col-lg-2';
+                    col.innerHTML = `<div class="ratio ratio-1x1 rounded border overflow-hidden bg-light ac-pick" title="${esc(m.name)}">
+                        ${m.is_image
+                            ? `<img src="${esc(m.url)}" class="w-100 h-100" style="object-fit:cover" alt="${esc(m.name)}">`
+                            : `<span class="d-flex align-items-center justify-content-center h-100"><i class="bi bi-file-earmark fs-3 text-muted"></i></span>`}
+                    </div>`;
+                    col.querySelector('.ac-pick').addEventListener('click', () => addToField(m));
+                    grid.appendChild(col);
+                });
+            })
+            .catch(() => { grid.innerHTML = '<div class="text-danger small p-3">Could not load the library.</div>'; });
+    };
+
+    modal.addEventListener('show.bs.modal', (e) => {
+        active = e.relatedTarget?.closest('[data-ac-media-collection]') || null;
+        search.value = '';
+        loadGrid();
+    });
+
+    let t;
+    search.addEventListener('input', () => { clearTimeout(t); t = setTimeout(loadGrid, 250); });
+
+    const upload = (files) => {
+        if (!files?.length) return;
+        const data = new FormData();
+        [...files].forEach((f) => data.append('files[]', f));
+        dz.classList.add('opacity-50');
+        fetch(modal.dataset.acUploadUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }, body: data })
+            .then((r) => (r.ok ? r.json() : Promise.reject(r)))
+            .then(() => { dz.classList.remove('opacity-50'); loadGrid(); })
+            .catch(() => { dz.classList.remove('opacity-50'); if (window.toastr) window.toastr.error('Upload failed'); });
+    };
+    dz.addEventListener('click', () => input.click());
+    input.addEventListener('change', () => upload(input.files));
+    ['dragover', 'dragenter'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('border-primary'); }));
+    ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, () => dz.classList.remove('border-primary')));
+    dz.addEventListener('drop', (e) => { e.preventDefault(); upload(e.dataTransfer.files); });
+}
+
+document.addEventListener('DOMContentLoaded', initMediaPicker);

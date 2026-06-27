@@ -251,6 +251,7 @@ class AdminCoreServiceProvider extends ServiceProvider
                 ->middleware($middleware)
                 ->group(function () {
                     Route::get('/', 'index')->name('index');
+                    Route::get('list', 'list')->name('list'); // JSON list for the media picker modal
                     Route::post('upload', 'upload')->name('upload');
                     Route::delete('{media}', 'destroy')->name('destroy');
                 });

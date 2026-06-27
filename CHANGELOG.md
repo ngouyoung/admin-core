@@ -2,6 +2,41 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.60.0
+
+Polymorphic **media attachments** — any model can own multiple library files per named collection (with reuse),
+plus `media`/`gallery` generator field types that wire it end-to-end.
+
+### Added
+- **`HasMedia` trait** — `use HasMedia` gives a model `media()`, `mediaIn('gallery')`, `firstMediaUrl('gallery')`,
+  `attachMedia()`, and `syncMedia([ids], 'gallery')`. Files attach via a polymorphic `mediables` pivot
+  (collection + order), so one library file can be reused across records and a record can hold many files.
+- **`<x-admin-core::media-collection>` form control** + a shared picker modal: browse the library, upload, and
+  drag-reorder the attached files; the field submits the ordered media ids.
+- **`media` (single) / `gallery` (multiple) field types** — `admin-core:make Product --fields="cover:media,
+  photos:gallery"` wires the trait, validation, the picker control, and `syncMedia` in the service
+  automatically (no column — a relation). Shown in `--list-fields`.
+- **`media.list`** endpoint (the picker's library browser).
+
+### Security
+- The picker JS escapes filenames (a media name is a user-supplied filename) to prevent a stored DOM XSS, and
+  `MediaLibrary` strips HTML-dangerous characters from stored names.
+- Deleting a library file is **refused while it's still attached** to a record (HTTP 409) — no silent removal
+  from galleries that still reference it.
+
+### CI
+- The workflow retries `composer update` (3×, 15s backoff) and caches Composer, so a transient Packagist
+  502/504 self-heals instead of failing the build.
+
+### Tests
+- The trait (attach / sync / order, **collection isolation**, the delete hook), the in-use delete guard, the
+  picker control + modal, the `media.list` endpoint, and an end-to-end generated `gallery` resource (trait, no
+  column, picker, `syncMedia`).
+
+### Upgrade
+Backward-compatible. The `mediables` table is created on the next `php artisan migrate`. The picker JS +
+`media.list` route arrive via `php artisan admin-core:install` + `admin-core:doctor --fix && npm run build`.
+
 ## v2.59.0
 
 A **media library** — browse, drag-drop upload, search, and manage every uploaded file in one place

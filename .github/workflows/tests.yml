@@ -25,8 +25,22 @@ jobs:
           extensions: dom, curl, libxml, mbstring, sqlite3, pdo_sqlite
           coverage: none
 
+      - name: Cache Composer files
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-${{ matrix.php }}-${{ hashFiles('composer.json') }}
+          restore-keys: composer-${{ matrix.php }}-
+
+      # Retry on a transient Packagist outage (HTTP 502/504 on the metadata CDN) instead of failing the build.
       - name: Install dependencies
-        run: composer update --prefer-dist --no-interaction --no-progress
+        run: |
+          for attempt in 1 2 3; do
+            composer update --prefer-dist --no-interaction --no-progress && exit 0
+            echo "::warning::composer update failed (attempt $attempt/3) — retrying in 15s (transient Packagist outage?)"
+            sleep 15
+          done
+          exit 1
 
       - name: Run tests
         run: composer test
@@ -45,8 +59,22 @@ jobs:
           extensions: dom, curl, libxml, mbstring, sqlite3, pdo_sqlite
           coverage: none
 
+      - name: Cache Composer files
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/composer/files
+          key: composer-8.4-${{ hashFiles('composer.json') }}
+          restore-keys: composer-8.4-
+
+      # Retry on a transient Packagist outage (HTTP 502/504 on the metadata CDN) instead of failing the build.
       - name: Install dependencies
-        run: composer update --prefer-dist --no-interaction --no-progress
+        run: |
+          for attempt in 1 2 3; do
+            composer update --prefer-dist --no-interaction --no-progress && exit 0
+            echo "::warning::composer update failed (attempt $attempt/3) — retrying in 15s (transient Packagist outage?)"
+            sleep 15
+          done
+          exit 1
 
       - name: Run Larastan
         run: composer analyse

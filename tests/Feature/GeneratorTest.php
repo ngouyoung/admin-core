@@ -136,6 +136,21 @@ it('puts an idempotency token in the generated create form', function () {
         ->toContain('<x-admin-core::idempotency-key />'); // every new resource is duplicate-submit-proof
 });
 
+it('scaffolds a gallery (HasMedia) field — trait, no column, picker control, syncMedia', function () {
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string, photos:gallery', '--migration' => true])->assertSuccessful();
+
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->toContain('use Ngos\AdminCore\Concerns\HasMedia;') // trait imported
+        ->toContain('HasMedia');                              // and used
+    expect(File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))
+        ->not->toContain("'photos'");                         // a relation, not a column
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
+        ->toContain('<x-admin-core::media-collection name="photos"')
+        ->toContain(':multiple="true"');
+    expect(File::get(app_path('Services/Gizmos/GizmoService.php')))
+        ->toContain("syncMedia(\$photos, 'photos')");
+});
+
 it('scaffolds a hasMany master-detail (relation + repeater + row partial + service sync + validation)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

@@ -33,6 +33,24 @@ class MediaController extends Controller
         ]);
     }
 
+    /** JSON list of library items for the media picker modal (paginated + searchable). */
+    public function list(Request $request): JsonResponse
+    {
+        $items = $this->library
+            ->query($request->query('search'), $request->query('collection'))
+            ->paginate((int) config('admin-core.pagination', 50));
+
+        return response()->json([
+            'data' => $items->getCollection()->map(fn (MediaItem $m) => [
+                'id' => $m->getKey(),
+                'name' => $m->name,
+                'url' => $m->url,
+                'is_image' => $m->is_image,
+            ])->values(),
+            'next' => $items->hasMorePages() ? $items->currentPage() + 1 : null,
+        ]);
+    }
+
     /** Upload one or more files into the library; returns the created items as JSON. */
     public function upload(Request $request): JsonResponse
     {
@@ -50,7 +68,7 @@ class MediaController extends Controller
 
         $items = collect($request->file('files'))
             ->map(fn ($file) => $this->library->store($file, (string) ($request->input('collection') ?: 'default')))
-            ->map(fn (MediaItem $m) => ['id' => $m->uuid, 'name' => $m->name, 'url' => $m->url, 'is_image' => $m->is_image])
+            ->map(fn (MediaItem $m) => ['id' => $m->getKey(), 'name' => $m->name, 'url' => $m->url, 'is_image' => $m->is_image])
             ->values();
 
         return response()->json(['data' => $items]);
@@ -58,7 +76,9 @@ class MediaController extends Controller
 
     public function destroy(MediaItem $media): JsonResponse
     {
-        $this->library->delete($media);
+        if (! $this->library->delete($media)) {
+            return response()->json(['ok' => false, 'message' => __('That file is still in use and can\'t be deleted.')], 409);
+        }
 
         return response()->json(['ok' => true]);
     }

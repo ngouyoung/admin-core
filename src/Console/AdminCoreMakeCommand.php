@@ -786,6 +786,8 @@ PHP);
             'translatable' => 'per-locale text (JSON) — multi-language input + auto-translate',
             'image' => 'uploaded image (stored path)',
             'file' => 'uploaded file (stored path)',
+            'media' => 'one library file (HasMedia) — pick from the media library or upload',
+            'gallery' => 'many library files (HasMedia) — browse / upload / reorder',
             'foreign' => 'belongsTo another table (a *_id column). Self-ref/tree or odd name: foreign:table (parent_id:foreign:categories)',
             'belongsToMany' => 'many-to-many relation (aliases: m2m, manyToMany)',
         ];

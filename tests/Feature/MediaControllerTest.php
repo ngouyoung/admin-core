@@ -58,6 +58,15 @@ it('rejects a dangerous upload (svg / executable) via the allowlist', function (
     expect(MediaItem::count())->toBe(0); // never reaches the disk
 });
 
+it('lists library items as JSON for the picker', function () {
+    app(MediaLibrary::class)->store(UploadedFile::fake()->image('a.png'));
+
+    $this->getJson('/admin/media/list')
+        ->assertOk()
+        ->assertJsonStructure(['data' => [['id', 'name', 'url', 'is_image']], 'next'])
+        ->assertJsonCount(1, 'data');
+});
+
 it('deletes a media item (and its file) via the endpoint', function () {
     $item = app(MediaLibrary::class)->store(UploadedFile::fake()->image('x.png'));
     $path = $item->path;
