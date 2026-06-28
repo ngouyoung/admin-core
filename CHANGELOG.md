@@ -2,6 +2,24 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.62.2
+
+Quick fixes + a security policy.
+
+### Fixed
+- **`--api` N+1**: a generated API resource with a `media`/`gallery` field now eager-loads the `media`
+  relation, so a list response no longer fires one query per row. The web list is unaffected (it doesn't show
+  media as a column, so it isn't eager-loaded there).
+- **`admin-core:install`** no longer reports "updated routes/web.php (media endpoints)" when the anchor isn't
+  present — a no-op is no longer logged/flagged as a change.
+
+### Added
+- **`SECURITY.md`** — how to report a vulnerability privately.
+
+### Upgrade
+Backward-compatible. To pick up the `'media'` eager-load on an **existing** API resource, add `'media'` to its
+`$with` (or re-generate); new resources get it automatically.
+
 ## v2.62.1
 
 Internal only — a test suite + CI for the shipped front-end JS. The installed code is identical to v2.62.0

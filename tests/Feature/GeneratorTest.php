@@ -151,6 +151,18 @@ it('scaffolds a gallery (HasMedia) field — trait, no column, picker control, s
         ->toContain("syncMedia(\$photos, 'photos')");
 });
 
+it('eager-loads media for the API resource (no N+1), but not the web list', function () {
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string, photos:gallery', '--api' => true, '--migration' => true])->assertSuccessful();
+
+    // The API resource reads mediaIn() per row → eager-load the relation so a list response doesn't N+1.
+    expect(File::get(app_path('Http/Controllers/Api/GizmoApiController.php')))
+        ->toContain("protected array \$with = ['media'];");
+
+    // The web getData does NOT eager-load media (it's not a list column — would be wasted work).
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->not->toContain("'media'");
+});
+
 it('scaffolds a hasMany master-detail (relation + repeater + row partial + service sync + validation)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

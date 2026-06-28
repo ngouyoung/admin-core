@@ -1404,7 +1404,9 @@ BLADE;
 
     public function eager(): string
     {
-        $relations = $this->apiWith();
+        // Relations the web list (getData) eager-loads: the foreign / many-to-many columns it renders. NOT
+        // media — it isn't shown as a list column, so loading it per row would be wasted work.
+        $relations = implode(', ', $this->relationColumns());
 
         return $relations === '' ? '$relation' : "[{$relations}]";
     }
@@ -1412,10 +1414,29 @@ BLADE;
     /** Relation names (belongsTo + belongsToMany) as a quoted, comma-separated list for an array literal. */
     public function apiWith(): string
     {
+        $relations = $this->relationColumns();
+
+        // The API resource reads $this->mediaIn() for media/gallery fields — eager-load the polymorphic
+        // media relation so a list response doesn't fire one query per row (N+1).
+        if ($this->hasMedia()) {
+            $relations[] = "'media'";
+        }
+
+        return implode(', ', $relations);
+    }
+
+    /**
+     * The quoted relation names for the resource's foreign + belongsToMany columns.
+     *
+     * @return array<int, string>
+     */
+    private function relationColumns(): array
+    {
         return collect($this->fields)
             ->whereIn('type', ['foreign', 'belongsToMany'])
             ->map(fn ($f) => "'{$f['relation']}'")
-            ->implode(', ');
+            ->values()
+            ->all();
     }
 
     /**

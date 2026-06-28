@@ -167,14 +167,18 @@ class AdminCoreInstallCommand extends Command
 
             // Add the media library endpoints to an existing group (anchored on the dashboard macro just above).
             if (! str_contains($contents, 'Route::adminCoreMedia')) {
-                $contents = preg_replace(
+                $patched = preg_replace(
                     "/(Route::adminCoreDashboard\(\);)/",
                     "$1\n    Route::adminCoreMedia();",
                     $contents,
                     1,
                 );
-                $this->line('  <info>updated</info> routes/web.php (added the media library endpoints)');
-                $changed = true;
+                // Only log/flag when the anchor was actually found — don't claim "updated" on a no-op.
+                if (is_string($patched) && $patched !== $contents) {
+                    $contents = $patched;
+                    $this->line('  <info>updated</info> routes/web.php (added the media library endpoints)');
+                    $changed = true;
+                }
             }
 
             // Add the approvals inbox to an existing group (anchored on the media macro just above).
