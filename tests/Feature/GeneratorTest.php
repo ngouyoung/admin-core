@@ -233,6 +233,15 @@ it('scaffolds a full resource with valid, token-free PHP', function () {
     expect(File::get(app_path('Models/Gizmo.php')))->toContain('class Gizmo')->toContain("'name'")
         ->and(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))->toContain('class GizmoController');
 
+    // The controller knows its resource slug (for action/field permission names) and ships commented
+    // examples; the form wraps fields in a field-guard so fieldPermissions() can lock them.
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->toContain("\$this->resource = 'gizmo';")
+        ->toContain('protected function resourceActions(): array')
+        ->toContain('protected function fieldPermissions(): array');
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
+        ->toContain('<x-admin-core::field-guard name="name">');
+
     $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
     expect($migration)->toContain("Schema::create('gizmos'")->toContain("'name'")->toContain("'price'");
 

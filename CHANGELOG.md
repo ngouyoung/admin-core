@@ -2,6 +2,54 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.61.0
+
+Declarative **table actions** (bulk + per-row, permission-gated) and **field-level permissions** — two
+batteries-included primitives every admin eventually needs, generic for any resource.
+
+### Added
+- **`Action` + `resourceActions()`** — declare a table action once and get a bulk-toolbar button, a per-row
+  menu item, the route, the permission gate, the confirm dialog and the success toast:
+  ```php
+  protected function resourceActions(): array
+  {
+      return [
+          Action::make('mark-paid')->label('Mark as paid')->icon('bi bi-cash')->color('success')->confirm()
+              ->handle(fn ($records) => $records->each->update(['status' => 'paid'])),
+      ];
+  }
+  ```
+  Fluent: `->permission('…')` (defaults to `{key}-{resource}`), `->withoutPermission()`, `->onlyBulk()`,
+  `->onlyOnRow()`, `->success('…')`. The handler receives the affected models, already resolved **through the
+  resource query** (global scopes / soft-deletes / tenancy apply — you can only act on rows you can see).
+- **`fieldPermissions()`** — lock sensitive fields: `['status' => 'change-status-order']`. A user without the
+  permission can neither see the field (it's disabled in the form via the new `<x-admin-core::field-guard>`)
+  nor write it (stripped server-side on store/update). Covers direct fillable columns.
+- **`Route::crud()` gains an `action/{action}` route** automatically — every resource (new and existing) gets
+  table actions on upgrade, no regeneration needed. New resources are generated with commented examples.
+
+### Security
+- The action permission is enforced **server-side in `runAction()`** (HTTP 403), independent of the UI — hiding
+  a button is cosmetic; the gate is the guard. A guest / unpermitted user can't run an action by POSTing to it.
+- Field-level locks are enforced on the **write** (`stripDeniedFields`), so a hand-crafted POST can't set a
+  locked field; on update the stored value is merged past validation so a locked **required** field still saves.
+- `bulkIds()` now drops non-scalar id elements (a nested-array element previously could reach the query) —
+  hardens every bulk endpoint. The `{action}` route key is constrained to `[A-Za-z0-9_-]+`.
+
+### i18n
+- New strings `confirm.run_action` and `toast.action_done` (en + km).
+
+### Tests
+- The `Action` value object; `runAction` (scope, 404/403 gate, ungated, custom message); field strip on
+  create/update incl. the locked-required-field and tampered-value cases; the bulk/row config the front-end
+  reads; the `field-guard` component; the toolbar-less header.
+
+### Upgrade
+Backward-compatible. Existing controllers (no `resourceActions()` / `fieldPermissions()`) are unchanged. To
+add actions to an **existing** resource, declare `resourceActions()`, set `$this->resource`, add the permission
+to your seeder, and pass `:actions="$acActions ?? []"` to its `<x-admin-core::data-table>` (new resources get
+this automatically). Publish the updated JS with `php artisan admin-core:doctor --fix && npm run build`.
+
 ## v2.60.0
 
 Polymorphic **media attachments** — any model can own multiple library files per named collection (with reuse),

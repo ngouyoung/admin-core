@@ -261,6 +261,66 @@ it('omits the data-ac-datatable attribute without :columns (backward-compatible)
     File::delete($thead);
 });
 
+it('emits the custom bulk actions into the datatable config', function () {
+    View::addNamespace('actmp', sys_get_temp_dir());
+    $thead = sys_get_temp_dir() . '/ac_thead.blade.php';
+    File::put($thead, '<tr><th>Name</th></tr>');
+
+    $html = Blade::render(
+        '<x-admin-core::data-table id="t_table" thead="actmp::ac_thead" :columns="$columns" :actions="$actions" />',
+        [
+            'columns' => [['type' => 'check', 'data' => 'id'], ['data' => 'name', 'name' => 'name']],
+            'actions' => [
+                ['key' => 'publish', 'label' => 'Publish', 'icon' => 'bi bi-send', 'color' => 'success', 'url' => '/admin/x/action/publish', 'confirm' => 'Sure?'],
+            ],
+        ]
+    );
+
+    preg_match('/data-ac-datatable="([^"]*)"/', $html, $m);
+    $cfg = json_decode(html_entity_decode($m[1], ENT_QUOTES), true);
+
+    expect($cfg['actions'][0])->toMatchArray([
+        'key' => 'publish',
+        'label' => 'Publish',
+        'url' => '/admin/x/action/publish',
+        'confirm' => 'Sure?',
+    ]);
+
+    File::delete($thead);
+});
+
+it('renders a toolbar header for bulk actions even without a toolbar slot (so JS has somewhere to inject)', function () {
+    View::addNamespace('actmp', sys_get_temp_dir());
+    $thead = sys_get_temp_dir() . '/ac_thead.blade.php';
+    File::put($thead, '<tr><th>Name</th></tr>');
+
+    $html = Blade::render(
+        '<x-admin-core::data-table id="t_table" thead="actmp::ac_thead" :columns="$columns" :actions="$actions" />',
+        [
+            'columns' => [['data' => 'name', 'name' => 'name']],
+            'actions' => [['key' => 'go', 'label' => 'Go', 'icon' => null, 'color' => 'primary', 'url' => '/x/action/go', 'confirm' => null]],
+        ]
+    );
+
+    expect($html)->toContain('card-header'); // header present though no <x-slot:toolbar> was passed
+
+    File::delete($thead);
+});
+
+it('field-guard passes a field through normally, but locks it in a disabled fieldset when denied', function () {
+    // Not in the deny list → plain passthrough, no fieldset.
+    $open = Blade::render(
+        '<x-admin-core::field-guard name="name" :denied-fields="[]"><input name="name"></x-admin-core::field-guard>'
+    );
+    expect($open)->toContain('<input name="name"')->not->toContain('<fieldset');
+
+    // In the deny list → wrapped in a disabled <fieldset> (which excludes its controls from the submit).
+    $locked = Blade::render(
+        '<x-admin-core::field-guard name="secret" :denied-fields="[\'secret\']"><input name="secret"></x-admin-core::field-guard>'
+    );
+    expect($locked)->toContain('<fieldset disabled')->toContain('<input name="secret"');
+});
+
 it('resolves a remote select from :source via the route prefix (searchable + paginated)', function () {
     // admin.widgets.select is registered by the test harness's Route::crud('widget', …).
     $html = Blade::render('<x-admin-core::select name="widget_id" source="widgets" placeholder="— search —" />');

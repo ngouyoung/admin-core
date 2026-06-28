@@ -20,6 +20,14 @@
                     <i class="{{ $item['icon'] ?? 'bi bi-dot' }}"></i> {{ $item['label'] }}</a></li>
             @endif
         @endforeach
+        {{-- Declared per-row actions (resourceActions). Already permission-filtered server-side; they POST
+             via datatable.js (.ac-row-action) rather than navigate, so they're buttons, not links. --}}
+        @foreach (($rowActions ?? []) as $item)
+            <li><button type="button" class="dropdown-item ac-row-action"
+                        data-ac-url="{{ $item['url'] }}" data-id="{{ $item['id'] }}"
+                        data-confirm="{{ $item['confirm'] ?? '' }}">
+                <i class="{{ $item['icon'] ?? 'bi bi-lightning' }}"></i> {{ $item['label'] }}</button></li>
+        @endforeach
         @if (auth()->guard($guard ?? null)->user()?->can('edit-' . $resource))
             <li><a class="dropdown-item" href="{{ route($base . 'edit', $model->getRouteKey()) }}">
                 <i class="bi bi-pencil"></i> Edit</a></li>

@@ -18,12 +18,15 @@
            :columns="[['type'=>'check','data'=>'uuid'], ['data'=>'name','name'=>'name'],
                       ['data'=>'actions','orderable'=>false,'searchable'=>false]]" />
      Without `:columns` it renders exactly as before (you init the DataTable yourself). --}}
-@props(['id', 'thead', 'tableClass' => null, 'ajax' => null, 'columns' => null, 'bulkDelete' => null, 'order' => null])
+@props(['id', 'thead', 'tableClass' => null, 'ajax' => null, 'columns' => null, 'bulkDelete' => null, 'order' => null, 'actions' => null])
 @php
     // With :columns, emit a config the shared datatable.js reads (init + select-all + bulk/single
-    // delete). i18n is resolved here so the confirm/toast strings are locale-aware and ship with the
-    // package. The data still loads server-side from :ajax (getData) — this is only column metadata.
+    // delete + custom actions). i18n is resolved here so the confirm/toast strings are locale-aware and
+    // ship with the package. The data still loads server-side from :ajax (getData) — this is only metadata.
     $acConfig = null;
+    // Bulk actions come from the :actions prop (the controller passes them to the index view). Defaulting to
+    // [] — not a shared value — keeps a second table on the page from inheriting this one's actions.
+    $acActions = $actions ?? [];
     if (! empty($columns)) {
         $acConfig = [
             'ajax' => $ajax,
@@ -40,6 +43,9 @@
                 'yesDeleteMany' => __('admin-core::admin-core.confirm.yes_delete_many'),
                 'cancel' => __('admin-core::admin-core.actions.cancel'),
                 'deletedMany' => __('admin-core::admin-core.toast.deleted_count'),
+                'confirmYes' => __('admin-core::admin-core.actions.confirm'),
+                'actionDone' => __('admin-core::admin-core.toast.action_done'),
+                'error' => __('admin-core::admin-core.toast.error'),
             ],
         ];
         if ($order !== null) {
@@ -48,14 +54,19 @@
         if ($bulkDelete !== null) {
             $acConfig['bulk'] = ['url' => $bulkDelete];
         }
+        if (! empty($acActions)) {
+            $acConfig['actions'] = array_values($acActions);
+        }
     }
 @endphp
 <div {{ $attributes->merge(['class' => 'card']) }}>
-    @isset($toolbar)
+    @if (isset($toolbar) || ! empty($acConfig['actions']))
+        {{-- Render the toolbar even with no slot when there are bulk actions: datatable.js injects the
+             action buttons into this header, so it must exist for them to appear. --}}
         <div class="card-header d-flex flex-wrap gap-1 align-items-center">
-            {{ $toolbar }}
+            {{ $toolbar ?? '' }}
         </div>
-    @endisset
+    @endif
     <div class="card-body">
         <table class="{{ $tableClass ?? config('class.table') }}" id="{{ $id }}" @if ($acConfig) data-ac-datatable="{{ json_encode($acConfig, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) }}" @endif>
             <thead>

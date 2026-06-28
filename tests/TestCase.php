@@ -4,6 +4,7 @@ namespace Ngos\AdminCore\Tests;
 
 use Illuminate\Support\Facades\Route;
 use Ngos\AdminCore\AdminCoreServiceProvider;
+use Ngos\AdminCore\Tests\Fixtures\ActionWidgetController;
 use Ngos\AdminCore\Tests\Fixtures\HybridWidgetController;
 use Ngos\AdminCore\Tests\Fixtures\WidgetApiController;
 use Ngos\AdminCore\Tests\Fixtures\WidgetController;
@@ -53,6 +54,12 @@ abstract class TestCase extends Orchestra
             // the resolve-by-uuid path the generator produces by default.
             Route::prefix('hybrid-widgets')->name('hybrid_widgets.')->group(function () {
                 Route::crud('hybrid-widget', HybridWidgetController::class);
+            });
+
+            // Declarative table actions + field-level permissions. Routes bake with permission disabled
+            // (no spatie middleware), so a test can flip permission.enabled at runtime and reach runAction.
+            Route::prefix('action-widgets')->name('actionWidgets.')->group(function () {
+                Route::crud('action-widget', ActionWidgetController::class);
             });
         });
 

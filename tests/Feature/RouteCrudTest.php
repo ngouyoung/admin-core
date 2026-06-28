@@ -4,9 +4,16 @@ use Illuminate\Support\Facades\Route;
 use Ngos\AdminCore\Tests\Fixtures\WidgetController;
 
 it('registers every crud route via the macro', function () {
-    foreach (['index', 'getData', 'create', 'store', 'edit', 'update', 'delete', 'ajaxDelete'] as $action) {
+    foreach (['index', 'getData', 'create', 'store', 'edit', 'update', 'delete', 'ajaxDelete', 'action'] as $action) {
         expect(Route::has("admin.widgets.{$action}"))->toBeTrue("missing admin.widgets.{$action}");
     }
+});
+
+it('registers the action route without route-level permission middleware (runAction gates per-action)', function () {
+    $route = Route::getRoutes()->getByName('admin.widgets.action');
+
+    expect($route)->not->toBeNull()
+        ->and(collect($route->gatherMiddleware())->contains(fn ($m) => str_contains($m, 'permission:')))->toBeFalse();
 });
 
 it('gates routes with permission middleware when enabled', function () {

@@ -1094,7 +1094,9 @@ PHP;
             if (! empty($f['system'])) {
                 continue; // system fields are never rendered in the form
             }
-            $out[] = $this->formField($f);
+            // Wrap in a field-guard so fieldPermissions() can lock a field for users who lack its permission.
+            // A pure passthrough when the field isn't restricted (no markup change), so it's always safe to emit.
+            $out[] = "<x-admin-core::field-guard name=\"{$f['name']}\">{$this->formField($f)}</x-admin-core::field-guard>";
         }
 
         return implode("\n", $out);

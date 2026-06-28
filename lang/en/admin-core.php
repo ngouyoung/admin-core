@@ -191,6 +191,7 @@ return [
         'delete_count' => 'Delete :count record(s)?',
         'delete_all_errors' => 'Delete all error log entries?',
         'delete_menu_item' => 'Delete this menu item? Any children move up a level.',
+        'run_action' => 'Run this action on the selected record(s)?',
     ],
 
     'toast' => [
@@ -198,5 +199,6 @@ return [
         'deleted_count' => 'Deleted :count record(s)',
         'order_updated' => 'Order updated',
         'error' => 'Something went wrong!',
+        'action_done' => 'Done (:count)',
     ],
 ];

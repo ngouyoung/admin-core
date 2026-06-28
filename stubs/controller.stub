@@ -13,6 +13,7 @@ class DummyClassController extends WebController
     {
         $this->viewPath = 'dummyModels.';
         $this->routeBase = 'dummyModels.';__AC_ROUTE_PREFIX__
+        $this->resource = 'dummy-model'; // derives action / field permission names (e.g. mark-paid-dummy-model)
         $this->service = $service;
         $this->storeRequest = StoreDummyClassRequest::class;
         $this->updateRequest = UpdateDummyClassRequest::class;__AC_EXPORT_RELATIONS____AC_SELECT_FILTERS__
@@ -26,4 +27,34 @@ __AC_GETDATA__
             ->rawColumns([__AC_RAW__])
             ->make(true);
     }
+
+    // -- Custom table actions & field-level permissions (optional) -------------------------------------
+    // Uncomment to add bulk + per-row buttons or lock sensitive fields. Permissions are enforced
+    // server-side; add the names below to your AccessSeeder.
+    //
+    // /** @return array<int, \Ngos\AdminCore\Actions\Action> */
+    // protected function resourceActions(): array
+    // {
+    //     return [
+    //         \Ngos\AdminCore\Actions\Action::make('mark-active')->label('Mark active')
+    //             ->icon('bi bi-check2-circle')->color('success')->confirm()
+    //             ->handle(fn ($records) => $records->each->update(['active' => true])),
+    //         // ->permission('mark-active-dummy-model') is the default; ->withoutPermission() opens it.
+    //         // ->onlyBulk() / ->onlyOnRow() only choose WHERE the button shows (the endpoint runs the
+    //         // handler over whatever rows are posted regardless).
+    //     ];
+    // }
+    //
+    // /**
+    //  * Field-level permissions: a user lacking the permission can't see the field (it's disabled in the
+    //  * form) nor write it (it's stripped server-side). Covers direct fillable columns only — guard
+    //  * relation / media writes inside the Service. Lock required columns only if they're nullable or have
+    //  * a DB default (so a restricted user can still create a record).
+    //  *
+    //  * @return array<string, string> field => permission required to write it
+    //  */
+    // protected function fieldPermissions(): array
+    // {
+    //     return ['status' => 'change-status-dummy-model'];
+    // }
 }

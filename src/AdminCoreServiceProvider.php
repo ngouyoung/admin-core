@@ -188,6 +188,11 @@ class AdminCoreServiceProvider extends ServiceProvider
                     Route::delete('delete/{id}', 'delete')->name('delete');
                     Route::delete('ajaxDelete/{id}', 'ajaxDelete')->name('ajaxDelete');
                 });
+
+                // Declarative table actions. No route-level permission middleware — the permission is
+                // per-action and dynamic, so runAction() enforces each action's own permission server-side.
+                // The key is constrained so it can't swallow extra path segments.
+                Route::post('action/{action}', 'runAction')->name('action')->where('action', '[A-Za-z0-9_-]+');
             });
         });
     }

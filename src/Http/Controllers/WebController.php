@@ -6,8 +6,10 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
+use Ngos\AdminCore\Actions\Action;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\DataTables;
 
@@ -44,6 +46,13 @@ abstract class WebController extends BaseController
      */
     protected ?string $guard = null;
 
+    /**
+     * Resource slug used to derive action / field permission names (e.g. 'product' → 'mark-paid-product').
+     * The generated controller sets it; hand-added actions either set it too or give each action an explicit
+     * ->permission(). Empty falls back to the bare action key (still a real, grantable permission).
+     */
+    protected string $resource = '';
+
     protected function view(string $file, array $data = [])
     {
         // Share the guard with every generated view so its @can buttons resolve against the right user.
@@ -79,17 +88,24 @@ abstract class WebController extends BaseController
 
     public function index()
     {
-        return $this->view('index');
+        // Pass the bulk-action buttons (permission-filtered) to the view, which forwards them to the
+        // data-table component via :actions. (Passed as data, not shared, so a second table on the page
+        // can't pick up this resource's actions.)
+        return $this->view('index', ['acActions' => $this->actionsConfig()]);
     }
 
     public function create()
     {
+        // Share the field-level deny list so the <x-admin-core::field-guard> wrappers in the form can lock
+        // (disable) any field the current user isn't allowed to write.
+        view()->share('acDeniedFields', $this->deniedFields());
+
         return $this->view('create');
     }
 
     public function store(): RedirectResponse
     {
-        $data = app($this->storeRequest)->validated();
+        $data = $this->stripDeniedFields(app($this->storeRequest)->validated());
 
         if (! $this->claimSubmitToken()) {
             // A repeated submit (double-click / retry) carrying the same one-time token — the first claim won,
@@ -149,12 +165,23 @@ abstract class WebController extends BaseController
 
     public function edit(int|string $id)
     {
+        view()->share('acDeniedFields', $this->deniedFields());
+
         return $this->view('edit', ['object' => $this->service->find($id)]);
     }
 
     public function update(int|string $id): RedirectResponse
     {
-        $data = app($this->updateRequest)->validated();
+        // Force the stored value of any field the user may not edit back into the request BEFORE validation —
+        // so a `required` rule on a locked field still passes (the form omits it because field-guard disabled
+        // it). stripDeniedFields then drops it from the write, so the value is left untouched and a tampered
+        // value for a locked field is ignored. The raw (pre-cast) value keeps validation rules happy.
+        if (($denied = $this->deniedFields()) !== []) {
+            $existing = $this->service->find($id);
+            request()->merge(collect($denied)->mapWithKeys(fn ($f) => [$f => $existing->getRawOriginal($f)])->all());
+        }
+
+        $data = $this->stripDeniedFields(app($this->updateRequest)->validated());
         DB::transaction(fn () => $this->service->update($id, $data));
 
         return $this->toIndex($this->message('updated'));
@@ -495,7 +522,8 @@ abstract class WebController extends BaseController
     {
         $request->validate(['ids' => ['array', 'max:1000']]);
 
-        return array_values(array_filter((array) $request->input('ids', []), fn ($v) => $v !== null && $v !== ''));
+        // Keep only non-empty scalars — a nested-array / object element would otherwise reach whereIn() and 500.
+        return array_values(array_filter((array) $request->input('ids', []), fn ($v) => is_scalar($v) && $v !== ''));
     }
 
     // -- Soft deletes (routed only for resources generated with --soft-deletes) --
@@ -600,6 +628,176 @@ abstract class WebController extends BaseController
             'resource' => $resource,
             'extra' => $extra,
             'guard' => $this->guard,
+            // Declared per-row actions (permission-filtered) rendered as POST buttons in the kebab menu.
+            'rowActions' => $this->rowActionsFor($model),
         ])->render();
+    }
+
+    // -- Declarative table actions (bulk + per-row) -----------------------------------------------------
+
+    /**
+     * Declarative table actions. Override per resource — each Action drives both a bulk-toolbar button and a
+     * per-row menu item from one declaration (the package wires the route, permission, confirm and toast):
+     *
+     *   return [Action::make('mark-paid')->confirm()->handle(fn ($records) => $records->each->update([...]))];
+     *
+     * @return array<int, Action>
+     */
+    protected function resourceActions(): array
+    {
+        return [];
+    }
+
+    /** The signed-in user on this controller's guard (the same guard the generated views check). */
+    protected function actingUser()
+    {
+        return auth()->guard($this->guard)->user();
+    }
+
+    /** Is the current user allowed to run this action? Ungated actions are always allowed. */
+    protected function canRunAction(Action $action): bool
+    {
+        if (! config('admin-core.permission.enabled')) {
+            return true;
+        }
+
+        $permission = $action->resolvePermission($this->resource);
+
+        return $permission === null || (bool) $this->actingUser()?->can($permission);
+    }
+
+    /**
+     * Run a declared action over the selected rows. The permission is enforced HERE (server-side) — the UI
+     * only hides buttons; this is the real guard, so a hand-crafted POST can't bypass it.
+     */
+    public function runAction(Request $request, string $action): JsonResponse
+    {
+        $resolved = null;
+        foreach ($this->resourceActions() as $candidate) {
+            if ($candidate->key() === $action) {
+                $resolved = $candidate;
+                break;
+            }
+        }
+        abort_if($resolved === null, 404);
+        abort_unless($this->canRunAction($resolved), 403);
+
+        $ids = $this->bulkIds($request);
+        $key = $this->service->query()->getModel()->getRouteKeyName();
+        // Resolve ids → models through the resource query so global scopes / soft-deletes / tenancy still
+        // apply: a user can only act on rows they can already see (a foreign id is just absent from the set).
+        $records = $this->service->query()->whereIn($key, $ids)->get();
+
+        $result = null;
+        DB::transaction(function () use ($resolved, $records, &$result) {
+            $result = $resolved->run($records);
+        });
+
+        return response()->json([
+            'code' => 200,
+            'affected' => $records->count(),
+            'message' => $result['message'] ?? $resolved->resolveSuccess($records->count()),
+        ]);
+    }
+
+    /**
+     * The bulk-scoped actions the current user may run, serialised for the datatable config.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function actionsConfig(): array
+    {
+        if (! Route::has($this->routeName('action'))) {
+            return [];
+        }
+
+        $config = [];
+        foreach ($this->resourceActions() as $action) {
+            if ($action->isBulk() && $this->canRunAction($action)) {
+                $config[] = $action->toArray(route($this->routeName('action'), ['action' => $action->key()]));
+            }
+        }
+
+        return $config;
+    }
+
+    /**
+     * The per-row actions the current user may run on this model, as kebab-menu button descriptors.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function rowActionsFor($model): array
+    {
+        if (! Route::has($this->routeName('action'))) {
+            return [];
+        }
+
+        $items = [];
+        foreach ($this->resourceActions() as $action) {
+            if ($action->isRow() && $this->canRunAction($action)) {
+                $items[] = [
+                    'label' => $action->resolveLabel(),
+                    'icon' => $action->getIcon() ?? 'bi bi-lightning',
+                    'url' => route($this->routeName('action'), ['action' => $action->key()]),
+                    'id' => $model->getRouteKey(),
+                    'confirm' => $action->resolveConfirm(),
+                ];
+            }
+        }
+
+        return $items;
+    }
+
+    // -- Field-level permissions ------------------------------------------------------------------------
+
+    /**
+     * Declarative field-level permissions: field => permission required to write it. A user lacking the
+     * permission can neither see the field (it's hidden in the form) nor set it (stripped on write). Override:
+     *
+     *   return ['status' => 'change-status-order', 'cost' => 'edit-cost-product'];
+     *
+     * @return array<string, string>
+     */
+    protected function fieldPermissions(): array
+    {
+        return [];
+    }
+
+    /**
+     * Remove input the current user isn't allowed to write — the server-side guard, so even a hand-crafted
+     * POST can't set a protected field.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function stripDeniedFields(array $data): array
+    {
+        foreach ($this->deniedFields() as $field) {
+            unset($data[$field]);
+        }
+
+        return $data;
+    }
+
+    /**
+     * The field names the current user may NOT write (the UI half: shared with create/edit so the form hides
+     * them; the write half is stripDeniedFields()).
+     *
+     * @return array<int, string>
+     */
+    protected function deniedFields(): array
+    {
+        if (! config('admin-core.permission.enabled')) {
+            return [];
+        }
+
+        $denied = [];
+        foreach ($this->fieldPermissions() as $field => $permission) {
+            if (! $this->actingUser()?->can($permission)) {
+                $denied[] = $field;
+            }
+        }
+
+        return $denied;
     }
 }
