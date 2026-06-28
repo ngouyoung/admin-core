@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.62.3
+
+Docs only — the README caught up with the v2.56–v2.62 feature arc. No code change.
+
+### Docs
+- New README sections: **custom table actions** (`resourceActions()`), **field-level permissions**
+  (`fieldPermissions()`), the **approval workflow** (`->requiresApproval()` + the inbox), the **media library**
+  (`media` / `gallery` fields + `HasMedia`), and **dashboard widgets** — plus an updated Contents/TOC.
+
 ## v2.62.2
 
 Quick fixes + a security policy.

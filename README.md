@@ -18,8 +18,11 @@ clean, branded **Bootstrap 5** theme.
 - [Generating a resource](#generating-a-resource) → [field types](#generating-fields-too---fields) ·
   [add a field later](#adding-a-field-later-admin-corefield)
 - What every list gets: [export / import / bulk-delete](#every-list-comes-with-export-import--bulk-delete) ·
-  [reorder](#drag-to-reorder---sortable) · [soft-deletes](#soft-deletes--extras) · [audit](#audit-trail---audit) ·
-  [error log](#error-log)
+  [custom actions](#custom-table-actions) · [field-level permissions](#field-level-permissions) ·
+  [approval workflow](#approval-workflow) · [reorder](#drag-to-reorder---sortable) ·
+  [soft-deletes](#soft-deletes--extras) · [audit](#audit-trail---audit) · [error log](#error-log)
+- [Media library](#media-library) — reusable files via `media` / `gallery` fields + `HasMedia`
+- [Dashboard widgets](#dashboard-widgets) — config-driven stat / chart / list cards
 - [JSON API](#json-api---api) · [API token auth](#api-auth--token-login-admin-coreinstall---api-auth)
 - [Multi-portal](#multi-portal) — a separate-guard merchant/vendor area
 - [Notifications](#notifications) — in-app bell + notifications page
@@ -283,6 +286,63 @@ protected function message(string $action): string
 }
 ```
 
+### Custom table actions
+
+Beyond delete, every list can carry **custom bulk + per-row actions**. Declare them once in the controller's
+`resourceActions()` and the package wires the toolbar button, the row-menu item, the route, the permission
+gate, the confirm dialog and the toast:
+
+```php
+use Ngos\AdminCore\Actions\Action;
+
+protected function resourceActions(): array
+{
+    return [
+        Action::make('mark-paid')->label('Mark as paid')->icon('bi bi-cash')->color('success')->confirm()
+            ->handle(fn ($records) => $records->each->update(['status' => 'paid'])),
+    ];
+}
+```
+
+The handler receives the selected models — resolved **through the resource query**, so scopes / soft-deletes /
+tenancy apply (you can only act on rows you can see). Fluent options: `->permission('…')` (defaults to
+`{key}-{resource}`), `->withoutPermission()`, `->onlyBulk()`, `->onlyOnRow()`, `->confirm('Sure?')`,
+`->success('Done!')`. The permission is enforced **server-side** — hiding a button is cosmetic. Add the
+permission (e.g. `mark-paid-product`) to your seeder.
+
+### Field-level permissions
+
+Lock individual fields to a permission — a user without it can't **see** the field (it's disabled in the form)
+nor **write** it (stripped server-side, so a crafted POST can't set it either):
+
+```php
+protected function fieldPermissions(): array
+{
+    return ['status' => 'change-status-order', 'cost' => 'edit-cost-product'];
+}
+```
+
+Covers direct fillable columns. On update the stored value is merged past validation, so locking a *required*
+field still lets a restricted user save the rest of the form.
+
+### Approval workflow
+
+Mark a sensitive action `->requiresApproval()` and it won't run for a user who can *request* it but not
+*approve* it — instead it files a pending request that an approver clears from the **Approvals inbox**:
+
+```php
+Action::make('refund')->requiresApproval()
+    ->handle(fn ($records) => $records->each->update(['status' => 'refunded']));
+```
+
+- A **requester** (has `refund-order`, not `approve-refund-order`) → files a request; approvers are notified.
+- An **approver** opens `admin.approvals.index` → **Approve** (re-runs the action over the captured rows) or
+  **Reject** (with a reason); the requester is notified of the decision. A user who *can* approve runs it
+  directly (no self-request).
+
+Run `php artisan admin-core:install` (adds `Route::adminCoreApprovals()`) + `php artisan migrate` (the
+`approvals` table), and grant `approve-{action}-{resource}` to your approver role.
+
 ### Drag-to-reorder (`--sortable`)
 
 ```bash
@@ -540,6 +600,52 @@ a `@foreach` table you fill with columns):
 ```bash
 php artisan admin-core:page "Low Stock" --report
 ```
+
+## Media library
+
+A browsable, reusable media library. Add a `media` (single) or `gallery` (multiple) field and the generator
+wires the whole flow — a picker control, validation, and the save:
+
+```bash
+php artisan admin-core:make Product --fields="name:string, cover:media, photos:gallery"
+```
+
+These are **relations, not columns**, so one library file can be reused across records. The owning model gets
+the `HasMedia` trait:
+
+```php
+$product->mediaIn('photos');        // ordered collection of attached files
+$product->firstMediaUrl('cover');   // single hero-image url
+$product->syncMedia([$ids], 'photos');
+```
+
+The library screen (browse / upload / delete) lives at `admin.media.index` — wired by `admin-core:install`
+(`Route::adminCoreMedia()`), gated by `manage-media`. Uploads are compressed (WebP) and stored on the
+configured disk; deleting a file is refused while it's still attached to a record.
+
+## Dashboard widgets
+
+A config-driven dashboard: drop `<x-admin-core::dashboard />` into your dashboard view and declare the widgets
+in `config('admin-core.dashboard.widgets')`. A widget is either a class or an inline array:
+
+```php
+'widgets' => [
+    \App\Dashboard\RevenueWidget::class,                                 // a class widget
+    ['type' => 'stat', 'title' => 'Users', 'icon' => 'bi-people',        // an inline widget
+     'value' => fn ($c) => \App\Models\User::query()->count(), 'link' => '/admin/users'],
+    ['type' => 'chart', 'title' => 'Signups', 'col' => 6,
+     'chart' => fn ($c) => ['type' => 'line', 'series' => [/* … */], 'categories' => [/* … */]]],
+    ['type' => 'list', 'title' => 'Latest orders',
+     'rows' => fn ($c) => [['label' => '…', 'meta' => '…', 'link' => '…']]],
+],
+```
+
+Scaffold a class widget with `php artisan admin-core:make-widget Revenue --type=stat` (or `chart` / `list`) —
+it extends `StatWidget` / `ChartWidget` / `ListWidget`. The `$c` (DashboardContext) carries the active date
+range: `$c->scope($query)` filters to it, `$c->scopePrevious($query)` to the previous period (for trends). A
+date-range toolbar and per-user drag-reorder/hide (saved per user) are on by default
+(`dashboard.date_filter` / `dashboard.customizable`). Wire it with `Route::adminCoreDashboard()` (added by
+`admin-core:install`).
 
 ## Multi-portal
 
