@@ -78,3 +78,22 @@ jobs:
 
       - name: Run Larastan
         run: composer analyse
+
+  js:
+    runs-on: ubuntu-latest
+    name: JS tests (Vitest)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run JS tests
+        run: npm test

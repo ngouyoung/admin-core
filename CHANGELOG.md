@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.62.1
+
+Internal only — a test suite + CI for the shipped front-end JS. The installed code is identical to v2.62.0
+(no migration, config, or stub change); nothing to do on upgrade.
+
+### Internal
+- **JS tests (Vitest + jsdom)** covering the shipped stubs' critical behavior: HTML escaping (`acEsc` and the
+  media picker's `esc`), custom-action dispatch (`acRunAction` — ids payload, confirm gating, empty no-op,
+  error toast), bulk-button injection (escaping, placement, idempotency), and an **end-to-end stored-DOM-XSS
+  regression** for the media picker (a malicious filename can't break out of the markup).
+- **CI** now runs the JS suite (Node 22) alongside the PHP tests + Larastan.
+
 ## v2.62.0
 
 **Action approval workflow** — a sensitive table action can require sign-off: a staff member who may request it
