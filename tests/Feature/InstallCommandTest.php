@@ -92,7 +92,9 @@ it('wires the admin route group into routes/web.php', function () {
     expect(File::get(base_path('routes/web.php')))
         ->toContain('admin-core:routes')
         ->toContain("'prefix' => 'admin'")
-        ->toContain("'as' => 'admin.'");
+        ->toContain("'as' => 'admin.'")
+        ->toContain('Route::adminCoreMedia();')
+        ->toContain('Route::adminCoreApprovals();'); // the approvals inbox is wired into the fresh block
 });
 
 it('repoints the permission models at the uuid-aware App\\Models classes for --access', function () {

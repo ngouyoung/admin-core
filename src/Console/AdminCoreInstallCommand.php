@@ -177,6 +177,22 @@ class AdminCoreInstallCommand extends Command
                 $changed = true;
             }
 
+            // Add the approvals inbox to an existing group (anchored on the media macro just above).
+            if (! str_contains($contents, 'Route::adminCoreApprovals')) {
+                $patched = preg_replace(
+                    "/(Route::adminCoreMedia\(\);)/",
+                    "$1\n    Route::adminCoreApprovals();",
+                    $contents,
+                    1,
+                );
+                // Only log/flag when the anchor was actually found — don't claim "updated" on a no-op.
+                if (is_string($patched) && $patched !== $contents) {
+                    $contents = $patched;
+                    $this->line('  <info>updated</info> routes/web.php (added the approvals inbox)');
+                    $changed = true;
+                }
+            }
+
             if ($changed) {
                 File::put($web, $contents);
             } else {
@@ -196,7 +212,8 @@ class AdminCoreInstallCommand extends Command
 Route::group([{$middleware}'prefix' => 'admin', 'as' => 'admin.'], function () {
     Route::view('/', 'backend.dashboard')->name('dashboard');
     Route::adminCoreDashboard();
-    Route::adminCoreMedia();{$notifications}
+    Route::adminCoreMedia();
+    Route::adminCoreApprovals();{$notifications}
 
     foreach (glob(base_path('routes/Web/Backend/Modules/*.php')) ?: [] as \$module) {
         require \$module;

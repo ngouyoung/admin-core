@@ -61,6 +61,9 @@ abstract class TestCase extends Orchestra
             Route::prefix('action-widgets')->name('actionWidgets.')->group(function () {
                 Route::crud('action-widget', ActionWidgetController::class);
             });
+
+            // The approvals inbox (approve / reject the requests that ->requiresApproval() actions create).
+            Route::adminCoreApprovals();
         });
 
         // JSON API index (top-level, like a real api.php module) — exercises

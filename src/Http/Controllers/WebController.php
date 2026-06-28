@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Ngos\AdminCore\Actions\Action;
+use Ngos\AdminCore\Models\Approval;
+use Ngos\AdminCore\Notifications\AdminNotification;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\DataTables;
 
@@ -672,32 +674,149 @@ abstract class WebController extends BaseController
      */
     public function runAction(Request $request, string $action): JsonResponse
     {
-        $resolved = null;
-        foreach ($this->resourceActions() as $candidate) {
-            if ($candidate->key() === $action) {
-                $resolved = $candidate;
-                break;
-            }
-        }
+        $resolved = $this->resolveAction($action);
         abort_if($resolved === null, 404);
         abort_unless($this->canRunAction($resolved), 403);
 
         $ids = $this->bulkIds($request);
+
+        // requiresApproval: a requester who may run it but can't approve it files a pending request instead of
+        // executing. (No-op when permissions are off — there's no approver to route it to.)
+        if ($resolved->needsApproval() && config('admin-core.permission.enabled') && ! $this->canApprove($resolved)) {
+            $this->createApproval($resolved, $ids, (string) $request->input('note', ''));
+
+            return response()->json([
+                'code' => 202,
+                'pending' => true,
+                'message' => __('admin-core::admin-core.toast.action_pending'),
+            ], 202);
+        }
+
+        return response()->json(['code' => 200] + $this->applyAction($resolved, $ids));
+    }
+
+    /** Find a declared action by key, or null. */
+    protected function resolveAction(string $key): ?Action
+    {
+        foreach ($this->resourceActions() as $candidate) {
+            if ($candidate->key() === $key) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Execute an action over the given ids and return {affected, message}. Ids resolve through the resource
+     * query so global scopes / soft-deletes / tenancy still apply (a foreign id is just absent from the set).
+     *
+     * @param  array<int, int|string>  $ids
+     * @return array{affected: int, message: string}
+     */
+    protected function applyAction(Action $action, array $ids): array
+    {
         $key = $this->service->query()->getModel()->getRouteKeyName();
-        // Resolve ids → models through the resource query so global scopes / soft-deletes / tenancy still
-        // apply: a user can only act on rows they can already see (a foreign id is just absent from the set).
         $records = $this->service->query()->whereIn($key, $ids)->get();
 
         $result = null;
-        DB::transaction(function () use ($resolved, $records, &$result) {
-            $result = $resolved->run($records);
+        DB::transaction(function () use ($action, $records, &$result) {
+            $result = $action->run($records);
         });
 
-        return response()->json([
-            'code' => 200,
+        return [
             'affected' => $records->count(),
-            'message' => $result['message'] ?? $resolved->resolveSuccess($records->count()),
+            'message' => $result['message'] ?? $action->resolveSuccess($records->count()),
+        ];
+    }
+
+    /**
+     * Re-run an approved action over its captured ids. Called by the approvals inbox once an approver decides —
+     * NOT routed, so it isn't reachable directly over HTTP (the inbox enforces the approve permission).
+     *
+     * @param  array<int, int|string>  $ids
+     * @return array{affected: int, message: string}
+     */
+    public function applyApprovedAction(string $actionKey, array $ids): array
+    {
+        $action = $this->resolveAction($actionKey);
+        abort_if($action === null, 404);
+
+        return $this->applyAction($action, $ids);
+    }
+
+    /** The permission that lets a user approve (and so run directly) this action: `approve-{key}-{resource}`. */
+    protected function approvePermission(Action $action): string
+    {
+        return 'approve-' . $this->permissionBase($action->key());
+    }
+
+    /** The `{action}-{resource}` permission base for an action key (or the bare key when no resource is set). */
+    protected function permissionBase(string $actionKey): string
+    {
+        return $this->resource === ''
+            ? $actionKey
+            : str_replace(['{action}', '{resource}'], [$actionKey, $this->resource], (string) config('admin-core.permission.pattern', '{action}-{resource}'));
+    }
+
+    /** May the current user approve this action (and therefore run it directly)? */
+    protected function canApprove(Action $action): bool
+    {
+        return (bool) $this->actingUser()?->can($this->approvePermission($action));
+    }
+
+    /**
+     * File a pending approval for an action the requester may run but not approve, then notify the approvers.
+     *
+     * @param  array<int, int|string>  $ids
+     */
+    protected function createApproval(Action $action, array $ids, string $note = ''): Approval
+    {
+        $approval = new Approval([
+            'action' => $action->key(),
+            'resource' => $this->resource,
+            'handler' => static::class,
+            'payload' => ['ids' => array_values($ids), 'label' => $action->resolveLabel()],
+            'status' => 'pending',
+            'note' => $note !== '' ? $note : null,
         ]);
+        if ($user = $this->actingUser()) {
+            $approval->requester()->associate($user);
+        }
+        $approval->save();
+
+        $this->notifyApprovers($action, $approval);
+
+        return $approval;
+    }
+
+    /** Notify every user who can approve this action (best-effort: needs a Spatie HasRoles user model). */
+    protected function notifyApprovers(Action $action, Approval $approval): void
+    {
+        $model = config('auth.providers.users.model');
+        if (! is_string($model) || ! method_exists($model, 'scopePermission')) {
+            return; // host user model isn't Spatie-permissioned — the inbox still surfaces the request
+        }
+
+        try {
+            $approvers = $model::permission($this->approvePermission($action))->get();
+        } catch (\Throwable) {
+            return;
+        }
+
+        $inboxRoute = config('admin-core.route.name_prefix', 'admin.') . 'approvals.index';
+        $url = Route::has($inboxRoute) ? route($inboxRoute) : null;
+
+        foreach ($approvers as $approver) {
+            if (method_exists($approver, 'notify')) {
+                $approver->notify(new AdminNotification(
+                    title: __('admin-core::admin-core.approvals.notify_request_title'),
+                    message: __('admin-core::admin-core.approvals.notify_request_message', ['label' => $approval->label()]),
+                    url: $url,
+                    icon: 'bi-check2-square',
+                ));
+            }
+        }
     }
 
     /**

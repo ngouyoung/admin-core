@@ -2,6 +2,56 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.62.0
+
+**Action approval workflow** — a sensitive table action can require sign-off: a staff member who may request it
+but not approve it files a pending request; an approver runs it from an inbox. Builds on v2.61's table actions.
+
+### Added
+- **`Action::make('…')->requiresApproval()`** — when run by a user who has the run permission but **not**
+  `approve-{key}-{resource}`, the action is held as a pending request instead of executing. A user who *can*
+  approve runs it directly. Per-action, so only the actions you mark need sign-off:
+  ```php
+  Action::make('mark-paid')->requiresApproval()
+      ->handle(fn ($records) => $records->each->update(['status' => 'paid']));
+  ```
+- **Approvals inbox** — `Route::adminCoreApprovals()` (wired by `admin-core:install`) adds an inbox at
+  `admin.approvals.index` to **approve** (re-runs the original action over the captured rows) or **reject**
+  (with a reason). A "System → Approvals" menu entry (gated by `list-approval`).
+- **`Approval` model + `approvals` migration** — polymorphic requester/approver (any user model / guard),
+  the action + captured row ids (payload), status, notes, decision timestamp.
+- **Notifications** — approvers are notified of a new request, the requester of the decision (reuses the
+  in-app notification system; best-effort when the host user model isn't permissioned/notifiable).
+
+### Security
+- Approving is enforced **per action** (`approve-{key}-{resource}`) in the controller, independent of the
+  inbox's `list-approval` route gate — a user who can see the inbox still can't decide an action they lack
+  the approve permission for (HTTP 403).
+- Approve/reject **atomically claim** the request (a conditional `pending →` decision update), so a concurrent
+  or double-submitted approve can't run a non-idempotent action twice.
+- On approval the action re-resolves its rows through the resource query (scopes/soft-deletes apply) and only
+  runs via a verified `WebController` handler.
+
+### Permissions
+- New `list-approval` (inbox access) in the AccessSeeder. Add an `approve-{action}-{resource}` permission for
+  each action you mark `->requiresApproval()` (e.g. `approve-mark-paid-order`) and grant it to your approver
+  role — keep it from the role that only requests.
+
+### i18n
+- An `approvals.*` block + `toast.action_pending` (en + km).
+
+### Notes
+- Decisions are global per action (not tenant-partitioned), but execution re-scopes to the approver, so an
+  approver can only ever act on rows they can see.
+- The approve permission is always `approve-{key}-{resource}`; an action's `->permission()` override only
+  changes the permission to *request* it.
+
+### Upgrade
+Backward-compatible. Existing actions are unchanged; actions only enter the workflow when you add
+`->requiresApproval()`. Run `php artisan migrate` for the `approvals` table and
+`php artisan admin-core:install` to wire the inbox route. An install that never wires it simply hides the
+menu entry (the sidebar drops unregistered routes) — nothing breaks.
+
 ## v2.61.0
 
 Declarative **table actions** (bulk + per-row, permission-gated) and **field-level permissions** — two

@@ -17,6 +17,7 @@ use Ngos\AdminCore\Console\AdminCoreReinstallCommand;
 use Ngos\AdminCore\Console\AdminCoreTranslateCommand;
 use Ngos\AdminCore\Console\AdminCoreUninstallCommand;
 use Ngos\AdminCore\Console\AdminCoreVersionCommand;
+use Ngos\AdminCore\Http\Controllers\ApprovalController;
 use Ngos\AdminCore\Http\Controllers\DashboardController;
 use Ngos\AdminCore\Http\Controllers\MediaController;
 use Ngos\AdminCore\Http\Controllers\NotificationController;
@@ -37,6 +38,7 @@ class AdminCoreServiceProvider extends ServiceProvider
         $this->registerSearchMacro();
         $this->registerDashboardMacro();
         $this->registerMediaMacro();
+        $this->registerApprovalsMacro();
 
         // The configured translation driver, resolved through the manager so
         // config('admin-core.translation.driver') is the only switch.
@@ -259,6 +261,27 @@ class AdminCoreServiceProvider extends ServiceProvider
                     Route::get('list', 'list')->name('list'); // JSON list for the media picker modal
                     Route::post('upload', 'upload')->name('upload');
                     Route::delete('{media}', 'destroy')->name('destroy');
+                });
+        });
+    }
+
+    /**
+     * Route::adminCoreApprovals() — the approvals inbox (admin.approvals.index/approve/reject). Reaching the
+     * inbox needs `list-approval`; each decision additionally needs the action's `approve-{action}-{resource}`
+     * (checked in the controller). Call it inside your admin route group.
+     */
+    protected function registerApprovalsMacro(): void
+    {
+        Route::macro('adminCoreApprovals', function () {
+            $middleware = config('admin-core.permission.enabled') ? ['permission:list-approval'] : [];
+            Route::controller(ApprovalController::class)
+                ->prefix('approvals')
+                ->name('approvals.')
+                ->middleware($middleware)
+                ->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('{id}/approve', 'approve')->name('approve');
+                    Route::post('{id}/reject', 'reject')->name('reject');
                 });
         });
     }

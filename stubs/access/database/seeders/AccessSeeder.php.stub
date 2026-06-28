@@ -36,6 +36,7 @@ class AccessSeeder extends Seeder
             'error-log' => GroupPermission::firstOrCreate(['name' => 'Error Log'], ['parent_id' => $all->id, 'sort' => 4]),
             'menu' => GroupPermission::firstOrCreate(['name' => 'Menu Management'], ['parent_id' => $all->id, 'sort' => 5]),
             'media' => GroupPermission::firstOrCreate(['name' => 'Media Management'], ['parent_id' => $all->id, 'sort' => 6]),
+            'approval' => GroupPermission::firstOrCreate(['name' => 'Approvals Management'], ['parent_id' => $all->id, 'sort' => 7]),
         ];
 
         // 2. Permissions for the built-in screens, filed under their group.
@@ -49,6 +50,9 @@ class AccessSeeder extends Seeder
             'error-log' => ['view'],
             'menu' => ['manage'],
             'media' => ['manage'],
+            // Inbox access. Per-action `approve-{action}-{resource}` permissions are added alongside the
+            // resources whose actions use ->requiresApproval() (e.g. approve-mark-paid-order).
+            'approval' => ['list'],
         ];
         foreach ($matrix as $resource => $actions) {
             foreach ($actions as $action) {

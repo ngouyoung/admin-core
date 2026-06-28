@@ -47,6 +47,8 @@ class Action
 
     protected ?string $successMessage = null;
 
+    protected bool $requiresApproval = false;
+
     final public function __construct(protected string $key) {}
 
     public static function make(string $key): static
@@ -130,6 +132,26 @@ class Action
         $this->successMessage = $message;
 
         return $this;
+    }
+
+    /**
+     * Hold the action for approval: a user who may run it but not approve it (lacks `approve-{key}-{resource}`)
+     * files a pending request instead of executing; an approver runs it from the inbox. A user who CAN approve
+     * runs it directly. No-op when permissions are disabled (there's no approver concept then).
+     *
+     * The approve permission is always derived as `approve-{key}-{resource}` — it does NOT follow an explicit
+     * ->permission() override (that only changes the permission to REQUEST the action).
+     */
+    public function requiresApproval(bool $requires = true): static
+    {
+        $this->requiresApproval = $requires;
+
+        return $this;
+    }
+
+    public function needsApproval(): bool
+    {
+        return $this->requiresApproval;
     }
 
     public function key(): string

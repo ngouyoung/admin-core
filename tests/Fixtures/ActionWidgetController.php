@@ -31,6 +31,8 @@ class ActionWidgetController extends WebController
                 ->handle(fn (Collection $records) => $records->each->update(['status' => 'archived'])),
             Action::make('count')->withoutPermission()
                 ->handle(fn (Collection $records) => ['message' => $records->count() . ' counted']),
+            Action::make('refund')->requiresApproval()
+                ->handle(fn (Collection $records) => $records->each->update(['status' => 'refunded'])),
             Action::make('bulk-only')->onlyBulk()->withoutPermission()->handle(fn (Collection $records) => null),
             Action::make('row-only')->onlyOnRow()->withoutPermission()->handle(fn (Collection $records) => null),
         ];

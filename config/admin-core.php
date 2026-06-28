@@ -54,6 +54,7 @@ return [
         ]],
         ['header' => 'System'],
         ['label' => 'Media', 'route' => 'admin.media.index', 'icon' => 'bi bi-images', 'can' => 'manage-media', 'match' => 'admin/media*'],
+        ['label' => 'Approvals', 'route' => 'admin.approvals.index', 'icon' => 'bi bi-check2-square', 'can' => 'list-approval', 'match' => 'admin/approvals*'],
         ['label' => 'Settings', 'route' => 'admin.settings.index', 'icon' => 'bi bi-gear', 'can' => 'manage-settings', 'match' => 'admin/settings*'],
         ['label' => 'Activity Log', 'route' => 'admin.activity-logs.index', 'icon' => 'bi bi-clock-history', 'can' => 'list-activity', 'match' => 'admin/activity-logs*'],
         ['label' => 'Error Log', 'route' => 'admin.error-logs.index', 'icon' => 'bi bi-bug', 'can' => 'view-error-log', 'match' => 'admin/error-logs*'],

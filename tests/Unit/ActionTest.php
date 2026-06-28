@@ -55,6 +55,12 @@ it('replaces :count in the success toast, and honours a custom message', functio
         ->and(Action::make('x')->success('All set')->resolveSuccess(3))->toBe('All set');
 });
 
+it('flags whether it needs approval (off by default)', function () {
+    expect(Action::make('x')->needsApproval())->toBeFalse()
+        ->and(Action::make('x')->requiresApproval()->needsApproval())->toBeTrue()
+        ->and(Action::make('x')->requiresApproval(false)->needsApproval())->toBeFalse();
+});
+
 it('serialises to the front-end button shape', function () {
     $array = Action::make('publish')->label('Publish')->icon('bi bi-send')->color('success')->confirm()
         ->toArray('/admin/things/action/publish');
