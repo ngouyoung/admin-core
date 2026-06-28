@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.62.4
+
+Docs only — a hand-held getting-started tutorial (in response to "I don't understand how to use it"). No code
+change.
+
+### Docs
+- **`TUTORIAL.md`** — a zero-to-working walkthrough: install → log in → generate **Categories** → generate
+  **Products** (a relation + image + enum + boolean) → roles & permissions → a custom action, with every step
+  explained and every command verified. Linked prominently from the README top + Contents, so a newcomer has a
+  guided path before the reference.
+
 ## v2.62.3
 
 Docs only — the README caught up with the v2.56–v2.62 feature arc. No code change.

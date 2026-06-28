@@ -11,8 +11,13 @@ clean, branded **Bootstrap 5** theme.
 - **Thin & conventional.** Generated code lives in *your* `App\` namespace and extends a small base
   (`WebController` + `BaseService`) — no magic, easy to read and edit.
 
+> 🚀 **New here? Start with the [step-by-step tutorial](TUTORIAL.md)** — it builds a working catalog admin from
+> scratch (install → categories → products with a relation, image & status → roles → a custom action) and
+> explains every step. The reference below is for once you know the loop.
+
 ## Contents
 
+- 🚀 **[Tutorial](TUTORIAL.md)** — zero to a working admin, hand-held
 - [Quickstart](#quickstart) — a working admin + your first resource
 - [Installation](#installation) (minimal vs `--access`)
 - [Generating a resource](#generating-a-resource) → [field types](#generating-fields-too---fields) ·
