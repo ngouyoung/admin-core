@@ -224,4 +224,10 @@ return [
         'notify_rejected_title' => 'Request rejected',
         'notify_decision_message' => 'Your request “:label” has been decided.',
     ],
+
+    'states' => [
+        'confirm' => 'Run this transition?',
+        'transitioned' => 'Status updated.',
+        'locked' => 'This record is locked and can no longer be edited.',
+    ],
 ];

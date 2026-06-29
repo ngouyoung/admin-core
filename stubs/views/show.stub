@@ -16,6 +16,9 @@
         </x-slot:actions>
     </x-admin-core::page-header>
 
+    {{-- State-machine buttons (no-op unless the controller declares transitions()). --}}
+    <x-admin-core::transitions :items="$acTransitions ?? []" />
+
     <x-admin-core::card>
         <x-admin-core::detail-list>
 __AC_SHOW__

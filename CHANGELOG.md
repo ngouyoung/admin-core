@@ -2,6 +2,49 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.63.0
+
+**Document state machine** — give a resource a lifecycle (draft → confirmed → posted …) with gated, atomic
+transitions and read-only locking. The first piece of "transactional document" support (the #1 gap from
+dogfooding an inventory ERP), built on the Action / Approval infrastructure.
+
+### Added
+- **`Transition` + `transitions()`** — declare a document's lifecycle on the controller:
+  ```php
+  protected array $lockedStates = ['posted', 'cancelled'];
+
+  protected function transitions(): array
+  {
+      return [
+          Transition::make('confirm')->from('draft')->to('confirmed'),
+          Transition::make('post')->from('confirmed')->to('posted')->confirm()
+              ->handle(fn ($record) => $record->postToStock()),   // the atomic side-effect
+          Transition::make('cancel')->fromAny()->to('cancelled')->color('danger')->confirm(),
+      ];
+  }
+  ```
+  Transition buttons render on the record's show page (`<x-admin-core::transitions>`). Fluent:
+  `->from(…)` / `->fromAny()`, `->to()`, `->permission()` / `->withoutPermission()` (default `{key}-{resource}`),
+  `->confirm()`, `->guard(fn ($r) => …)` (veto), `->handle(fn ($r) => …)` (side-effect), `->color()` / `->icon()`.
+- **`$lockedStates`** — a record in one of these states is read-only: edit, delete, bulk-delete, restore and
+  force-delete are all refused.
+
+### Security
+- A transition is **atomic** — the state advances via a conditional claim (`… where {state} = <current>`) inside
+  a row-locked transaction, so a concurrent or double-submitted transition can't run the side-effect twice
+  (correct even where `lockForUpdate` is a no-op). A failing side-effect rolls the whole transition back.
+- The transition permission is enforced **server-side**, and once `transitions()` is declared the **state column
+  is stripped from the ordinary create/edit write** — it can't be set directly to skip a transition (and its
+  side-effect). The lock is consistent across every destructive path (single + bulk, trash included).
+
+### i18n / Generator
+- A `states.*` block (en + km). New resources are generated with a commented `transitions()` example and the
+  show view includes the transitions component (a no-op until you declare a lifecycle).
+
+### Upgrade
+Backward-compatible. Existing resources are unchanged — the defaults (`$lockedStates = []`, `transitions() = []`)
+are a complete no-op. The `transition/{id}/{transition}` route is added by the `crud` macro on package update.
+
 ## v2.62.4
 
 Docs only — a hand-held getting-started tutorial (in response to "I don't understand how to use it"). No code

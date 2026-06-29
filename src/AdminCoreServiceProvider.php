@@ -195,6 +195,10 @@ class AdminCoreServiceProvider extends ServiceProvider
                 // per-action and dynamic, so runAction() enforces each action's own permission server-side.
                 // The key is constrained so it can't swallow extra path segments.
                 Route::post('action/{action}', 'runAction')->name('action')->where('action', '[A-Za-z0-9_-]+');
+
+                // Document state-machine transitions (runTransition enforces the per-transition permission).
+                Route::post('transition/{id}/{transition}', 'runTransition')->name('transition')
+                    ->where('transition', '[A-Za-z0-9_-]+');
             });
         });
     }

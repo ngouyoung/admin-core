@@ -60,6 +60,7 @@ abstract class TestCase extends Orchestra
             // (no spatie middleware), so a test can flip permission.enabled at runtime and reach runAction.
             Route::prefix('action-widgets')->name('actionWidgets.')->group(function () {
                 Route::crud('action-widget', ActionWidgetController::class);
+                Route::post('bulkDelete', [ActionWidgetController::class, 'bulkDelete'])->name('bulkDelete');
             });
 
             // The approvals inbox (approve / reject the requests that ->requiresApproval() actions create).

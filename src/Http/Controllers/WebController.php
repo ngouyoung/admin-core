@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Validator;
 use Ngos\AdminCore\Actions\Action;
 use Ngos\AdminCore\Models\Approval;
 use Ngos\AdminCore\Notifications\AdminNotification;
+use Ngos\AdminCore\States\Transition;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\DataTables;
 
@@ -54,6 +55,17 @@ abstract class WebController extends BaseController
      * ->permission(). Empty falls back to the bare action key (still a real, grantable permission).
      */
     protected string $resource = '';
+
+    /** The column that holds a document's state, for the transitions() state machine. */
+    protected string $stateColumn = 'status';
+
+    /**
+     * States in which a record is read-only — edit and delete are refused (e.g. a posted invoice). Set per
+     * resource, e.g. `protected array $lockedStates = ['posted', 'cancelled'];`.
+     *
+     * @var array<int, string>
+     */
+    protected array $lockedStates = [];
 
     protected function view(string $file, array $data = [])
     {
@@ -107,7 +119,7 @@ abstract class WebController extends BaseController
 
     public function store(): RedirectResponse
     {
-        $data = $this->stripDeniedFields(app($this->storeRequest)->validated());
+        $data = $this->stripStateColumn($this->stripDeniedFields(app($this->storeRequest)->validated()));
 
         if (! $this->claimSubmitToken()) {
             // A repeated submit (double-click / retry) carrying the same one-time token — the first claim won,
@@ -162,7 +174,10 @@ abstract class WebController extends BaseController
 
     public function show(int|string $id)
     {
-        return $this->view('show', ['object' => $this->service->find($id)]);
+        $object = $this->service->find($id);
+
+        // The state-machine buttons available for this record (permission + current-state filtered).
+        return $this->view('show', ['object' => $object, 'acTransitions' => $this->transitionsFor($object)]);
     }
 
     public function edit(int|string $id)
@@ -183,7 +198,8 @@ abstract class WebController extends BaseController
             request()->merge(collect($denied)->mapWithKeys(fn ($f) => [$f => $existing->getRawOriginal($f)])->all());
         }
 
-        $data = $this->stripDeniedFields(app($this->updateRequest)->validated());
+        $this->guardLocked($id); // a posted/cancelled document is read-only
+        $data = $this->stripStateColumn($this->stripDeniedFields(app($this->updateRequest)->validated()));
         DB::transaction(fn () => $this->service->update($id, $data));
 
         return $this->toIndex($this->message('updated'));
@@ -191,6 +207,7 @@ abstract class WebController extends BaseController
 
     public function delete(int|string $id): RedirectResponse
     {
+        $this->guardLocked($id);
         $this->service->delete($id);
 
         return $this->toIndex($this->message('deleted'));
@@ -505,9 +522,10 @@ abstract class WebController extends BaseController
         $deleted = 0;
         // Act only on ids that exist in scope — a stale/foreign id is skipped, not a 404 that aborts the
         // whole batch (the old per-id find()->firstOrFail() did). Routed through the service so soft-delete
-        // + activity logging still fire.
+        // + activity logging still fire. Locked-state records are excluded, like single delete() refuses them.
         DB::transaction(function () use ($ids, $key, &$deleted) {
-            foreach ($this->service->query()->whereIn($key, $ids)->pluck($key) as $id) {
+            $query = $this->excludeLocked($this->service->query()->whereIn($key, $ids));
+            foreach ($query->pluck($key) as $id) {
                 $this->service->delete($id);
                 $deleted++;
             }
@@ -537,6 +555,7 @@ abstract class WebController extends BaseController
 
     public function restore(int|string $id): RedirectResponse
     {
+        $this->guardLockedTrashed($id);
         $this->service->restore($id);
 
         return redirect()->route($this->routeName('trash'))->with('success', $this->message('restored'));
@@ -544,6 +563,7 @@ abstract class WebController extends BaseController
 
     public function forceDelete(int|string $id): RedirectResponse
     {
+        $this->guardLockedTrashed($id); // a locked document can't be permanently destroyed either
         $this->service->forceDelete($id);
 
         return redirect()->route($this->routeName('trash'))->with('success', $this->message('deleted'));
@@ -556,7 +576,8 @@ abstract class WebController extends BaseController
         $key = $this->service->query()->getModel()->getRouteKeyName();
         $restored = 0;
         DB::transaction(function () use ($ids, $key, &$restored) {
-            foreach ($this->service->trashedQuery()->whereIn($key, $ids)->pluck($key) as $id) {
+            $query = $this->excludeLocked($this->service->trashedQuery()->whereIn($key, $ids));
+            foreach ($query->pluck($key) as $id) {
                 $this->service->restore($id);
                 $restored++;
             }
@@ -572,7 +593,8 @@ abstract class WebController extends BaseController
         $key = $this->service->query()->getModel()->getRouteKeyName();
         $deleted = 0;
         DB::transaction(function () use ($ids, $key, &$deleted) {
-            foreach ($this->service->trashedQuery()->whereIn($key, $ids)->pluck($key) as $id) {
+            $query = $this->excludeLocked($this->service->trashedQuery()->whereIn($key, $ids));
+            foreach ($query->pluck($key) as $id) {
                 $this->service->forceDelete($id);
                 $deleted++;
             }
@@ -918,5 +940,166 @@ abstract class WebController extends BaseController
         }
 
         return $denied;
+    }
+
+    // -- Document state machine (transitions) -----------------------------------------------------------
+
+    /**
+     * The document lifecycle. Override per resource — each Transition is a button on the show page that moves
+     * the record between states (the package wires the route, permission, confirm and the atomic change):
+     *
+     *   return [Transition::make('post')->from('confirmed')->to('posted')->handle(fn ($r) => $r->postToStock())];
+     *
+     * @return array<int, Transition>
+     */
+    protected function transitions(): array
+    {
+        return [];
+    }
+
+    /** Find a declared transition by key, or null. */
+    protected function resolveTransition(string $key): ?Transition
+    {
+        foreach ($this->transitions() as $candidate) {
+            if ($candidate->key() === $key) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /** May the current user run this transition? (Permission enforced here, server-side.) */
+    protected function canTransition(Transition $transition): bool
+    {
+        if (! config('admin-core.permission.enabled')) {
+            return true;
+        }
+
+        $permission = $transition->resolvePermission($this->resource);
+
+        return $permission === null || (bool) $this->actingUser()?->can($permission);
+    }
+
+    /**
+     * The transitions available for a record's current state that the current user may run — as button
+     * descriptors for the show page.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function transitionsFor($record): array
+    {
+        if (! Route::has($this->routeName('transition'))) {
+            return [];
+        }
+
+        $current = (string) ($record->{$this->stateColumn} ?? '');
+        $items = [];
+        foreach ($this->transitions() as $transition) {
+            if ($transition->appliesTo($current) && $this->canTransition($transition) && $transition->passesGuard($record)) {
+                $items[] = $transition->toArray(
+                    route($this->routeName('transition'), [$record->getRouteKey(), $transition->key()])
+                );
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * Run a state transition. The whole change is atomic — the record is locked, its current state re-checked
+     * under the lock, the side-effect run, and the state advanced, all in one transaction. So a concurrent or
+     * double-submitted transition can't run the side-effect (posting, etc.) twice.
+     */
+    public function runTransition(Request $request, int|string $id, string $transition): RedirectResponse
+    {
+        $resolved = $this->resolveTransition($transition);
+        abort_if($resolved === null, 404);
+        abort_unless($this->canTransition($resolved), 403);
+
+        $key = $this->service->query()->getModel()->getRouteKeyName();
+        DB::transaction(function () use ($resolved, $id, $key) {
+            $record = $this->service->query()->where($key, $id)->lockForUpdate()->firstOrFail();
+            $current = (string) ($record->{$this->stateColumn} ?? '');
+
+            abort_unless($resolved->appliesTo($current), 409); // wrong state — already transitioned, or invalid
+            abort_unless($resolved->passesGuard($record), 422);
+
+            // Atomic claim: advance the state with a conditional update keyed on the state we just read, so a
+            // concurrent or double-submitted transition can't also win (correct even where lockForUpdate is a
+            // no-op, e.g. SQLite). 0 rows affected = lost the race.
+            $claimed = $this->service->query()->where($key, $id)->where($this->stateColumn, $current)
+                ->update([$this->stateColumn => $resolved->toState()]) === 1;
+            abort_unless($claimed, 409);
+
+            // Sync the in-memory model to the claimed state, then run the side-effect; a throw rolls the whole
+            // transaction back (the claim included), so a failed side-effect never leaves the record advanced.
+            $record->{$this->stateColumn} = $resolved->toState();
+            $resolved->run($record); // the side-effect (post movements, etc.)
+            $record->save();         // persist any mutations the handler made on the record
+        });
+
+        return back()->with('success', __('admin-core::admin-core.states.transitioned'));
+    }
+
+    /** Refuse the write when the record sits in a locked state (a no-op unless $lockedStates is set). */
+    protected function guardLocked(int|string $id): void
+    {
+        if ($this->lockedStates === []) {
+            return;
+        }
+
+        if ($this->isLockedState($this->service->find($id))) {
+            abort(403, __('admin-core::admin-core.states.locked'));
+        }
+    }
+
+    /** Refuse the trash-path write (restore / force-delete) when the trashed record is in a locked state. */
+    protected function guardLockedTrashed(int|string $id): void
+    {
+        if ($this->lockedStates === []) {
+            return;
+        }
+
+        $key = $this->service->query()->getModel()->getRouteKeyName();
+        $record = $this->service->trashedQuery()->where($key, $id)->first();
+        if ($record !== null && $this->isLockedState($record)) {
+            abort(403, __('admin-core::admin-core.states.locked'));
+        }
+    }
+
+    /** Is the record currently in a locked state? */
+    protected function isLockedState($record): bool
+    {
+        return in_array((string) ($record->{$this->stateColumn} ?? ''), $this->lockedStates, true);
+    }
+
+    /**
+     * Exclude locked-state records from a bulk query (NULL state = not locked, matching isLockedState()).
+     * A no-op unless $lockedStates is set.
+     *
+     * @template T of \Illuminate\Database\Eloquent\Builder
+     *
+     * @param  T  $query
+     * @return T
+     */
+    protected function excludeLocked($query)
+    {
+        if ($this->lockedStates !== []) {
+            $query->where(fn ($q) => $q->whereNull($this->stateColumn)
+                ->orWhereNotIn($this->stateColumn, $this->lockedStates));
+        }
+
+        return $query;
+    }
+
+    /** When the resource is a state machine, the state column moves only via transitions — never a form write. */
+    protected function stripStateColumn(array $data): array
+    {
+        if ($this->transitions() !== []) {
+            unset($data[$this->stateColumn]);
+        }
+
+        return $data;
     }
 }

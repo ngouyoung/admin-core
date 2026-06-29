@@ -250,9 +250,12 @@ it('scaffolds a full resource with valid, token-free PHP', function () {
     expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
         ->toContain("\$this->resource = 'gizmo';")
         ->toContain('protected function resourceActions(): array')
-        ->toContain('protected function fieldPermissions(): array');
+        ->toContain('protected function fieldPermissions(): array')
+        ->toContain('protected function transitions(): array'); // state-machine example
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
         ->toContain('<x-admin-core::field-guard name="name">');
+    expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))
+        ->toContain('<x-admin-core::transitions :items="$acTransitions ?? []" />');
 
     $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
     expect($migration)->toContain("Schema::create('gizmos'")->toContain("'name'")->toContain("'price'");

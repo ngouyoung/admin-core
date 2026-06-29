@@ -57,4 +57,24 @@ __AC_GETDATA__
     // {
     //     return ['status' => 'change-status-dummy-model'];
     // }
+    //
+    // -- Document state machine (optional) ------------------------------------------------------------
+    // Give the record a lifecycle: transition buttons appear on its show page; each change is atomic, and a
+    // record in a locked state can't be edited/deleted. Add the permission names (e.g. post-dummy-model) to
+    // your AccessSeeder. (Set $stateColumn if your status column isn't named "status".)
+    // Once transitions() is declared the state column moves ONLY through transitions — it's stripped from the
+    // ordinary create/edit form write, so it can't be set directly to skip a transition (and its side-effect).
+    //
+    // protected array $lockedStates = ['posted', 'cancelled'];
+    //
+    // /** @return array<int, \Ngos\AdminCore\States\Transition> */
+    // protected function transitions(): array
+    // {
+    //     return [
+    //         \Ngos\AdminCore\States\Transition::make('confirm')->from('draft')->to('confirmed'),
+    //         \Ngos\AdminCore\States\Transition::make('post')->from('confirmed')->to('posted')
+    //             ->color('success')->confirm()->handle(fn ($record) => /* post side-effects */ null),
+    //         \Ngos\AdminCore\States\Transition::make('cancel')->fromAny()->to('cancelled')->color('danger')->confirm(),
+    //     ];
+    // }
 }

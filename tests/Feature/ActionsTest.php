@@ -101,12 +101,11 @@ it('keeps a protected field when permissions are disabled', function () {
 it('strips a protected field on create for a user who lacks its permission', function () {
     config()->set('admin-core.permission.enabled', true); // guest → cannot edit-secret-action-widget
 
-    $this->post('/admin/action-widgets', ['name' => 'X', 'secret' => 'topsecret', 'status' => 'draft'])
-        ->assertRedirect();
+    $this->post('/admin/action-widgets', ['name' => 'X', 'secret' => 'topsecret'])->assertRedirect();
 
     $w = Widget::first();
-    expect($w->secret)->toBeNull()      // stripped — even though it was in the payload
-        ->and($w->status)->toBe('draft'); // an unprotected field is untouched
+    expect($w->secret)->toBeNull()  // stripped — even though it was in the payload
+        ->and($w->name)->toBe('X');  // an unprotected field is untouched
 });
 
 it('strips a protected field on update too', function () {

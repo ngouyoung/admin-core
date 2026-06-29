@@ -5,6 +5,7 @@ namespace Ngos\AdminCore\Tests\Fixtures;
 use Illuminate\Support\Collection;
 use Ngos\AdminCore\Actions\Action;
 use Ngos\AdminCore\Http\Controllers\WebController;
+use Ngos\AdminCore\States\Transition;
 
 /**
  * Exercises declarative table actions + field-level permissions. The exposed* methods surface the protected
@@ -41,6 +42,26 @@ class ActionWidgetController extends WebController
     protected function fieldPermissions(): array
     {
         return ['secret' => 'edit-secret-action-widget'];
+    }
+
+    protected array $lockedStates = ['posted'];
+
+    protected function transitions(): array
+    {
+        return [
+            Transition::make('confirm')->from('draft')->to('confirmed'),
+            Transition::make('post')->from('confirmed')->to('posted')->confirm()
+                ->handle(fn ($record) => $record->photo = 'posted-marker'), // observable side-effect
+            Transition::make('cancel')->fromAny()->to('cancelled')->withoutPermission(),
+            Transition::make('reopen')->from('cancelled')->to('draft')
+                ->guard(fn ($record) => $record->name !== 'locked-reopen'), // a vetoing guard
+        ];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    public function exposedTransitions(Widget $record): array
+    {
+        return $this->transitionsFor($record);
     }
 
     public function getData($relation = null)
