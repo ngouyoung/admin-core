@@ -562,7 +562,7 @@ class AdminCoreFieldCommand extends Command
             if (in_array($f['type'], ['string', 'text', 'email', 'slug', 'url'], true)) {
                 $search[] = "'{$f['name']}'";
             }
-            if (in_array($f['type'], ['string', 'integer', 'decimal', 'date', 'datetime', 'time', 'boolean', 'enum', 'email', 'slug', 'url'], true)) {
+            if (in_array($f['type'], ['string', 'integer', 'decimal', 'money', 'date', 'datetime', 'time', 'boolean', 'enum', 'email', 'slug', 'url'], true)) {
                 $sort[] = "'{$f['name']}'";
             }
             if (in_array($f['type'], ['enum', 'boolean'], true)) {

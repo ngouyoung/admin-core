@@ -160,7 +160,8 @@ php artisan admin-core:make Product --migration --fields="\
 | `text` | `text` | textarea | `string` |
 | `richtext` | `text` | CKEditor WYSIWYG (sanitized on save, rendered on show) | `string` |
 | `integer` | `integer` | number | `integer` |
-| `decimal` | `decimal(10,2)` | number (step) | `numeric` |
+| `decimal` (`decimal:p\|s`) | `decimal(10,2)` | number (step) | `numeric` + precision/scale |
+| `money` (`money:KHR`) | `bigInteger` (minor units) | number + currency symbol | `numeric` |
 | `boolean` | `boolean` default 0 | checkbox | `boolean` |
 | `date` / `datetime` | `date` / `dateTime` | Air Datepicker (themed calendar / + time) | `date` |
 | `time` | `time` | native time | `date_format:H:i` |
@@ -176,8 +177,8 @@ php artisan admin-core:make Product --migration --fields="\
 | `file` | `string` (path) | file input | `file,max:10240` |
 | `belongsToMany` (`m2m`) | pivot table | multi-Select2 | `array` + `exists` |
 
-The model also gets a `casts()` method (`boolean`, `date`, `datetime`, `decimal:2`, `json → array`,
-`password → hashed`, `enum → its backed enum class`). A `slug` left blank is derived from `name` in the
+The model also gets a `casts()` method (`boolean`, `date`, `datetime`, `decimal:2`, `money → MoneyCast`,
+`json → array`, `password → hashed`, `enum → its backed enum class`). A `slug` left blank is derived from `name` in the
 `creating` hook; a `json` field round-trips through a textarea (decoded in `prepareForValidation`, stored
 via the array cast); a blank `password` on **update** is dropped so the existing hash is preserved.
 
@@ -186,6 +187,17 @@ text inputs (`--access` bundles it) — a Bootstrap-themed calendar (with a time
 matches your accent and flips with dark mode, instead of the unstyled native picker. The submitted value
 keeps the `Y-m-d` / `Y-m-d H:i` shape the `date` rule and the model cast expect. The bundle auto-attaches it
 to any `.js-datepicker` input on load; for a modal/AJAX-loaded form, call `window.acInitDatepickers(formEl)`.
+
+**Money is stored exactly, as an integer.** `price:money` keeps the amount in **minor units** (cents) in a
+`bigInteger` column and casts it to a `Ngos\AdminCore\Support\Money` value object — so amounts and sums stay
+exact (no `0.1 + 0.2 = 0.30000000000000004` float drift). The form edits the major amount ("15.00") prefixed
+with the currency symbol; the list/show render `$object->price->format()` ("$15.00"). The default currency is
+`config('admin-core.money.currency')` (set `ADMIN_CORE_CURRENCY`); pin one column with `price:money:KHR`. Each
+currency's decimals/symbol/position/separators live in `config('admin-core.money.currencies')` — **Khmer Riel
+(KHR) is 0-decimal**, so ៛15,000 stores as `15000` (not ×100), while USD ($15.00) stores as `1500`. In code:
+`$product->price->minor()` (1500), `->major()` ("15.00"), `->format()` ("$15.00"), `->add()/->subtract()/->multiply()`
+(exact, same-currency); assigning a number or a `Money` both work (`$product->price = '15.00'`). CSV export writes
+the plain `major()` value so a round-tripped import re-parses exactly.
 
 **Enums are code, not schema.** `status:enum:draft|published` generates `App\Enums\ProductStatus` (a
 string-backed PHP enum) as the **single source of truth**: validation uses `Rule::enum`, the model casts

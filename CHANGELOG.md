@@ -2,6 +2,31 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.64.0
+
+**`money` field type** — store money exactly. A `price:money` field keeps the amount in **minor units**
+(cents) in a `bigInteger` column and casts it to a `Money` value object, so amounts and sums stay exact —
+no binary-float drift (`0.1 + 0.2` is `0.30`, not `0.30000000000000004`). Currency-aware: **Khmer Riel (KHR)
+is 0-decimal** (៛15,000 → `15000`), USD is 2-decimal ($15.00 → `1500`), all driven by config.
+
+### Added
+- **`money` field type** — `admin-core:make Product --fields="name:string, price:money, cost:money:KHR"`:
+  - Migration: `bigInteger` (minor units; holds large/negative amounts exactly).
+  - Model cast: `MoneyCast` → reading gives a `Money` object, writing accepts a major amount (`'15.00'`) or a
+    `Money` and stores the exact minor-unit integer. Pin a column's currency with `price:money:KHR`.
+  - Form: a `<x-admin-core::money-input>` — a number control prefixed with the currency symbol, `step` from
+    the currency's decimals (USD `0.01`, KHR `1`).
+  - List + show: rendered via `Money::format()` ("$15.00" / "៛15,000"); ordering uses the raw minor column.
+  - Validation: `numeric`. API: sortable. CSV export writes the plain `major()` value so a round-tripped
+    import re-parses exactly.
+- **`Ngos\AdminCore\Support\Money`** — an immutable value object: `fromMinor()` / `fromMajor()`, `minor()`,
+  `major()` (exact integer→string, no float), `format()`, `add()` / `subtract()` / `multiply()` (exact,
+  same-currency or it throws), `isZero()` / `isNegative()`, and `toArray()` / `jsonSerialize()`
+  (`{minor, major, currency, formatted}`) for APIs.
+- **`config('admin-core.money')`** — `currency` (default, via `ADMIN_CORE_CURRENCY`) plus a `currencies` map
+  of `decimals` / `symbol` / `position` / `thousands` / `decimal` per currency (USD, KHR, EUR, GBP, JPY, THB,
+  VND ship by default; an unlisted currency falls back to its code as symbol, 2 decimals).
+
 ## v2.63.0
 
 **Document state machine** — give a resource a lifecycle (draft → confirmed → posted …) with gated, atomic

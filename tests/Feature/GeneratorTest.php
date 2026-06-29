@@ -631,6 +631,40 @@ it('casts boolean / date / datetime / decimal columns on the model', function ()
         ->not->toContain("'name' => '"); // strings are not cast
 });
 
+it('wires a money field end-to-end (bigInteger column, MoneyCast, money-input, formatted display)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, price:money, balance:money:KHR',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // Migration stores money as a (large) integer of minor units — not a decimal.
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+    expect($migration)->toContain("\$table->bigInteger('price')")
+        ->toContain("\$table->bigInteger('balance')");
+
+    // Model casts to the Money value object; the pinned currency rides along as a cast argument.
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->toContain("'price' => \\Ngos\\AdminCore\\Casts\\MoneyCast::class,")
+        ->toContain("'balance' => \\Ngos\\AdminCore\\Casts\\MoneyCast::class.':KHR',");
+
+    // Validation: the form posts a major amount, validated as numeric.
+    expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
+        ->toContain("'price' => ['required', 'numeric']");
+
+    // Form renders the money-input (with the currency override for the pinned column).
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
+        ->toContain('<x-admin-core::money-input name="price"')
+        ->toContain('<x-admin-core::money-input name="balance" label="Balance" currency="KHR"');
+
+    // Show + list format the amount via the Money object.
+    expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))
+        ->toContain('{{ $object->price?->format() }}');
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->toContain("->editColumn('price', fn (\$row) => \$row->price?->format())");
+    // (A real bigInteger money column round-trips through the MoneyCast in MoneyCastTest.)
+});
+
 it('omits the casts() method when no column needs casting', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

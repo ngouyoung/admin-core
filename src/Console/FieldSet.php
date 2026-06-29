@@ -12,6 +12,8 @@ use Illuminate\Support\Str;
  *        category_id:foreign, avatar:image?, brochure:file?, tags:belongsToMany"
  *   - scalar   string text integer decimal boolean date datetime email
  *   - decimal  optional precision|scale (pipe-separated):  price:decimal:12|4  (defaults to 10,2)
+ *   - money    exact amount stored as minor units (cents), shown with the currency symbol; optional
+ *              currency:  price:money  or  price:money:KHR  (default from config admin-core.money.currency)
  *   - enum     values piped:  status:enum:draft|published|archived
  *   - foreign  column ending in _id:  category_id:foreign  (-> belongsTo). Add an explicit
  *              target table for a self-reference / tree or a non-conventional name:
@@ -34,7 +36,7 @@ class FieldSet
      * (e.g. a comma'd enum `status:enum(a,b)` leaking columns named `b` and `c)`) into a clear error.
      */
     private const TYPES = [
-        'string', 'text', 'richtext', 'integer', 'decimal', 'boolean', 'date', 'datetime', 'time',
+        'string', 'text', 'richtext', 'integer', 'decimal', 'money', 'boolean', 'date', 'datetime', 'time',
         'email', 'url', 'password', 'slug', 'json', 'translatable', 'image', 'file',
         'foreign', 'belongsToMany', 'hasMany', 'media', 'gallery', 'enum', 'auth', 'sku',
     ];
@@ -237,6 +239,14 @@ class FieldSet
                 $spec = 'decimal';
             }
 
+            // Optional money currency: `price:money:KHR` pins the column to a currency (else the configured
+            // default applies). The amount is always stored as an integer of minor units (see the MoneyCast).
+            $moneyCurrency = null;
+            if (str_starts_with($spec, 'money:')) {
+                $moneyCurrency = strtoupper(trim(substr($spec, 6))) ?: null;
+                $spec = 'money';
+            }
+
             // Explicit FK target: `parent_id:foreign:categories` (self-reference / tree) or a column whose
             // name doesn't match the table convention (`author_id:foreign:users`). Without the target the
             // table is inferred from the column (parent_id -> parents), which breaks self-refs.
@@ -284,6 +294,9 @@ class FieldSet
             if ($type === 'decimal') {
                 $field['precision'] = $decimalPrecision ?? 10;
                 $field['scale'] = $decimalScale ?? 2;
+            }
+            if ($type === 'money') {
+                $field['currency'] = $moneyCurrency; // null = use the configured default currency
             }
             if ($type === 'hasMany') {
                 $child = $hasManyTable !== null && $hasManyTable !== ''
@@ -500,6 +513,8 @@ BLADE;
                 'text', 'richtext' => "\$table->text('{$col}')",
                 'integer' => "\$table->integer('{$col}')",
                 'decimal' => "\$table->decimal('{$col}', " . ($f['precision'] ?? 10) . ', ' . ($f['scale'] ?? 2) . ')',
+                // Money is an integer of minor units (cents) — bigInteger holds large/negative amounts exactly.
+                'money' => "\$table->bigInteger('{$col}')",
                 'boolean' => "\$table->boolean('{$col}')" . ($n ? '' : '->default(false)'),
                 'date' => "\$table->date('{$col}')",
                 'datetime' => "\$table->dateTime('{$col}')",
@@ -732,7 +747,7 @@ PHP;
     /** API `?sort=` columns — scalar fields plus created_at (whitelist). */
     public function apiSortable(): string
     {
-        $cols = $this->apiColumns(['string', 'integer', 'decimal', 'date', 'datetime', 'time', 'boolean', 'enum', 'email', 'slug', 'url']);
+        $cols = $this->apiColumns(['string', 'integer', 'decimal', 'money', 'date', 'datetime', 'time', 'boolean', 'enum', 'email', 'slug', 'url']);
 
         return $cols === '' ? "'created_at'" : $cols . ", 'created_at'";
     }
@@ -773,6 +788,8 @@ PHP;
                 $f['type'] === 'text' => 'fake()->paragraph()',
                 $f['type'] === 'integer' => 'fake()->numberBetween(1, 1000)',
                 $f['type'] === 'decimal' => 'fake()->randomFloat(' . ($f['scale'] ?? 2) . ', 1, 1000)',
+                // A major amount — the MoneyCast converts it to the stored minor-unit integer.
+                $f['type'] === 'money' => 'fake()->randomFloat(2, 1, 1000)',
                 $f['type'] === 'boolean' => 'fake()->boolean()',
                 $f['type'] === 'date' => 'fake()->date()',
                 $f['type'] === 'datetime' => 'fake()->dateTime()',
@@ -834,6 +851,13 @@ PHP;
     {
         if ($f['type'] === 'enum') {
             return '\\App\\Enums\\' . $this->enumClass($f) . '::class';
+        }
+
+        if ($f['type'] === 'money') {
+            // Optional per-column currency travels as a cast argument (MoneyCast::class.':KHR').
+            $currency = $f['currency'] ?? null;
+
+            return '\\Ngos\\AdminCore\\Casts\\MoneyCast::class' . ($currency ? ".':{$currency}'" : '');
         }
 
         return match ($f['type']) {
@@ -923,6 +947,10 @@ PHP;
                     // Cap the magnitude/scale to the column's decimal(p,s) so an over-long value can't be
                     // silently truncated by the database. The rule lives in src/ (FQ, no import needed).
                     $rules = [$required, "'numeric'", "new \\Ngos\\AdminCore\\Rules\\DecimalPrecision({$f['precision']}, {$f['scale']})"];
+                    break;
+                case 'money':
+                    // The form posts a major amount ("15.00"); the MoneyCast parses it to minor units.
+                    $rules = [$required, "'numeric'"];
                     break;
                 case 'boolean':
                     $rules = ["'nullable'", "'boolean'"];
@@ -1181,6 +1209,11 @@ PHP;
                 return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" :value=\"{$old}\"{$ro} />";
             case 'decimal':
                 return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" step=\"0.01\" :value=\"{$old}\"{$ro} />";
+            case 'money':
+                // Edit the major amount (price->major() === "15.00"); the symbol + step come from the currency.
+                $cur = ! empty($f['currency']) ? " currency=\"{$f['currency']}\"" : '';
+
+                return "<x-admin-core::money-input name=\"{$col}\" label=\"{$label}\"{$cur} :value=\"old('{$col}', \$object?->{$col}?->major())\"{$ro} />";
             case 'email':
                 return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"email\" :value=\"{$old}\"{$ro} />";
             case 'url':
@@ -1509,6 +1542,8 @@ BLADE;
             // Match the show view's status badge / Yes-No / formatted date rather than leaking a raw value.
             'enum' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\\Illuminate\\Support\\Str::headline(\$row->{$f['name']}->value)) . '</span>' : '')",
             'boolean' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')",
+            // Format the Money object for the list (e.g. "$15.00"); ordering still uses the raw minor-unit column.
+            'money' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format())",
             'date' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d'))",
             'datetime' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))",
             'image' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')",
@@ -1555,6 +1590,7 @@ BLADE;
                 'image' => "@if(\$object->{$f['name']})<img src=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
+                'money' => "{{ \$object->{$f['name']}?->format() }}",
                 'enum' => "<x-admin-core::status :value=\"\$object->{$f['name']}\" />",
                 'translatable' => "{{ ac_localize(\$object->{$f['name']}) }}",
                 'richtext' => "{!! \$object->{$f['name']} !!}",

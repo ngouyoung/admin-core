@@ -162,6 +162,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Money (the `money` field type)
+    |--------------------------------------------------------------------------
+    | A `price:money` field stores an integer count of MINOR units (cents/sen) so amounts and sums stay
+    | exact — no binary-float rounding (0.1 + 0.2 !== 0.3). `currency` is the default; each entry under
+    | `currencies` says how that currency stores + displays:
+    |   decimals  how many minor units make one major unit — USD = 2 ($15.00 → 1500), KHR = 0 (៛15,000 → 15000)
+    |   symbol    the currency sign            position  'before' ($15) or 'after' (15 €)
+    |   thousands group separator              decimal   the decimal point character
+    | Pin one column to a non-default currency in the DSL: `price:money:KHR`. A currency not listed here still
+    | works (symbol = its code, 2 decimals). See \Ngos\AdminCore\Support\Money.
+    */
+    'money' => [
+        'currency' => env('ADMIN_CORE_CURRENCY', 'USD'),
+        'currencies' => [
+            'USD' => ['symbol' => '$', 'decimals' => 2, 'position' => 'before', 'thousands' => ',', 'decimal' => '.'],
+            'KHR' => ['symbol' => '៛', 'decimals' => 0, 'position' => 'before', 'thousands' => ',', 'decimal' => '.'],
+            'EUR' => ['symbol' => '€', 'decimals' => 2, 'position' => 'after', 'thousands' => '.', 'decimal' => ','],
+            'GBP' => ['symbol' => '£', 'decimals' => 2, 'position' => 'before', 'thousands' => ',', 'decimal' => '.'],
+            'JPY' => ['symbol' => '¥', 'decimals' => 0, 'position' => 'before', 'thousands' => ',', 'decimal' => '.'],
+            'THB' => ['symbol' => '฿', 'decimals' => 2, 'position' => 'before', 'thousands' => ',', 'decimal' => '.'],
+            'VND' => ['symbol' => '₫', 'decimals' => 0, 'position' => 'after', 'thousands' => '.', 'decimal' => ','],
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Global search (<x-admin-core::global-search /> + Route::adminCoreSearch())
     |--------------------------------------------------------------------------
     | A dependency-free, offline-friendly LIKE search across the resources you list here — no Scout /
