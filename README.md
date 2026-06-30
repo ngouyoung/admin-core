@@ -163,6 +163,7 @@ php artisan admin-core:make Product --migration --fields="\
 | `decimal` (`decimal:p\|s`) | `decimal(10,2)` | number (step) | `numeric` + precision/scale |
 | `money` (`money:KHR`) | `bigInteger` (minor units) | number + currency symbol | `numeric` |
 | `computed` (`computed:qty*price`) | — (derived accessor, not stored) | — (read-only) | — |
+| `rollup` (`rollup:lines.line_total`) | — (sum of a child relation, not stored) | — (read-only) | — |
 | `boolean` | `boolean` default 0 | checkbox | `boolean` |
 | `date` / `datetime` | `date` / `dateTime` | Air Datepicker (themed calendar / + time) | `date` |
 | `time` | `time` | native time | `date_format:H:i` |
@@ -214,6 +215,22 @@ in the generated accessor stub. Computed columns can't be sorted or searched in 
 them); the value is appended to every serialization, so make sure its source columns are loaded (a partial
 `select()` that omits them makes a numeric formula read them as `0`; money operands are null-safe via `?->`).
 Add computed fields at `make` time — `admin-core:field` defers them to the full generator.
+
+**Rollups total up a master-detail document.** `total:rollup:lines.line_total` adds a read-only accessor
+that **sums a child hasMany** — the document total = the sum of each line's `line_total`. It's money-aware
+(`Ngos\AdminCore\Support\Rollup::sum`): money line totals sum to an exact **Money** (shown formatted), plain
+numbers sum numerically, an empty document totals `0`. Like `computed` it's derived — no column, not in the
+form, appended to array/JSON, shown read-only in the list and on show — and the rolled-up relation is
+**eager-loaded** in the list so it isn't N+1. The relation must be a `hasMany` declared on the same resource
+(`lines:hasMany:invoice_lines, total:rollup:lines.line_total`), which completes the master-detail story:
+line items (`hasMany`) → per-line money totals (`money` + `computed`) → document total (`rollup`). The summed
+attribute can itself be a child `computed`/`money` value. For very large child sets, sum a real column with a
+database aggregate instead (the rollup loads the children to sum them).
+
+Two things to know: the rolled-up child value must be **consistently one type** and money rows must **share a
+currency** — a mix fails loudly (a silently-wrong money total is worse). And the `hasMany` **child is a
+separate resource** this command doesn't scaffold — generate it (`admin-core:make InvoiceLine …`) too, or the
+list/show/API will error when the rollup dereferences a missing model (the generator warns you about this).
 
 **Enums are code, not schema.** `status:enum:draft|published` generates `App\Enums\ProductStatus` (a
 string-backed PHP enum) as the **single source of truth**: validation uses `Rule::enum`, the model casts

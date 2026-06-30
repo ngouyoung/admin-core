@@ -720,6 +720,36 @@ it('generates valid PHP for a bare computed stub and a money-aware computed expr
     expect($lint->successful())->toBeTrue($lint->output());
 });
 
+it('wires a rollup document total over a hasMany (accessor + eager-load + appends, valid PHP)', function () {
+    // The child model (GizmoLine) isn't scaffolded by this command — the generator warns to create it, since
+    // the rollup dereferences the relation on every render.
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, lines:hasMany:gizmo_lines, total:rollup:lines.line_total',
+        '--migration' => true,
+    ])->expectsOutputToContain("doesn't exist yet")->assertSuccessful();
+
+    $model = File::get(app_path('Models/Gizmo.php'));
+    expect($model)
+        ->toContain('use Illuminate\Database\Eloquent\Casts\Attribute;')
+        ->toContain("protected \$appends = ['total'];")
+        ->toContain("Rollup::sum(\$this->lines, 'line_total')")
+        ->not->toContain('__AC_');
+
+    // The list eager-loads the rolled-up relation (no N+1) and shows the total read-only via (string).
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->toContain("parent::getData(['lines'])")
+        ->toContain("->addColumn('total', fn (\$row) => (string) \$row->total)");
+
+    // Not a column, not fillable.
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+    expect($migration)->not->toContain("'total'");
+    expect($model)->toContain("protected \$fillable = ['name'];");
+
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Models/Gizmo.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+});
+
 it('defers a computed field added via admin-core:field to the full generator (no half-wired model)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

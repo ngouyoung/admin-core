@@ -431,6 +431,18 @@ class AdminCoreMakeCommand extends Command
             ? "  Run <info>php artisan migrate</info>, then visit /admin/{$snakePlural} — permissions are already granted to the admin role."
             : "  Run <info>php artisan migrate</info> — API routes are loaded from routes/Api/Modules and gated by the {$kebab} permissions.");
 
+        // A hasMany child is a separate resource this command doesn't scaffold. Warn when its model is missing —
+        // a rollup makes this urgent (its accessor dereferences the relation on every list/show/API render, so a
+        // missing child class 500s the page until you generate it).
+        $hasRollup = collect($fields->fields())->contains(fn ($f) => $f['type'] === 'rollup');
+        foreach ($fields->fields() as $f) {
+            if ($f['type'] === 'hasMany' && ! class_exists('\\App\\Models\\' . $f['relModel'])) {
+                $this->warn("  child model App\\Models\\{$f['relModel']} doesn't exist yet — generate it "
+                    . "(`admin-core:make {$f['relModel']} …`) so the '{$f['relation']}' relation"
+                    . ($hasRollup ? " + its rollup total work (the list/show/API render it on every row)." : ' works.'));
+            }
+        }
+
         return self::SUCCESS;
     }
 
@@ -778,6 +790,7 @@ PHP);
             'decimal' => 'fixed-precision number — decimal:precision|scale (price:decimal:12|4)',
             'money' => 'exact money — stored as minor units (cents), shown with the currency symbol; price:money or price:money:KHR',
             'computed' => 'derived, read-only value (not stored) — total:computed:qty*price, or total:computed for a hand-written accessor',
+            'rollup' => 'document total = sum of a child relation (money-aware) — total:rollup:lines.line_total',
             'boolean' => 'true / false toggle',
             'date' => 'date',
             'datetime' => 'date + time',

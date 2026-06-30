@@ -17,6 +17,8 @@ use Illuminate\Support\Str;
  *   - computed derived, read-only (not a column):  total:computed:qty*price  (typed arithmetic over numeric
  *              AND money fields — money operands compile to Money's ->multiply/->add/… and yield a Money);
  *              bare  total:computed  scaffolds an accessor stub you fill in
+ *   - rollup   derived document total = sum of a child relation (money-aware):  total:rollup:lines.line_total
+ *              (sum each line's line_total over the `lines` hasMany) — needs the hasMany declared on this resource
  *   - enum     values piped:  status:enum:draft|published|archived
  *   - foreign  column ending in _id:  category_id:foreign  (-> belongsTo). Add an explicit
  *              target table for a self-reference / tree or a non-conventional name:
@@ -39,8 +41,8 @@ class FieldSet
      * (e.g. a comma'd enum `status:enum(a,b)` leaking columns named `b` and `c)`) into a clear error.
      */
     private const TYPES = [
-        'string', 'text', 'richtext', 'integer', 'decimal', 'money', 'computed', 'boolean', 'date', 'datetime',
-        'time', 'email', 'url', 'password', 'slug', 'json', 'translatable', 'image', 'file',
+        'string', 'text', 'richtext', 'integer', 'decimal', 'money', 'computed', 'rollup', 'boolean', 'date',
+        'datetime', 'time', 'email', 'url', 'password', 'slug', 'json', 'translatable', 'image', 'file',
         'foreign', 'belongsToMany', 'hasMany', 'media', 'gallery', 'enum', 'auth', 'sku',
     ];
 
@@ -262,6 +264,14 @@ class FieldSet
                 $spec = 'computed';
             }
 
+            // Rollup (derived document total): `total:rollup:lines.line_total` sums a child relation's attribute
+            // (money-aware). The `relation.attribute` reference is resolved + validated after the full parse.
+            $rollupRef = null;
+            if (str_starts_with($spec, 'rollup:')) {
+                $rollupRef = trim(substr($spec, 7));
+                $spec = 'rollup';
+            }
+
             // Explicit FK target: `parent_id:foreign:categories` (self-reference / tree) or a column whose
             // name doesn't match the table convention (`author_id:foreign:users`). Without the target the
             // table is inferred from the column (parent_id -> parents), which breaks self-refs.
@@ -316,6 +326,9 @@ class FieldSet
             if ($type === 'computed') {
                 $field['expr'] = $computedExpr; // null = scaffold a stub accessor instead of an expression
             }
+            if ($type === 'rollup') {
+                $field['rollupRef'] = $rollupRef; // "relation.attribute" — resolved in compileDerivedFields()
+            }
             if ($type === 'hasMany') {
                 $child = $hasManyTable !== null && $hasManyTable !== ''
                     ? Str::snake($hasManyTable)
@@ -329,33 +342,36 @@ class FieldSet
 
         $fields = $fields ?: [$this->field('name', 'string')];
 
-        return $this->compileComputedFields($fields);
+        return $this->compileDerivedFields($fields);
     }
 
     /**
-     * Validate + compile every computed field now that the full field list is known, annotating each
-     * (`computedPhp` = the accessor body, `computedType` = 'numeric'|'money') so the model, list and show
-     * render it right. A computed expression is a TYPED arithmetic formula over other numeric/money fields:
-     * numbers use operators, money uses Money's exact methods (`?->multiply`/`?->add`/…), and a nonsensical
-     * mix (money×money, money±number, ÷money) is rejected — so user input never becomes arbitrary or wrong PHP.
-     * A bare `computed` (no expr) keeps a stub for you to fill in.
+     * Validate + compile every DERIVED field (computed accessor, rollup aggregate) now that the full field list
+     * is known. `computed` annotates `computedPhp`/`computedType` from a typed arithmetic formula (numbers use
+     * operators, money uses Money's exact `?->multiply`/`?->add`/… methods; nonsensical mixes are rejected, so
+     * user input never becomes arbitrary or wrong PHP). `rollup` resolves its `relation.attribute` against a
+     * declared hasMany. Both get a name-round-trip check so their accessor maps back from `$appends`.
      *
      * @param  array<int, array<string, mixed>>  $fields
      * @return array<int, array<string, mixed>>
      */
-    private function compileComputedFields(array $fields): array
+    private function compileDerivedFields(array $fields): array
     {
         $types = [];
+        $relations = []; // hasMany relation name => true (the rollups may aggregate)
         foreach ($fields as $f) {
             if (in_array($f['type'], self::NUMERIC_TYPES, true)) {
                 $types[$f['name']] = 'numeric';
             } elseif ($f['type'] === 'money') {
                 $types[$f['name']] = 'money';
+            } elseif ($f['type'] === 'hasMany') {
+                $relations[$f['name']] = $f['relation']; // field name -> camelCase relation method
+                $relations[$f['relation']] = $f['relation'];
             }
         }
 
         foreach ($fields as $i => $f) {
-            if ($f['type'] !== 'computed') {
+            if (! in_array($f['type'], ['computed', 'rollup'], true)) {
                 continue;
             }
             // The accessor is named in camelCase (total -> total(), full_name -> fullName()); Eloquent resolves
@@ -364,12 +380,18 @@ class FieldSet
             // that doesn't exist. Reject it up front with the fix.
             if (Str::snake(Str::camel($f['name'])) !== $f['name']) {
                 throw new \InvalidArgumentException(
-                    "admin-core: computed field '{$f['name']}' can't map to an accessor — avoid a digit right after "
-                    . "an underscore (e.g. 'line_2_total'). Rename it (lineTotal2, line_total) so it serialises.",
+                    "admin-core: {$f['type']} field '{$f['name']}' can't map to an accessor — avoid a digit right "
+                    . "after an underscore (e.g. 'line_2_total'). Rename it (lineTotal2, line_total) so it serialises.",
                 );
             }
+
+            if ($f['type'] === 'rollup') {
+                $fields[$i] = $this->resolveRollup($f, $relations);
+
+                continue;
+            }
             if (($f['expr'] ?? null) === null) {
-                continue; // a bare stub — no expression to compile
+                continue; // a bare computed stub — no expression to compile
             }
             $compiled = $this->compileExpression($f['name'], $f['expr'], $types);
             $fields[$i]['computedPhp'] = $compiled['php'];
@@ -377,6 +399,46 @@ class FieldSet
         }
 
         return $fields;
+    }
+
+    /**
+     * Resolve a `rollup:relation.attribute` reference against the resource's declared hasMany relations,
+     * annotating `rollupRelation` (the camelCase method the accessor calls) + `rollupAttribute`.
+     *
+     * @param  array<string, mixed>  $f
+     * @param  array<string, string>  $relations  declared hasMany: field/relation name => relation method
+     * @return array<string, mixed>
+     */
+    private function resolveRollup(array $f, array $relations): array
+    {
+        $ref = (string) ($f['rollupRef'] ?? '');
+        if (! str_contains($ref, '.')) {
+            throw new \InvalidArgumentException(
+                "admin-core: rollup field '{$f['name']}' needs a relation.attribute reference, e.g. "
+                . "{$f['name']}:rollup:lines.line_total (sum each line's line_total).",
+            );
+        }
+        [$relation, $attribute] = explode('.', $ref, 2);
+        $relation = trim($relation);
+        $attribute = trim($attribute);
+
+        if (! isset($relations[$relation])) {
+            throw new \InvalidArgumentException(
+                "admin-core: rollup field '{$f['name']}' references the relation '{$relation}', which isn't a "
+                . "hasMany on this resource. Declare it (e.g. lines:hasMany:{$relation}) and roll up its attribute.",
+            );
+        }
+        if (! preg_match('/^[a-z_][a-z0-9_]*$/i', $attribute)) {
+            throw new \InvalidArgumentException(
+                "admin-core: rollup field '{$f['name']}' has an invalid attribute '{$attribute}'. Use a single "
+                . "child column/accessor name, e.g. {$f['name']}:rollup:{$relation}.line_total.",
+            );
+        }
+
+        $f['rollupRelation'] = $relations[$relation];
+        $f['rollupAttribute'] = $attribute;
+
+        return $f;
     }
 
     /**
@@ -709,8 +771,8 @@ class FieldSet
     private function isColumn(array $f): bool
     {
         // belongsToMany (pivot), hasMany (child rows), media/gallery (HasMedia attachments) are relations, and
-        // computed (a derived accessor) is not stored — none of them is a column on this table.
-        return ! in_array($f['type'], ['belongsToMany', 'hasMany', 'media', 'gallery', 'computed'], true);
+        // computed/rollup (derived accessors) aren't stored — none of them is a column on this table.
+        return ! in_array($f['type'], ['belongsToMany', 'hasMany', 'media', 'gallery', 'computed', 'rollup'], true);
     }
 
     private function isFile(array $f): bool
@@ -1161,20 +1223,20 @@ PHP;
         return implode("\n", $methods);
     }
 
-    /** Whether the resource declares any computed (derived accessor) field. */
+    /** Whether the resource declares any derived-accessor field (computed or rollup) — needs the Attribute import. */
     public function hasComputed(): bool
     {
-        return collect($this->fields)->contains(fn ($f) => $f['type'] === 'computed');
+        return collect($this->fields)->contains(fn ($f) => in_array($f['type'], ['computed', 'rollup'], true));
     }
 
     /**
-     * `protected $appends = [...]` for computed fields, so each derived value rides along in the model's
-     * array/JSON form (toArray, API) — not just the list/show we wire explicitly. Empty when there are none.
+     * `protected $appends = [...]` for derived (computed/rollup) fields, so each value rides along in the
+     * model's array/JSON form (toArray, API) — not just the list/show we wire explicitly. Empty when none.
      */
     public function appends(): string
     {
         $names = collect($this->fields)
-            ->filter(fn ($f) => $f['type'] === 'computed')
+            ->filter(fn ($f) => in_array($f['type'], ['computed', 'rollup'], true))
             ->map(fn ($f) => "'{$f['name']}'")
             ->implode(', ');
 
@@ -1190,17 +1252,11 @@ PHP;
     {
         $methods = [];
         foreach ($this->fields as $f) {
-            if ($f['type'] !== 'computed') {
+            if (! in_array($f['type'], ['computed', 'rollup'], true)) {
                 continue;
             }
             $method = Str::camel($f['name']);
-            // A compiled expression body (typed: numbers via operators, money via Money's ?-> methods) or, for
-            // a bare computed, a TODO stub. The stub must be a valid arrow-fn expression — a block comment (no
-            // `;` or `//`) so the generated model still parses; replace the `null` with your formula.
-            $body = ($f['expr'] ?? null) !== null
-                ? $f['computedPhp']
-                : "null /* TODO: derive {$f['name']} — e.g. \$this->first_name.' '.\$this->last_name,"
-                    . " or money: \$this->price?->multiply(\$this->qty) */";
+            $body = $this->accessorBody($f);
 
             $methods[] = <<<PHP
 
@@ -1212,6 +1268,23 @@ PHP;
         }
 
         return implode("\n", $methods);
+    }
+
+    /** The arrow-fn body for a derived accessor (computed expression / bare stub / rollup aggregate). */
+    private function accessorBody(array $f): string
+    {
+        if ($f['type'] === 'rollup') {
+            // Money-aware sum of a child relation's attribute (a document total = sum of line items).
+            return "\\Ngos\\AdminCore\\Support\\Rollup::sum(\$this->{$f['rollupRelation']}, '{$f['rollupAttribute']}')";
+        }
+
+        // A compiled expression body (typed: numbers via operators, money via Money's ?-> methods) or, for a
+        // bare computed, a TODO stub. The stub must be a valid arrow-fn expression — a block comment (no `;` or
+        // `//`) so the generated model still parses; replace the `null` with your formula.
+        return ($f['expr'] ?? null) !== null
+            ? $f['computedPhp']
+            : "null /* TODO: derive {$f['name']} — e.g. \$this->first_name.' '.\$this->last_name,"
+                . " or money: \$this->price?->multiply(\$this->qty) */";
     }
 
     /** The cast expression for one field, or null when it needs none. */
@@ -1321,6 +1394,7 @@ PHP;
                     $rules = [$required, "'numeric'"];
                     break;
                 case 'computed':
+                case 'rollup':
                     continue 2; // derived, read-only — never submitted, so no rule
                 case 'boolean':
                     $rules = ["'nullable'", "'boolean'"];
@@ -1489,8 +1563,8 @@ PHP;
             }
         }
         foreach ($this->fields as $f) {
-            if (! empty($f['system']) || $f['type'] === 'computed') {
-                continue; // system fields and computed (read-only, derived) values are never in the form
+            if (! empty($f['system']) || in_array($f['type'], ['computed', 'rollup'], true)) {
+                continue; // system fields and computed/rollup (read-only, derived) values are never in the form
             }
             // Wrap in a field-guard so fieldPermissions() can lock a field for users who lack its permission.
             // A pure passthrough when the field isn't restricted (no markup change), so it's always safe to emit.
@@ -1686,8 +1760,8 @@ BLADE;
         if ($f['type'] === 'belongsToMany') {
             return "                {data: '{$f['relation']}', name: '{$f['relation']}', orderable: false},";
         }
-        // image/file (no sortable column) and computed (no DB column at all) render a value only.
-        if (in_array($f['type'], ['image', 'file', 'computed'], true)) {
+        // image/file (no sortable column) and computed/rollup (no DB column at all) render a value only.
+        if (in_array($f['type'], ['image', 'file', 'computed', 'rollup'], true)) {
             return "                {data: '{$f['name']}', orderable: false, searchable: false},";
         }
         // Translatable JSON column: searchable (LIKE on the raw JSON) but not orderable.
@@ -1726,7 +1800,7 @@ BLADE;
         if ($f['type'] === 'belongsToMany') {
             return "            ['data' => '{$f['relation']}', 'name' => '{$f['relation']}', 'orderable' => false],";
         }
-        if (in_array($f['type'], ['image', 'file', 'computed'], true)) {
+        if (in_array($f['type'], ['image', 'file', 'computed', 'rollup'], true)) {
             return "            ['data' => '{$f['name']}', 'orderable' => false, 'searchable' => false],";
         }
         if ($f['type'] === 'translatable') {
@@ -1836,11 +1910,16 @@ BLADE;
      */
     private function relationColumns(): array
     {
-        return collect($this->fields)
+        $relations = collect($this->fields)
             ->whereIn('type', ['foreign', 'belongsToMany'])
-            ->map(fn ($f) => "'{$f['relation']}'")
-            ->values()
-            ->all();
+            ->map(fn ($f) => $f['relation']);
+
+        // A rollup sums a child relation per row — eager-load it so the list isn't N+1.
+        $rollups = collect($this->fields)
+            ->where('type', 'rollup')
+            ->map(fn ($f) => $f['rollupRelation']);
+
+        return $relations->merge($rollups)->unique()->map(fn ($r) => "'{$r}'")->values()->all();
     }
 
     /**
@@ -1920,6 +1999,9 @@ BLADE;
             'computed' => ($f['computedType'] ?? null) === 'money'
                 ? "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format())"
                 : "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']})",
+            // Rollup sums a child relation — Money or numeric at runtime; (string) formats either (Money via
+            // __toString) and avoids a Money object being JSON-serialised into the cell.
+            'rollup' => "            ->addColumn('{$f['name']}', fn (\$row) => (string) \$row->{$f['name']})",
             'date' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d'))",
             'datetime' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))",
             'image' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')",
@@ -1970,6 +2052,8 @@ BLADE;
                 'computed' => ($f['computedType'] ?? null) === 'money'
                     ? "{{ \$object->{$f['name']}?->format() }}"
                     : "{{ \$object->{$f['name']} }}",
+                // Rollup: Blade {{ }} formats a Money via __toString, echoes a number raw.
+                'rollup' => "{{ \$object->{$f['name']} }}",
                 'enum' => "<x-admin-core::status :value=\"\$object->{$f['name']}\" />",
                 'translatable' => "{{ ac_localize(\$object->{$f['name']}) }}",
                 'richtext' => "{!! \$object->{$f['name']} !!}",

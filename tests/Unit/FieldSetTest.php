@@ -542,3 +542,47 @@ it('rejects a computed expression that references a string/enum or unknown field
     expect(fn () => fs('qty:integer, total:computed:qty*nope'))
         ->toThrow(InvalidArgumentException::class, "references 'nope'");
 });
+
+// -- rollup (document total = sum of a child relation) -----------------------------------------------
+
+it('compiles a rollup into a money-aware child-sum accessor', function () {
+    $f = fs('lines:hasMany:invoice_lines, total:rollup:lines.line_total');
+
+    expect($f->accessors())
+        ->toContain('protected function total(): Attribute')
+        ->toContain("Attribute::get(fn () => \\Ngos\\AdminCore\\Support\\Rollup::sum(\$this->lines, 'line_total'))");
+    expect($f->modelUses())->toContain('use Illuminate\Database\Eloquent\Casts\Attribute;');
+    expect($f->appends())->toBe("\n\n    protected \$appends = ['total'];");
+});
+
+it('eager-loads the rolled-up relation in the list (no N+1) and shows it read-only, non-orderable', function () {
+    $f = fs('lines:hasMany:invoice_lines, total:rollup:lines.line_total');
+
+    expect($f->eager())->toContain("'lines'");                       // eager-loaded for the list sum
+    expect($f->getDataColumns())->toContain("->addColumn('total', fn (\$row) => (string) \$row->total)");
+    expect($f->columnsConfig())->toContain("['data' => 'total', 'orderable' => false, 'searchable' => false]");
+    expect($f->showRows())->toContain('$object->total');
+});
+
+it('keeps a rollup out of the schema, fillable, rules and the form', function () {
+    $f = fs('lines:hasMany:invoice_lines, total:rollup:lines.line_total');
+
+    expect($f->migrationColumns())->not->toContain("'total'");
+    expect($f->fillable())->not->toContain("'total'");
+    expect($f->storeRules())->not->toContain("'total'");
+    expect($f->formFields())->not->toContain('name="total"');
+});
+
+it('resolves a rollup whose relation is written as the snake field name', function () {
+    // `order_lines:hasMany` -> relation method orderLines; the rollup may reference either spelling.
+    $f = fs('order_lines:hasMany:invoice_lines, total:rollup:order_lines.line_total');
+
+    expect($f->accessors())->toContain('Rollup::sum($this->orderLines, ');
+});
+
+it('rejects a rollup that does not reference a declared hasMany relation', function () {
+    expect(fn () => fs('total:rollup:lines.line_total'))                       // no `lines` relation
+        ->toThrow(InvalidArgumentException::class, "isn't a hasMany");
+    expect(fn () => fs('lines:hasMany:invoice_lines, total:rollup:lines'))     // missing .attribute
+        ->toThrow(InvalidArgumentException::class, 'relation.attribute');
+});

@@ -2,6 +2,29 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.67.0
+
+**`rollup` field type — a document total = sum of its line items.** `total:rollup:lines.line_total` sums a
+child `hasMany` (money-aware), completing the master-detail document story found dogfooding a real SMPOS
+sale/purchase: line items (`hasMany`) → per-line money totals (`money` + `computed`) → document total
+(`rollup`).
+
+### Added
+- **`rollup` field type** — `admin-core:make Invoice --fields="…, lines:hasMany:invoice_lines, total:rollup:lines.line_total"`:
+  - A read-only accessor `Rollup::sum($this->lines, 'line_total')` — derived, no column, not in the form,
+    appended to array/JSON, shown read-only in the list + on show. The relation must be a declared `hasMany`.
+  - **Money-aware**: money line totals sum to an exact `Money` (shown formatted, `$6.00`), plain numbers sum
+    numerically, an empty document totals `0`. The summed child attribute can itself be a `computed`/`money`.
+  - The rolled-up relation is **eager-loaded** in the list (no N+1).
+- **`Ngos\AdminCore\Support\Rollup::sum()`** — the money-aware child aggregator. It fails loudly on
+  inconsistent child data (a mix of Money and plain numbers, or money lines in different currencies) rather
+  than returning a silently-wrong total.
+
+### Notes
+- A `hasMany` child is a separate resource the generator doesn't scaffold; with a rollup the list/show/API
+  dereference it on every render, so `admin-core:make` now **warns** when the child model doesn't exist yet
+  (generate it too).
+
 ## v2.66.0
 
 **Money-aware computed expressions** — `total:computed:qty*price` now composes the `money` and `computed`

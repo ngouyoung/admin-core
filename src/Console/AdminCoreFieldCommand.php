@@ -75,7 +75,7 @@ class AdminCoreFieldCommand extends Command
         $computedSkipped = false;
         foreach (array_filter($newTokens, fn ($t) => $this->isComputedToken($t)) as $t) {
             $name = trim(explode(':', $t)[0]);
-            $this->warn("  needs the full generator — skipped: {$name} (computed accessor; regenerate with `admin-core:make {$class} --fields=\"…\" --force`, or add the accessor + \$appends by hand)");
+            $this->warn("  needs the full generator — skipped: {$name} (derived accessor; regenerate with `admin-core:make {$class} --fields=\"…\" --force`, or add the accessor + \$appends by hand)");
             $computedSkipped = true;
         }
         $newTokens = array_values(array_filter($newTokens, fn ($t) => ! $this->isComputedToken($t)));
@@ -148,12 +148,13 @@ class AdminCoreFieldCommand extends Command
         return self::SUCCESS;
     }
 
-    /** Whether a DSL token declares a computed field (`name:computed` / `name:computed:expr`). */
+    /** Whether a DSL token declares a derived-accessor field (computed / rollup) — deferred to the full generator. */
     private function isComputedToken(string $token): bool
     {
         $parts = explode(':', $token);
+        $type = isset($parts[1]) ? strtolower(rtrim(trim($parts[1]), '?^~@#')) : '';
 
-        return isset($parts[1]) && strtolower(rtrim(trim($parts[1]), '?^~@#')) === 'computed';
+        return in_array($type, ['computed', 'rollup'], true);
     }
 
     /** Whether the DB table exists (false if there's no usable connection). */
