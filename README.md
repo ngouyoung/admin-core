@@ -437,6 +437,24 @@ change. Notes: a per-record / **multi-currency** money column isn't auto-totalle
 one amount); the total reflects the structured list filters, not the free-text search box. Opt in by adding
 `listAggregates()` (the generator does it for money columns); a list that declares none has no footer.
 
+### Read-only resources (reports)
+
+A report is a list you read, not edit. `--read-only` scaffolds exactly that — the **list, show and export**, with
+all the DataTable filters/totals — but **no create / edit / delete / import**:
+
+```bash
+php artisan admin-core:make StockValuation --read-only \
+  --fields="variant:string, qty:integer, value:money"
+```
+
+It skips the FormRequests and the create/edit/form views, registers only the read routes
+(`Route::crud(..., readOnly: true)` → `index`/`getData`/`select` + `show` + `export`), and seeds **only the
+`list` permission** — so the create/edit/delete buttons (gated on those absent permissions) never render.
+Every write button is also `Route::has()`-guarded, so it stays hidden even with permissions off. Point the
+generated model at a real table or a database view; add `listAggregates()` for a totals row. `--soft-deletes`
+and `--sortable` (write features) are ignored with a notice. With `--api`, the JSON API is read-only too
+(index + show, no store/update/destroy).
+
 Create / update / delete (and restore) flash a `success` message that the layout renders automatically.
 Customise or translate it by overriding one method on the generated controller:
 

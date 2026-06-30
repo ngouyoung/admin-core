@@ -2,6 +2,29 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.75.0
+
+**Read-only resources (`--read-only`).** `admin-core:make Report --read-only` scaffolds a list + show + export
+(with the DataTable filters/totals) but no create/edit/delete/import — a report stays inside the skeleton
+instead of bypassing it. Completes the reporting story begun with list footer totals (v2.74.0), found
+dogfooding SMPOS's four bespoke report controllers.
+
+### Added
+- **`--read-only` flag** on `admin-core:make`. Skips the FormRequests and the create/edit/form views; the
+  generated controller has no `storeRequest`/`updateRequest`. Registers only the read routes
+  (`Route::crud(..., readOnly: true)` → index/getData/select, plus show + export) — no
+  create/store/edit/update/delete/ajaxDelete/bulkDelete/import/action/transition. Seeds **only the `list`
+  permission**. `--soft-deletes`/`--sortable` (write features) are ignored with a notice. Combined with
+  `--api`, the JSON API is read-only too (index + show, no store/update/destroy) — no full-CRUD API backed by
+  the FormRequests that read-only doesn't generate.
+- **`Route::crud($resource, $controller, $guard, readOnly: true)`** — a 4th argument that registers only the
+  read routes.
+
+### Changed
+- The generated write buttons (create / import / bulk-delete / row edit + delete) are now **`Route::has()`-guarded**
+  as well as permission-gated, so a button to a route that doesn't exist never renders (and never evaluates
+  `route()` on a missing name). Backward-compatible — a normal resource has the routes, so nothing changes.
+
 ## v2.74.0
 
 **List footer totals (column aggregates).** A list can now show a **totals row** — `revenue`, on-hand stock

@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Http\Requests\DummyClass\StoreDummyClassRequest;
-use App\Http\Requests\DummyClass\UpdateDummyClassRequest;
-use App\Http\Resources\DummyClassResource;
+__AC_USE_REQUESTS__use App\Http\Resources\DummyClassResource;
 use App\Services\DummyClasses\DummyClassService;
 use Ngos\AdminCore\Http\Controllers\ApiController;
 
 /**
- * JSON API for DummyClass. The CRUD actions live on the base ApiController —
- * this just wires the service, the resource and the form requests.
+ * JSON API for DummyClass. The actions live on the base ApiController — this wires the
+ * service, the resource and (for a writable resource) the store/update form requests.
  */
 class DummyClassApiController extends ApiController
 {
@@ -29,8 +27,6 @@ class DummyClassApiController extends ApiController
     public function __construct(DummyClassService $service)
     {
         $this->service = $service;
-        $this->resource = DummyClassResource::class;
-        $this->storeRequest = StoreDummyClassRequest::class;
-        $this->updateRequest = UpdateDummyClassRequest::class;
+        $this->resource = DummyClassResource::class;__AC_ASSIGN_REQUESTS__
     }
 }

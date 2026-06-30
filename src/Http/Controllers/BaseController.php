@@ -19,7 +19,14 @@ abstract class BaseController extends Controller
     /** The resource's service. */
     protected BaseService $service;
 
-    /** FormRequest classes — resolved (and validated) when the action runs. */
-    protected string $storeRequest;
-    protected string $updateRequest;
+    /**
+     * FormRequest classes — resolved (and validated) when a write action runs. Null on a read-only resource
+     * (which registers no write routes), so they default to null instead of staying uninitialized.
+     *
+     * @var class-string|null
+     */
+    protected ?string $storeRequest = null;
+
+    /** @var class-string|null */
+    protected ?string $updateRequest = null;
 }

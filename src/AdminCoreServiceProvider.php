@@ -155,7 +155,7 @@ class AdminCoreServiceProvider extends ServiceProvider
      */
     protected function registerCrudMacro(): void
     {
-        Route::macro('crud', function (string $resource, string $controller, ?string $authGuard = null) {
+        Route::macro('crud', function (string $resource, string $controller, ?string $authGuard = null, bool $readOnly = false) {
             $enabled = config('admin-core.permission.enabled');
 
             // For a non-default guard (multi-portal), Spatie's permission middleware must be
@@ -174,12 +174,18 @@ class AdminCoreServiceProvider extends ServiceProvider
                     : $routes();
             };
 
-            Route::controller($controller)->group(function () use ($guard) {
+            Route::controller($controller)->group(function () use ($guard, $readOnly) {
                 $guard('list', function () {
                     Route::get('/', 'index')->name('index');
                     Route::get('getData', 'getData')->name('getData');
                     Route::get('select', 'select')->name('select'); // Select2 remote source (search + paginate)
                 });
+
+                // A read-only resource stops here — no create/edit/delete/action/transition (all write surfaces).
+                if ($readOnly) {
+                    return;
+                }
+
                 $guard('create', function () {
                     Route::get('create', 'create')->name('create');
                     Route::post('', 'store')->name('store');

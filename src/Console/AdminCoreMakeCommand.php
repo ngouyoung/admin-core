@@ -25,6 +25,7 @@ class AdminCoreMakeCommand extends Command
                             {--tests : Also generate a CRUD feature test (best paired with --migration)}
                             {--api : Also generate a JSON API (resource + controller + apiResource routes)}
                             {--api-only : Generate ONLY the JSON API (no web controller/views/routes) — add the web channel later by re-running without it}
+                            {--read-only : A read-only resource — list, show, export + filters/totals, but NO create/edit/delete/import (a report). Only the list permission is seeded.}
                             {--menu= : Register the sidebar link in a named portal menu (config admin-core.menus.NAME) instead of the default}
                             {--guard= : Auth guard for the permissions + route gates (multi-portal, e.g. merchant). Defaults to the app guard.}
                             {--portal= : Generate the resource INTO a portal (created by admin-core:portal): routes under routes/Portal/Modules with NAME. route-names, its guard + menu. Implies --guard/--menu=NAME.}
@@ -67,6 +68,17 @@ class AdminCoreMakeCommand extends Command
         $audit = $this->option('audit') || (bool) config('admin-core.generator.audit', false);
         $sortable = (bool) $this->option('sortable');
 
+        // A read-only resource (a report): list + show + export + filters/totals, no create/edit/delete/import.
+        // It's a WRITE-less channel, so soft-deletes + sortable (both write features) don't apply — drop them.
+        $readOnly = (bool) $this->option('read-only');
+        if ($readOnly) {
+            if ($soft || $sortable) {
+                $this->warn('  --read-only ignores --soft-deletes/--sortable (both add write actions).');
+            }
+            $soft = false;
+            $sortable = false;
+        }
+
         // Multi-portal. --portal=merchant is the one-flag way: it routes the resource INTO that
         // portal (its Modules dir, `merchant.` route-names, the controller's route prefix, its
         // menu) AND scopes permissions/gates to its guard. --guard/--menu remain low-level
@@ -78,6 +90,31 @@ class AdminCoreMakeCommand extends Command
         $guard = $guardOpt ?: config('admin-core.permission.guard', config('auth.defaults.guard', 'web'));
         $permSuffix = $guardOpt ? ",{$guardOpt}" : '';
         $crudGuardArg = $guardOpt ? ", '{$guardOpt}'" : '';
+        // Read-only codegen: tell Route::crud to skip the write routes, drop the FormRequest import/assigns from
+        // the controller, and omit the import/bulkDelete routes — so a read-only resource has no write surface.
+        $crudReadOnlyArg = $readOnly ? ', readOnly: true' : '';
+        $requestImports = $readOnly ? '' :
+            "use App\\Http\\Requests\\{$class}\\Store{$class}Request;\nuse App\\Http\\Requests\\{$class}\\Update{$class}Request;\n";
+        $requestAssigns = $readOnly ? '' :
+            "\n        \$this->storeRequest = Store{$class}Request::class;\n        \$this->updateRequest = Update{$class}Request::class;";
+        // The import/bulkDelete routes (create + delete permissions) — dropped for a read-only resource.
+        $writeRoutes = $readOnly ? '' : <<<PHP
+                Route::get('import-template', 'importTemplate')->name('importTemplate')
+                    ->middleware(config('admin-core.permission.enabled') ? 'permission:create-{$kebab}{$permSuffix}' : []);
+                Route::post('import', 'import')->name('import')
+                    ->middleware(config('admin-core.permission.enabled') ? 'permission:create-{$kebab}{$permSuffix}' : []);
+                Route::post('bulkDelete', 'bulkDelete')->name('bulkDelete')
+                    ->middleware(config('admin-core.permission.enabled') ? 'permission:delete-{$kebab}{$permSuffix}' : []);
+
+        PHP;
+        // The JSON API's write routes (store/update/destroy) — dropped for a read-only resource, so --read-only
+        // --api yields a read-only API (index + show) instead of a full CRUD one backed by missing requests.
+        $apiWriteRoutes = $readOnly ? '' : <<<PHP
+                Route::post('/', [{$class}ApiController::class, 'store'])->name('store')->middleware(\$gate('create'));
+                Route::put('{id}', [{$class}ApiController::class, 'update'])->name('update')->middleware(\$gate('edit'));
+                Route::delete('{id}', [{$class}ApiController::class, 'destroy'])->name('destroy')->middleware(\$gate('delete'));
+
+        PHP;
         // Route-name prefix + module dir: a portal resource lives under `merchant.` in
         // routes/Merchant/Modules; otherwise the configured admin prefix + the admin dir.
         $routeNs = $portal ? "{$portal}." : config('admin-core.route.name_prefix', 'admin.');
@@ -247,6 +284,11 @@ class AdminCoreMakeCommand extends Command
             '__AC_FILLABLE__' => $fields->fillable(),
             '__AC_HIDDEN__' => $fields->hidden(),
             '__AC_CRUD_GUARD__' => $crudGuardArg,
+            '__AC_CRUD_RO__' => $crudReadOnlyArg,
+            '__AC_USE_REQUESTS__' => $requestImports,
+            '__AC_ASSIGN_REQUESTS__' => $requestAssigns,
+            '__AC_WRITE_ROUTES__' => $writeRoutes,
+            '__AC_API_WRITE_ROUTES__' => $apiWriteRoutes,
             '__AC_PERM_GUARD__' => $permSuffix,
             '__AC_RNS__' => $routeNs,
             '__AC_LAYOUT__' => $layoutView,
@@ -315,12 +357,16 @@ class AdminCoreMakeCommand extends Command
         $files = [
             'model.stub' => app_path("Models/{$class}.php"),
             'service.stub' => app_path("Services/{$plural}/{$class}Service.php"),
-            'store-request.stub' => app_path("Http/Requests/{$class}/Store{$class}Request.php"),
-            'update-request.stub' => app_path("Http/Requests/{$class}/Update{$class}Request.php"),
             'factory.stub' => database_path("factories/{$class}Factory.php"),
             'seeder.stub' => database_path("seeders/{$class}Seeder.php"),
             'policy.stub' => app_path("Policies/{$class}Policy.php"),
         ];
+
+        // FormRequests validate writes — a read-only resource has none.
+        if (! $readOnly) {
+            $files['store-request.stub'] = app_path("Http/Requests/{$class}/Store{$class}Request.php");
+            $files['update-request.stub'] = app_path("Http/Requests/{$class}/Update{$class}Request.php");
+        }
 
         if ($web) {
             $files += [
@@ -328,13 +374,16 @@ class AdminCoreMakeCommand extends Command
                 'routes.stub' => base_path("{$moduleDir}/{$snakePlural}.php"),
                 'views/index.stub' => resource_path("views/backend/pages/{$snakePlural}/index.blade.php"),
                 'views/show.stub' => resource_path("views/backend/pages/{$snakePlural}/show.blade.php"),
-                'views/create.stub' => resource_path("views/backend/pages/{$snakePlural}/create.blade.php"),
-                'views/edit.stub' => resource_path("views/backend/pages/{$snakePlural}/edit.blade.php"),
-                'views/form.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"),
                 'views/thead.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"),
                 // No scripts.blade.php — the shared datatable.js drives the table from the
                 // data-table component's :columns config (see views/index.stub).
             ];
+            // Create/edit forms are write surfaces — skipped for a read-only resource.
+            if (! $readOnly) {
+                $files['views/create.stub'] = resource_path("views/backend/pages/{$snakePlural}/create.blade.php");
+                $files['views/edit.stub'] = resource_path("views/backend/pages/{$snakePlural}/edit.blade.php");
+                $files['views/form.stub'] = resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php");
+            }
         }
 
         if ($soft && $web) {
@@ -344,6 +393,8 @@ class AdminCoreMakeCommand extends Command
         if ($this->option('tests')) {
             if (! $web) {
                 $this->warn('Skipped --tests: the generated feature test drives the web routes (re-run without --api-only to add them).');
+            } elseif ($readOnly) {
+                $this->warn('Skipped --tests: the generated test drives create/edit/delete, which a --read-only resource has not — write a read-only test by hand.');
             } elseif ($guardOpt) {
                 // The scaffold authenticates a default App\Models\User on the web guard; a guard/portal
                 // resource is gated on '{$guardOpt}' (and a portal has its own user model), so the test
@@ -422,7 +473,7 @@ class AdminCoreMakeCommand extends Command
             }
         }
 
-        $this->createPermissions($kebab, $plural, $guard);
+        $this->createPermissions($kebab, $plural, $guard, $readOnly);
         if ($web) {
             $this->registerMenuItem($plural, $snakePlural, $kebab, $menuName, $routeNs);
         }
@@ -940,14 +991,17 @@ PHP);
         return $cases[1] ? implode('|', $cases[1]) : null;
     }
 
-    private function createPermissions(string $kebab, string $plural, string $guard = 'web'): void
+    private function createPermissions(string $kebab, string $plural, string $guard = 'web', bool $readOnly = false): void
     {
         if (! config('admin-core.permission.enabled') || ! Schema::hasTable('permissions')) {
             return;
         }
 
         $model = config('admin-core.permission.model', \Spatie\Permission\Models\Permission::class);
-        $names = array_map(fn ($action) => "{$action}-{$kebab}", ['list', 'create', 'edit', 'delete']);
+        // A read-only resource only needs the list permission — it's the gate for index/getData/show/export, and
+        // the absent create/edit/delete permissions are exactly what hides the write buttons in the views.
+        $actions = $readOnly ? ['list'] : ['list', 'create', 'edit', 'delete'];
+        $names = array_map(fn ($action) => "{$action}-{$kebab}", $actions);
 
         foreach ($names as $name) {
             $model::firstOrCreate(['name' => $name, 'guard_name' => $guard]);
@@ -996,7 +1050,7 @@ PHP);
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        $this->line("  <info>permissions</info> list/create/edit/delete-{$kebab}{$grouped}{$granted}");
+        $this->line("  <info>permissions</info> " . implode('/', $actions) . "-{$kebab}{$grouped}{$granted}");
     }
 
     private function relative(string $path): string

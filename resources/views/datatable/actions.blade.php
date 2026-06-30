@@ -28,11 +28,11 @@
                         data-confirm="{{ $item['confirm'] ?? '' }}">
                 <i class="{{ $item['icon'] ?? 'bi bi-lightning' }}"></i> {{ $item['label'] }}</button></li>
         @endforeach
-        @if (auth()->guard($guard ?? null)->user()?->can('edit-' . $resource))
+        @if (Route::has($base . 'edit') && auth()->guard($guard ?? null)->user()?->can('edit-' . $resource))
             <li><a class="dropdown-item" href="{{ route($base . 'edit', $model->getRouteKey()) }}">
                 <i class="bi bi-pencil"></i> Edit</a></li>
         @endif
-        @if (auth()->guard($guard ?? null)->user()?->can('delete-' . $resource))
+        @if (Route::has($base . 'ajaxDelete') && auth()->guard($guard ?? null)->user()?->can('delete-' . $resource))
             <li><button type="button" class="dropdown-item text-danger" id="delete"
                         data-remote="{{ route($base . 'ajaxDelete', $model->getRouteKey()) }}">
                 <i class="bi bi-trash"></i> Delete</button></li>

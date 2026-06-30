@@ -18,8 +18,5 @@ Route::middleware(config('admin-core.api.middleware', ['auth:sanctum']))
     ->name('api.dummyModels.')
     ->group(function () use ($gate) {
         Route::get('/', [DummyClassApiController::class, 'index'])->name('index')->middleware($gate('list'));
-        Route::post('/', [DummyClassApiController::class, 'store'])->name('store')->middleware($gate('create'));
         Route::get('{id}', [DummyClassApiController::class, 'show'])->name('show')->middleware($gate('list'));
-        Route::put('{id}', [DummyClassApiController::class, 'update'])->name('update')->middleware($gate('edit'));
-        Route::delete('{id}', [DummyClassApiController::class, 'destroy'])->name('destroy')->middleware($gate('delete'));
-    });
+__AC_API_WRITE_ROUTES__    });

@@ -4,20 +4,14 @@ use App\Http\Controllers\Backend\DummyClassController;
 use Illuminate\Support\Facades\Route;
 
 Route::group(['prefix' => 'dummyModels', 'as' => 'dummyModels.'], function () {
-    Route::crud('dummy-model', DummyClassController::class__AC_CRUD_GUARD__);
+    Route::crud('dummy-model', DummyClassController::class__AC_CRUD_GUARD____AC_CRUD_RO__);
 
     Route::controller(DummyClassController::class)->group(function () {
         Route::get('show/{id}', 'show')->name('show')
             ->middleware(config('admin-core.permission.enabled') ? 'permission:list-dummy-model__AC_PERM_GUARD__' : []);
         Route::get('export', 'export')->name('export')
             ->middleware(config('admin-core.permission.enabled') ? 'permission:list-dummy-model__AC_PERM_GUARD__' : []);
-        Route::get('import-template', 'importTemplate')->name('importTemplate')
-            ->middleware(config('admin-core.permission.enabled') ? 'permission:create-dummy-model__AC_PERM_GUARD__' : []);
-        Route::post('import', 'import')->name('import')
-            ->middleware(config('admin-core.permission.enabled') ? 'permission:create-dummy-model__AC_PERM_GUARD__' : []);
-        Route::post('bulkDelete', 'bulkDelete')->name('bulkDelete')
-            ->middleware(config('admin-core.permission.enabled') ? 'permission:delete-dummy-model__AC_PERM_GUARD__' : []);
-    });
+__AC_WRITE_ROUTES__    });
 __AC_SOFT_ROUTES__
 __AC_SORT_ROUTES__
 });

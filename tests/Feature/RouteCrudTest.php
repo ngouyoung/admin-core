@@ -9,6 +9,24 @@ it('registers every crud route via the macro', function () {
     }
 });
 
+it('registers ONLY the read routes for a read-only resource (Route::crud readOnly: true)', function () {
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::prefix('reports')->name('reports.')->group(function () {
+            Route::crud('report', WidgetController::class, null, true);
+        });
+    });
+    Route::getRoutes()->refreshNameLookups();
+
+    // The read surface is registered…
+    foreach (['index', 'getData', 'select'] as $action) {
+        expect(Route::has("admin.reports.{$action}"))->toBeTrue("read-only must keep admin.reports.{$action}");
+    }
+    // …but every write / mutating route is absent.
+    foreach (['create', 'store', 'edit', 'update', 'delete', 'ajaxDelete', 'action', 'transition'] as $action) {
+        expect(Route::has("admin.reports.{$action}"))->toBeFalse("read-only must NOT register admin.reports.{$action}");
+    }
+});
+
 it('registers the action route without route-level permission middleware (runAction gates per-action)', function () {
     $route = Route::getRoutes()->getByName('admin.widgets.action');
 

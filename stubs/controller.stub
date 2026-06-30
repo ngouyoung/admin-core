@@ -3,9 +3,7 @@
 namespace App\Http\Controllers\Backend;
 
 use Ngos\AdminCore\Http\Controllers\WebController;
-use App\Http\Requests\DummyClass\StoreDummyClassRequest;
-use App\Http\Requests\DummyClass\UpdateDummyClassRequest;
-use App\Services\DummyClasses\DummyClassService;
+__AC_USE_REQUESTS__use App\Services\DummyClasses\DummyClassService;
 
 class DummyClassController extends WebController
 {
@@ -14,9 +12,7 @@ class DummyClassController extends WebController
         $this->viewPath = 'dummyModels.';
         $this->routeBase = 'dummyModels.';__AC_ROUTE_PREFIX__
         $this->resource = 'dummy-model'; // derives action / field permission names (e.g. mark-paid-dummy-model)
-        $this->service = $service;
-        $this->storeRequest = StoreDummyClassRequest::class;
-        $this->updateRequest = UpdateDummyClassRequest::class;__AC_EXPORT_RELATIONS____AC_SELECT_FILTERS__
+        $this->service = $service;__AC_ASSIGN_REQUESTS____AC_EXPORT_RELATIONS____AC_SELECT_FILTERS__
     }
 
     public function getData($relation = null)

@@ -8,7 +8,7 @@
             <a href="{{ route('__AC_RNS__dummyModels.index') }}" class="{{ config('class.button.back') }}">
                 <i class="{{ config('class.icon.back') }}"></i> {{ __('admin-core::admin-core.actions.back') }}
             </a>
-            @if (auth()->guard($acGuard ?? null)->user()?->can('edit-dummy-model'))
+            @if (Route::has('__AC_RNS__dummyModels.edit') && auth()->guard($acGuard ?? null)->user()?->can('edit-dummy-model'))
                 <a href="{{ route('__AC_RNS__dummyModels.edit', $object->getRouteKey()) }}" class="{{ config('class.button.edit') }}">
                     <i class="{{ config('class.icon.edit') }}"></i> {{ __('admin-core::admin-core.actions.edit') }}
                 </a>

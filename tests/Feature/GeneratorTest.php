@@ -688,6 +688,106 @@ it('auto-totals money columns in the list footer (controller listAggregates + in
     expect($lint->successful())->toBeTrue($lint->output());
 });
 
+it('generates a --read-only resource — list/show/export only, no create/edit/delete scaffolding', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, total:money',
+        '--migration' => true,
+        '--read-only' => true,
+    ])->assertSuccessful();
+
+    // Controller has NO FormRequest import or assignment, and still lints.
+    $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    expect($controller)
+        ->not->toContain('StoreGizmoRequest')
+        ->not->toContain('UpdateGizmoRequest')
+        ->not->toContain('storeRequest')
+        ->not->toContain('updateRequest')
+        ->toContain('public function getData'); // the read surface is intact
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+
+    // Routes: read-only crud (no write routes) + show + export, but NO import/bulkDelete.
+    $routes = File::get(base_path('routes/Web/Backend/Modules/gizmos.php'));
+    expect($routes)
+        ->toContain('Route::crud(\'gizmo\', GizmoController::class, readOnly: true)')
+        ->toContain("'show'")
+        ->toContain("'export'")
+        ->not->toContain('bulkDelete')
+        ->not->toContain("'import'")
+        ->not->toContain('importTemplate');
+
+    // No FormRequests, no create/edit/form views — but index + show + thead exist.
+    expect(File::exists(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))->toBeFalse();
+    expect(File::exists(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php')))->toBeFalse();
+    expect(File::exists(resource_path('views/backend/pages/gizmos/create.blade.php')))->toBeFalse();
+    expect(File::exists(resource_path('views/backend/pages/gizmos/edit.blade.php')))->toBeFalse();
+    expect(File::exists(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))->toBeFalse();
+    expect(File::exists(resource_path('views/backend/pages/gizmos/index.blade.php')))->toBeTrue();
+    expect(File::exists(resource_path('views/backend/pages/gizmos/show.blade.php')))->toBeTrue();
+
+    // The index's write buttons are Route::has-guarded, so they vanish when the route is absent (read-only).
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->toContain("Route::has('admin.gizmos.create')")
+        ->toContain("Route::has('admin.gizmos.bulkDelete')");
+
+    // The list footer total (money column) still works on a read-only resource — it's a read feature.
+    expect($controller)->toContain('protected function listAggregates(): array');
+});
+
+it('still generates the full write scaffolding without --read-only (regression)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    expect(File::exists(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))->toBeTrue();
+    expect(File::exists(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))->toBeTrue();
+    $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    expect($controller)
+        ->toContain('$this->storeRequest = StoreGizmoRequest::class;')
+        ->toContain('use App\Http\Requests\Gizmo\StoreGizmoRequest;');
+    expect(File::get(base_path('routes/Web/Backend/Modules/gizmos.php')))
+        ->toContain('Route::crud(\'gizmo\', GizmoController::class)') // no readOnly arg
+        ->toContain("        Route::post('bulkDelete', 'bulkDelete')->name('bulkDelete')") // 8-space indent intact
+        ->toContain("        Route::post('import', 'import')->name('import')");
+});
+
+it('generates a read-only JSON API with --read-only --api (no write routes, no missing FormRequest refs)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--read-only' => true,
+        '--api' => true,
+    ])->assertSuccessful();
+
+    // The API controller references no (un-generated) FormRequest and lints clean.
+    $apiController = File::get(app_path('Http/Controllers/Api/GizmoApiController.php'));
+    expect($apiController)->not->toContain('StoreGizmoRequest')->not->toContain('storeRequest');
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Api/GizmoApiController.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+
+    // The API is read-only — index + show, no store/update/destroy.
+    expect(File::get(base_path('routes/Api/Modules/gizmos.php')))
+        ->toContain("'index'")->toContain("'show'")
+        ->not->toContain("'store'")->not->toContain("'update'")->not->toContain("'destroy'");
+
+    // No FormRequest files generated at all.
+    expect(File::exists(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))->toBeFalse();
+});
+
+it('still generates a full CRUD JSON API without --read-only (regression)', function () {
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--api' => true])
+        ->assertSuccessful();
+
+    expect(File::get(base_path('routes/Api/Modules/gizmos.php')))
+        ->toContain("'store'")->toContain("'update'")->toContain("'destroy'");
+    expect(File::get(app_path('Http/Controllers/Api/GizmoApiController.php')))
+        ->toContain('$this->storeRequest = StoreGizmoRequest::class;');
+    expect(File::exists(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))->toBeTrue();
+});
+
 it('adds no list footer to a resource with no money column', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
