@@ -68,6 +68,26 @@ class AdminCoreFieldCommand extends Command
             $this->warn("  already exists — skipped: {$name}");
         }
 
+        // Computed fields need a model accessor + $appends + a use-import this surgical command can't safely
+        // inject, and their expression validation needs the full column set (which this partial token list
+        // lacks). Detect + drop them by string BEFORE parsing, so a `total:computed:existing_col` doesn't abort
+        // the whole run on a "references an unknown field" error. Point the user at the full generator.
+        $computedSkipped = false;
+        foreach (array_filter($newTokens, fn ($t) => $this->isComputedToken($t)) as $t) {
+            $name = trim(explode(':', $t)[0]);
+            $this->warn("  needs the full generator — skipped: {$name} (computed accessor; regenerate with `admin-core:make {$class} --fields=\"…\" --force`, or add the accessor + \$appends by hand)");
+            $computedSkipped = true;
+        }
+        $newTokens = array_values(array_filter($newTokens, fn ($t) => ! $this->isComputedToken($t)));
+
+        if (! $newTokens) {
+            $this->info($computedSkipped
+                ? "Nothing added — the computed field(s) above need the full generator."
+                : "Nothing to add — every field already exists on {$class}.");
+
+            return self::SUCCESS;
+        }
+
         // Some field types need wiring this command can't surgically patch:
         //  - relations / uploads (model relations, getData eager-load, pivot-sync, file-storage);
         //  - system fields (@/sku/auth) — not mass-assignable, so the $fillable idempotency check
@@ -126,6 +146,14 @@ class AdminCoreFieldCommand extends Command
         $this->line('  Run <info>php artisan migrate</info> to apply the new column(s).');
 
         return self::SUCCESS;
+    }
+
+    /** Whether a DSL token declares a computed field (`name:computed` / `name:computed:expr`). */
+    private function isComputedToken(string $token): bool
+    {
+        $parts = explode(':', $token);
+
+        return isset($parts[1]) && strtolower(rtrim(trim($parts[1]), '?^~@#')) === 'computed';
     }
 
     /** Whether the DB table exists (false if there's no usable connection). */

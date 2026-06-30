@@ -419,3 +419,91 @@ it('builds a sort column when sortable', function () {
     expect(fs('name:string')->setSortable(true)->sortColumn())->toContain("\$table->integer('sort')->default(0);");
     expect(fs('name:string')->setSortable(false)->sortColumn())->toBe('');
 });
+
+// -- computed (derived, read-only accessor) ---------------------------------------------------------
+
+it('generates an arithmetic accessor from a computed expression', function () {
+    $f = fs('qty:integer, price:decimal, total:computed:qty * price');
+
+    expect($f->accessors())
+        ->toContain('protected function total(): Attribute')
+        ->toContain('Attribute::get(fn () => $this->qty * $this->price)');
+    expect($f->modelUses())->toContain('use Illuminate\Database\Eloquent\Casts\Attribute;');
+    expect($f->appends())->toBe("\n\n    protected \$appends = ['total'];");
+});
+
+it('scaffolds a TODO stub accessor for a bare computed field', function () {
+    $f = fs('first_name:string, last_name:string, full_name:computed');
+
+    expect($f->accessors())
+        ->toContain('protected function fullName(): Attribute')
+        ->toContain('// TODO: derive full_name');
+});
+
+it('keeps a computed field out of the schema, fillable, rules and the form', function () {
+    $f = fs('qty:integer, total:computed:qty');
+
+    expect($f->migrationColumns())->not->toContain('total');     // not a column
+    expect($f->fillable())->toBe("'qty'");                        // not mass-assignable
+    expect($f->storeRules())->not->toContain("'total'");         // never validated (read-only)
+    expect($f->formFields())->not->toContain('name="total"');    // not in the form
+});
+
+it('shows a computed field in the list (addColumn, non-orderable) and on the show page', function () {
+    $f = fs('qty:integer, total:computed:qty');
+
+    expect($f->getDataColumns())->toContain("->addColumn('total', fn (\$row) => \$row->total)");
+    expect($f->columnsConfig())->toContain("['data' => 'total', 'orderable' => false, 'searchable' => false]");
+    expect($f->showRows())->toContain('$object->total');
+});
+
+it('rejects a computed expression containing anything but field names, numbers and + - * / ( )', function () {
+    // '%' is outside the grammar, so user input can't smuggle in arbitrary PHP.
+    expect(fn () => fs('qty:integer, total:computed:qty % 2'))
+        ->toThrow(InvalidArgumentException::class, "unexpected character '%'");
+    // A function call is rejected too — `id(` isn't valid arithmetic (an operand can't be followed by '(').
+    expect(fn () => fs('qty:integer, total:computed:abs(qty)'))
+        ->toThrow(InvalidArgumentException::class, 'not a valid arithmetic formula');
+});
+
+it('rejects malformed arithmetic that would generate broken PHP', function () {
+    // '//' would become a PHP line comment, '/*' a block comment — both must be rejected, not emitted.
+    expect(fn () => fs('qty:integer, total:computed:qty // 2'))
+        ->toThrow(InvalidArgumentException::class, 'not a valid arithmetic formula');
+    expect(fn () => fs('qty:integer, total:computed:qty *'))           // trailing operator
+        ->toThrow(InvalidArgumentException::class, 'ends on an operator');
+    expect(fn () => fs('qty:integer, total:computed:(qty * 2'))        // unbalanced paren
+        ->toThrow(InvalidArgumentException::class, 'parentheses are unbalanced');
+    expect(fn () => fs('qty:integer, price:integer, total:computed:qty price')) // two adjacent operands
+        ->toThrow(InvalidArgumentException::class, 'two operands are adjacent');
+});
+
+it('rejects a computed field name that cannot map to an accessor (digit right after underscore)', function () {
+    // Str::camel('line_2_total') = line2Total, which Str::snake's back to line2_total != line_2_total, so the
+    // $appends serialisation would call a method that doesn't exist. Fail at generation, not at runtime.
+    expect(fn () => fs('qty:integer, line_2_total:computed:qty*2'))
+        ->toThrow(InvalidArgumentException::class, "can't map to an accessor");
+    // The same guard applies to a bare stub (it also gets an accessor + appends).
+    expect(fn () => fs('item_3:computed'))
+        ->toThrow(InvalidArgumentException::class, "can't map to an accessor");
+    // Ordinary names round-trip fine.
+    expect(fn () => fs('qty:integer, grand_total:computed:qty*2'))->not->toThrow(InvalidArgumentException::class);
+});
+
+it('normalises spacing when re-emitting a tight expression (no fused operators)', function () {
+    // qty*price -> "$this->qty * $this->price"; a unary minus stays valid: qty--price -> qty - -price.
+    expect(fs('qty:integer, price:integer, t:computed:qty*price')->accessors())
+        ->toContain('fn () => $this->qty * $this->price');
+    expect(fs('qty:integer, price:integer, t:computed:qty--price')->accessors())
+        ->toContain('fn () => $this->qty - - $this->price');
+});
+
+it('rejects a computed expression that references a non-numeric or unknown field', function () {
+    // money is not plain-numeric — Money math needs ->multiply(), so steer the user to a stub.
+    expect(fn () => fs('qty:integer, price:money, total:computed:qty*price'))
+        ->toThrow(InvalidArgumentException::class, "references 'price'");
+
+    // an unknown identifier is a typo, not silent garbage.
+    expect(fn () => fs('qty:integer, total:computed:qty*nope'))
+        ->toThrow(InvalidArgumentException::class, "references 'nope'");
+});

@@ -665,6 +665,61 @@ it('wires a money field end-to-end (bigInteger column, MoneyCast, money-input, f
     // (A real bigInteger money column round-trips through the MoneyCast in MoneyCastTest.)
 });
 
+it('wires a computed field end-to-end (accessor + appends, no column, valid PHP)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'qty:integer, price:decimal, total:computed:qty * price',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $model = File::get(app_path('Models/Gizmo.php'));
+    expect($model)
+        ->toContain('use Illuminate\Database\Eloquent\Casts\Attribute;')
+        ->toContain("protected \$appends = ['total'];")
+        ->toContain('protected function total(): Attribute')
+        ->toContain('Attribute::get(fn () => $this->qty * $this->price)')
+        ->not->toContain('__AC_'); // no leftover placeholder
+
+    // The generated model is valid PHP.
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Models/Gizmo.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+
+    // Not a column: no migration column, not fillable.
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+    expect($migration)->not->toContain("'total'");
+    expect($model)->toContain("protected \$fillable = ['qty', 'price'];"); // total excluded
+
+    // Shown read-only in the list (addColumn, not orderable) + on the show page; never in the form.
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->toContain("->addColumn('total', fn (\$row) => \$row->total)");
+    expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))
+        ->toContain('{{ $object->total }}');
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
+        ->not->toContain('name="total"');
+});
+
+it('defers a computed field added via admin-core:field to the full generator (no half-wired model)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, qty:integer, price:integer',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // A computed field references existing columns the partial token list doesn't know — it must NOT abort the
+    // run; the real sibling field lands, the computed one is deferred with a warning, the model stays valid.
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'note:string, total:computed:qty*price'])
+        ->assertSuccessful();
+
+    $model = File::get(app_path('Models/Gizmo.php'));
+    expect($model)
+        ->toContain("'note'")                  // the real field was added
+        ->not->toContain('function total(')    // no half-wired accessor injected
+        ->not->toContain('protected $appends'); // nor appends
+
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Models/Gizmo.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+});
+
 it('omits the casts() method when no column needs casting', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

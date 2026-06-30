@@ -162,6 +162,7 @@ php artisan admin-core:make Product --migration --fields="\
 | `integer` | `integer` | number | `integer` |
 | `decimal` (`decimal:p\|s`) | `decimal(10,2)` | number (step) | `numeric` + precision/scale |
 | `money` (`money:KHR`) | `bigInteger` (minor units) | number + currency symbol | `numeric` |
+| `computed` (`computed:qty*price`) | — (derived accessor, not stored) | — (read-only) | — |
 | `boolean` | `boolean` default 0 | checkbox | `boolean` |
 | `date` / `datetime` | `date` / `dateTime` | Air Datepicker (themed calendar / + time) | `date` |
 | `time` | `time` | native time | `date_format:H:i` |
@@ -198,6 +199,18 @@ currency's decimals/symbol/position/separators live in `config('admin-core.money
 `$product->price->minor()` (1500), `->major()` ("15.00"), `->format()` ("$15.00"), `->add()/->subtract()/->multiply()`
 (exact, same-currency); assigning a number or a `Money` both work (`$product->price = '15.00'`). CSV export writes
 the plain `major()` value so a round-tripped import re-parses exactly.
+
+**Computed fields are derived, not stored.** `total:computed:qty*price` adds a read-only Eloquent accessor
+(`Attribute::get(fn () => $this->qty * $this->price)`) — no column, not fillable, not in the form, but shown
+read-only in the list and on the show page and appended to the model's array/JSON. The expression is a safe
+arithmetic formula (`+ - * / ( )`, numbers, and other **numeric** field names) that's tokenised and
+grammar-checked at generation time, so a typo or a non-numeric reference fails loudly and nothing
+user-written becomes arbitrary PHP. For anything else — string concatenation, dates, or **money** math
+(which needs `->multiply()`/`->add()`, not `*`) — use a bare `total:computed` and fill in the generated
+accessor stub. Computed columns can't be sorted or searched in SQL (there's no column behind them), and
+because the value is appended to every serialization, make sure its source columns are loaded (a partial
+`select()` that omits them makes a numeric formula read them as `0`). Add computed fields at `make` time —
+`admin-core:field` defers them to the full generator (it can't surgically inject the accessor).
 
 **Enums are code, not schema.** `status:enum:draft|published` generates `App\Enums\ProductStatus` (a
 string-backed PHP enum) as the **single source of truth**: validation uses `Rule::enum`, the model casts

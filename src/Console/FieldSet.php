@@ -14,6 +14,8 @@ use Illuminate\Support\Str;
  *   - decimal  optional precision|scale (pipe-separated):  price:decimal:12|4  (defaults to 10,2)
  *   - money    exact amount stored as minor units (cents), shown with the currency symbol; optional
  *              currency:  price:money  or  price:money:KHR  (default from config admin-core.money.currency)
+ *   - computed derived, read-only (not a column):  total:computed:qty*price  (safe arithmetic over numeric
+ *              fields) generates an accessor; bare  total:computed  scaffolds an accessor stub you fill in
  *   - enum     values piped:  status:enum:draft|published|archived
  *   - foreign  column ending in _id:  category_id:foreign  (-> belongsTo). Add an explicit
  *              target table for a self-reference / tree or a non-conventional name:
@@ -36,10 +38,13 @@ class FieldSet
      * (e.g. a comma'd enum `status:enum(a,b)` leaking columns named `b` and `c)`) into a clear error.
      */
     private const TYPES = [
-        'string', 'text', 'richtext', 'integer', 'decimal', 'money', 'boolean', 'date', 'datetime', 'time',
-        'email', 'url', 'password', 'slug', 'json', 'translatable', 'image', 'file',
+        'string', 'text', 'richtext', 'integer', 'decimal', 'money', 'computed', 'boolean', 'date', 'datetime',
+        'time', 'email', 'url', 'password', 'slug', 'json', 'translatable', 'image', 'file',
         'foreign', 'belongsToMany', 'hasMany', 'media', 'gallery', 'enum', 'auth', 'sku',
     ];
+
+    /** Column types a `computed:<expr>` arithmetic expression may reference (the value reads as a number). */
+    private const NUMERIC_TYPES = ['integer', 'decimal'];
 
     /** @var array<int, array<string, mixed>> */
     private array $fields;
@@ -247,6 +252,14 @@ class FieldSet
                 $spec = 'money';
             }
 
+            // Computed (derived, not stored): `total:computed:qty*price` carries an arithmetic expression over
+            // other numeric columns; bare `total:computed` scaffolds an accessor stub you fill in.
+            $computedExpr = null;
+            if (str_starts_with($spec, 'computed:')) {
+                $computedExpr = trim(substr($spec, 9)) ?: null;
+                $spec = 'computed';
+            }
+
             // Explicit FK target: `parent_id:foreign:categories` (self-reference / tree) or a column whose
             // name doesn't match the table convention (`author_id:foreign:users`). Without the target the
             // table is inferred from the column (parent_id -> parents), which breaks self-refs.
@@ -298,6 +311,9 @@ class FieldSet
             if ($type === 'money') {
                 $field['currency'] = $moneyCurrency; // null = use the configured default currency
             }
+            if ($type === 'computed') {
+                $field['expr'] = $computedExpr; // null = scaffold a stub accessor instead of an expression
+            }
             if ($type === 'hasMany') {
                 $child = $hasManyTable !== null && $hasManyTable !== ''
                     ? Str::snake($hasManyTable)
@@ -309,7 +325,152 @@ class FieldSet
             $fields[] = $field;
         }
 
-        return $fields ?: [$this->field('name', 'string')];
+        $fields = $fields ?: [$this->field('name', 'string')];
+        $this->assertComputedExpressions($fields);
+
+        return $fields;
+    }
+
+    /**
+     * Validate every `computed:<expr>` field's expression now that the full field list is known. The expression
+     * is tokenised and checked to be a well-formed arithmetic formula (operands = numbers or other numeric
+     * fields, binary `+ - * /` with optional unary sign, balanced parens) — so user input can never become
+     * arbitrary or syntactically-broken generated PHP, and a typo'd / non-numeric reference fails loudly with
+     * the fix. A bare `computed` (no expr) scaffolds a stub instead.
+     *
+     * @param  array<int, array<string, mixed>>  $fields
+     */
+    private function assertComputedExpressions(array $fields): void
+    {
+        $numeric = [];
+        foreach ($fields as $f) {
+            if (in_array($f['type'], self::NUMERIC_TYPES, true)) {
+                $numeric[$f['name']] = true;
+            }
+        }
+
+        foreach ($fields as $f) {
+            if ($f['type'] !== 'computed') {
+                continue;
+            }
+            // The accessor is named in camelCase (total -> total(), full_name -> fullName()); Eloquent resolves
+            // an $appends key back to it via Str::snake. A name with a digit right after '_' (line_2_total)
+            // doesn't round-trip (camel -> line2Total -> snake -> line2_total !== line_2_total), so toArray()
+            // would call a method that doesn't exist. Reject it up front with the fix.
+            if (Str::snake(Str::camel($f['name'])) !== $f['name']) {
+                throw new \InvalidArgumentException(
+                    "admin-core: computed field '{$f['name']}' can't map to an accessor — avoid a digit right after "
+                    . "an underscore (e.g. 'line_2_total'). Rename it (lineTotal2, line_total) so it serialises.",
+                );
+            }
+            if (($f['expr'] ?? null) === null) {
+                continue; // a bare stub — no expression to validate
+            }
+            foreach ($this->tokeniseExpression($f['name'], $f['expr']) as $t) {
+                if ($t['type'] === 'id' && ! isset($numeric[$t['value']])) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: computed expression for '{$f['name']}' references '{$t['value']}', which is "
+                        . "not a numeric (integer/decimal) field in this resource. Use bare '{$f['name']}:computed' "
+                        . "and write the formula yourself (e.g. money: \$this->price->multiply(\$this->qty)).",
+                    );
+                }
+            }
+        }
+    }
+
+    /**
+     * Tokenise + grammar-check a computed arithmetic expression, returning its tokens (so codegen re-emits it
+     * with safe spacing). Anything but numbers, identifiers and `+ - * / ( )` — or a malformed number / operator
+     * placement / unbalanced paren — is rejected, so a stray `//` (a PHP comment) or `--` can't reach the model.
+     *
+     * @return array<int, array{type: string, value: string}>
+     */
+    private function tokeniseExpression(string $name, string $expr): array
+    {
+        $tokens = [];
+        $len = strlen($expr);
+        for ($i = 0; $i < $len;) {
+            $c = $expr[$i];
+            if ($c === ' ' || $c === "\t") {
+                $i++;
+            } elseif (ctype_digit($c) || $c === '.') {
+                $j = $i;
+                while ($j < $len && (ctype_digit($expr[$j]) || $expr[$j] === '.')) {
+                    $j++;
+                }
+                $num = substr($expr, $i, $j - $i);
+                if (! is_numeric($num)) {
+                    $this->failExpr($name, "malformed number '{$num}'");
+                }
+                $tokens[] = ['type' => 'num', 'value' => $num];
+                $i = $j;
+            } elseif (ctype_alpha($c) || $c === '_') {
+                $j = $i;
+                while ($j < $len && (ctype_alnum($expr[$j]) || $expr[$j] === '_')) {
+                    $j++;
+                }
+                $tokens[] = ['type' => 'id', 'value' => substr($expr, $i, $j - $i)];
+                $i = $j;
+            } elseif (in_array($c, ['+', '-', '*', '/'], true)) {
+                $tokens[] = ['type' => 'op', 'value' => $c];
+                $i++;
+            } elseif ($c === '(' || $c === ')') {
+                $tokens[] = ['type' => $c === '(' ? 'lp' : 'rp', 'value' => $c];
+                $i++;
+            } else {
+                $this->failExpr($name, "unexpected character '{$c}'");
+            }
+        }
+
+        $this->assertWellFormed($name, $tokens);
+
+        return $tokens;
+    }
+
+    /**
+     * A well-formed arithmetic expression alternates operands and binary operators (a `+`/`-` where an operand
+     * is expected is a unary sign), with balanced parentheses and at least one operand.
+     *
+     * @param  array<int, array{type: string, value: string}>  $tokens
+     */
+    private function assertWellFormed(string $name, array $tokens): void
+    {
+        if ($tokens === []) {
+            $this->failExpr($name, 'it is empty');
+        }
+        $expectOperand = true;
+        $depth = 0;
+        foreach ($tokens as $t) {
+            if ($expectOperand) {
+                if ($t['type'] === 'num' || $t['type'] === 'id') {
+                    $expectOperand = false;
+                } elseif ($t['type'] === 'lp') {
+                    $depth++;
+                } elseif (! ($t['type'] === 'op' && in_array($t['value'], ['+', '-'], true))) {
+                    $this->failExpr($name, 'an operator is misplaced'); // unary +/- is the only operator allowed here
+                }
+            } elseif ($t['type'] === 'op') {
+                $expectOperand = true;
+            } elseif ($t['type'] === 'rp') {
+                if (--$depth < 0) {
+                    $this->failExpr($name, 'the parentheses are unbalanced');
+                }
+            } else {
+                $this->failExpr($name, 'two operands are adjacent');
+            }
+        }
+        if ($expectOperand || $depth !== 0) {
+            $this->failExpr($name, $depth !== 0 ? 'the parentheses are unbalanced' : 'it ends on an operator');
+        }
+    }
+
+    private function failExpr(string $name, string $why): never
+    {
+        throw new \InvalidArgumentException(
+            "admin-core: computed expression for '{$name}' is not a valid arithmetic formula ({$why}). Use only "
+            . "other numeric field names, numbers and + - * / ( ); for anything else use bare '{$name}:computed' "
+            . 'and write the accessor body yourself.',
+        );
     }
 
     /**
@@ -396,9 +557,9 @@ class FieldSet
 
     private function isColumn(array $f): bool
     {
-        // belongsToMany (pivot), hasMany (child rows), and media/gallery (HasMedia attachments) are relations,
-        // not columns on this table.
-        return ! in_array($f['type'], ['belongsToMany', 'hasMany', 'media', 'gallery'], true);
+        // belongsToMany (pivot), hasMany (child rows), media/gallery (HasMedia attachments) are relations, and
+        // computed (a derived accessor) is not stored — none of them is a column on this table.
+        return ! in_array($f['type'], ['belongsToMany', 'hasMany', 'media', 'gallery', 'computed'], true);
     }
 
     private function isFile(array $f): bool
@@ -604,6 +765,9 @@ PHP;
         $uses = [];
         if ($this->uuid) {
             $uses[] = 'use Ngos\AdminCore\Concerns\HasPublicUuid;';
+        }
+        if ($this->hasComputed()) {
+            $uses[] = 'use Illuminate\Database\Eloquent\Casts\Attribute;';
         }
         if ($this->hasForeign()) {
             $uses[] = 'use Illuminate\Database\Eloquent\Relations\BelongsTo;';
@@ -846,6 +1010,71 @@ PHP;
         return implode("\n", $methods);
     }
 
+    /** Whether the resource declares any computed (derived accessor) field. */
+    public function hasComputed(): bool
+    {
+        return collect($this->fields)->contains(fn ($f) => $f['type'] === 'computed');
+    }
+
+    /**
+     * `protected $appends = [...]` for computed fields, so each derived value rides along in the model's
+     * array/JSON form (toArray, API) — not just the list/show we wire explicitly. Empty when there are none.
+     */
+    public function appends(): string
+    {
+        $names = collect($this->fields)
+            ->filter(fn ($f) => $f['type'] === 'computed')
+            ->map(fn ($f) => "'{$f['name']}'")
+            ->implode(', ');
+
+        return $names === '' ? '' : "\n\n    protected \$appends = [{$names}];";
+    }
+
+    /**
+     * Accessor methods for computed fields. `total:computed:qty*price` becomes a real arithmetic accessor;
+     * a bare `total:computed` becomes a TODO stub you fill in (a comment shows the money / string / date
+     * shapes). The value is derived on read — never stored, never mass-assigned.
+     */
+    public function accessors(): string
+    {
+        $methods = [];
+        foreach ($this->fields as $f) {
+            if ($f['type'] !== 'computed') {
+                continue;
+            }
+            $method = Str::camel($f['name']);
+            $body = ($f['expr'] ?? null) !== null
+                ? $this->computedExpression($f['name'], $f['expr'])
+                : "null; // TODO: derive {$f['name']} — e.g. \$this->first_name.' '.\$this->last_name,"
+                    . " or money: \$this->price?->multiply(\$this->qty)";
+
+            $methods[] = <<<PHP
+
+    protected function {$method}(): Attribute
+    {
+        return Attribute::get(fn () => {$body});
+    }
+PHP;
+        }
+
+        return implode("\n", $methods);
+    }
+
+    /**
+     * Turn a validated computed expression into a PHP accessor body, re-emitted from its tokens with safe
+     * spacing: "qty*price" -> "$this->qty * $this->price". Re-emitting (rather than string-replacing the raw
+     * input) guarantees adjacent operators can't fuse into a `--`/`//` token in the generated model.
+     */
+    private function computedExpression(string $name, string $expr): string
+    {
+        $out = [];
+        foreach ($this->tokeniseExpression($name, $expr) as $t) {
+            $out[] = $t['type'] === 'id' ? '$this->' . $t['value'] : $t['value'];
+        }
+
+        return implode(' ', $out);
+    }
+
     /** The cast expression for one field, or null when it needs none. */
     public function fieldCast(array $f): ?string
     {
@@ -952,6 +1181,8 @@ PHP;
                     // The form posts a major amount ("15.00"); the MoneyCast parses it to minor units.
                     $rules = [$required, "'numeric'"];
                     break;
+                case 'computed':
+                    continue 2; // derived, read-only — never submitted, so no rule
                 case 'boolean':
                     $rules = ["'nullable'", "'boolean'"];
                     break;
@@ -1119,8 +1350,8 @@ PHP;
             }
         }
         foreach ($this->fields as $f) {
-            if (! empty($f['system'])) {
-                continue; // system fields are never rendered in the form
+            if (! empty($f['system']) || $f['type'] === 'computed') {
+                continue; // system fields and computed (read-only, derived) values are never in the form
             }
             // Wrap in a field-guard so fieldPermissions() can lock a field for users who lack its permission.
             // A pure passthrough when the field isn't restricted (no markup change), so it's always safe to emit.
@@ -1316,7 +1547,8 @@ BLADE;
         if ($f['type'] === 'belongsToMany') {
             return "                {data: '{$f['relation']}', name: '{$f['relation']}', orderable: false},";
         }
-        if (in_array($f['type'], ['image', 'file'], true)) {
+        // image/file (no sortable column) and computed (no DB column at all) render a value only.
+        if (in_array($f['type'], ['image', 'file', 'computed'], true)) {
             return "                {data: '{$f['name']}', orderable: false, searchable: false},";
         }
         // Translatable JSON column: searchable (LIKE on the raw JSON) but not orderable.
@@ -1355,7 +1587,7 @@ BLADE;
         if ($f['type'] === 'belongsToMany') {
             return "            ['data' => '{$f['relation']}', 'name' => '{$f['relation']}', 'orderable' => false],";
         }
-        if (in_array($f['type'], ['image', 'file'], true)) {
+        if (in_array($f['type'], ['image', 'file', 'computed'], true)) {
             return "            ['data' => '{$f['name']}', 'orderable' => false, 'searchable' => false],";
         }
         if ($f['type'] === 'translatable') {
@@ -1544,6 +1776,8 @@ BLADE;
             'boolean' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')",
             // Format the Money object for the list (e.g. "$15.00"); ordering still uses the raw minor-unit column.
             'money' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format())",
+            // Derived accessor — addColumn (there's no DB column behind it); not orderable/searchable in SQL.
+            'computed' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']})",
             'date' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d'))",
             'datetime' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))",
             'image' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')",
@@ -1591,6 +1825,7 @@ BLADE;
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
                 'money' => "{{ \$object->{$f['name']}?->format() }}",
+                'computed' => "{{ \$object->{$f['name']} }}",
                 'enum' => "<x-admin-core::status :value=\"\$object->{$f['name']}\" />",
                 'translatable' => "{{ ac_localize(\$object->{$f['name']}) }}",
                 'richtext' => "{!! \$object->{$f['name']} !!}",

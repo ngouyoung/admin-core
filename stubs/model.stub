@@ -9,6 +9,6 @@ class DummyClass extends __AC_MODEL_BASE__
 {
     use __AC_MODEL_TRAITS__;
 
-    protected $fillable = [__AC_FILLABLE__];__AC_HIDDEN__
-__AC_CASTS____AC_RELATIONS____AC_MODEL_BOOT__
+    protected $fillable = [__AC_FILLABLE__];__AC_HIDDEN____AC_APPENDS__
+__AC_CASTS____AC_RELATIONS____AC_ACCESSORS____AC_MODEL_BOOT__
 }

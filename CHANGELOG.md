@@ -2,6 +2,31 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.65.0
+
+**`computed` field type** — a read-only value derived from other fields, not stored. `total:computed:qty*price`
+generates an Eloquent accessor; bare `total:computed` scaffolds a stub you fill in. Shown read-only in the
+list and on the show page, appended to the model's array/JSON — no column, never in the form, never validated.
+
+### Added
+- **`computed` field type** — `admin-core:make Order --fields="qty:integer, price:decimal, total:computed:qty*price"`:
+  - Model: an `Attribute` accessor (`Attribute::get(fn () => $this->qty * $this->price)`) + `$appends` + the
+    `use Attribute` import. A bare `total:computed` emits a TODO stub (with money / string / date examples).
+  - The expression is a **safe arithmetic formula** (`+ - * / ( )`, numbers, other numeric field names): it's
+    tokenised and grammar-checked at generation time, so a typo, a non-numeric/unknown reference, or a stray
+    `//`/`--` fails loudly — user input can never become arbitrary or broken generated PHP.
+  - Not a column: excluded from the migration, `$fillable`, validation, the form, the factory, export and API
+    filters/sorts; shown read-only in the list (`addColumn`, not orderable/searchable) and on the show page,
+    and included in the API resource.
+
+### Notes
+- Money / string / date math (and anything non-arithmetic) goes in a bare `total:computed` stub — the
+  expression form is numeric-only by design.
+- Add computed fields at `make` time; `admin-core:field` defers them to the full generator (it can't
+  surgically inject the accessor + `$appends`).
+- A computed value is appended to every serialization, so make sure its source columns are loaded — a partial
+  `select()` that omits them reads a numeric formula as `0`.
+
 ## v2.64.0
 
 **`money` field type** — store money exactly. A `price:money` field keeps the amount in **minor units**
