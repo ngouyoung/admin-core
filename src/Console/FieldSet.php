@@ -13,7 +13,9 @@ use Illuminate\Support\Str;
  *   - scalar   string text integer decimal boolean date datetime email
  *   - decimal  optional precision|scale (pipe-separated):  price:decimal:12|4  (defaults to 10,2)
  *   - money    exact amount stored as minor units (cents), shown with the currency symbol; optional
- *              currency:  price:money  or  price:money:KHR  (default from config admin-core.money.currency)
+ *              currency:  price:money  or  price:money:KHR  (default from config admin-core.money.currency).
+ *              Per-record (multi-currency):  price:money:@currency  reads each row's code from a `currency`
+ *              column (an enum/string declared before it) — a USD row next to a KHR row in the same column.
  *   - computed derived, read-only (not a column):  total:computed:qty*price  (typed arithmetic over numeric
  *              AND money fields — money operands compile to Money's ->multiply/->add/… and yield a Money);
  *              bare  total:computed  scaffolds an accessor stub you fill in
@@ -300,11 +302,24 @@ class FieldSet
                 $spec = 'decimal';
             }
 
-            // Optional money currency: `price:money:KHR` pins the column to a currency (else the configured
-            // default applies). The amount is always stored as an integer of minor units (see the MoneyCast).
-            $moneyCurrency = null;
+            // Optional money currency: `price:money:KHR` pins the column to a currency, `price:money:@currency`
+            // reads the code PER-RECORD from the `currency` column (multi-currency), else the configured default
+            // applies. The amount is always stored as an integer of minor units (see the MoneyCast).
+            $moneyCurrency = null;       // a pinned ISO code (KHR)
+            $moneyCurrencyColumn = null; // a sibling column the code is read from per-record (@currency)
             if (str_starts_with($spec, 'money:')) {
-                $moneyCurrency = strtoupper(trim(substr($spec, 6))) ?: null;
+                $arg = trim(substr($spec, 6));
+                if (str_starts_with($arg, '@')) {
+                    $moneyCurrencyColumn = substr($arg, 1) ?: null;
+                    if ($moneyCurrencyColumn !== null && ! preg_match('/^[a-z_][a-z0-9_]*$/i', $moneyCurrencyColumn)) {
+                        throw new \InvalidArgumentException(
+                            "admin-core: money currency column '@{$moneyCurrencyColumn}' isn't a valid column name "
+                            . '(e.g. price:money:@currency reads this row\'s currency column).',
+                        );
+                    }
+                } else {
+                    $moneyCurrency = strtoupper($arg) ?: null;
+                }
                 $spec = 'money';
             }
 
@@ -388,7 +403,8 @@ class FieldSet
                 $field['scale'] = $decimalScale ?? 2;
             }
             if ($type === 'money') {
-                $field['currency'] = $moneyCurrency; // null = use the configured default currency
+                $field['currency'] = $moneyCurrency; // null = configured default (unless currencyColumn is set)
+                $field['currencyColumn'] = $moneyCurrencyColumn; // null = not per-record; else a sibling column
             }
             if ($type === 'computed') {
                 $field['expr'] = $computedExpr; // null = scaffold a stub accessor instead of an expression
@@ -437,6 +453,38 @@ class FieldSet
             } elseif ($f['type'] === 'hasMany') {
                 $relations[$f['name']] = $f['relation']; // field name -> camelCase relation method
                 $relations[$f['relation']] = $f['relation'];
+            }
+        }
+
+        // Per-record money currency: the @column must be a declared, scalar (enum/string), user-settable column
+        // holding the code (USD/KHR) — resolved here against the full field set so a typo, wrong type or an
+        // unsettable system column fails at generation rather than silently defaulting every amount's currency.
+        $byName = [];
+        foreach ($fields as $f) {
+            $byName[$f['name']] = $f;
+        }
+        foreach ($fields as $f) {
+            if ($f['type'] !== 'money' || empty($f['currencyColumn'])) {
+                continue;
+            }
+            $col = $f['currencyColumn'];
+            if (! isset($byName[$col])) {
+                throw new \InvalidArgumentException(
+                    "admin-core: money field '{$f['name']}' reads its currency from '{$col}', which isn't a column "
+                    . "on this resource. Declare it (e.g. {$col}:enum:USD|KHR) before '{$f['name']}'.",
+                );
+            }
+            if (! in_array($byName[$col]['type'], ['enum', 'string'], true)) {
+                throw new \InvalidArgumentException(
+                    "admin-core: money field '{$f['name']}' currency column '{$col}' must be an enum or string "
+                    . "(it holds a code like USD/KHR), but '{$col}' is a {$byName[$col]['type']}.",
+                );
+            }
+            if (! empty($byName[$col]['system'])) {
+                throw new \InvalidArgumentException(
+                    "admin-core: money field '{$f['name']}' currency column '{$col}' is a system (@) field, so it's "
+                    . "never set from the form — every amount would default its currency. Make '{$col}' a normal enum/string.",
+                );
             }
         }
 
@@ -1382,10 +1430,11 @@ PHP;
         }
 
         if ($f['type'] === 'money') {
-            // Optional per-column currency travels as a cast argument (MoneyCast::class.':KHR').
-            $currency = $f['currency'] ?? null;
+            // Currency travels as a cast argument: a pinned code (MoneyCast::class.':KHR') or a per-record
+            // sibling column (MoneyCast::class.':@currency'); neither = the configured default.
+            $arg = ! empty($f['currencyColumn']) ? '@' . $f['currencyColumn'] : ($f['currency'] ?? null);
 
-            return '\\Ngos\\AdminCore\\Casts\\MoneyCast::class' . ($currency ? ".':{$currency}'" : '');
+            return '\\Ngos\\AdminCore\\Casts\\MoneyCast::class' . ($arg ? ".':{$arg}'" : '');
         }
 
         return match ($f['type']) {
@@ -1629,6 +1678,31 @@ PHP;
     }
 
     /**
+     * Per-record money fields whose currency column is declared AFTER them. On create the validated data fills
+     * in declaration order, so the amount would be parsed before its currency is known (the default currency's
+     * decimals apply). Lets the make command warn to reorder. Returns [money field name => currency column].
+     *
+     * @return array<string, string>
+     */
+    public function moneyCurrencyColumnsDeclaredLate(): array
+    {
+        $position = [];
+        foreach (array_values($this->fields) as $i => $f) {
+            $position[$f['name']] = $i;
+        }
+
+        $late = [];
+        foreach ($this->fields as $f) {
+            $col = $f['type'] === 'money' ? ($f['currencyColumn'] ?? null) : null;
+            if ($col !== null && isset($position[$col]) && $position[$col] > $position[$f['name']]) {
+                $late[$f['name']] = $col;
+            }
+        }
+
+        return $late;
+    }
+
+    /**
      * The `prepareForValidation()` body lines, or '' when none apply. Pre-validation massaging:
      * a JSON column arrives as a textarea string and is decoded to an array; a richtext column is
      * HTML-sanitized; and a blank password on update is dropped so the existing hash isn't overwritten.
@@ -1794,7 +1868,11 @@ PHP;
                 return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" step=\"0.01\" :value=\"{$old}\"{$ro} />";
             case 'money':
                 // Edit the major amount (price->major() === "15.00"); the symbol + step come from the currency.
-                $cur = ! empty($f['currency']) ? " currency=\"{$f['currency']}\"" : '';
+                // Per-record currency: pass this row's currency column (an enum is normalised by the component),
+                // so editing shows the record's symbol (a new record falls back to the configured default).
+                $cur = ! empty($f['currencyColumn'])
+                    ? " :currency=\"\$object?->{$f['currencyColumn']}\""
+                    : (! empty($f['currency']) ? " currency=\"{$f['currency']}\"" : '');
 
                 return "<x-admin-core::money-input name=\"{$col}\" label=\"{$label}\"{$cur} :value=\"old('{$col}', \$object?->{$col}?->major())\"{$ro} />";
             case 'email':
@@ -2048,6 +2126,12 @@ BLADE;
                 $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => '{$this->label($f['relation'])}', 'options' => "
                     . "fn () => \\App\\Models\\{$f['relModel']}::pluck('name', 'id')->all()],";
             } elseif ($f['type'] === 'money') {
+                // A per-record (multi-currency) money column can't be range-filtered with a single currency — one
+                // bound's decimals would be wrong for every row not in that currency. Skip it (filter by the
+                // currency column, plus a custom control if you need an amount). Fixed-currency columns filter fine.
+                if (! empty($f['currencyColumn'])) {
+                    continue;
+                }
                 $currency = ! empty($f['currency']) ? "'{$f['currency']}'" : 'null';
                 $lines[] = "            ['column' => '{$f['name']}', 'type' => 'number', 'label' => '{$label}', 'money' => true, 'currency' => {$currency}],";
             } elseif ($f['type'] === 'decimal') {

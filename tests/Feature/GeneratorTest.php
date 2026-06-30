@@ -665,6 +665,51 @@ it('wires a money field end-to-end (bigInteger column, MoneyCast, money-input, f
     // (A real bigInteger money column round-trips through the MoneyCast in MoneyCastTest.)
 });
 
+it('wires a per-record money currency (@column → cast reads the row currency, form passes it dynamically)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'currency:enum:USD|KHR, total:money:@currency',
+        '--migration' => true,
+    ])->doesntExpectOutputToContain('declared after it')->assertSuccessful(); // currency-first → no warning
+
+    // The cast reads the per-record code from the sibling column.
+    expect(File::get(app_path('Models/Gizmo.php')))
+        ->toContain("'total' => \\Ngos\\AdminCore\\Casts\\MoneyCast::class.':@currency',");
+
+    // The form passes this row's currency (an enum, normalised by the component) so editing shows its symbol.
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
+        ->toContain('<x-admin-core::money-input name="total" label="Total" :currency="$object?->currency"');
+
+    // A per-record column gets NO amount range filter (one bound can't honour each row's decimals).
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->not->toContain("'column' => 'total', 'type' => 'number'");
+
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Models/Gizmo.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+});
+
+it('rejects a per-record money currency whose column is a system (@) field (never settable)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'currency:string@, total:money:@currency',
+    ])->expectsOutputToContain('is a system (@) field')->assertFailed();
+});
+
+it('warns when a per-record money currency column is declared after its money field', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'total:money:@currency, currency:enum:USD|KHR', // wrong order
+        '--migration' => true,
+    ])->expectsOutputToContain("declared after it")->assertSuccessful();
+});
+
+it('rejects a per-record money currency referencing a missing or non-text column', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'total:money:@currency, supplier:string', // no `currency` column
+    ])->expectsOutputToContain("isn't a column on this resource")->assertFailed();
+});
+
 it('wires a computed field end-to-end (accessor + appends, no column, valid PHP)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

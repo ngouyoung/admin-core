@@ -14,6 +14,8 @@
 @props(['name', 'label' => null, 'value' => null, 'currency' => null, 'readonly' => false, 'hint' => null])
 @php
     $label ??= \Illuminate\Support\Str::headline($name);
+    // A per-record currency may arrive as a BackedEnum (the row's enum column) — use its backing code.
+    $currency = $currency instanceof \BackedEnum ? $currency->value : $currency;
     $cfg = \Ngos\AdminCore\Support\Money::config($currency);
     $step = $cfg['decimals'] > 0 ? '0.' . str_repeat('0', $cfg['decimals'] - 1) . '1' : '1';
     $errorKey = rtrim(str_replace(['[', ']'], ['.', ''], $name), '.');

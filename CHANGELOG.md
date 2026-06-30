@@ -2,6 +2,29 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.73.0
+
+**Per-record money currency (multi-currency).** `total:money:@currency` lets one money column hold amounts in
+different currencies row-by-row — a Purchase in USD next to one in KHR — reading each row's code from a sibling
+column. Closes the last real-model gap found dogfooding SMPOS (`Purchase.currency`); the MoneyCast currency was
+previously fixed per-column.
+
+### Added
+- **`price:money:@currency`** — the MoneyCast reads its currency from the named sibling column (enum/string)
+  instead of a fixed code. Each row stores exact minor units for its own currency (USD `1500`, KHR `15000`) and
+  reads/formats back in that currency; the edit form shows the record's symbol. Reads are always correct (the
+  whole row is loaded); a `Money` of a different currency than the row's is refused, never reinterpreted.
+
+### Notes
+- A write parses the amount with the currency column's decimals, so **declare the currency column before the
+  money column** (the generated form/rules then fill it first; CSV import re-orders via the rules too). The make
+  command warns when it's declared after; if the currency is unknown at write time the configured default
+  applies as a best-effort fallback.
+- The `@column` reference is validated at generation — it must be a declared, **user-settable** enum/string
+  column (a system `@` column is rejected, since it's never set from the form).
+- A per-record column gets **no amount range filter** (a single bound can't honour each row's decimals — filter
+  by the currency column instead), and **changing only the currency doesn't convert** a stored amount (re-enter it).
+
 ## v2.72.0
 
 **`sequence` field — sequential document numbers.** `invoice_no:sequence:INV` auto-assigns `"INV-0001"`,

@@ -161,7 +161,7 @@ php artisan admin-core:make Product --migration --fields="\
 | `richtext` | `text` | CKEditor WYSIWYG (sanitized on save, rendered on show) | `string` |
 | `integer` | `integer` | number | `integer` |
 | `decimal` (`decimal:p\|s`) | `decimal(10,2)` | number (step) | `numeric` + precision/scale |
-| `money` (`money:KHR`) | `bigInteger` (minor units) | number + currency symbol | `numeric` |
+| `money` (`money:KHR`, `money:@currency`) | `bigInteger` (minor units) | number + currency symbol | `numeric` |
 | `computed` (`computed:qty*price`) | — (derived accessor, not stored) | — (read-only) | — |
 | `rollup` (`rollup:lines.line_total`) | — (sum of a child relation, not stored) | — (read-only) | — |
 | `boolean` | `boolean` default 0 | checkbox | `boolean` |
@@ -200,6 +200,28 @@ currency's decimals/symbol/position/separators live in `config('admin-core.money
 `$product->price->minor()` (1500), `->major()` ("15.00"), `->format()` ("$15.00"), `->add()/->subtract()/->multiply()`
 (exact, same-currency); assigning a number or a `Money` both work (`$product->price = '15.00'`). CSV export writes
 the plain `major()` value so a round-tripped import re-parses exactly.
+
+**Per-record currency (multi-currency).** When one column holds amounts in **different currencies row by row**
+(a Purchase in USD next to one in KHR), use `total:money:@currency` — the cast reads each row's code from a
+sibling `currency` column instead of a fixed one:
+
+```bash
+php artisan admin-core:make Purchase --migration \
+  --fields="supplier:string, currency:enum:USD|KHR, total:money:@currency"
+```
+
+Each row stores its exact minor units for its own currency (USD `1500`, KHR `15000`) and reads back formatted
+in that currency (`$15.00`, `៛15,000`); the form shows the record's symbol when editing. The currency column
+must be a **user-settable enum or string** holding the code, and — because a write parses the amount with that
+column's decimals — **declare it before the money column** so the form/rules fill it first (the make command
+warns if not; otherwise a new record's amount is parsed with the default currency). Reads are correct as long
+as the whole row is loaded (don't `select()` away the currency column). A `Money` of a currency other than the
+row's is refused, never silently reinterpreted.
+
+Two things follow from the amount being stored as bare minor units: **changing only the currency does not
+convert** an existing amount (`$15.00` re-saved as KHR reads `៛15`, by design — re-enter the amount), and a
+per-record column isn't given an amount **range filter** (one bound can't honour each row's decimals — filter
+by the currency column instead).
 
 **Computed fields are derived, not stored.** `total:computed:qty*price` adds a read-only Eloquent accessor —
 no column, not fillable, not in the form, but shown read-only in the list and on the show page and appended

@@ -453,6 +453,13 @@ class AdminCoreMakeCommand extends Command
             }
         }
 
+        // A per-record money currency column declared AFTER its money field fills second on create, so the
+        // amount is parsed with the default currency's decimals. Warn to declare the currency column first.
+        foreach ($fields->moneyCurrencyColumnsDeclaredLate() as $money => $col) {
+            $this->warn("  money '{$money}' reads its currency from '{$col}', declared after it — on create the "
+                . "amount is parsed with the default currency. Declare '{$col}' before '{$money}'.");
+        }
+
         // A composite unique that includes a system / write-once column can't be form-validated (its value
         // isn't submitted) — the DB constraint enforces it, so a duplicate surfaces as a DB error, not a 422.
         foreach ($fields->uniqueGroupsWithoutFormValidation() as $group) {
