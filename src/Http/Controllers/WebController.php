@@ -104,11 +104,35 @@ abstract class WebController extends BaseController
     {
         // Pass the bulk-action buttons (permission-filtered) to the view, which forwards them to the
         // data-table component via :actions. (Passed as data, not shared, so a second table on the page
-        // can't pick up this resource's actions.) acFilters drives the <x-admin-core::list-filters> bar.
+        // can't pick up this resource's actions.) acFilters drives the <x-admin-core::list-filters> bar;
+        // acSavedViews/acResource drive its per-user "Views" dropdown.
         return $this->view('index', [
             'acActions' => $this->actionsConfig(),
             'acFilters' => $this->listFilters(),
+            'acResource' => $this->resource,
+            'acSavedViews' => $this->savedViews(),
         ]);
+    }
+
+    /**
+     * The current user's saved views for this resource — a named filter set each (the <x-admin-core::list-filters>
+     * "Views" dropdown). Empty when the resource has no filters, there's no user, or the table isn't migrated yet
+     * (so an install that hasn't run the saved_views migration degrades silently rather than erroring).
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function savedViews(): array
+    {
+        if ($this->resource === '' || $this->listFilters() === [] || auth()->id() === null || ! Schema::hasTable('saved_views')) {
+            return [];
+        }
+
+        return \Ngos\AdminCore\Models\SavedView::query()
+            ->where('user_id', auth()->id())
+            ->where('resource', $this->resource)
+            ->orderBy('name')
+            ->get(['id', 'name', 'filters'])
+            ->toArray();
     }
 
     public function create()

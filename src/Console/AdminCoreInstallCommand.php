@@ -197,6 +197,21 @@ class AdminCoreInstallCommand extends Command
                 }
             }
 
+            // Add the saved-views endpoints (anchored on the approvals macro just above).
+            if (! str_contains($contents, 'Route::adminCoreSavedViews')) {
+                $patched = preg_replace(
+                    "/(Route::adminCoreApprovals\(\);)/",
+                    "$1\n    Route::adminCoreSavedViews();",
+                    $contents,
+                    1,
+                );
+                if (is_string($patched) && $patched !== $contents) {
+                    $contents = $patched;
+                    $this->line('  <info>updated</info> routes/web.php (added saved views)');
+                    $changed = true;
+                }
+            }
+
             if ($changed) {
                 File::put($web, $contents);
             } else {
@@ -217,7 +232,8 @@ Route::group([{$middleware}'prefix' => 'admin', 'as' => 'admin.'], function () {
     Route::view('/', 'backend.dashboard')->name('dashboard');
     Route::adminCoreDashboard();
     Route::adminCoreMedia();
-    Route::adminCoreApprovals();{$notifications}
+    Route::adminCoreApprovals();
+    Route::adminCoreSavedViews();{$notifications}
 
     foreach (glob(base_path('routes/Web/Backend/Modules/*.php')) ?: [] as \$module) {
         require \$module;

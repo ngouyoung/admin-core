@@ -65,6 +65,9 @@ abstract class TestCase extends Orchestra
 
             // The approvals inbox (approve / reject the requests that ->requiresApproval() actions create).
             Route::adminCoreApprovals();
+
+            // Per-user saved list views (the <x-admin-core::list-filters> "Views" dropdown).
+            Route::adminCoreSavedViews();
         });
 
         // JSON API index (top-level, like a real api.php module) — exercises

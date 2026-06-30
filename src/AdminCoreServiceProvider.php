@@ -19,6 +19,7 @@ use Ngos\AdminCore\Console\AdminCoreUninstallCommand;
 use Ngos\AdminCore\Console\AdminCoreVersionCommand;
 use Ngos\AdminCore\Http\Controllers\ApprovalController;
 use Ngos\AdminCore\Http\Controllers\DashboardController;
+use Ngos\AdminCore\Http\Controllers\SavedViewController;
 use Ngos\AdminCore\Http\Controllers\MediaController;
 use Ngos\AdminCore\Http\Controllers\NotificationController;
 use Ngos\AdminCore\Http\Controllers\SearchController;
@@ -39,6 +40,7 @@ class AdminCoreServiceProvider extends ServiceProvider
         $this->registerDashboardMacro();
         $this->registerMediaMacro();
         $this->registerApprovalsMacro();
+        $this->registerSavedViewsMacro();
 
         // The configured translation driver, resolved through the manager so
         // config('admin-core.translation.driver') is the only switch.
@@ -286,6 +288,25 @@ class AdminCoreServiceProvider extends ServiceProvider
                     Route::get('/', 'index')->name('index');
                     Route::post('{id}/approve', 'approve')->name('approve');
                     Route::post('{id}/reject', 'reject')->name('reject');
+                });
+        });
+    }
+
+    /**
+     * Route::adminCoreSavedViews() — the per-user saved-list-view endpoints (admin.saved-views.index/store/
+     * destroy), used by the <x-admin-core::list-filters> bar's "Views" dropdown. Not permission-gated: each
+     * row is scoped to the current user (personal state). Call it inside your admin route group (admin-core:install adds it).
+     */
+    protected function registerSavedViewsMacro(): void
+    {
+        Route::macro('adminCoreSavedViews', function () {
+            Route::controller(SavedViewController::class)
+                ->prefix('saved-views')
+                ->name('saved-views.')
+                ->group(function () {
+                    Route::get('/', 'index')->name('index');
+                    Route::post('/', 'store')->name('store');
+                    Route::delete('{id}', 'destroy')->name('destroy')->where('id', '[0-9]+');
                 });
         });
     }

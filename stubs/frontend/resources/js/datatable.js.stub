@@ -129,6 +129,7 @@ function acInitTables(scope) {
         this._acTable = $(this).DataTable(opts);
         acInjectBulkActions(this, cfg);
         acBindFilters(this);
+        acBindSavedViews(this);
     });
 }
 
@@ -172,6 +173,57 @@ function acBindFilters(tableEl) {
         if (e.target.closest('[data-ac-filter-clear]')) {
             bar.querySelectorAll('[data-ac-filter]').forEach((el) => { el.value = ''; });
             reload();
+        }
+    });
+}
+
+// Set the filter bar's controls from a saved view's filters JSON (selects + date from/to parts).
+function acApplyView(bar, filtersJson) {
+    if (!bar) {
+        return;
+    }
+    let filters = {};
+    try { filters = JSON.parse(filtersJson || '{}') || {}; } catch (e) { filters = {}; }
+    bar.querySelectorAll('[data-ac-filter]').forEach((el) => {
+        const col = el.getAttribute('data-ac-filter');
+        const part = el.getAttribute('data-ac-filter-part');
+        const v = part ? (filters[col] && filters[col][part]) : filters[col];
+        el.value = (v == null) ? '' : v;
+    });
+}
+
+// Wire the per-user "Views" dropdown: apply a saved view, save the current filters as a new one, or delete one.
+function acBindSavedViews(tableEl) {
+    const $ = window.jQuery;
+    const sv = tableEl.id ? document.querySelector('[data-ac-saved-views="' + tableEl.id + '"]') : null;
+    if (!sv || sv._acBound) {
+        return;
+    }
+    sv._acBound = true;
+    const bar = acFilterBar(tableEl);
+    const onError = () => { if (window.toastr) { window.toastr.error(sv.getAttribute('data-ac-error') || 'Something went wrong'); } };
+    sv.addEventListener('click', (e) => {
+        const apply = e.target.closest('[data-ac-view-apply]');
+        const del = e.target.closest('[data-ac-view-delete]');
+        const save = e.target.closest('[data-ac-view-save]');
+        if (apply) {
+            acApplyView(bar, apply.getAttribute('data-ac-view-filters'));
+            if (tableEl._acTable) { tableEl._acTable.ajax.reload(null, false); }
+        } else if (del) {
+            $.ajax({ type: 'DELETE', url: del.getAttribute('data-ac-view-url') })
+                .done(() => window.location.reload()).fail(onError);
+        } else if (save) {
+            const name = window.prompt(sv.getAttribute('data-ac-save-prompt') || 'Save view as:');
+            if (name && name.trim()) {
+                $.ajax({
+                    type: 'POST', url: sv.getAttribute('data-ac-store-url'),
+                    data: {
+                        resource: sv.getAttribute('data-ac-resource'),
+                        name: name.trim(),
+                        filters: acCollectFilters(tableEl).filter,
+                    },
+                }).done(() => window.location.reload()).fail(onError);
+            }
         }
     });
 }

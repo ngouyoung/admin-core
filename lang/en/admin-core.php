@@ -234,5 +234,10 @@ return [
     'filters' => [
         'all' => 'All',
         'clear' => 'Clear filters',
+        'views' => 'Views',
+        'save_view' => 'Save current view…',
+        'save_prompt' => 'Save this view as:',
+        'no_views' => 'No saved views yet',
+        'view_error' => 'Could not save the view. Please try again.',
     ],
 ];

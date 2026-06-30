@@ -818,9 +818,9 @@ it('generates a listFilters() method + the filter bar for boolean/date + seconda
     $lint = Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')));
     expect($lint->successful())->toBeTrue($lint->output());
 
-    // Index view renders the filter bar (driven by $acFilters from index()).
+    // Index view renders the filter bar (driven by $acFilters + the saved-views props from index()).
     expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
-        ->toContain('<x-admin-core::list-filters table="gizmos_table" :filters="$acFilters ?? []" />');
+        ->toContain('<x-admin-core::list-filters table="gizmos_table" :filters="$acFilters ?? []" :resource="$acResource ?? null" :views="$acSavedViews ?? []" />');
 });
 
 it('omits listFilters() when the only filterable field is the tab-covered first enum (no duplicate control)', function () {

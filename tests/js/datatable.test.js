@@ -2,10 +2,10 @@ import jQuery from 'jquery';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DATATABLE_STUB, loadStub } from './helpers.js';
 
-// The real shipped datatable.js (escaping + custom-action dispatch + bulk-button injection + filter collect).
-const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters } = loadStub(
+// The real shipped datatable.js (escaping + custom-action dispatch + bulk-button injection + filters/views).
+const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView } = loadStub(
     DATATABLE_STUB,
-    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters }',
+    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView }',
 );
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -145,5 +145,38 @@ describe('acCollectFilters', () => {
     it('returns an empty payload when the table has no filter bar', () => {
         const table = setup('');
         expect(acCollectFilters(table)).toEqual({ filter: {} });
+    });
+});
+
+describe('acApplyView', () => {
+    function bar() {
+        document.body.innerHTML =
+            '<div data-ac-filters="t1">'
+            + '<select data-ac-filter="status"><option value="">All</option><option value="active">A</option></select>'
+            + '<input data-ac-filter="created_at" data-ac-filter-part="from" value="old">'
+            + '<input data-ac-filter="created_at" data-ac-filter-part="to" value="old">'
+            + '</div>';
+        return document.querySelector('[data-ac-filters="t1"]');
+    }
+
+    it('sets each control from a saved view (select + date parts) and round-trips with acCollectFilters', () => {
+        const filterBar = bar();
+        acApplyView(filterBar, JSON.stringify({ status: 'active', created_at: { from: '2026-01-01', to: '2026-02-01' } }));
+
+        expect(document.querySelector('[data-ac-filter="status"]').value).toBe('active');
+        expect(document.querySelector('[data-ac-filter-part="from"]').value).toBe('2026-01-01');
+        expect(document.querySelector('[data-ac-filter-part="to"]').value).toBe('2026-02-01');
+        // What was applied is exactly what gets collected back for the next request.
+        expect(acCollectFilters(document.getElementById('t1') || { id: 't1' }))
+            .toEqual({ filter: { status: 'active', created_at: { from: '2026-01-01', to: '2026-02-01' } } });
+    });
+
+    it('clears controls absent from the view, and survives malformed JSON', () => {
+        acApplyView(bar(), JSON.stringify({ status: 'active' })); // no created_at → its inputs reset
+        expect(document.querySelector('[data-ac-filter="status"]').value).toBe('active');
+        expect(document.querySelector('[data-ac-filter-part="from"]').value).toBe('');
+
+        expect(() => acApplyView(bar(), 'not json')).not.toThrow();
+        expect(document.querySelector('[data-ac-filter="status"]').value).toBe(''); // all reset on no data
     });
 });

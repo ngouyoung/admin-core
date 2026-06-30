@@ -10,7 +10,12 @@
        ['column' => 'status',     'type' => 'select', 'label' => 'Status', 'options' => ['active' => 'Active', …]]
        ['column' => 'is_active',  'type' => 'select', 'label' => 'Active', 'options' => [1 => 'Yes', 0 => 'No']]
        ['column' => 'created_at', 'type' => 'date',   'label' => 'Created'] --}}
-@props(['table', 'filters' => []])
+@props(['table', 'filters' => [], 'resource' => null, 'views' => []])
+@php
+    // The per-user "Views" dropdown only appears when the saved-views routes are wired (Route::adminCoreSavedViews()).
+    $svBase = config('admin-core.route.name_prefix') . 'saved-views.';
+    $savedViews = $resource && \Illuminate\Support\Facades\Route::has($svBase . 'index');
+@endphp
 @if (! empty($filters))
     <div class="ac-list-filters card card-body py-2 px-3 mb-3" data-ac-filters="{{ $table }}">
         <div class="d-flex flex-wrap align-items-end gap-3">
@@ -45,6 +50,31 @@
             <button type="button" class="btn btn-sm btn-link text-muted px-1" data-ac-filter-clear>
                 {{ __('admin-core::admin-core.filters.clear') }}
             </button>
+
+            @if ($savedViews)
+                <div class="dropdown ac-saved-views ms-auto" data-ac-saved-views="{{ $table }}"
+                    data-ac-resource="{{ $resource }}" data-ac-store-url="{{ route($svBase . 'store') }}"
+                    data-ac-save-prompt="{{ __('admin-core::admin-core.filters.save_prompt') }}"
+                    data-ac-error="{{ __('admin-core::admin-core.filters.view_error') }}">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        {{ __('admin-core::admin-core.filters.views') }}
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        @forelse ($views as $view)
+                            <li class="d-flex align-items-center justify-content-between">
+                                <button type="button" class="dropdown-item" data-ac-view-apply
+                                    data-ac-view-filters="{{ json_encode($view['filters'] ?? [], JSON_UNESCAPED_SLASHES) }}">{{ $view['name'] }}</button>
+                                <button type="button" class="btn btn-sm btn-link text-danger py-0 px-2" data-ac-view-delete
+                                    data-ac-view-url="{{ route($svBase . 'destroy', $view['id']) }}" aria-label="Delete {{ $view['name'] }}">&times;</button>
+                            </li>
+                        @empty
+                            <li><span class="dropdown-item-text text-muted small">{{ __('admin-core::admin-core.filters.no_views') }}</span></li>
+                        @endforelse
+                        <li><hr class="dropdown-divider"></li>
+                        <li><button type="button" class="dropdown-item" data-ac-view-save>{{ __('admin-core::admin-core.filters.save_view') }}</button></li>
+                    </ul>
+                </div>
+            @endif
         </div>
     </div>
 @endif

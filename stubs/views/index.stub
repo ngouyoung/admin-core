@@ -13,7 +13,7 @@
         </x-slot:actions>
     </x-admin-core::page-header>
 
-__AC_FILTER_TABS__    <x-admin-core::list-filters table="dummyModels_table" :filters="$acFilters ?? []" />
+__AC_FILTER_TABS__    <x-admin-core::list-filters table="dummyModels_table" :filters="$acFilters ?? []" :resource="$acResource ?? null" :views="$acSavedViews ?? []" />
 
     <x-admin-core::data-table id="dummyModels_table" thead="backend.pages.dummyModels.partials.thead"
         :ajax="route('__AC_RNS__dummyModels.getData')"

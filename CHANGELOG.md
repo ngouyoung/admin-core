@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.70.0
+
+**Saved views** — the advanced-filter bar (v2.69.0) gains a per-user "Views" dropdown: save the current
+filters as a named view, re-apply one in a click, or delete it. The second half of the advanced/saved-filters
+gap found dogfooding.
+
+### Added
+- **`SavedView` model + `saved_views` table** (package-shipped migration; `user_id` a plain indexed column,
+  guard-agnostic) — a named filter set per (user, resource); saving the same name overwrites.
+- **`Route::adminCoreSavedViews()`** + `SavedViewController` (index / store / destroy), every row **scoped to
+  the current user** so one user can't list, overwrite or delete another's. `admin-core:install` wires the
+  macro; existing installs add `Route::adminCoreSavedViews()` to their admin group and run `php artisan migrate`.
+- **The `<x-admin-core::list-filters>` "Views" dropdown** (server-loaded via `index()`'s `$acSavedViews`) +
+  `datatable.js` apply/save/delete. The dropdown degrades silently when the routes aren't wired.
+
 ## v2.69.0
 
 **Advanced list filters** — a filter bar above the table: a dropdown per `enum`/`boolean` field and a date

@@ -368,6 +368,13 @@ yajra's own search/sort/paging run. The `<x-admin-core::list-filters :filters="$
 component renders the bar (it's in the generated `index` view). Existing installs: republish the package
 `datatable.js` (`admin-core:doctor` flags it) and add the component + `listFilters()` to opt a screen in.
 
+**Saved views.** The filter bar also has a per-user **Views** dropdown: save the current filters as a named
+view, re-apply one in a click, or delete it. Views are stored **per user, per resource** in a package-shipped
+`saved_views` table (run `php artisan migrate` after upgrading); `Route::adminCoreSavedViews()` exposes the
+endpoints (`admin-core:install` adds it — existing installs add it to their admin route group). Every row is
+scoped to the current user, so one user never sees or deletes another's. The dropdown only appears when those
+routes are wired, so it degrades silently if you haven't opted in.
+
 Create / update / delete (and restore) flash a `success` message that the layout renders automatically.
 Customise or translate it by overriding one method on the generated controller:
 
