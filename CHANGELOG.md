@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.71.0
+
+**More list-filter types** — the advanced-filter bar (v2.69.0) gains `foreign`, number-range and `text`
+filters, completing the filter set found dogfooding.
+
+### Added
+- **`foreign` filter** — a dropdown of the related rows (`Model::pluck('name','id')`), exact-matched on the FK.
+- **`number` range filter** (min–max) — auto-generated for `money` and `decimal` columns; a **money** filter's
+  typed major amount is converted to the stored **minor units** before comparing. `integer` is supported but
+  not auto-generated (often an id/count — add it to `listFilters()` by hand).
+- **`text` LIKE filter** — supported for string columns (added by hand; strings stay covered by the global
+  search, so they aren't auto-generated to avoid clutter).
+- `applyListFilters()` now handles `number` (≥/≤, money-aware) and `text` (`LIKE %…%`) alongside `select`/`date`;
+  `<x-admin-core::list-filters>` renders the min/max and text controls (the front-end needed no change — the
+  min/max parts reuse the date range's generic part mechanism).
+
 ## v2.70.0
 
 **Saved views** — the advanced-filter bar (v2.69.0) gains a per-user "Views" dropdown: save the current

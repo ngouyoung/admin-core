@@ -345,7 +345,13 @@ ambiguous). Both assume the related model has a `name` column — the same assum
 ### Advanced list filters
 
 Beyond the global search box, generated lists get a **filter bar** above the table: a dropdown per `enum`
-(its cases) and `boolean` (Yes/No) field, and a from–to **date range** per `date`/`datetime` field. Changing
+(its cases), `boolean` (Yes/No) and `foreign` (the related rows) field, a from–to **date range** per
+`date`/`datetime`, and a min–max **number range** per `money`/`decimal` (a `money` filter's typed amount is
+converted to the stored minor units). A `text` LIKE filter and an `integer` range are supported too — add them
+to `listFilters()` by hand (strings are covered by the global search, so they aren't auto-generated; a `text`
+value's `%`/`_` act as wildcards, matching the global search). The `foreign` dropdown loads its options at
+**render** time (not on each data request), so it suits small/conventional relations — for a large or
+translatable-name relation, replace that `listFilters()` entry with a remote source. Changing
 a control reloads the table server-side (the shared `datatable.js` appends `?filter[col]=…` to each request);
 **Clear** resets them.
 

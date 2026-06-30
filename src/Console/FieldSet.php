@@ -2013,6 +2013,17 @@ BLADE;
                     . "collect({$enumClass}::cases())->mapWithKeys(fn (\$c) => [\$c->value => \\Illuminate\\Support\\Str::headline(\$c->value)])->all()],";
             } elseif ($f['type'] === 'boolean') {
                 $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => '{$label}', 'options' => [1 => 'Yes', 0 => 'No']],";
+            } elseif ($f['type'] === 'foreign') {
+                // Filter by the related id; a small relation's rows load as the dropdown options. The options are
+                // a CLOSURE so the query runs only when the bar renders (index) — NOT on every getData() AJAX hit,
+                // which reads type/currency only. A large / translatable-name relation: swap to a custom entry.
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => '{$this->label($f['relation'])}', 'options' => "
+                    . "fn () => \\App\\Models\\{$f['relModel']}::pluck('name', 'id')->all()],";
+            } elseif ($f['type'] === 'money') {
+                $currency = ! empty($f['currency']) ? "'{$f['currency']}'" : 'null';
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'number', 'label' => '{$label}', 'money' => true, 'currency' => {$currency}],";
+            } elseif ($f['type'] === 'decimal') {
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'number', 'label' => '{$label}'],";
             } elseif (in_array($f['type'], ['date', 'datetime'], true)) {
                 $lines[] = "            ['column' => '{$f['name']}', 'type' => 'date', 'label' => '{$label}'],";
             }

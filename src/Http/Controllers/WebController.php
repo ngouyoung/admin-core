@@ -268,9 +268,13 @@ abstract class WebController extends BaseController
     }
 
     /**
-     * Apply the request's `?filter[col]=value` (exact, for select filters) and `?filter[col][from|to]=date`
-     * (range, for date filters) to the list query — only for columns declared in listFilters(), so a crafted
-     * param can't filter an arbitrary/sensitive column. yajra's own search/sort/paging still run afterward.
+     * Apply the request's `?filter[col]=…` to the list query — only for columns declared in listFilters() (so a
+     * crafted param can't filter an arbitrary/sensitive column), per the filter's type:
+     *   select  exact match  (enum / boolean / foreign id)                         — filter[col]=value
+     *   text    LIKE %…%      (string)                                              — filter[col]=value
+     *   date    whereDate ≥/≤ (a non-date bound is skipped, not string-compared)    — filter[col][from|to]
+     *   number  ≥/≤ range     (integer/decimal; a money filter's major value is converted to minor units) — filter[col][min|max]
+     * yajra's own search/sort/paging still run afterward.
      */
     protected function applyListFilters(\Illuminate\Database\Eloquent\Builder $query, Request $request): void
     {
@@ -280,7 +284,8 @@ abstract class WebController extends BaseController
             if ($def === null) {
                 continue; // not a declared, whitelisted filter
             }
-            if (($def['type'] ?? 'select') === 'date') {
+            $type = $def['type'] ?? 'select';
+            if ($type === 'date') {
                 // Only apply a bound that parses as a date — a hand-crafted non-date ("abc") would otherwise be
                 // string-compared by the driver and silently match all or no rows.
                 $from = is_array($value) ? ($value['from'] ?? null) : null;
@@ -291,8 +296,25 @@ abstract class WebController extends BaseController
                 if (is_string($to) && strtotime($to) !== false) {
                     $query->whereDate($column, '<=', $to);
                 }
+            } elseif ($type === 'number') {
+                // A money filter's bound is a MAJOR amount ("15.00") — convert to the stored minor units.
+                $bound = fn ($v) => empty($def['money'])
+                    ? (float) $v
+                    : \Ngos\AdminCore\Support\Money::fromMajor($v, $def['currency'] ?? null)->minor;
+                $min = is_array($value) ? ($value['min'] ?? null) : null;
+                $max = is_array($value) ? ($value['max'] ?? null) : null;
+                if (is_scalar($min) && $min !== '' && is_numeric($min)) {
+                    $query->where($column, '>=', $bound($min));
+                }
+                if (is_scalar($max) && $max !== '' && is_numeric($max)) {
+                    $query->where($column, '<=', $bound($max));
+                }
+            } elseif ($type === 'text') {
+                if (is_scalar($value) && $value !== '') {
+                    $query->where($column, 'like', '%' . $value . '%');
+                }
             } elseif (is_scalar($value) && $value !== '') {
-                $query->where($column, $value); // exact match (enum / boolean / foreign id)
+                $query->where($column, $value); // select: exact match (enum / boolean / foreign id)
             }
         }
     }

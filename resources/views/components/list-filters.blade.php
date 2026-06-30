@@ -24,6 +24,9 @@
                     $column = $filter['column'];
                     $type = $filter['type'] ?? 'select';
                     $label = $filter['label'] ?? \Illuminate\Support\Str::headline($column);
+                    // options may be a closure (a foreign filter defers its DB query to render time, not getData).
+                    $options = $filter['options'] ?? [];
+                    if ($options instanceof \Closure) { $options = $options(); }
                 @endphp
                 <div class="ac-list-filter">
                     <label class="form-label small text-muted mb-1 d-block" for="ac-filter-{{ $table }}-{{ $column }}">{{ $label }}</label>
@@ -36,11 +39,24 @@
                             <input type="date" class="form-control form-control-sm" style="width:auto"
                                 data-ac-filter="{{ $column }}" data-ac-filter-part="to" aria-label="{{ $label }} to">
                         </div>
+                    @elseif ($type === 'number')
+                        <div class="d-flex align-items-center gap-1">
+                            <input type="number" inputmode="decimal" step="any" class="form-control form-control-sm" style="width:6rem"
+                                id="ac-filter-{{ $table }}-{{ $column }}"
+                                data-ac-filter="{{ $column }}" data-ac-filter-part="min" placeholder="min" aria-label="{{ $label }} min">
+                            <span class="text-muted small">–</span>
+                            <input type="number" inputmode="decimal" step="any" class="form-control form-control-sm" style="width:6rem"
+                                data-ac-filter="{{ $column }}" data-ac-filter-part="max" placeholder="max" aria-label="{{ $label }} max">
+                        </div>
+                    @elseif ($type === 'text')
+                        <input type="text" class="form-control form-control-sm" style="min-width:9rem"
+                            id="ac-filter-{{ $table }}-{{ $column }}" data-ac-filter="{{ $column }}"
+                            placeholder="{{ $filter['placeholder'] ?? '' }}">
                     @else
                         <select class="form-select form-select-sm" style="min-width:9rem"
                             id="ac-filter-{{ $table }}-{{ $column }}" data-ac-filter="{{ $column }}">
                             <option value="">{{ __('admin-core::admin-core.filters.all') }}</option>
-                            @foreach (($filter['options'] ?? []) as $value => $text)
+                            @foreach ($options as $value => $text)
                                 <option value="{{ $value }}">{{ $text }}</option>
                             @endforeach
                         </select>

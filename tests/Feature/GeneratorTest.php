@@ -823,6 +823,25 @@ it('generates a listFilters() method + the filter bar for boolean/date + seconda
         ->toContain('<x-admin-core::list-filters table="gizmos_table" :filters="$acFilters ?? []" :resource="$acResource ?? null" :views="$acSavedViews ?? []" />');
 });
 
+it('generates foreign (select) + money/decimal (number range) filters', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, category_id:foreign:categories, price:money:KHR, weight:decimal, qty:integer',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    expect($controller)
+        // foreign options are a CLOSURE → the query runs at render time, not on every getData() AJAX hit.
+        ->toContain("'column' => 'category_id', 'type' => 'select', 'label' => 'Category', 'options' => fn () => \\App\\Models\\Category::pluck('name', 'id')->all()")
+        ->toContain("'column' => 'price', 'type' => 'number', 'label' => 'Price', 'money' => true, 'currency' => 'KHR'")
+        ->toContain("'column' => 'weight', 'type' => 'number', 'label' => 'Weight']")
+        ->not->toContain("'column' => 'qty'"); // integer is not auto-filtered (often an id/count — add by hand)
+
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+});
+
 it('omits listFilters() when the only filterable field is the tab-covered first enum (no duplicate control)', function () {
     $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string, status:enum:draft|active'])
         ->assertSuccessful();

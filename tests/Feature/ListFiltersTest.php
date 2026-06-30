@@ -10,6 +10,10 @@ use Ngos\AdminCore\Tests\Fixtures\Widget;
  * still run afterward.
  */
 beforeEach(function () {
+    config()->set('admin-core.money.currency', 'USD');
+    config()->set('admin-core.money.currencies', [
+        'KHR' => ['symbol' => '៛', 'decimals' => 0, 'position' => 'before', 'thousands' => ',', 'decimal' => '.'],
+    ]);
     Schema::dropIfExists('widgets');
     Schema::create('widgets', function (Blueprint $table) {
         $table->id();
@@ -18,6 +22,7 @@ beforeEach(function () {
         $table->string('secret')->nullable();
         $table->string('photo')->nullable();
         $table->integer('sort')->default(0);
+        $table->bigInteger('price')->nullable(); // money, minor units
         $table->timestamps();
     });
 });
@@ -74,6 +79,50 @@ it('ignores a non-date bound instead of string-comparing it (no silent match-all
     expect(rows('?filter[created_at][from]=abc'))->toHaveCount(2)
         ->and(rows('?filter[created_at][to]=abc'))->toHaveCount(2)
         ->and(rows('?filter[created_at][from][]=2026-01-01'))->toHaveCount(2); // array bound dropped too
+});
+
+it('filters a text column with a LIKE match', function () {
+    Widget::create(['name' => 'Apple pie']);
+    Widget::create(['name' => 'Banana']);
+    Widget::create(['name' => 'Pineapple']);
+
+    expect(collect(rows('?filter[name]=apple'))->pluck('name')->sort()->values()->all())
+        ->toBe(['Apple pie', 'Pineapple']); // LIKE %apple%, case-insensitive
+});
+
+it('filters a numeric column by a min/max range (inclusive)', function () {
+    Widget::create(['name' => 'A'])->forceFill(['sort' => 5])->save();
+    Widget::create(['name' => 'B'])->forceFill(['sort' => 15])->save();
+    Widget::create(['name' => 'C'])->forceFill(['sort' => 25])->save();
+
+    expect(collect(rows('?filter[sort][min]=10&filter[sort][max]=20'))->pluck('name')->all())->toBe(['B'])
+        ->and(collect(rows('?filter[sort][min]=15'))->pluck('name')->sort()->values()->all())->toBe(['B', 'C']);
+});
+
+it('filters a money column by converting the major-amount bounds to stored minor units', function () {
+    // price is money:KHR (0-decimal → minor == major). Stored minor: 500/1500/2500.
+    Widget::create(['name' => 'Cheap'])->forceFill(['price' => 500])->save();
+    Widget::create(['name' => 'Mid'])->forceFill(['price' => 1500])->save();
+    Widget::create(['name' => 'Pricey'])->forceFill(['price' => 2500])->save();
+
+    // A major range 1000–2000 → minor 1000–2000 → matches only Mid.
+    expect(collect(rows('?filter[price][min]=1000&filter[price][max]=2000'))->pluck('name')->all())->toBe(['Mid']);
+});
+
+it('never evaluates a foreign filter options closure on a data request (perf — query only at render)', function () {
+    Widget::create(['name' => 'A', 'status' => 'active']);
+
+    // The fixture declares a category_id select whose options closure THROWS if evaluated. A getData hit
+    // (here even with another filter applied) must succeed — proving applyListFilters never touches options.
+    expect(rows('?filter[status]=active'))->toHaveCount(1);
+    expect(rows())->toHaveCount(1);
+});
+
+it('ignores a non-numeric range bound and a non-scalar text value (no error)', function () {
+    Widget::create(['name' => 'A', 'sort' => 5]);
+
+    expect(rows('?filter[sort][min]=abc'))->toHaveCount(1)        // non-numeric min skipped
+        ->and(rows('?filter[name][]=A'))->toHaveCount(1);         // array text value dropped
 });
 
 it('ignores a filter on a column not declared in listFilters (whitelist)', function () {

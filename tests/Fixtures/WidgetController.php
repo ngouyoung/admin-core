@@ -20,12 +20,20 @@ class WidgetController extends WebController
         return parent::getData($relation)->make(true);
     }
 
-    /** A select filter on `status` (exact) + a date-range filter on `created_at` — the whitelist for getData. */
+    /** The filter whitelist for getData: one of every type (select / date / text / number / money number). */
     protected function listFilters(): array
     {
         return [
             ['column' => 'status', 'type' => 'select', 'label' => 'Status'],
             ['column' => 'created_at', 'type' => 'date', 'label' => 'Created'],
+            ['column' => 'name', 'type' => 'text', 'label' => 'Name'],
+            ['column' => 'sort', 'type' => 'number', 'label' => 'Sort'],
+            ['column' => 'price', 'type' => 'number', 'label' => 'Price', 'money' => true, 'currency' => 'KHR'],
+            // A foreign-style select whose options are a CLOSURE that throws if evaluated — getData must never
+            // run it (it reads type/value only); the options query belongs to the rendered bar, not the data
+            // endpoint. (No test sends filter[category_id], so the column not existing never matters.)
+            ['column' => 'category_id', 'type' => 'select', 'label' => 'Category',
+                'options' => fn () => throw new \RuntimeException('foreign options query ran on getData')],
         ];
     }
 }
