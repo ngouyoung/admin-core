@@ -1989,6 +1989,65 @@ BLADE;
         return "    <x-admin-core::filter-tabs table=\"#{$tableId}\" :column=\"{$index}\" :enum=\"\\App\\Enums\\{$enumClass}::class\" />\n\n";
     }
 
+    // ---- Advanced list filters (<x-admin-core::list-filters>) ---------
+
+    /**
+     * The descriptor array body for the controller's listFilters() — a select per enum (its cases) / boolean
+     * (Yes/No), and a date-range per date/datetime column. These columns are the whitelist applyListFilters()
+     * applies, and the <x-admin-core::list-filters> bar renders a control for each. The FIRST enum is skipped:
+     * the generated filter-tabs already give it a (client-side) control, so listing it here too would render a
+     * second, conflicting "Status" control for the same column.
+     */
+    public function listFiltersConfig(): string
+    {
+        $tabEnum = collect($this->fields)->firstWhere('type', 'enum')['name'] ?? null;
+        $lines = [];
+        foreach ($this->fields as $f) {
+            $label = $this->label($f['name']);
+            if ($f['type'] === 'enum') {
+                if ($f['name'] === $tabEnum) {
+                    continue; // covered by <x-admin-core::filter-tabs>
+                }
+                $enumClass = '\\App\\Enums\\' . $this->enumClass($f);
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => '{$label}', 'options' => "
+                    . "collect({$enumClass}::cases())->mapWithKeys(fn (\$c) => [\$c->value => \\Illuminate\\Support\\Str::headline(\$c->value)])->all()],";
+            } elseif ($f['type'] === 'boolean') {
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => '{$label}', 'options' => [1 => 'Yes', 0 => 'No']],";
+            } elseif (in_array($f['type'], ['date', 'datetime'], true)) {
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'date', 'label' => '{$label}'],";
+            }
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /** Whether the resource generates a list-filters bar (any filterable field beyond the tab-covered enum). */
+    public function hasListFilters(): bool
+    {
+        return $this->listFiltersConfig() !== '';
+    }
+
+    /** The full `listFilters()` method for the controller, or '' when the resource has no list filter. */
+    public function listFiltersMethod(): string
+    {
+        $body = $this->listFiltersConfig();
+        if ($body === '') {
+            return '';
+        }
+
+        return <<<PHP
+
+    /** @return array<int, array<string, mixed>> List filters for the <x-admin-core::list-filters> bar. */
+    protected function listFilters(): array
+    {
+        return [
+{$body}
+        ];
+    }
+
+PHP;
+    }
+
     // ---- Controller getData -----------------------------------------
 
     public function eager(): string

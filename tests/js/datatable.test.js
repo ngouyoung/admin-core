@@ -2,10 +2,10 @@ import jQuery from 'jquery';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DATATABLE_STUB, loadStub } from './helpers.js';
 
-// The real shipped datatable.js (escaping + custom-action dispatch + bulk-button injection).
-const { acEsc, acRunAction, acInjectBulkActions } = loadStub(
+// The real shipped datatable.js (escaping + custom-action dispatch + bulk-button injection + filter collect).
+const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters } = loadStub(
     DATATABLE_STUB,
-    '{ acEsc, acRunAction, acInjectBulkActions }',
+    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters }',
 );
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -108,5 +108,42 @@ describe('acInjectBulkActions', () => {
         const table = card();
         acInjectBulkActions(table, { actions: [] });
         expect(document.querySelectorAll('.ac-bulk-action')).toHaveLength(0);
+    });
+});
+
+describe('acCollectFilters', () => {
+    function setup(barHtml) {
+        document.body.innerHTML = '<table id="t1"></table>' + barHtml;
+        return document.getElementById('t1');
+    }
+
+    it('collects select + date-range controls of the matching bar into a filter payload', () => {
+        const table = setup(
+            '<div data-ac-filters="t1">'
+            + '<select data-ac-filter="status"><option value="active" selected>A</option></select>'
+            + '<input data-ac-filter="created_at" data-ac-filter-part="from" value="2026-01-01">'
+            + '<input data-ac-filter="created_at" data-ac-filter-part="to" value="2026-02-01">'
+            + '</div>',
+        );
+
+        expect(acCollectFilters(table)).toEqual({
+            filter: { status: 'active', created_at: { from: '2026-01-01', to: '2026-02-01' } },
+        });
+    });
+
+    it('omits empty controls and only reads its own bar (matched by table id)', () => {
+        const table = setup(
+            '<div data-ac-filters="t1"><select data-ac-filter="status"><option value="" selected></option></select>'
+            + '<input data-ac-filter="created_at" data-ac-filter-part="from" value=""></div>'
+            // a second table's bar must NOT leak into t1's payload
+            + '<div data-ac-filters="t2"><select data-ac-filter="kind"><option value="x" selected>x</option></select></div>',
+        );
+
+        expect(acCollectFilters(table)).toEqual({ filter: {} });
+    });
+
+    it('returns an empty payload when the table has no filter bar', () => {
+        const table = setup('');
+        expect(acCollectFilters(table)).toEqual({ filter: {} });
     });
 });

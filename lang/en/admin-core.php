@@ -230,4 +230,9 @@ return [
         'transitioned' => 'Status updated.',
         'locked' => 'This record is locked and can no longer be edited.',
     ],
+
+    'filters' => [
+        'all' => 'All',
+        'clear' => 'Clear filters',
+    ],
 ];

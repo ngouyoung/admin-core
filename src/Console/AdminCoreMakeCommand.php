@@ -261,6 +261,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_RELATIONS__' => $fields->relations(),
             '__AC_APPENDS__' => $fields->appends(),
             '__AC_ACCESSORS__' => $fields->accessors(),
+            '__AC_LIST_FILTERS_METHOD__' => $fields->listFiltersMethod(),
             '__AC_MODEL_BOOT__' => $fields->modelBoot(),
             '__AC_COLUMNS__' => $fields->migrationColumns(),
             '__AC_EXTRA_SCHEMA__' => $fields->extraSchema(),

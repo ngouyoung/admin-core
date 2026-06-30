@@ -104,8 +104,11 @@ abstract class WebController extends BaseController
     {
         // Pass the bulk-action buttons (permission-filtered) to the view, which forwards them to the
         // data-table component via :actions. (Passed as data, not shared, so a second table on the page
-        // can't pick up this resource's actions.)
-        return $this->view('index', ['acActions' => $this->actionsConfig()]);
+        // can't pick up this resource's actions.) acFilters drives the <x-admin-core::list-filters> bar.
+        return $this->view('index', [
+            'acActions' => $this->actionsConfig(),
+            'acFilters' => $this->listFilters(),
+        ]);
     }
 
     public function create()
@@ -222,7 +225,52 @@ abstract class WebController extends BaseController
 
     public function getData($relation = null)
     {
-        return DataTables::of($this->service->query($relation));
+        $query = $this->service->query($relation);
+        $this->applyListFilters($query, request());
+
+        return DataTables::of($query);
+    }
+
+    /**
+     * Declarative list filters for the <x-admin-core::list-filters> bar — each `['column' => …, 'type' =>
+     * 'select'|'date', 'label' => …, 'options'|'source' => …]`. Override per resource (the generator fills it
+     * from the fields). The columns here are the whitelist applyListFilters() will apply.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function listFilters(): array
+    {
+        return [];
+    }
+
+    /**
+     * Apply the request's `?filter[col]=value` (exact, for select filters) and `?filter[col][from|to]=date`
+     * (range, for date filters) to the list query — only for columns declared in listFilters(), so a crafted
+     * param can't filter an arbitrary/sensitive column. yajra's own search/sort/paging still run afterward.
+     */
+    protected function applyListFilters(\Illuminate\Database\Eloquent\Builder $query, Request $request): void
+    {
+        $declared = collect($this->listFilters())->keyBy('column');
+        foreach ((array) $request->query('filter', []) as $column => $value) {
+            $def = $declared->get($column);
+            if ($def === null) {
+                continue; // not a declared, whitelisted filter
+            }
+            if (($def['type'] ?? 'select') === 'date') {
+                // Only apply a bound that parses as a date — a hand-crafted non-date ("abc") would otherwise be
+                // string-compared by the driver and silently match all or no rows.
+                $from = is_array($value) ? ($value['from'] ?? null) : null;
+                $to = is_array($value) ? ($value['to'] ?? null) : null;
+                if (is_string($from) && strtotime($from) !== false) {
+                    $query->whereDate($column, '>=', $from);
+                }
+                if (is_string($to) && strtotime($to) !== false) {
+                    $query->whereDate($column, '<=', $to);
+                }
+            } elseif (is_scalar($value) && $value !== '') {
+                $query->where($column, $value); // exact match (enum / boolean / foreign id)
+            }
+        }
     }
 
     /** The column shown as each option's label in the Select2 remote source ({@see select()}). */

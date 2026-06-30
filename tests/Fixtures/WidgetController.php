@@ -19,4 +19,13 @@ class WidgetController extends WebController
     {
         return parent::getData($relation)->make(true);
     }
+
+    /** A select filter on `status` (exact) + a date-range filter on `created_at` — the whitelist for getData. */
+    protected function listFilters(): array
+    {
+        return [
+            ['column' => 'status', 'type' => 'select', 'label' => 'Status'],
+            ['column' => 'created_at', 'type' => 'date', 'label' => 'Created'],
+        ];
+    }
 }

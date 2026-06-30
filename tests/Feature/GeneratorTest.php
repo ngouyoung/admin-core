@@ -798,6 +798,47 @@ it('generates a composite unique constraint + FormRequest rule from --unique', f
     }
 });
 
+it('generates a listFilters() method + the filter bar for boolean/date + secondary enums', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, status:enum:draft|active, kind:enum:a|b, is_vip:boolean, joined:date',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // Controller declares the filters (the whitelist applyListFilters applies + the bar renders).
+    $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    expect($controller)
+        ->toContain('protected function listFilters(): array')
+        // The FIRST enum (status) is covered by <x-admin-core::filter-tabs> — not duplicated in the bar.
+        ->not->toContain("'column' => 'status'")
+        ->toContain("'column' => 'kind', 'type' => 'select'")  // a secondary enum IS in the bar
+        ->toContain("'column' => 'is_vip', 'type' => 'select', 'label' => 'Is Vip', 'options' => [1 => 'Yes', 0 => 'No']")
+        ->toContain("'column' => 'joined', 'type' => 'date'")
+        ->not->toContain('__AC_');
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+
+    // Index view renders the filter bar (driven by $acFilters from index()).
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->toContain('<x-admin-core::list-filters table="gizmos_table" :filters="$acFilters ?? []" />');
+});
+
+it('omits listFilters() when the only filterable field is the tab-covered first enum (no duplicate control)', function () {
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string, status:enum:draft|active'])
+        ->assertSuccessful();
+
+    // status is filtered via filter-tabs; there's nothing else, so no list-filters method/bar.
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->not->toContain('protected function listFilters()');
+});
+
+it('omits listFilters() when no field is filterable', function () {
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string, body:text'])->assertSuccessful();
+
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->not->toContain('protected function listFilters()'); // nothing to filter → use the parent's empty default
+});
+
 it('omits the casts() method when no column needs casting', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

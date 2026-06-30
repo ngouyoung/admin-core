@@ -342,6 +342,32 @@ search box (server-side via yajra), so they apply to every resource. Relation co
 subquery), and a `belongsToMany` column is searchable but not sortable (sorting a multi-value relation is
 ambiguous). Both assume the related model has a `name` column — the same assumption used to display it.
 
+### Advanced list filters
+
+Beyond the global search box, generated lists get a **filter bar** above the table: a dropdown per `enum`
+(its cases) and `boolean` (Yes/No) field, and a from–to **date range** per `date`/`datetime` field. Changing
+a control reloads the table server-side (the shared `datatable.js` appends `?filter[col]=…` to each request);
+**Clear** resets them.
+
+It's declared on the controller (the generator fills it from the fields) and **whitelisted** — only the
+listed columns are filterable, so a crafted `?filter[…]` can't touch an arbitrary column:
+
+```php
+/** @return array<int, array<string, mixed>> */
+protected function listFilters(): array
+{
+    return [
+        ['column' => 'status', 'type' => 'select', 'label' => 'Status', 'options' => [...]],
+        ['column' => 'created_at', 'type' => 'date', 'label' => 'Created'],
+    ];
+}
+```
+
+`WebController::applyListFilters()` applies them (exact match for `select`, `whereDate` ≥/≤ for `date`) before
+yajra's own search/sort/paging run. The `<x-admin-core::list-filters :filters="$acFilters ?? []" table="…_table" />`
+component renders the bar (it's in the generated `index` view). Existing installs: republish the package
+`datatable.js` (`admin-core:doctor` flags it) and add the component + `listFilters()` to opt a screen in.
+
 Create / update / delete (and restore) flash a `success` message that the layout renders automatically.
 Customise or translate it by overriding one method on the generated controller:
 

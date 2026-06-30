@@ -115,8 +115,10 @@ function acInitTables(scope) {
         } catch (e) {
             return; // malformed config — leave the table alone
         }
+        const table = this;
         const opts = {
-            ajax: { url: cfg.ajax, type: 'GET' },
+            // ajax.data runs on every request, so the table always sends the filter bar's current values.
+            ajax: { url: cfg.ajax, type: 'GET', data: (d) => Object.assign(d, acCollectFilters(table)) },
             pageLength: cfg.pageLength || 10,
             columns: acBuildColumns(cfg.columns),
         };
@@ -126,6 +128,51 @@ function acInitTables(scope) {
         this._acConfig = cfg;                 // stash for the delete/bulk handlers
         this._acTable = $(this).DataTable(opts);
         acInjectBulkActions(this, cfg);
+        acBindFilters(this);
+    });
+}
+
+// The <x-admin-core::list-filters> bar that drives a given table (matched by the table's id), or null.
+function acFilterBar(tableEl) {
+    return tableEl.id ? document.querySelector('[data-ac-filters="' + tableEl.id + '"]') : null;
+}
+
+// Collect the bar's current control values into a { filter: { col: value, dateCol: { from, to } } } payload.
+function acCollectFilters(tableEl) {
+    const bar = acFilterBar(tableEl);
+    const filter = {};
+    if (bar) {
+        bar.querySelectorAll('[data-ac-filter]').forEach((el) => {
+            const col = el.getAttribute('data-ac-filter');
+            const part = el.getAttribute('data-ac-filter-part'); // from|to for a date range
+            const val = el.value;
+            if (val === '' || val == null) {
+                return;
+            }
+            if (part) {
+                (filter[col] = filter[col] || {})[part] = val;
+            } else {
+                filter[col] = val;
+            }
+        });
+    }
+    return { filter: filter };
+}
+
+// Reload the table when a filter changes, and wire the Clear button. Idempotent (one binding per bar).
+function acBindFilters(tableEl) {
+    const bar = acFilterBar(tableEl);
+    if (!bar || bar._acFiltersBound) {
+        return;
+    }
+    bar._acFiltersBound = true;
+    const reload = () => { if (tableEl._acTable) { tableEl._acTable.ajax.reload(null, false); } };
+    bar.addEventListener('change', (e) => { if (e.target.matches('[data-ac-filter]')) { reload(); } });
+    bar.addEventListener('click', (e) => {
+        if (e.target.closest('[data-ac-filter-clear]')) {
+            bar.querySelectorAll('[data-ac-filter]').forEach((el) => { el.value = ''; });
+            reload();
+        }
     });
 }
 

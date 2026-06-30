@@ -13,7 +13,9 @@
         </x-slot:actions>
     </x-admin-core::page-header>
 
-__AC_FILTER_TABS__    <x-admin-core::data-table id="dummyModels_table" thead="backend.pages.dummyModels.partials.thead"
+__AC_FILTER_TABS__    <x-admin-core::list-filters table="dummyModels_table" :filters="$acFilters ?? []" />
+
+    <x-admin-core::data-table id="dummyModels_table" thead="backend.pages.dummyModels.partials.thead"
         :ajax="route('__AC_RNS__dummyModels.getData')"
         :bulk-delete="auth()->guard($acGuard ?? null)->user()?->can('delete-dummy-model') ? route('__AC_RNS__dummyModels.bulkDelete') : null"
         :actions="$acActions ?? []"

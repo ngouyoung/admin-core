@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.69.0
+
+**Advanced list filters** — a filter bar above the table: a dropdown per `enum`/`boolean` field and a date
+range per `date`/`datetime` field, applied server-side. The first slice of the "advanced/saved filters" gap
+found dogfooding (per-field filtering beyond the global search + the single status tab).
+
+### Added
+- **`listFilters()` + `applyListFilters()` on `WebController`** — a declarative, **whitelisted** per-column
+  filter. The generator fills `listFilters()` from the fields (a `select` per enum/boolean, a `date` range per
+  date/datetime); `applyListFilters()` applies `?filter[col]=value` (exact) and `?filter[col][from|to]=date`
+  (range) before yajra's own search/sort/paging. A crafted `?filter[…]` on a non-declared column is ignored.
+- **`<x-admin-core::list-filters>`** — the filter bar (in the generated `index` view, driven by `$acFilters`
+  from `index()`); a Clear button resets it.
+- **`datatable.js`** appends the bar's current values to every AJAX request (new `ajax.data` hook) and reloads
+  the table on change. Backward-compatible: existing installs republish the JS + add the component to opt in.
+
 ## v2.68.0
 
 **Composite unique constraints** — `--unique="order_id,product_id"` makes several columns unique *together*
