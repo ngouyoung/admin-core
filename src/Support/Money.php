@@ -121,26 +121,45 @@ final class Money implements Arrayable, JsonSerializable, Stringable
             : $sign . $cfg['symbol'] . $number;
     }
 
-    /** Add another amount of the same currency, exactly (integer maths). */
-    public function add(self $other): self
+    /**
+     * Add another amount of the same currency, exactly (integer maths). A null operand yields null — so a
+     * computed total over a nullable money column (`subtotal + tax` with tax NULL) is blank, not a crash.
+     */
+    public function add(?self $other): ?self
     {
+        if ($other === null) {
+            return null;
+        }
         $this->assertSameCurrency($other);
 
         return new self($this->minor + $other->minor, $this->currency);
     }
 
-    /** Subtract another amount of the same currency, exactly. */
-    public function subtract(self $other): self
+    /** Subtract another amount of the same currency, exactly. A null operand yields null. */
+    public function subtract(?self $other): ?self
     {
+        if ($other === null) {
+            return null;
+        }
         $this->assertSameCurrency($other);
 
         return new self($this->minor - $other->minor, $this->currency);
     }
 
-    /** Scale the amount by a factor (e.g. price × quantity), rounded back to whole minor units. */
-    public function multiply(int|float $factor): self
+    /**
+     * Scale the amount by a factor (e.g. price × quantity), rounded back to whole minor units. Accepts a
+     * string (so a decimal-cast attribute like "2.500" works directly) and a null (which yields null, so a
+     * computed total over a nullable operand is blank rather than a TypeError).
+     */
+    public function multiply(int|float|string|null $factor): ?self
     {
-        return new self((int) round($this->minor * $factor), $this->currency);
+        return $factor === null ? null : new self((int) round($this->minor * (float) $factor), $this->currency);
+    }
+
+    /** Divide the amount by a divisor (e.g. split a total), rounded back to whole minor units. Null → null. */
+    public function divide(int|float|string|null $divisor): ?self
+    {
+        return $divisor === null ? null : new self((int) round($this->minor / (float) $divisor), $this->currency);
     }
 
     public function isZero(): bool

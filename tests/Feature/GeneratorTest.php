@@ -677,7 +677,7 @@ it('wires a computed field end-to-end (accessor + appends, no column, valid PHP)
         ->toContain('use Illuminate\Database\Eloquent\Casts\Attribute;')
         ->toContain("protected \$appends = ['total'];")
         ->toContain('protected function total(): Attribute')
-        ->toContain('Attribute::get(fn () => $this->qty * $this->price)')
+        ->toContain('Attribute::get(fn () => ($this->qty * $this->price))')
         ->not->toContain('__AC_'); // no leftover placeholder
 
     // The generated model is valid PHP.
@@ -696,6 +696,28 @@ it('wires a computed field end-to-end (accessor + appends, no column, valid PHP)
         ->toContain('{{ $object->total }}');
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
         ->not->toContain('name="total"');
+});
+
+it('generates valid PHP for a bare computed stub and a money-aware computed expression', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'qty:decimal, unit_price:money, full_name:computed, line_total:computed:qty*unit_price',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $model = File::get(app_path('Models/Gizmo.php'));
+    // Bare stub is a valid arrow-fn expression (block comment, no `null;` statement that breaks php -l).
+    expect($model)->toContain('fn () => null /*')->not->toContain('null;');
+    // Money-aware computed compiles to Money's method + is shown formatted in list + show.
+    expect($model)->toContain('fn () => $this->unit_price?->multiply($this->qty))');
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
+        ->toContain("->addColumn('line_total', fn (\$row) => \$row->line_total?->format())");
+    expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))
+        ->toContain('{{ $object->line_total?->format() }}');
+
+    // The whole model parses.
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Models/Gizmo.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
 });
 
 it('defers a computed field added via admin-core:field to the full generator (no half-wired model)', function () {

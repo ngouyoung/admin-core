@@ -422,22 +422,67 @@ it('builds a sort column when sortable', function () {
 
 // -- computed (derived, read-only accessor) ---------------------------------------------------------
 
-it('generates an arithmetic accessor from a computed expression', function () {
+it('compiles a numeric arithmetic accessor (operators, parenthesised)', function () {
     $f = fs('qty:integer, price:decimal, total:computed:qty * price');
 
     expect($f->accessors())
         ->toContain('protected function total(): Attribute')
-        ->toContain('Attribute::get(fn () => $this->qty * $this->price)');
+        ->toContain('Attribute::get(fn () => ($this->qty * $this->price))');
     expect($f->modelUses())->toContain('use Illuminate\Database\Eloquent\Casts\Attribute;');
     expect($f->appends())->toBe("\n\n    protected \$appends = ['total'];");
 });
 
-it('scaffolds a TODO stub accessor for a bare computed field', function () {
+it('respects precedence and parentheses in a numeric expression', function () {
+    expect(fs('a:integer, b:integer, c:integer, t:computed:a + b * c')->accessors())
+        ->toContain('fn () => ($this->a + ($this->b * $this->c))');           // * binds tighter than +
+    expect(fs('a:integer, b:integer, c:integer, t:computed:(a + b) * c')->accessors())
+        ->toContain('fn () => (($this->a + $this->b) * $this->c)');           // parens override
+});
+
+it('compiles a MONEY-aware expression: money x scalar uses ->multiply() and stays money', function () {
+    // qty (decimal) * unit_price (money) -> a Money line total. The real ERP case that decimal couldn't do.
+    $f = fs('qty:decimal, unit_price:money, line_total:computed:qty * unit_price');
+
+    expect($f->accessors())->toContain('fn () => $this->unit_price?->multiply($this->qty))');
+    // A money-typed computed is displayed formatted (like a money column), in the list and on show.
+    expect($f->getDataColumns())->toContain("->addColumn('line_total', fn (\$row) => \$row->line_total?->format())");
+    expect($f->showRows())->toContain('$object->line_total?->format()');
+});
+
+it('compiles money +/- money to ->add()/->subtract(), and money / scalar to ->divide()', function () {
+    expect(fs('subtotal:money, tax:money, total:computed:subtotal + tax')->accessors())
+        ->toContain('fn () => $this->subtotal?->add($this->tax)');
+    expect(fs('gross:money, discount:money, net:computed:gross - discount')->accessors())
+        ->toContain('fn () => $this->gross?->subtract($this->discount)');
+    expect(fs('total:money, parts:integer, each:computed:total / parts')->accessors())
+        ->toContain('fn () => $this->total?->divide($this->parts)');
+});
+
+it('rejects nonsensical money arithmetic', function () {
+    expect(fn () => fs('a:money, b:money, t:computed:a * b'))                 // money x money
+        ->toThrow(InvalidArgumentException::class, "two money amounts can't be multiplied");
+    expect(fn () => fs('a:money, t:computed:a + 5'))                         // money + number
+        ->toThrow(InvalidArgumentException::class, "money and a plain number can't be added");
+    expect(fn () => fs('a:integer, b:money, t:computed:a / b'))              // divide by money
+        ->toThrow(InvalidArgumentException::class, "can't be divided by a money amount");
+});
+
+it('scaffolds a VALID-PHP TODO stub accessor for a bare computed field', function () {
     $f = fs('first_name:string, last_name:string, full_name:computed');
 
     expect($f->accessors())
         ->toContain('protected function fullName(): Attribute')
-        ->toContain('// TODO: derive full_name');
+        ->toContain('TODO: derive full_name')
+        ->toContain('fn () => null /*')   // a block comment — valid inside the arrow fn
+        ->not->toContain('null;');         // NOT a statement + // comment (that breaks php -l)
+});
+
+it('compiles a literal-0 computed expression as numeric 0 (not a falsy-coerced stub)', function () {
+    // `?: null` used to turn "0" into a (broken) stub; a literal 0 must compile to a real numeric body.
+    $f = fs('total:computed:0');
+
+    expect($f->accessors())->toContain('Attribute::get(fn () => 0)')
+        ->not->toContain('TODO'); // it's an expression, not a stub
 });
 
 it('keeps a computed field out of the schema, fillable, rules and the form', function () {
@@ -449,7 +494,7 @@ it('keeps a computed field out of the schema, fillable, rules and the form', fun
     expect($f->formFields())->not->toContain('name="total"');    // not in the form
 });
 
-it('shows a computed field in the list (addColumn, non-orderable) and on the show page', function () {
+it('shows a numeric computed field in the list (addColumn, non-orderable) and on the show page', function () {
     $f = fs('qty:integer, total:computed:qty');
 
     expect($f->getDataColumns())->toContain("->addColumn('total', fn (\$row) => \$row->total)");
@@ -457,17 +502,16 @@ it('shows a computed field in the list (addColumn, non-orderable) and on the sho
     expect($f->showRows())->toContain('$object->total');
 });
 
-it('rejects a computed expression containing anything but field names, numbers and + - * / ( )', function () {
-    // '%' is outside the grammar, so user input can't smuggle in arbitrary PHP.
+it('rejects a computed expression containing a character outside the grammar (no arbitrary PHP)', function () {
     expect(fn () => fs('qty:integer, total:computed:qty % 2'))
         ->toThrow(InvalidArgumentException::class, "unexpected character '%'");
-    // A function call is rejected too — `id(` isn't valid arithmetic (an operand can't be followed by '(').
+    // A function call is rejected — `abs` isn't a declared field.
     expect(fn () => fs('qty:integer, total:computed:abs(qty)'))
-        ->toThrow(InvalidArgumentException::class, 'not a valid arithmetic formula');
+        ->toThrow(InvalidArgumentException::class, "references 'abs'");
 });
 
 it('rejects malformed arithmetic that would generate broken PHP', function () {
-    // '//' would become a PHP line comment, '/*' a block comment — both must be rejected, not emitted.
+    // '//' would become a PHP line comment — it must be rejected, not emitted.
     expect(fn () => fs('qty:integer, total:computed:qty // 2'))
         ->toThrow(InvalidArgumentException::class, 'not a valid arithmetic formula');
     expect(fn () => fs('qty:integer, total:computed:qty *'))           // trailing operator
@@ -475,7 +519,7 @@ it('rejects malformed arithmetic that would generate broken PHP', function () {
     expect(fn () => fs('qty:integer, total:computed:(qty * 2'))        // unbalanced paren
         ->toThrow(InvalidArgumentException::class, 'parentheses are unbalanced');
     expect(fn () => fs('qty:integer, price:integer, total:computed:qty price')) // two adjacent operands
-        ->toThrow(InvalidArgumentException::class, 'two operands are adjacent');
+        ->toThrow(InvalidArgumentException::class, 'unexpected trailing input');
 });
 
 it('rejects a computed field name that cannot map to an accessor (digit right after underscore)', function () {
@@ -490,19 +534,10 @@ it('rejects a computed field name that cannot map to an accessor (digit right af
     expect(fn () => fs('qty:integer, grand_total:computed:qty*2'))->not->toThrow(InvalidArgumentException::class);
 });
 
-it('normalises spacing when re-emitting a tight expression (no fused operators)', function () {
-    // qty*price -> "$this->qty * $this->price"; a unary minus stays valid: qty--price -> qty - -price.
-    expect(fs('qty:integer, price:integer, t:computed:qty*price')->accessors())
-        ->toContain('fn () => $this->qty * $this->price');
-    expect(fs('qty:integer, price:integer, t:computed:qty--price')->accessors())
-        ->toContain('fn () => $this->qty - - $this->price');
-});
-
-it('rejects a computed expression that references a non-numeric or unknown field', function () {
-    // money is not plain-numeric — Money math needs ->multiply(), so steer the user to a stub.
-    expect(fn () => fs('qty:integer, price:money, total:computed:qty*price'))
-        ->toThrow(InvalidArgumentException::class, "references 'price'");
-
+it('rejects a computed expression that references a string/enum or unknown field', function () {
+    // Only numeric + money fields can appear in an expression; a string column can't.
+    expect(fn () => fs('label:string, total:computed:label*2'))
+        ->toThrow(InvalidArgumentException::class, "references 'label'");
     // an unknown identifier is a typo, not silent garbage.
     expect(fn () => fs('qty:integer, total:computed:qty*nope'))
         ->toThrow(InvalidArgumentException::class, "references 'nope'");

@@ -97,7 +97,20 @@ it('adds and subtracts exactly, with no float drift', function () {
 
 it('multiplies (price x quantity) and rounds back to whole minor units', function () {
     expect(Money::fromMinor(199, 'USD')->multiply(3)->minor)->toBe(597)      // $1.99 x 3 = $5.97
-        ->and(Money::fromMinor(100, 'USD')->multiply(0.125)->minor)->toBe(13); // rounds 12.5 -> 13
+        ->and(Money::fromMinor(100, 'USD')->multiply(0.125)->minor)->toBe(13) // rounds 12.5 -> 13
+        ->and(Money::fromMinor(300, 'USD')->multiply('2.500')->minor)->toBe(750); // a decimal-cast string operand
+});
+
+it('divides and rounds back to whole minor units (incl. a string divisor)', function () {
+    expect(Money::fromMinor(1000, 'USD')->divide(4)->minor)->toBe(250)
+        ->and(Money::fromMinor(1000, 'USD')->divide('3')->minor)->toBe(333); // 333.33 -> 333
+});
+
+it('treats a null operand as null, not a crash (so a computed total over a nullable column is blank)', function () {
+    expect(Money::fromMinor(1000, 'USD')->add(null))->toBeNull()
+        ->and(Money::fromMinor(1000, 'USD')->subtract(null))->toBeNull()
+        ->and(Money::fromMinor(1000, 'USD')->multiply(null))->toBeNull()
+        ->and(Money::fromMinor(1000, 'USD')->divide(null))->toBeNull();
 });
 
 it('refuses to combine two different currencies', function () {

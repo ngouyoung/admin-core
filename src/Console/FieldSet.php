@@ -14,8 +14,9 @@ use Illuminate\Support\Str;
  *   - decimal  optional precision|scale (pipe-separated):  price:decimal:12|4  (defaults to 10,2)
  *   - money    exact amount stored as minor units (cents), shown with the currency symbol; optional
  *              currency:  price:money  or  price:money:KHR  (default from config admin-core.money.currency)
- *   - computed derived, read-only (not a column):  total:computed:qty*price  (safe arithmetic over numeric
- *              fields) generates an accessor; bare  total:computed  scaffolds an accessor stub you fill in
+ *   - computed derived, read-only (not a column):  total:computed:qty*price  (typed arithmetic over numeric
+ *              AND money fields — money operands compile to Money's ->multiply/->add/… and yield a Money);
+ *              bare  total:computed  scaffolds an accessor stub you fill in
  *   - enum     values piped:  status:enum:draft|published|archived
  *   - foreign  column ending in _id:  category_id:foreign  (-> belongsTo). Add an explicit
  *              target table for a self-reference / tree or a non-conventional name:
@@ -253,10 +254,11 @@ class FieldSet
             }
 
             // Computed (derived, not stored): `total:computed:qty*price` carries an arithmetic expression over
-            // other numeric columns; bare `total:computed` scaffolds an accessor stub you fill in.
+            // other numeric/money columns; bare `total:computed` scaffolds an accessor stub you fill in.
             $computedExpr = null;
             if (str_starts_with($spec, 'computed:')) {
-                $computedExpr = trim(substr($spec, 9)) ?: null;
+                $trimmed = trim(substr($spec, 9));
+                $computedExpr = $trimmed === '' ? null : $trimmed; // '' = bare stub; keep a literal "0"
                 $spec = 'computed';
             }
 
@@ -326,37 +328,40 @@ class FieldSet
         }
 
         $fields = $fields ?: [$this->field('name', 'string')];
-        $this->assertComputedExpressions($fields);
 
-        return $fields;
+        return $this->compileComputedFields($fields);
     }
 
     /**
-     * Validate every `computed:<expr>` field's expression now that the full field list is known. The expression
-     * is tokenised and checked to be a well-formed arithmetic formula (operands = numbers or other numeric
-     * fields, binary `+ - * /` with optional unary sign, balanced parens) — so user input can never become
-     * arbitrary or syntactically-broken generated PHP, and a typo'd / non-numeric reference fails loudly with
-     * the fix. A bare `computed` (no expr) scaffolds a stub instead.
+     * Validate + compile every computed field now that the full field list is known, annotating each
+     * (`computedPhp` = the accessor body, `computedType` = 'numeric'|'money') so the model, list and show
+     * render it right. A computed expression is a TYPED arithmetic formula over other numeric/money fields:
+     * numbers use operators, money uses Money's exact methods (`?->multiply`/`?->add`/…), and a nonsensical
+     * mix (money×money, money±number, ÷money) is rejected — so user input never becomes arbitrary or wrong PHP.
+     * A bare `computed` (no expr) keeps a stub for you to fill in.
      *
      * @param  array<int, array<string, mixed>>  $fields
+     * @return array<int, array<string, mixed>>
      */
-    private function assertComputedExpressions(array $fields): void
+    private function compileComputedFields(array $fields): array
     {
-        $numeric = [];
+        $types = [];
         foreach ($fields as $f) {
             if (in_array($f['type'], self::NUMERIC_TYPES, true)) {
-                $numeric[$f['name']] = true;
+                $types[$f['name']] = 'numeric';
+            } elseif ($f['type'] === 'money') {
+                $types[$f['name']] = 'money';
             }
         }
 
-        foreach ($fields as $f) {
+        foreach ($fields as $i => $f) {
             if ($f['type'] !== 'computed') {
                 continue;
             }
             // The accessor is named in camelCase (total -> total(), full_name -> fullName()); Eloquent resolves
             // an $appends key back to it via Str::snake. A name with a digit right after '_' (line_2_total)
-            // doesn't round-trip (camel -> line2Total -> snake -> line2_total !== line_2_total), so toArray()
-            // would call a method that doesn't exist. Reject it up front with the fix.
+            // doesn't round-trip (camel -> line2Total -> snake -> line2_total), so toArray() would call a method
+            // that doesn't exist. Reject it up front with the fix.
             if (Str::snake(Str::camel($f['name'])) !== $f['name']) {
                 throw new \InvalidArgumentException(
                     "admin-core: computed field '{$f['name']}' can't map to an accessor — avoid a digit right after "
@@ -364,24 +369,37 @@ class FieldSet
                 );
             }
             if (($f['expr'] ?? null) === null) {
-                continue; // a bare stub — no expression to validate
+                continue; // a bare stub — no expression to compile
             }
-            foreach ($this->tokeniseExpression($f['name'], $f['expr']) as $t) {
-                if ($t['type'] === 'id' && ! isset($numeric[$t['value']])) {
-                    throw new \InvalidArgumentException(
-                        "admin-core: computed expression for '{$f['name']}' references '{$t['value']}', which is "
-                        . "not a numeric (integer/decimal) field in this resource. Use bare '{$f['name']}:computed' "
-                        . "and write the formula yourself (e.g. money: \$this->price->multiply(\$this->qty)).",
-                    );
-                }
-            }
+            $compiled = $this->compileExpression($f['name'], $f['expr'], $types);
+            $fields[$i]['computedPhp'] = $compiled['php'];
+            $fields[$i]['computedType'] = $compiled['type'];
         }
+
+        return $fields;
     }
 
     /**
-     * Tokenise + grammar-check a computed arithmetic expression, returning its tokens (so codegen re-emits it
-     * with safe spacing). Anything but numbers, identifiers and `+ - * / ( )` — or a malformed number / operator
-     * placement / unbalanced paren — is rejected, so a stray `//` (a PHP comment) or `--` can't reach the model.
+     * Compile a computed expression into a typed PHP accessor body.
+     *
+     * @param  array<string, string>  $types  field name => 'numeric'|'money'
+     * @return array{php: string, type: string}
+     */
+    private function compileExpression(string $name, string $expr, array $types): array
+    {
+        $tokens = $this->tokeniseExpression($name, $expr);
+        $pos = 0;
+        $result = $this->parseSum($name, $tokens, $pos, $types);
+        if ($pos !== count($tokens)) {
+            $this->failExpr($name, 'unexpected trailing input'); // e.g. "qty price" or "qty)2"
+        }
+
+        return $result;
+    }
+
+    /**
+     * Tokenise a computed expression. Anything but numbers, identifiers and `+ - * / ( )` — or a malformed
+     * number — is rejected here, so a stray symbol can't reach the parser; grammar + types are the parser's job.
      *
      * @return array<int, array{type: string, value: string}>
      */
@@ -422,46 +440,179 @@ class FieldSet
             }
         }
 
-        $this->assertWellFormed($name, $tokens);
-
         return $tokens;
     }
 
     /**
-     * A well-formed arithmetic expression alternates operands and binary operators (a `+`/`-` where an operand
-     * is expected is a unary sign), with balanced parentheses and at least one operand.
+     * Recursive-descent parser producing (php, type). sum := product (('+'|'-') product)*.
      *
      * @param  array<int, array{type: string, value: string}>  $tokens
+     * @param  array<string, string>  $types
+     * @return array{php: string, type: string}
      */
-    private function assertWellFormed(string $name, array $tokens): void
+    private function parseSum(string $name, array $tokens, int &$pos, array $types): array
     {
-        if ($tokens === []) {
-            $this->failExpr($name, 'it is empty');
+        $left = $this->parseProduct($name, $tokens, $pos, $types);
+        while (isset($tokens[$pos]) && $tokens[$pos]['type'] === 'op' && in_array($tokens[$pos]['value'], ['+', '-'], true)) {
+            $op = $tokens[$pos++]['value'];
+            $right = $this->parseProduct($name, $tokens, $pos, $types);
+            $left = $this->combineAdd($name, $op, $left, $right);
         }
-        $expectOperand = true;
-        $depth = 0;
-        foreach ($tokens as $t) {
-            if ($expectOperand) {
-                if ($t['type'] === 'num' || $t['type'] === 'id') {
-                    $expectOperand = false;
-                } elseif ($t['type'] === 'lp') {
-                    $depth++;
-                } elseif (! ($t['type'] === 'op' && in_array($t['value'], ['+', '-'], true))) {
-                    $this->failExpr($name, 'an operator is misplaced'); // unary +/- is the only operator allowed here
-                }
-            } elseif ($t['type'] === 'op') {
-                $expectOperand = true;
-            } elseif ($t['type'] === 'rp') {
-                if (--$depth < 0) {
-                    $this->failExpr($name, 'the parentheses are unbalanced');
-                }
-            } else {
-                $this->failExpr($name, 'two operands are adjacent');
+
+        return $left;
+    }
+
+    /**
+     * product := unary (('*'|'/') unary)*.
+     *
+     * @param  array<int, array{type: string, value: string}>  $tokens
+     * @param  array<string, string>  $types
+     * @return array{php: string, type: string}
+     */
+    private function parseProduct(string $name, array $tokens, int &$pos, array $types): array
+    {
+        $left = $this->parseUnary($name, $tokens, $pos, $types);
+        while (isset($tokens[$pos]) && $tokens[$pos]['type'] === 'op' && in_array($tokens[$pos]['value'], ['*', '/'], true)) {
+            $op = $tokens[$pos++]['value'];
+            $right = $this->parseUnary($name, $tokens, $pos, $types);
+            $left = $this->combineMul($name, $op, $left, $right);
+        }
+
+        return $left;
+    }
+
+    /**
+     * unary := ('+'|'-') unary | primary.
+     *
+     * @param  array<int, array{type: string, value: string}>  $tokens
+     * @param  array<string, string>  $types
+     * @return array{php: string, type: string}
+     */
+    private function parseUnary(string $name, array $tokens, int &$pos, array $types): array
+    {
+        if (isset($tokens[$pos]) && $tokens[$pos]['type'] === 'op' && in_array($tokens[$pos]['value'], ['+', '-'], true)) {
+            $op = $tokens[$pos++]['value'];
+            $operand = $this->parseUnary($name, $tokens, $pos, $types);
+            if ($op === '+') {
+                return $operand;
             }
+
+            return $operand['type'] === 'money'
+                ? ['php' => $operand['php'] . '?->multiply(-1)', 'type' => 'money']
+                : ['php' => '(-' . $operand['php'] . ')', 'type' => 'numeric'];
         }
-        if ($expectOperand || $depth !== 0) {
-            $this->failExpr($name, $depth !== 0 ? 'the parentheses are unbalanced' : 'it ends on an operator');
+
+        return $this->parsePrimary($name, $tokens, $pos, $types);
+    }
+
+    /**
+     * primary := number | field | '(' sum ')'.
+     *
+     * @param  array<int, array{type: string, value: string}>  $tokens
+     * @param  array<string, string>  $types
+     * @return array{php: string, type: string}
+     */
+    private function parsePrimary(string $name, array $tokens, int &$pos, array $types): array
+    {
+        $t = $tokens[$pos] ?? null;
+        if ($t === null) {
+            $this->failExpr($name, 'it ends on an operator');
         }
+        if ($t['type'] === 'num') {
+            $pos++;
+
+            return ['php' => $t['value'], 'type' => 'numeric'];
+        }
+        if ($t['type'] === 'id') {
+            $pos++;
+            $kind = $types[$t['value']] ?? null;
+            if ($kind === null) {
+                throw new \InvalidArgumentException(
+                    "admin-core: computed expression for '{$name}' references '{$t['value']}', which is not a "
+                    . "numeric (integer/decimal) or money field in this resource. Use bare '{$name}:computed' and "
+                    . 'write the formula yourself.',
+                );
+            }
+
+            return ['php' => '$this->' . $t['value'], 'type' => $kind];
+        }
+        if ($t['type'] === 'lp') {
+            $pos++;
+            $inner = $this->parseSum($name, $tokens, $pos, $types);
+            if (! isset($tokens[$pos]) || $tokens[$pos]['type'] !== 'rp') {
+                $this->failExpr($name, 'the parentheses are unbalanced');
+            }
+            $pos++;
+
+            // No extra parens: every binary result is already parenthesised and a primary is atomic, so the
+            // grouping is preserved without double-wrapping ((a + b)).
+            return $inner;
+        }
+
+        $this->failExpr($name, 'an operator is misplaced');
+    }
+
+    /**
+     * Combine two operands with `*` or `/`, typing the result. money×scalar (either order) and money÷scalar
+     * stay money via Money's methods; money×money and ÷money are nonsensical and rejected.
+     *
+     * @param  array{php: string, type: string}  $a
+     * @param  array{php: string, type: string}  $b
+     * @return array{php: string, type: string}
+     */
+    private function combineMul(string $name, string $op, array $a, array $b): array
+    {
+        $aMoney = $a['type'] === 'money';
+        $bMoney = $b['type'] === 'money';
+
+        if ($op === '*') {
+            if ($aMoney && $bMoney) {
+                $this->failExpr($name, "two money amounts can't be multiplied");
+            }
+            if ($aMoney) {
+                return ['php' => $a['php'] . '?->multiply(' . $b['php'] . ')', 'type' => 'money'];
+            }
+            if ($bMoney) {
+                return ['php' => $b['php'] . '?->multiply(' . $a['php'] . ')', 'type' => 'money'];
+            }
+
+            return ['php' => '(' . $a['php'] . ' * ' . $b['php'] . ')', 'type' => 'numeric'];
+        }
+
+        // division
+        if ($bMoney) {
+            $this->failExpr($name, "a value can't be divided by a money amount");
+        }
+        if ($aMoney) {
+            return ['php' => $a['php'] . '?->divide(' . $b['php'] . ')', 'type' => 'money'];
+        }
+
+        return ['php' => '(' . $a['php'] . ' / ' . $b['php'] . ')', 'type' => 'numeric'];
+    }
+
+    /**
+     * Combine two operands with `+` or `-`. money±money stays money (Money enforces same currency at runtime);
+     * mixing money with a plain number is rejected.
+     *
+     * @param  array{php: string, type: string}  $a
+     * @param  array{php: string, type: string}  $b
+     * @return array{php: string, type: string}
+     */
+    private function combineAdd(string $name, string $op, array $a, array $b): array
+    {
+        $aMoney = $a['type'] === 'money';
+        $bMoney = $b['type'] === 'money';
+
+        if ($aMoney && $bMoney) {
+            $method = $op === '+' ? 'add' : 'subtract';
+
+            return ['php' => $a['php'] . '?->' . $method . '(' . $b['php'] . ')', 'type' => 'money'];
+        }
+        if ($aMoney || $bMoney) {
+            $this->failExpr($name, "money and a plain number can't be added or subtracted");
+        }
+
+        return ['php' => '(' . $a['php'] . ' ' . $op . ' ' . $b['php'] . ')', 'type' => 'numeric'];
     }
 
     private function failExpr(string $name, string $why): never
@@ -1043,10 +1194,13 @@ PHP;
                 continue;
             }
             $method = Str::camel($f['name']);
+            // A compiled expression body (typed: numbers via operators, money via Money's ?-> methods) or, for
+            // a bare computed, a TODO stub. The stub must be a valid arrow-fn expression — a block comment (no
+            // `;` or `//`) so the generated model still parses; replace the `null` with your formula.
             $body = ($f['expr'] ?? null) !== null
-                ? $this->computedExpression($f['name'], $f['expr'])
-                : "null; // TODO: derive {$f['name']} — e.g. \$this->first_name.' '.\$this->last_name,"
-                    . " or money: \$this->price?->multiply(\$this->qty)";
+                ? $f['computedPhp']
+                : "null /* TODO: derive {$f['name']} — e.g. \$this->first_name.' '.\$this->last_name,"
+                    . " or money: \$this->price?->multiply(\$this->qty) */";
 
             $methods[] = <<<PHP
 
@@ -1058,21 +1212,6 @@ PHP;
         }
 
         return implode("\n", $methods);
-    }
-
-    /**
-     * Turn a validated computed expression into a PHP accessor body, re-emitted from its tokens with safe
-     * spacing: "qty*price" -> "$this->qty * $this->price". Re-emitting (rather than string-replacing the raw
-     * input) guarantees adjacent operators can't fuse into a `--`/`//` token in the generated model.
-     */
-    private function computedExpression(string $name, string $expr): string
-    {
-        $out = [];
-        foreach ($this->tokeniseExpression($name, $expr) as $t) {
-            $out[] = $t['type'] === 'id' ? '$this->' . $t['value'] : $t['value'];
-        }
-
-        return implode(' ', $out);
     }
 
     /** The cast expression for one field, or null when it needs none. */
@@ -1777,7 +1916,10 @@ BLADE;
             // Format the Money object for the list (e.g. "$15.00"); ordering still uses the raw minor-unit column.
             'money' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format())",
             // Derived accessor — addColumn (there's no DB column behind it); not orderable/searchable in SQL.
-            'computed' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']})",
+            // A money-typed computed returns a Money object, so format it like a money column.
+            'computed' => ($f['computedType'] ?? null) === 'money'
+                ? "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format())"
+                : "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']})",
             'date' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d'))",
             'datetime' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))",
             'image' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')",
@@ -1825,7 +1967,9 @@ BLADE;
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
                 'money' => "{{ \$object->{$f['name']}?->format() }}",
-                'computed' => "{{ \$object->{$f['name']} }}",
+                'computed' => ($f['computedType'] ?? null) === 'money'
+                    ? "{{ \$object->{$f['name']}?->format() }}"
+                    : "{{ \$object->{$f['name']} }}",
                 'enum' => "<x-admin-core::status :value=\"\$object->{$f['name']}\" />",
                 'translatable' => "{{ ac_localize(\$object->{$f['name']}) }}",
                 'richtext' => "{!! \$object->{$f['name']} !!}",

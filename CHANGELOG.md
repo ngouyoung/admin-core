@@ -2,6 +2,37 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.66.0
+
+**Money-aware computed expressions** — `total:computed:qty*price` now composes the `money` and `computed`
+field types: when an operand is money, the compiler emits Money's exact methods instead of raw operators and
+the result is a Money. This closes the headline gap from dogfooding (a line total `qty × unit_price` where
+`unit_price` is money), found in a real SMPOS run.
+
+### Added
+- **Typed computed compiler.** A computed expression is now compiled by a small recursive-descent parser that
+  tracks each operand's type (numeric vs money):
+  - `money × scalar` (either order) → `$this->price?->multiply($this->qty)` → **Money**.
+  - `money + money` → `?->add()`, `money - money` → `?->subtract()`, `money / scalar` → `?->divide()`.
+  - numeric stays operators, with correct precedence + parentheses.
+  - A money-typed computed is shown **formatted** (`$7.50`) in the list and on show, and is null-safe (a null
+    money operand short-circuits via `?->`).
+- **`Money::divide()`**; `Money::multiply()`/`divide()` now also accept a string (so a `decimal`-cast
+  attribute like `'2.500'` can be a factor directly).
+
+### Changed
+- Nonsensical money arithmetic is rejected at generation with a clear message: `money * money`,
+  `money ± number`, and dividing by money. Typos / non-numeric references / malformed formulas still fail loudly.
+
+### Fixed
+- **Bare `computed` stub generated invalid PHP** (a v2.65.0 regression): the stub body was `null; // …`, which
+  broke the arrow function (`fn () => null; // …)`) so the model failed to parse. It's now a block comment.
+- **`total:computed:0`** (and any expression whose trimmed value is the string `"0"`) was falsy-coerced to the
+  stub instead of compiling to a numeric `0`.
+- **Null operands no longer crash a computed total.** `Money::add/subtract/multiply/divide` now accept a null
+  operand and yield null, so a computed total over a nullable money/numeric column (e.g. `subtotal + tax` with
+  `tax` NULL) renders blank instead of throwing a `TypeError` on the list / show / API.
+
 ## v2.65.0
 
 **`computed` field type** — a read-only value derived from other fields, not stored. `total:computed:qty*price`
