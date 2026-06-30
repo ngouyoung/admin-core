@@ -848,7 +848,7 @@ PHP);
             ],
         );
 
-        $this->line(' Special types: <comment>password</comment> (hashed), <comment>auth</comment> (current user id), <comment>sku</comment> (auto code) — see the README.');
+        $this->line(' Special types: <comment>password</comment> (hashed), <comment>auth</comment> (current user id), <comment>sku</comment> (auto code), <comment>sequence</comment> (auto doc number, e.g. invoice_no:sequence:INV) — see the README.');
         $this->line(' Example: <comment>--fields="name:string^, price:decimal?, status:enum:draft|published, category_id:foreign"</comment>');
     }
 

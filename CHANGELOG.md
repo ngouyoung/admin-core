@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.72.0
+
+**`sequence` field — sequential document numbers.** `invoice_no:sequence:INV` auto-assigns `"INV-0001"`,
+`"INV-0002"`, … completing the transactional-document story (number + line items + totals + state machine)
+found dogfooding a real SMPOS sale/purchase (`sale_number` / `grn_number`).
+
+### Added
+- **`sequence` field type** — a system, **unique** string column assigned in the model's `creating` hook to the
+  next number (bare → `"0001"`; `:INV` → `"INV-0001"`). Not fillable / not in the form / not validated; shown
+  read-only. A number you set yourself is kept (`??=`).
+- **`Ngos\AdminCore\Support\Sequence::next($key, $prefix, $pad, $reset)`** — concurrency-safe counter
+  (`lockForUpdate` per `(key, period)` row, with a first-create-race retry); optional `reset` of `'year'`/`'month'`
+  restarts the counter and stamps the period (`"INV-2026-0001"`).
+- **`NumberSequence` model + `number_sequences` table** (package-shipped migration; run `php artisan migrate`).
+
 ## v2.71.0
 
 **More list-filter types** — the advanced-filter bar (v2.69.0) gains `foreign`, number-range and `text`

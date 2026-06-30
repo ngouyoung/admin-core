@@ -658,3 +658,22 @@ it('skips the FormRequest rule (DB-only) when a composite member is a system or 
     expect($wo->storeRules())->toContain('Rule::unique(')            // present on create
         ->and($wo->updateRules())->not->toContain('Rule::unique('); // absent on update (locked)
 });
+
+// -- sequence (auto document number) -----------------------------------------------------------------
+
+it('makes a sequence field a system, unique column with an auto-numbering boot hook', function () {
+    $f = fs('invoice_no:sequence:INV, customer:string', 'invoices');
+
+    expect($f->bootBody())->toContain("\$model->invoice_no ??= \\Ngos\\AdminCore\\Support\\Sequence::next('invoices.invoice_no', 'INV-')");
+    expect($f->migrationColumns())->toContain("\$table->string('invoice_no')->nullable()->unique();");
+    expect($f->fillable())->toBe("'customer'");                 // system → not mass-assignable
+    expect($f->storeRules())->not->toContain("'invoice_no'");   // never validated
+    expect(fs('no:sequence', 'docs')->bootBody())->toContain("Sequence::next('docs.no')"); // bare → no prefix
+});
+
+it('rejects a sequence prefix with characters that could break the generated PHP', function () {
+    expect(fn () => fs("no:sequence:IN'V"))->toThrow(InvalidArgumentException::class, 'may use only letters');
+    expect(fn () => fs('no:sequence:A\\B'))->toThrow(InvalidArgumentException::class, 'may use only letters');
+    // Common separators are fine.
+    expect(fn () => fs('no:sequence:INV/2026', 'docs'))->not->toThrow(InvalidArgumentException::class);
+});

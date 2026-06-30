@@ -278,8 +278,19 @@ value isn't in the form to validate, so a duplicate surfaces as a database error
 |---|---|---|
 | `created_by:auth` | nullable `users` FK | `auth()->id()` |
 | `code:sku` | nullable string | a generated `Str::upper(Str::random(10))` code |
+| `invoice_no:sequence:INV` | nullable, **unique** string | the next **document number** — `"INV-0001"`, `"INV-0002"`, … |
 
 E.g. `--fields="name:string, code:sku, created_by:auth"` gives you an auto SKU and an owner stamp with zero hand-editing — neither is user-fillable.
+
+**Sequence — sequential document numbers.** `invoice_no:sequence:INV` assigns the next number in the model's
+`creating` hook: `"INV-0001"`, `"INV-0002"`, … (bare `invoice_no:sequence` → `"0001"`). It's
+**concurrency-safe** — `Ngos\AdminCore\Support\Sequence` locks a per-`(key, period)` counter row
+(`number_sequences` table, a package-shipped migration — run `php artisan migrate` after upgrading), so two
+simultaneous creates never collide. The column is `unique`, and a number you set yourself is kept (the hook
+uses `??=`). The number is allocated **inside the create's transaction**, so a rolled-back create releases its
+number for the next one — committed rows stay sequential and **gap-free**, with no number burned by a failed
+attempt. (For numbering that must never reuse a value even across rolled-back attempts, allocate out-of-band.) Edit the generated hook for other formats — `Sequence::next('invoices.invoice_no', 'INV-', 5, 'year')`
+zero-pads to 5 and **restarts each year** (`"INV-2026-00001"`); pass `'month'` to reset monthly.
 
 > Security note: `~` and `@` enforce on the **server** (missing update rule / not fillable), not just the
 > readonly input — so a user editing the DOM or POSTing directly still can't change them.

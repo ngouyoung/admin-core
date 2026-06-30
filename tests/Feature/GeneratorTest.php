@@ -858,6 +858,35 @@ it('omits listFilters() when no field is filterable', function () {
         ->not->toContain('protected function listFilters()'); // nothing to filter → use the parent's empty default
 });
 
+it('wires a sequence field (system + unique column, auto-numbering boot hook, not in the form)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'invoice_no:sequence:INV, customer:string',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $model = File::get(app_path('Models/Gizmo.php'));
+    expect($model)
+        ->toContain("\$model->invoice_no ??= \\Ngos\\AdminCore\\Support\\Sequence::next('gizmos.invoice_no', 'INV-')")
+        ->toContain("protected \$fillable = ['customer'];")  // sequence is system → not mass-assignable
+        ->not->toContain('__AC_');
+
+    // Migration: a unique string column (filled by the hook).
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+    expect($migration)->toContain("\$table->string('invoice_no')->nullable()->unique();");
+
+    // Never in the form / validation (it's assigned, not entered).
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
+        ->not->toContain('name="invoice_no"');
+    expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))->not->toContain("'invoice_no'");
+
+    // Shown read-only on the show page.
+    expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))->toContain('$object->invoice_no');
+
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Models/Gizmo.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+});
+
 it('omits the casts() method when no column needs casting', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

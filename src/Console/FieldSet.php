@@ -31,6 +31,8 @@ use Illuminate\Support\Str;
  *   - belongsToMany (aliases manyToMany, m2m)  ->  pivot table + multi-select + sync
  *   - hasMany  master-detail line items:  lines:hasMany:order_items  (or lines:hasMany, child inferred)
  *              ->  parent relation + a repeater form block + service sync + a generated row partial
+ *   - sequence auto document number (system, unique):  invoice_no:sequence:INV  ->  "INV-0001" assigned in the
+ *              creating hook by a concurrency-safe counter (Support\Sequence); bare invoice_no:sequence -> "0001"
  *   - modifiers trailing  ?  = nullable,  ^  = unique,  #  = index   (e.g. slug:string^?, status:enum:a|b#)
  */
 class FieldSet
@@ -43,7 +45,7 @@ class FieldSet
     private const TYPES = [
         'string', 'text', 'richtext', 'integer', 'decimal', 'money', 'computed', 'rollup', 'boolean', 'date',
         'datetime', 'time', 'email', 'url', 'password', 'slug', 'json', 'translatable', 'image', 'file',
-        'foreign', 'belongsToMany', 'hasMany', 'media', 'gallery', 'enum', 'auth', 'sku',
+        'foreign', 'belongsToMany', 'hasMany', 'media', 'gallery', 'enum', 'auth', 'sku', 'sequence',
     ];
 
     /** Column types a `computed:<expr>` arithmetic expression may reference (the value reads as a number). */
@@ -323,6 +325,20 @@ class FieldSet
                 $spec = 'rollup';
             }
 
+            // Sequence (auto doc number): `invoice_no:sequence:INV` → "INV-0001". The optional prefix is the part
+            // after the type; it gets a "-" separator in the generated hook (edit it for other formats).
+            $sequencePrefix = null;
+            if (str_starts_with($spec, 'sequence:')) {
+                $sequencePrefix = trim(substr($spec, 9)) ?: null;
+                if ($sequencePrefix !== null && ! preg_match('#^[A-Za-z0-9._/-]+$#', $sequencePrefix)) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: sequence prefix '{$sequencePrefix}' may use only letters, numbers and . _ / - "
+                        . "(e.g. invoice_no:sequence:INV). For another format, edit the generated hook.",
+                    );
+                }
+                $spec = 'sequence';
+            }
+
             // Explicit FK target: `parent_id:foreign:categories` (self-reference / tree) or a column whose
             // name doesn't match the table convention (`author_id:foreign:users`). Without the target the
             // table is inferred from the column (parent_id -> parents), which breaks self-refs.
@@ -379,6 +395,9 @@ class FieldSet
             }
             if ($type === 'rollup') {
                 $field['rollupRef'] = $rollupRef; // "relation.attribute" — resolved in compileDerivedFields()
+            }
+            if ($type === 'sequence') {
+                $field['prefix'] = $sequencePrefix; // null = no prefix (just the padded number)
             }
             if ($type === 'hasMany') {
                 $child = $hasManyTable !== null && $hasManyTable !== ''
@@ -777,8 +796,13 @@ class FieldSet
         $f = compact('name', 'type', 'nullable', 'unique', 'enum', 'writeOnce', 'system', 'index');
 
         // Typed system helpers — these set themselves from trusted code, never user input.
-        if (in_array($type, ['auth', 'sku'], true)) {
+        if (in_array($type, ['auth', 'sku', 'sequence'], true)) {
             $f['system'] = true;
+        }
+
+        // A sequence is the document's unique number — assigned by the creating hook, so it's also unique.
+        if ($type === 'sequence') {
+            $f['unique'] = true;
         }
 
         // A slug is always unique and nullable (left blank → derived from `name`
@@ -1096,6 +1120,10 @@ PHP;
                 $assigns[] = match ($f['type']) {
                     'auth' => "                \$model->{$f['name']} = auth()->id();",
                     'sku' => "                \$model->{$f['name']} = \\Illuminate\\Support\\Str::upper(\\Illuminate\\Support\\Str::random(10));",
+                    // Auto doc number — the next value in a concurrency-safe sequence (edit for reset-per-year etc).
+                    // The prefix is var_export'd so any (already-validated) value stays a safe string literal.
+                    'sequence' => "                \$model->{$f['name']} ??= \\Ngos\\AdminCore\\Support\\Sequence::next('{$this->table}.{$f['name']}'"
+                        . (! empty($f['prefix']) ? ', ' . var_export($f['prefix'] . '-', true) : '') . ');',
                     default => "                \$model->{$f['name']} = null; // TODO: set {$f['name']} from trusted code",
                 };
             }
