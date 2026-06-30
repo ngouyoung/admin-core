@@ -18,7 +18,7 @@
            :columns="[['type'=>'check','data'=>'uuid'], ['data'=>'name','name'=>'name'],
                       ['data'=>'actions','orderable'=>false,'searchable'=>false]]" />
      Without `:columns` it renders exactly as before (you init the DataTable yourself). --}}
-@props(['id', 'thead', 'tableClass' => null, 'ajax' => null, 'columns' => null, 'bulkDelete' => null, 'order' => null, 'actions' => null])
+@props(['id', 'thead', 'tableClass' => null, 'ajax' => null, 'columns' => null, 'bulkDelete' => null, 'order' => null, 'actions' => null, 'aggregates' => null])
 @php
     // With :columns, emit a config the shared datatable.js reads (init + select-all + bulk/single
     // delete + custom actions). i18n is resolved here so the confirm/toast strings are locale-aware and
@@ -56,6 +56,12 @@
         }
         if (! empty($acActions)) {
             $acConfig['actions'] = array_values($acActions);
+        }
+        if (! empty($aggregates)) {
+            // datatable.js builds a footer row and fills these columns from each AJAX response's acAggregates
+            // (server-computed over the filtered set). The label sits in the leftmost (non-totalled) cell.
+            $acConfig['aggregates'] = array_values($aggregates);
+            $acConfig['i18n']['totalsLabel'] = __('admin-core::admin-core.list.total');
         }
     }
 @endphp

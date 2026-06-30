@@ -2171,6 +2171,71 @@ BLADE;
 PHP;
     }
 
+    // ---- List footer totals (column aggregates) ----------------------
+
+    /**
+     * The descriptor body for the controller's listAggregates() — every money column (a fixed/default currency
+     * one) auto-summed and formatted as Money in the list footer. A per-record (multi-currency) money column is
+     * skipped: mixed currencies can't sum to one amount. Add integer/decimal sums or avg/count by hand.
+     */
+    public function listAggregatesConfig(): string
+    {
+        $lines = [];
+        foreach ($this->fields as $f) {
+            if ($f['type'] !== 'money' || ! empty($f['currencyColumn'])) {
+                continue;
+            }
+            $currency = ! empty($f['currency']) ? "'{$f['currency']}'" : 'null';
+            $lines[] = "            '{$f['name']}' => ['fn' => 'sum', 'money' => true, 'currency' => {$currency}],";
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * The column keys totalled in the footer — passed to <x-admin-core::data-table :aggregates> so it builds the
+     * footer row. Mirrors listAggregatesConfig()'s columns.
+     *
+     * @return array<int, string>
+     */
+    public function aggregateColumns(): array
+    {
+        $cols = [];
+        foreach ($this->fields as $f) {
+            if ($f['type'] === 'money' && empty($f['currencyColumn'])) {
+                $cols[] = $f['name'];
+            }
+        }
+
+        return $cols;
+    }
+
+    public function hasListAggregates(): bool
+    {
+        return $this->aggregateColumns() !== [];
+    }
+
+    /** The full `listAggregates()` method for the controller, or '' when nothing is auto-totalled. */
+    public function listAggregatesMethod(): string
+    {
+        $body = $this->listAggregatesConfig();
+        if ($body === '') {
+            return '';
+        }
+
+        return <<<PHP
+
+    /** @return array<string, array<string, mixed>> Column totals for the list footer (over the filtered set). */
+    protected function listAggregates(): array
+    {
+        return [
+{$body}
+        ];
+    }
+
+PHP;
+    }
+
     // ---- Controller getData -----------------------------------------
 
     public function eager(): string

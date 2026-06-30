@@ -252,7 +252,87 @@ abstract class WebController extends BaseController
         $query = $this->service->query($relation);
         $this->applyListFilters($query, request());
 
-        return DataTables::of($query);
+        // Column totals for the list footer, computed over the FILTERED set (all pages) — see listAggregates().
+        $aggregates = $this->computeListAggregates($query);
+
+        $dataTables = DataTables::of($query);
+        if ($aggregates !== []) {
+            $dataTables->with('acAggregates', $aggregates);
+        }
+
+        return $dataTables;
+    }
+
+    /**
+     * Declarative column totals shown in the list footer — `['column' => 'sum'|'avg'|'min'|'max'|'count']`, or
+     * the long form `['column' => ['fn' => 'sum', 'money' => true, 'currency' => 'KHR']]` to format a money
+     * column's sum as an exact {@see \Ngos\AdminCore\Support\Money} (the generator fills money columns in for
+     * you). Computed server-side over the filtered set — so the total reflects the active list filters, across
+     * every page, not just the visible rows. Default none → no footer. Each declared column is one extra
+     * aggregate query per getData hit, so keep the list short.
+     *
+     * The generator never auto-totals a per-record / multi-currency money column (mixed currencies can't sum to
+     * one amount) — and the MANUAL path has no such guard, so don't add one by hand expecting a meaningful total.
+     *
+     * @return array<string, string|array<string, mixed>>
+     */
+    protected function listAggregates(): array
+    {
+        return [];
+    }
+
+    /**
+     * Run each declared aggregate over the (already filtered) list query and format it for the footer, keyed by
+     * column. A money aggregate becomes a formatted string ("៛125,000"); a plain one stays numeric. Returns []
+     * when nothing is declared so getData() skips the extra query entirely.
+     *
+     * @return array<string, string|int|float|null>
+     */
+    protected function computeListAggregates(\Illuminate\Database\Eloquent\Builder $query): array
+    {
+        $out = [];
+        foreach ($this->listAggregates() as $column => $spec) {
+            $def = is_array($spec) ? $spec : ['fn' => $spec];
+            $fn = strtolower((string) ($def['fn'] ?? 'sum'));
+            $col = (string) $column; // a numeric-string key arrives as an int
+            // Whitelist the function + column name so a declared spec can never become arbitrary SQL.
+            if (! preg_match('/^[a-z_][a-z0-9_]*$/i', $col)
+                || ! in_array($fn, ['sum', 'avg', 'min', 'max', 'count'], true)) {
+                continue;
+            }
+
+            // (clone) so neither the aggregate nor the DataTables query disturbs the other.
+            $value = (clone $query)->{$fn}($col);
+            if ($value === null) {
+                $out[$col] = null;
+
+                continue;
+            }
+
+            $out[$col] = ! empty($def['money'])
+                ? \Ngos\AdminCore\Support\Money::fromMinor((int) round((float) $value), $def['currency'] ?? null)->format()
+                : $this->numericAggregate($value);
+        }
+
+        return $out;
+    }
+
+    /**
+     * Normalise a raw aggregate value for JSON. The DB driver may hand back an int/float (SQLite) or a numeric
+     * STRING (MySQL's SUM/AVG over BIGINT/DECIMAL); cast an integer that fits PHP's int range, but keep a huge
+     * one as the digit string so it isn't coerced past PHP_INT_MAX into a lossy float ("1.8e19" garbage). A
+     * decimal becomes a float.
+     */
+    protected function numericAggregate(int|float|string $value): int|float|string
+    {
+        if (is_int($value) || is_float($value)) {
+            return $value;
+        }
+        if (preg_match('/^-?\d+$/', $value)) {
+            return $value === (string) (int) $value ? (int) $value : $value; // exact int, else the full digits
+        }
+
+        return is_numeric($value) ? (float) $value : $value;
     }
 
     /**

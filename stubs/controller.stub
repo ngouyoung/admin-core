@@ -27,7 +27,7 @@ __AC_GETDATA__
             ->rawColumns([__AC_RAW__])
             ->make(true);
     }
-__AC_LIST_FILTERS_METHOD__
+__AC_LIST_FILTERS_METHOD____AC_LIST_AGGREGATES_METHOD__
     // -- Custom table actions & field-level permissions (optional) -------------------------------------
     // Uncomment to add bulk + per-row buttons or lock sensitive fields. Permissions are enforced
     // server-side; add the names below to your AccessSeeder.

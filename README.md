@@ -414,6 +414,29 @@ endpoints (`admin-core:install` adds it — existing installs add it to their ad
 scoped to the current user, so one user never sees or deletes another's. The dropdown only appears when those
 routes are wired, so it degrades silently if you haven't opted in.
 
+### List footer totals
+
+Turn a list into a **report** with a totals row — `revenue`, on-hand stock value — without leaving the
+skeleton. The generator auto-sums every **money** column; the footer total is computed **server-side over the
+filtered set** (all pages, honouring the active list filters — not just the visible rows), formatted as exact
+Money:
+
+```php
+protected function listAggregates(): array
+{
+    return [
+        'total' => ['fn' => 'sum', 'money' => true, 'currency' => null], // money → "៛125,000"
+        'qty'   => 'sum',                                                 // plain numeric total
+        // fn is one of sum | avg | min | max | count
+    ];
+}
+```
+
+`datatable.js` builds the footer row and fills it from each AJAX response, so the total updates live as filters
+change. Notes: a per-record / **multi-currency** money column isn't auto-totalled (mixed currencies can't sum to
+one amount); the total reflects the structured list filters, not the free-text search box. Opt in by adding
+`listAggregates()` (the generator does it for money columns); a list that declares none has no footer.
+
 Create / update / delete (and restore) flash a `success` message that the layout renders automatically.
 Customise or translate it by overriding one method on the generated controller:
 

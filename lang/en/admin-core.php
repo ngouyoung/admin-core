@@ -203,6 +203,10 @@ return [
         'action_pending' => 'Submitted for approval',
     ],
 
+    'list' => [
+        'total' => 'Total',
+    ],
+
     'approvals' => [
         'title' => 'Approvals',
         'description' => 'Requests waiting for your decision.',

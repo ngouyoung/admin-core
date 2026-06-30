@@ -2,6 +2,31 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.74.0
+
+**List footer totals (column aggregates).** A list can now show a **totals row** — `revenue`, on-hand stock
+value — computed server-side over the *filtered set* (all pages, honouring the active list filters), turning a
+CRUD list into a report without dropping out of the skeleton. Closes the gap found dogfooding SMPOS, whose four
+reports (`SalesReport`, `StockValuation`, `Reorder`, `ExpiringBatch`) each bypass admin-core and hand-roll a
+query + custom blade precisely because they need a total a paginated list couldn't give them.
+
+### Added
+- **`WebController::listAggregates()`** — declare `['column' => 'sum'|'avg'|'min'|'max'|'count']`, or the long
+  form `['column' => ['fn' => 'sum', 'money' => true, 'currency' => 'KHR']]` to format a money sum as exact
+  Money. Computed over the filtered query (whitelisted fn + column name → never arbitrary SQL) and returned in
+  the getData response as `acAggregates`. Default none → no footer.
+- **Generator auto-totals money columns** — a resource with money columns gets `listAggregates()` summing each
+  (formatted as Money) and the index passes `:aggregates` to `<x-admin-core::data-table>`. A per-record /
+  multi-currency money column is skipped (mixed currencies can't sum to one amount).
+- **`datatable.js`** builds the footer row before init and fills it from each AJAX response, so the total
+  updates live as filters/pages change. The `admin-core::admin-core.list.total` label (en + km) sits in the
+  leftmost cell.
+
+### Notes
+- The total reflects the structured list filters, **not** the free-text search box.
+- Opt-in: a list shows a footer only when it declares `listAggregates()` (backward-compatible — existing lists
+  are unchanged). Publish the updated `datatable.js` (`admin-core:doctor` flags it) to fill footers.
+
 ## v2.73.0
 
 **Per-record money currency (multi-currency).** `total:money:@currency` lets one money column hold amounts in

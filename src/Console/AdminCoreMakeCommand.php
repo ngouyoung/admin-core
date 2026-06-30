@@ -262,6 +262,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_APPENDS__' => $fields->appends(),
             '__AC_ACCESSORS__' => $fields->accessors(),
             '__AC_LIST_FILTERS_METHOD__' => $fields->listFiltersMethod(),
+            '__AC_LIST_AGGREGATES_METHOD__' => $fields->listAggregatesMethod(),
             '__AC_MODEL_BOOT__' => $fields->modelBoot(),
             '__AC_COLUMNS__' => $fields->migrationColumns(),
             '__AC_EXTRA_SCHEMA__' => $fields->extraSchema(),
@@ -278,6 +279,9 @@ class AdminCoreMakeCommand extends Command
             '__AC_FORM_SCRIPTS__' => $fields->formScripts(),
             '__AC_THEAD__' => $fields->thead(),
             '__AC_COLS_PHP__' => $fields->columnsConfig(),
+            '__AC_AGGS_ATTR__' => $fields->hasListAggregates()
+                ? "\n        :aggregates=\"['" . implode("', '", $fields->aggregateColumns()) . "']\""
+                : '',
             '__AC_EAGER__' => $fields->eager(),
             '__AC_GETDATA__' => $fields->getDataColumns(),
             '__AC_RAW__' => $fields->rawColumns(),

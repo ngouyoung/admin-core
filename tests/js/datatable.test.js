@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DATATABLE_STUB, loadStub } from './helpers.js';
 
 // The real shipped datatable.js (escaping + custom-action dispatch + bulk-button injection + filters/views).
-const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView } = loadStub(
+const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates } = loadStub(
     DATATABLE_STUB,
-    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView }',
+    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates }',
 );
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -178,5 +178,63 @@ describe('acApplyView', () => {
 
         expect(() => acApplyView(bar(), 'not json')).not.toThrow();
         expect(document.querySelector('[data-ac-filter="status"]').value).toBe(''); // all reset on no data
+    });
+});
+
+describe('acBuildFooter', () => {
+    const cfg = {
+        aggregates: ['price'],
+        i18n: { totalsLabel: 'Total' },
+        columns: [{ type: 'check', data: 'uuid' }, { data: 'name' }, { data: 'price' }],
+    };
+
+    it('appends a footer row with a cell per column, the label in the first cell', () => {
+        document.body.innerHTML = '<table id="t"><thead></thead></table>';
+        const table = document.getElementById('t');
+        acBuildFooter(table, cfg);
+
+        const cells = table.querySelectorAll('tfoot td[data-ac-foot]');
+        expect(cells).toHaveLength(3);
+        expect(cells[0].getAttribute('data-ac-foot')).toBe('uuid');
+        expect(cells[0].textContent).toBe('Total');       // label in the leftmost cell
+        expect(cells[2].getAttribute('data-ac-foot')).toBe('price'); // the totalled column's cell
+        expect(cells[2].textContent).toBe('');            // empty until an AJAX response fills it
+    });
+
+    it('builds nothing when there are no aggregates, and never doubles up', () => {
+        document.body.innerHTML = '<table id="t"><thead></thead></table>';
+        const table = document.getElementById('t');
+        acBuildFooter(table, { aggregates: [], columns: cfg.columns });
+        expect(table.querySelector('tfoot')).toBeNull();
+
+        acBuildFooter(table, cfg);
+        acBuildFooter(table, cfg); // second call must be a no-op (a tfoot already exists)
+        expect(table.querySelectorAll('tfoot')).toHaveLength(1);
+    });
+});
+
+describe('acBindAggregates', () => {
+    it('fills the footer cells from an xhr.dt response, matching by column key', () => {
+        document.body.innerHTML = '<table id="t"><thead></thead></table>';
+        const table = document.getElementById('t');
+        acBuildFooter(table, { aggregates: ['price'], i18n: { totalsLabel: 'Total' },
+            columns: [{ data: 'uuid' }, { data: 'price' }] });
+        acBindAggregates(table);
+
+        // Simulate DataTables' xhr.dt event (e, settings, json) with the server's acAggregates.
+        jQuery(table).trigger('xhr.dt', [{}, { acAggregates: { price: '៛25,000' } }]);
+
+        expect(table.querySelector('[data-ac-foot="price"]').textContent).toBe('៛25,000');
+        expect(table.querySelector('[data-ac-foot="uuid"]').textContent).toBe('Total'); // unchanged
+    });
+
+    it('does nothing when the response carries no acAggregates', () => {
+        document.body.innerHTML = '<table id="t"><thead></thead></table>';
+        const table = document.getElementById('t');
+        acBuildFooter(table, { aggregates: ['price'], i18n: { totalsLabel: 'Total' }, columns: [{ data: 'price' }] });
+        acBindAggregates(table);
+
+        expect(() => jQuery(table).trigger('xhr.dt', [{}, {}])).not.toThrow();
+        expect(table.querySelector('[data-ac-foot="price"]').textContent).toBe('Total'); // first cell label, untouched
     });
 });

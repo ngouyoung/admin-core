@@ -100,6 +100,39 @@ function acBuildColumns(cols) {
     });
 }
 
+// Build an empty footer row (one cell per column) BEFORE init, so DataTables aligns it to the header. The
+// cells are filled per-AJAX by acBindAggregates; the totals label sits in the leftmost (non-totalled) cell.
+function acBuildFooter(tableEl, cfg) {
+    const $ = window.jQuery;
+    if (!cfg.aggregates || !cfg.aggregates.length || $(tableEl).find('tfoot').length) {
+        return;
+    }
+    const label = (cfg.i18n && cfg.i18n.totalsLabel) || 'Total';
+    let cells = '';
+    (cfg.columns || []).forEach((c, i) => {
+        cells += '<td data-ac-foot="' + acEsc(c.data || '') + '">' + (i === 0 ? acEsc(label) : '') + '</td>';
+    });
+    $(tableEl).append('<tfoot><tr>' + cells + '</tr></tfoot>');
+}
+
+// Fill the footer totals from each AJAX response — server-computed over the filtered set (all pages, not just
+// the visible rows), keyed by column. Bound before init so the very first response is caught.
+function acBindAggregates(tableEl) {
+    const $ = window.jQuery;
+    $(tableEl).on('xhr.dt', function (e, settings, json) {
+        const agg = json && json.acAggregates;
+        if (!agg) {
+            return;
+        }
+        $(tableEl).find('tfoot [data-ac-foot]').each(function () {
+            const key = this.getAttribute('data-ac-foot');
+            if (Object.prototype.hasOwnProperty.call(agg, key)) {
+                this.textContent = agg[key] == null ? '' : String(agg[key]);
+            }
+        });
+    });
+}
+
 function acInitTables(scope) {
     const $ = window.jQuery;
     if (!$ || !$.fn || !$.fn.dataTable) {
@@ -126,6 +159,8 @@ function acInitTables(scope) {
             opts.order = cfg.order;
         }
         this._acConfig = cfg;                 // stash for the delete/bulk handlers
+        acBuildFooter(this, cfg);             // footer row (+ bind) before init so the first AJAX fills it
+        acBindAggregates(this);
         this._acTable = $(this).DataTable(opts);
         acInjectBulkActions(this, cfg);
         acBindFilters(this);

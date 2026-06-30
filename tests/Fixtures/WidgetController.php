@@ -36,4 +36,14 @@ class WidgetController extends WebController
                 'options' => fn () => throw new \RuntimeException('foreign options query ran on getData')],
         ];
     }
+
+    /** Footer totals: a money sum (formatted KHR), a plain numeric sum, and a bad spec that must be ignored. */
+    protected function listAggregates(): array
+    {
+        return [
+            'price' => ['fn' => 'sum', 'money' => true, 'currency' => 'KHR'],
+            'sort' => 'sum',
+            'name' => 'drop table', // not a whitelisted function — must be skipped, never run as SQL
+        ];
+    }
 }

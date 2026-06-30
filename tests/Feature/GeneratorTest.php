@@ -665,6 +665,40 @@ it('wires a money field end-to-end (bigInteger column, MoneyCast, money-input, f
     // (A real bigInteger money column round-trips through the MoneyCast in MoneyCastTest.)
 });
 
+it('auto-totals money columns in the list footer (controller listAggregates + index :aggregates)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, price:money, balance:money:KHR, currency:enum:USD|KHR, fx:money:@currency',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // The controller declares per-money-column sums, formatted as Money; the per-record `fx` is NOT totalled.
+    $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    expect($controller)
+        ->toContain('protected function listAggregates(): array')
+        ->toContain("'price' => ['fn' => 'sum', 'money' => true, 'currency' => null]")
+        ->toContain("'balance' => ['fn' => 'sum', 'money' => true, 'currency' => 'KHR']")
+        ->not->toContain("'fx' =>"); // multi-currency can't sum to one amount
+
+    // The index passes the totalled column keys to the data-table component (which builds the footer).
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->toContain(':aggregates="[\'price\', \'balance\']"');
+
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+});
+
+it('adds no list footer to a resource with no money column', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, qty:integer',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))->not->toContain('listAggregates');
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))->not->toContain(':aggregates');
+});
+
 it('wires a per-record money currency (@column → cast reads the row currency, form passes it dynamically)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
