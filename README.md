@@ -256,6 +256,22 @@ field name, so generate the related resource first.
 
 E.g. `slug:string^`, `published_at:date?#` (nullable + indexed), `status:enum:new|paid#`, `sku:string^~` (unique, locked after create).
 
+**Composite unique** — for a constraint spanning **several** columns (one product per order line, one SKU per
+branch), the `^` modifier isn't enough. Pass `--unique="col,col"` (repeatable):
+
+```bash
+php artisan admin-core:make OrderItem --migration \
+  --fields="order_id:foreign:orders, product_id:foreign:products, qty:integer" \
+  --unique="order_id,product_id"
+```
+
+It generates a DB `$table->unique(['order_id', 'product_id'])` **and** a FormRequest `Rule::unique` (riding on
+the group's first column, with a `->where()` for each of the others, ignoring self on update) so a duplicate
+combination fails with a clean message before it ever hits the database constraint. Each group needs ≥2
+distinct **scalar** columns (string/integer/money/foreign/enum/date/… — not text/json/translatable). A group
+that includes a **system** (`@`) or **write-once** (`~`) column is enforced by the DB constraint alone (its
+value isn't in the form to validate, so a duplicate surfaces as a database error — the generator warns you).
+
 **Typed system helpers** (imply `@`, auto-filled in the generated `booted()` hook — no TODO to wire up):
 
 | Type | Column | Auto-set to |

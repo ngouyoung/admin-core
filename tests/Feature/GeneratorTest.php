@@ -772,6 +772,32 @@ it('defers a computed field added via admin-core:field to the full generator (no
     expect($lint->successful())->toBeTrue($lint->output());
 });
 
+it('generates a composite unique constraint + FormRequest rule from --unique', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'sku:string, branch_id:integer, qty:integer',
+        '--unique' => ['sku,branch_id'],
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+    expect($migration)->toContain("\$table->unique(['sku', 'branch_id']);");
+
+    // Store request: the composite rule rides on the group's first column with a ->where for the other.
+    expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
+        ->toContain("Rule::unique('gizmos', 'sku')->where('branch_id', \$this->input('branch_id'))");
+    // Update request: imports Rule + ignores self.
+    $update = File::get(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php'));
+    expect($update)
+        ->toContain('use Illuminate\Validation\Rule;')
+        ->toContain("Rule::unique('gizmos', 'sku')->ignore(\$this->route('id'), 'id')->where('branch_id', \$this->input('branch_id'))");
+
+    foreach (['Http/Requests/Gizmo/StoreGizmoRequest.php', 'Http/Requests/Gizmo/UpdateGizmoRequest.php'] as $rel) {
+        $lint = Process::run('php -l ' . escapeshellarg(app_path($rel)));
+        expect($lint->successful())->toBeTrue($lint->output());
+    }
+});
+
 it('omits the casts() method when no column needs casting', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

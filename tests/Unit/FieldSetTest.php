@@ -586,3 +586,75 @@ it('rejects a rollup that does not reference a declared hasMany relation', funct
     expect(fn () => fs('lines:hasMany:invoice_lines, total:rollup:lines'))     // missing .attribute
         ->toThrow(InvalidArgumentException::class, 'relation.attribute');
 });
+
+// -- composite unique (--unique="a,b") ---------------------------------------------------------------
+
+it('adds a composite unique constraint to the migration', function () {
+    $f = fs('order_id:foreign:orders, product_id:foreign:products, qty:integer', 'order_items')
+        ->setUniqueGroups([['order_id', 'product_id']]);
+
+    expect($f->uniqueConstraints())->toContain("\$table->unique(['order_id', 'product_id']);");
+});
+
+it('validates a composite unique on its first column (where + ignore), importing Rule on update', function () {
+    $f = fs('order_id:foreign:orders, product_id:foreign:products', 'order_items')
+        ->setUniqueGroups([['order_id', 'product_id']]);
+
+    // Store: fully-qualified Rule + a ->where for the other column.
+    expect($f->storeRules())
+        ->toContain("\\Illuminate\\Validation\\Rule::unique('order_items', 'order_id')->where('product_id', \$this->input('product_id'))");
+    // Update: short Rule (imported) + ignore self + the same ->where.
+    expect($f->updateRules())
+        ->toContain("Rule::unique('order_items', 'order_id')->ignore(\$this->route('id'), 'id')->where('product_id', \$this->input('product_id'))");
+    expect($f->updateUses())->toContain('use Illuminate\Validation\Rule;');
+});
+
+it('chains a ->where for every other column of a 3-column group', function () {
+    $f = fs('a:integer, b:integer, c:integer', 'things')->setUniqueGroups([['a', 'b', 'c']]);
+
+    expect($f->storeRules())
+        ->toContain("Rule::unique('things', 'a')->where('b', \$this->input('b'))->where('c', \$this->input('c'))");
+});
+
+it('honours soft-deletes (withoutTrashed) on a composite unique', function () {
+    $f = fs('a:integer, b:integer', 'things')->setSoftDeletes(true)->setUniqueGroups([['a', 'b']]);
+
+    expect($f->storeRules())->toContain("->where('b', \$this->input('b'))->withoutTrashed()");
+});
+
+it('rejects a composite unique that is one column or references an unknown column', function () {
+    expect(fn () => fs('a:integer')->setUniqueGroups([['a']]))
+        ->toThrow(InvalidArgumentException::class, 'needs at least two columns');
+    expect(fn () => fs('a:integer, b:integer')->setUniqueGroups([['a', 'nope']]))
+        ->toThrow(InvalidArgumentException::class, "references 'nope'");
+});
+
+it('emits no unique constraint or rule when no groups are set', function () {
+    $f = fs('a:integer, b:integer');
+
+    expect($f->uniqueConstraints())->toBe('')
+        ->and($f->updateUses())->toBe(''); // no Rule import needed
+});
+
+it('rejects a composite unique with a duplicate column or a non-scalar member', function () {
+    expect(fn () => fs('a:integer, b:integer')->setUniqueGroups([['a', 'a']]))   // dup -> broken SQL
+        ->toThrow(InvalidArgumentException::class, 'repeats a column');
+    expect(fn () => fs('sku:string, meta:json')->setUniqueGroups([['sku', 'meta']])) // json -> bad index/where
+        ->toThrow(InvalidArgumentException::class, "can't include 'meta'");
+    expect(fn () => fs('sku:string, note:text')->setUniqueGroups([['sku', 'note']]))
+        ->toThrow(InvalidArgumentException::class, "can't include 'note'");
+});
+
+it('skips the FormRequest rule (DB-only) when a composite member is a system or write-once field', function () {
+    // A system first column: the value isn't submitted, so a ->where would falsely reject — DB constraint only.
+    $sys = fs('owner_id:integer@, product_id:foreign:products', 'memberships')->setUniqueGroups([['owner_id', 'product_id']]);
+    expect($sys->uniqueConstraints())->toContain("\$table->unique(['owner_id', 'product_id']);") // DB backstop present
+        ->and($sys->storeRules())->not->toContain('Rule::unique(')   // no (false-rejecting) form rule
+        ->and($sys->updateRules())->not->toContain('Rule::unique(');
+    expect($sys->uniqueGroupsWithoutFormValidation())->toBe([['owner_id', 'product_id']]); // surfaced to warn
+
+    // A write-once first column: validated on create (it's submitted), but locked/absent on update.
+    $wo = fs('code:string~, branch_id:integer')->setUniqueGroups([['code', 'branch_id']]);
+    expect($wo->storeRules())->toContain('Rule::unique(')            // present on create
+        ->and($wo->updateRules())->not->toContain('Rule::unique('); // absent on update (locked)
+});

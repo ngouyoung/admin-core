@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.68.0
+
+**Composite unique constraints** — `--unique="order_id,product_id"` makes several columns unique *together*
+(one product per order line, one SKU per branch), where the per-field `^` modifier only covers a single column.
+
+### Added
+- **`--unique` option** on `admin-core:make` (repeatable) — `admin-core:make OrderItem --unique="order_id,product_id"`:
+  - a DB `$table->unique(['order_id', 'product_id'])` in the migration (the hard backstop), and
+  - a FormRequest `Rule::unique` riding on the group's first column with a `->where()` for each of the others
+    (ignoring self on update, `withoutTrashed()` on a soft-deletes resource) — so a duplicate combination fails
+    with a clean validation message before it hits the database.
+  - Validated at generation: each group needs ≥2 **distinct scalar** columns (rejects a repeated column —
+    which would be invalid SQL — and text/json/translatable members). A group that includes a system (`@`) or
+    write-once (`~`) column is DB-enforced only (its value isn't in the form to validate); the generator warns.
+
 ## v2.67.0
 
 **`rollup` field type — a document total = sum of its line items.** `total:rollup:lines.line_total` sums a

@@ -20,6 +20,7 @@ class AdminCoreMakeCommand extends Command
                             {--no-soft-deletes : Skip soft deletes even if config enables them}
                             {--audit : Log created/updated/deleted activity for this resource}
                             {--sortable : Add a drag-and-drop ordering column (sort) + reorder list}
+                            {--unique=* : Composite unique over multiple columns, e.g. --unique="order_id,product_id" (repeatable). Use the ^ modifier for a single column.}
                             {--migration : Also generate a create migration}
                             {--tests : Also generate a CRUD feature test (best paired with --migration)}
                             {--api : Also generate a JSON API (resource + controller + apiResource routes)}
@@ -108,6 +109,12 @@ class AdminCoreMakeCommand extends Command
             $fieldsDsl = $this->promptForFields($class) ?: $fieldsDsl;
         }
 
+        // Composite unique groups from --unique="a,b" (repeatable) — each a comma-separated column list.
+        $uniqueGroups = collect((array) $this->option('unique'))
+            ->map(fn ($g) => array_values(array_filter(array_map('trim', explode(',', (string) $g)))))
+            ->filter(fn ($g) => $g !== [])
+            ->all();
+
         try {
             $fields = (new FieldSet($fieldsDsl))
                 ->setTable($snakePlural)
@@ -115,7 +122,8 @@ class AdminCoreMakeCommand extends Command
                 ->setSoftDeletes($soft)
                 ->setAudit($audit)
                 ->setSortable($sortable)
-                ->setClass($class);
+                ->setClass($class)
+                ->setUniqueGroups($uniqueGroups);
         } catch (\InvalidArgumentException $e) {
             $this->error($e->getMessage());
 
@@ -256,6 +264,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_MODEL_BOOT__' => $fields->modelBoot(),
             '__AC_COLUMNS__' => $fields->migrationColumns(),
             '__AC_EXTRA_SCHEMA__' => $fields->extraSchema(),
+            '__AC_UNIQUE__' => $fields->uniqueConstraints(),
             '__AC_ENCTYPE__' => $fields->enctype(),
             '__AC_SERVICE_USES__' => $fields->serviceUses(),
             '__AC_SERVICE_BODY__' => $fields->serviceBody(),
@@ -441,6 +450,13 @@ class AdminCoreMakeCommand extends Command
                     . "(`admin-core:make {$f['relModel']} …`) so the '{$f['relation']}' relation"
                     . ($hasRollup ? " + its rollup total work (the list/show/API render it on every row)." : ' works.'));
             }
+        }
+
+        // A composite unique that includes a system / write-once column can't be form-validated (its value
+        // isn't submitted) — the DB constraint enforces it, so a duplicate surfaces as a DB error, not a 422.
+        foreach ($fields->uniqueGroupsWithoutFormValidation() as $group) {
+            $this->warn('  composite unique [' . implode(', ', $group) . '] is enforced by the DB constraint only '
+                . '(a system / write-once member isn\'t in the form to validate) — a duplicate surfaces as a database error.');
         }
 
         return self::SUCCESS;

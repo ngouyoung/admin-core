@@ -62,6 +62,9 @@ class FieldSet
 
     private bool $sortable = false;
 
+    /** @var array<int, array<int, string>> Composite unique constraints — each an ordered list of column names. */
+    private array $uniqueGroups = [];
+
     private string $class = 'DummyClass';
 
     private ?bool $hasNameOverride = null;
@@ -133,6 +136,54 @@ class FieldSet
     public function setSortable(bool $sortable): self
     {
         $this->sortable = $sortable;
+
+        return $this;
+    }
+
+    /**
+     * Composite unique constraints — each group is two-or-more real column names that must be unique together
+     * (e.g. ['order_id', 'product_id']). Generates a DB `$table->unique([...])` plus a FormRequest rule so a
+     * duplicate fails with a clean message before it hits the database.
+     *
+     * @param  array<int, array<int, string>>  $groups
+     */
+    public function setUniqueGroups(array $groups): self
+    {
+        // Types that can't sit in a composite unique index / can't be a scalar ->where() value (a TEXT/JSON
+        // column has no plain index in MySQL, and an array value silently disables the rule). The relation /
+        // derived types are already excluded by isColumn below.
+        $nonIndexable = ['text', 'richtext', 'json', 'translatable'];
+        $byName = collect($this->fields)->keyBy('name');
+        $columns = $byName->filter(fn ($f) => $this->isColumn($f))->keys()->all();
+
+        foreach ($groups as $group) {
+            if (count($group) < 2) {
+                throw new \InvalidArgumentException(
+                    'admin-core: --unique needs at least two columns (e.g. --unique="order_id,product_id"). '
+                    . 'For a single column use the ^ modifier (sku:string^).',
+                );
+            }
+            if (count($group) !== count(array_unique($group))) {
+                throw new \InvalidArgumentException(
+                    'admin-core: --unique "' . implode(',', $group) . '" repeats a column — list each one once.',
+                );
+            }
+            foreach ($group as $col) {
+                if (! in_array($col, $columns, true)) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: --unique references '{$col}', which isn't a column on this resource. "
+                        . 'Columns: ' . (implode(', ', $columns) ?: '(none)') . '.',
+                    );
+                }
+                if (in_array($byName[$col]['type'], $nonIndexable, true)) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: --unique can't include '{$col}' ({$byName[$col]['type']}) — a composite unique "
+                        . 'needs scalar columns (string, integer, money, foreign, enum, date, …).',
+                    );
+                }
+            }
+        }
+        $this->uniqueGroups = array_values($groups);
 
         return $this;
     }
@@ -922,6 +973,14 @@ BLADE;
         return implode("\n", $lines);
     }
 
+    /** `$table->unique([...])` lines for each composite-unique group (inside the create block), or ''. */
+    public function uniqueConstraints(): string
+    {
+        return collect($this->uniqueGroups)
+            ->map(fn ($group) => "            \$table->unique(['" . implode("', '", $group) . "']);")
+            ->implode("\n");
+    }
+
     public function extraSchema(): string
     {
         $blocks = [];
@@ -1361,7 +1420,8 @@ PHP;
 
     public function updateUses(): string
     {
-        return collect($this->fields)->contains(fn ($f) => $f['unique'])
+        // The update rule uses the short `Rule` for a unique field OR a composite-unique group.
+        return (collect($this->fields)->contains(fn ($f) => $f['unique']) || $this->uniqueGroups !== [])
             ? "use Illuminate\\Validation\\Rule;\n"
             : '';
     }
@@ -1483,10 +1543,61 @@ PHP;
                         : "'unique:{$this->table},{$f['name']}'");
             }
 
+            // A composite-unique group rides on its first column, with a ->where() for each of the others, so a
+            // duplicate combination fails with a clean message (the DB constraint is the hard backstop). Only
+            // emit the rule when EVERY column is actually submitted in this request — a ->where() against an
+            // absent value (a system field, or a write-once field on update) would falsely reject or silently
+            // disable the check, so for those we lean on the DB constraint alone.
+            foreach ($this->uniqueGroups as $group) {
+                if ($group[0] !== $f['name'] || ! $this->groupSubmittable($group, $update)) {
+                    continue;
+                }
+                $ignoreColumn = $this->uuid ? 'uuid' : 'id';
+                $trashed = $this->softDeletes ? '->withoutTrashed()' : '';
+                $wheres = implode('', array_map(
+                    fn ($c) => "->where('{$c}', \$this->input('{$c}'))",
+                    array_slice($group, 1),
+                ));
+                $rules[] = $update
+                    ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'), '{$ignoreColumn}'){$wheres}{$trashed}"
+                    : "\\Illuminate\\Validation\\Rule::unique('{$this->table}', '{$f['name']}'){$wheres}{$trashed}";
+            }
+
             $lines[] = "            '{$f['name']}' => [" . implode(', ', $rules) . '],';
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * Whether every column of a composite group is submitted in this request — i.e. none is a system field
+     * (never in the form) and, on update, none is write-once (locked / absent). A composite rule referencing an
+     * absent value would falsely reject or silently disable the check, so we only emit it when fully checkable.
+     *
+     * @param  array<int, string>  $group
+     */
+    private function groupSubmittable(array $group, bool $update): bool
+    {
+        foreach ($group as $col) {
+            $field = collect($this->fields)->firstWhere('name', $col);
+            if ($field === null || ! empty($field['system']) || ($update && ! empty($field['writeOnce']))) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Composite-unique groups whose FormRequest validation is skipped because a member isn't in the form
+     * (a system / write-once column) — enforced by the DB constraint only. Lets the make command warn.
+     *
+     * @return array<int, array<int, string>>
+     */
+    public function uniqueGroupsWithoutFormValidation(): array
+    {
+        // A group is form-validated only if it's submittable on create (system fields are the blocker there).
+        return array_values(array_filter($this->uniqueGroups, fn ($g) => ! $this->groupSubmittable($g, false)));
     }
 
     /**

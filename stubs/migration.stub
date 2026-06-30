@@ -14,6 +14,7 @@ __AC_COLUMNS__
 __AC_SORT_COLUMN__
             $table->timestamps();
 __AC_SOFT_DELETES__
+__AC_UNIQUE__
         });
 __AC_EXTRA_SCHEMA__
     }
