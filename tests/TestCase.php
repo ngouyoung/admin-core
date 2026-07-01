@@ -63,6 +63,15 @@ abstract class TestCase extends Orchestra
                 Route::post('bulkDelete', [ActionWidgetController::class, 'bulkDelete'])->name('bulkDelete');
             });
 
+            // A singleton (one-record) screen — index (edit form) + update (save), no list/create/delete.
+            Route::prefix('settings')->name('settings.')->group(function () {
+                Route::crudSingleton('setting', \Ngos\AdminCore\Tests\Fixtures\SettingSingletonController::class);
+            });
+            // A per-owner singleton — recordScope() re-asserts the scope after the form fills.
+            Route::prefix('scoped-setting')->name('scopedSetting.')->group(function () {
+                Route::crudSingleton('scoped-setting', \Ngos\AdminCore\Tests\Fixtures\ScopedSingletonController::class);
+            });
+
             // The approvals inbox (approve / reject the requests that ->requiresApproval() actions create).
             Route::adminCoreApprovals();
 

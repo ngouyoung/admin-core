@@ -1,0 +1,18 @@
+@extends('__AC_LAYOUT__')
+
+@section('title', 'DummyClasses')
+
+@section('contents')
+    <x-admin-core::page-header title="DummyClasses" />
+
+    <x-admin-core::card>
+        <form action="{{ route('__AC_RNS__dummyModels.update') }}" method="POST"__AC_ENCTYPE__>
+            @csrf
+            @method('PUT')
+            @include('backend.pages.dummyModels.partials.form')
+            <x-admin-core::form-actions :submit="__('admin-core::admin-core.actions.update')" :submit-class="config('class.button.update')" />
+        </form>
+    </x-admin-core::card>
+@endsection
+
+__AC_FORM_SCRIPTS__

@@ -1,0 +1,8 @@
+<?php
+
+use App\Http\Controllers\Backend\DummyClassController;
+use Illuminate\Support\Facades\Route;
+
+Route::group(['prefix' => 'dummyModels', 'as' => 'dummyModels.'], function () {
+    Route::crudSingleton('dummy-model', DummyClassController::class__AC_CRUD_GUARD__);
+});

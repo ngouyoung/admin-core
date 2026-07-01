@@ -35,6 +35,7 @@ class AdminCoreServiceProvider extends ServiceProvider
     {
         $this->mergeConfigFrom(__DIR__ . '/../config/admin-core.php', 'admin-core');
         $this->registerCrudMacro();
+        $this->registerSingletonMacro();
         $this->registerNotificationsMacro();
         $this->registerSearchMacro();
         $this->registerDashboardMacro();
@@ -207,6 +208,29 @@ class AdminCoreServiceProvider extends ServiceProvider
                 // Document state-machine transitions (runTransition enforces the per-transition permission).
                 Route::post('transition/{id}/{transition}', 'runTransition')->name('transition')
                     ->where('transition', '[A-Za-z0-9_-]+');
+            });
+        });
+    }
+
+    /**
+     * Route::crudSingleton('settings', SettingController::class) — a one-record screen: GET / (the edit form) +
+     * PUT / (save), both gated by `edit-{resource}` per config. No list/create/delete. For a SingletonController.
+     * (Named crudSingleton, not singleton, to avoid Laravel's built-in Route::singleton resource registrar.)
+     */
+    protected function registerSingletonMacro(): void
+    {
+        Route::macro('crudSingleton', function (string $resource, string $controller, ?string $authGuard = null) {
+            $suffix = $authGuard ? ',' . $authGuard : '';
+            $permission = 'permission:' . str_replace(
+                ['{action}', '{resource}'],
+                ['edit', $resource],
+                config('admin-core.permission.pattern', '{action}-{resource}')
+            ) . $suffix;
+            $middleware = config('admin-core.permission.enabled') ? $permission : [];
+
+            Route::controller($controller)->middleware($middleware)->group(function () {
+                Route::get('/', 'index')->name('index');
+                Route::put('/', 'update')->name('update');
             });
         });
     }

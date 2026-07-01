@@ -1,0 +1,28 @@
+<?php
+
+namespace App\Http\Controllers\Backend;
+
+use App\Http\Requests\DummyClass\UpdateDummyClassRequest;
+use App\Services\DummyClasses\DummyClassService;
+use Ngos\AdminCore\Http\Controllers\SingletonController;
+
+class DummyClassController extends SingletonController
+{
+    public function __construct(DummyClassService $service)
+    {
+        $this->viewPath = 'dummyModels.';
+        $this->routeBase = 'dummyModels.';__AC_ROUTE_PREFIX__
+        $this->resource = 'dummy-model';
+        $this->service = $service;
+        $this->updateRequest = UpdateDummyClassRequest::class;
+    }
+
+    // By default this edits the one (or first) row. For a per-owner singleton (e.g. the current user's profile)
+    // uncomment this — the scope resolves the row AND is re-applied after the form fills, so a posted value
+    // can't repoint it to another owner:
+    //
+    // protected function recordScope(): array
+    // {
+    //     return ['user_id' => auth()->id()];
+    // }
+}

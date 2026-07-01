@@ -455,6 +455,38 @@ generated model at a real table or a database view; add `listAggregates()` for a
 and `--sortable` (write features) are ignored with a notice. With `--api`, the JSON API is read-only too
 (index + show, no store/update/destroy).
 
+### Singleton resources (`--singleton`)
+
+Some screens edit **one** record, not a table — Settings, a company profile, tax config, the current user's
+profile. `--singleton` scaffolds exactly that: an **edit form** (index) + a **save** (update), with **no
+list / create / delete**:
+
+```bash
+php artisan admin-core:make CompanySetting --singleton \
+  --fields="name:string, tax_rate:decimal, currency:string"
+```
+
+The generated controller extends `SingletonController` and registers only two routes via
+`Route::crudSingleton(...)` — `GET /` (the form) and `PUT /` (save) — both gated by **`edit-{resource}`** (the
+only permission seeded). The single row is the one (or first) row, **created on first save**. For a **per-owner**
+singleton (a profile), override `recordScope()` — the scope both resolves the row **and is force-re-applied
+after the form fills**, so a posted value can never repoint the row to another owner (it's safe whether or not
+the scope column is fillable):
+
+```php
+protected function recordScope(): array
+{
+    return ['user_id' => auth()->id()];
+}
+```
+
+(Point the model at a table that holds one row per scope — an unscoped singleton over a multi-row table just
+edits the first row.)
+
+It fits the gap between `admin-core:make` (a full CRUD table) and `admin-core:page` (a model-less static page):
+a **model-backed, validated, one-record** screen. `--soft-deletes` / `--sortable` / `--api` don't apply (a
+singleton has no list or API surface) and are ignored with a notice.
+
 Create / update / delete (and restore) flash a `success` message that the layout renders automatically.
 Customise or translate it by overriding one method on the generated controller:
 

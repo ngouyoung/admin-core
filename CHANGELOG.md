@@ -2,6 +2,27 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.77.0
+
+**Singleton resources (`--singleton`).** Some admin screens edit **one** record, not a table — Settings, a
+company profile, the current user's profile. `--singleton` scaffolds a model-backed, validated **edit form +
+save** with no list/create/delete — filling the gap between `admin-core:make` (full CRUD) and
+`admin-core:page` (model-less). The 2nd-ranked gap from the SMPOS dogfood sweep (`SettingController` /
+`ProfileController` were hand-written).
+
+### Added
+- **`--singleton` flag** on `admin-core:make`. Generates a `SingletonController` (index = the edit form, update
+  = save) + the update FormRequest + one edit view + the form partial. No StoreRequest, no
+  list/show/create/thead views, no DataTable. Seeds **only the `edit` permission**. `--soft-deletes` /
+  `--sortable` / `--api` are ignored with a notice; `--singleton --read-only` is rejected (different shapes).
+- **`Ngos\AdminCore\Http\Controllers\SingletonController`** — a base with `index()` (render the edit form for
+  the single record) + `update()` (validate + save, creating the row on first save). For a per-owner singleton
+  override `recordScope()` (e.g. `['user_id' => auth()->id()]`) — the scope resolves the row AND is
+  force-re-applied after the form fills, so a posted value can't repoint it to another owner. A `required`
+  field-permission-denied field is force-merged before validation (mirrors the CRUD update).
+- **`Route::crudSingleton($resource, $controller, $guard)`** — registers `GET /` (index) + `PUT /` (update),
+  both gated by `edit-{resource}`. (Named crudSingleton to avoid Laravel's built-in `Route::singleton`.)
+
 ## v2.76.0
 
 **Form-input transitions + pure actions.** A document action can now collect **validated input** and run a

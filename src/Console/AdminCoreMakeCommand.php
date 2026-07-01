@@ -26,6 +26,7 @@ class AdminCoreMakeCommand extends Command
                             {--api : Also generate a JSON API (resource + controller + apiResource routes)}
                             {--api-only : Generate ONLY the JSON API (no web controller/views/routes) — add the web channel later by re-running without it}
                             {--read-only : A read-only resource — list, show, export + filters/totals, but NO create/edit/delete/import (a report). Only the list permission is seeded.}
+                            {--singleton : A one-record screen — an edit form (index) + save (update), NO list/create/delete (Settings, a profile). Only the edit permission is seeded.}
                             {--menu= : Register the sidebar link in a named portal menu (config admin-core.menus.NAME) instead of the default}
                             {--guard= : Auth guard for the permissions + route gates (multi-portal, e.g. merchant). Defaults to the app guard.}
                             {--portal= : Generate the resource INTO a portal (created by admin-core:portal): routes under routes/Portal/Modules with NAME. route-names, its guard + menu. Implies --guard/--menu=NAME.}
@@ -74,6 +75,22 @@ class AdminCoreMakeCommand extends Command
         if ($readOnly) {
             if ($soft || $sortable) {
                 $this->warn('  --read-only ignores --soft-deletes/--sortable (both add write actions).');
+            }
+            $soft = false;
+            $sortable = false;
+        }
+
+        // A singleton (Settings / profile): one edit form + a save, no list/create/delete. It's neither a CRUD
+        // list nor read-only, and has no soft-deletes/sortable/API surface — force them off.
+        $singleton = (bool) $this->option('singleton');
+        if ($singleton) {
+            if ($readOnly) {
+                $this->error('--singleton and --read-only are different resource shapes — pick one.');
+
+                return self::FAILURE;
+            }
+            if ($soft || $sortable || $this->option('api') || $this->option('api-only')) {
+                $this->warn('  --singleton ignores --soft-deletes/--sortable/--api (a one-record screen has none).');
             }
             $soft = false;
             $sortable = false;
@@ -350,8 +367,23 @@ class AdminCoreMakeCommand extends Command
         // shared core is always generated; reruns skip existing files, so a web-only
         // resource gains the API later via `--api` (and an api-only one gains the
         // web channel by re-running without --api-only).
-        $api = $this->option('api') || $this->option('api-only');
-        $web = ! $this->option('api-only');
+        $api = ! $singleton && ($this->option('api') || $this->option('api-only')); // a singleton has no API surface
+        $web = ! $this->option('api-only') || $singleton;
+
+        // Guard a shape mismatch: a singleton and a full/read-only CRUD resource have different controllers +
+        // routes, so re-running the other mode (files are skipped-if-exist) would dribble in orphans — e.g. a
+        // CRUD index view referencing a getData route the singleton doesn't register. Refuse unless --force.
+        $controllerPath = app_path("Http/Controllers/Backend/{$class}Controller.php");
+        if ($web && File::exists($controllerPath) && ! $this->option('force')) {
+            $existingIsSingleton = str_contains(File::get($controllerPath), 'extends SingletonController');
+            if ($existingIsSingleton !== $singleton) {
+                $this->error("{$class} already exists as a " . ($existingIsSingleton ? 'singleton' : 'full/read-only')
+                    . ' resource — a ' . ($singleton ? 'singleton' : 'full/read-only')
+                    . ' re-run would leave a broken mix. Use --force to convert it (overwrites), or match the existing mode.');
+
+                return self::FAILURE;
+            }
+        }
 
         // Shared core — both channels sit on these.
         $files = [
@@ -362,39 +394,50 @@ class AdminCoreMakeCommand extends Command
             'policy.stub' => app_path("Policies/{$class}Policy.php"),
         ];
 
-        // FormRequests validate writes — a read-only resource has none.
-        if (! $readOnly) {
-            $files['store-request.stub'] = app_path("Http/Requests/{$class}/Store{$class}Request.php");
-            $files['update-request.stub'] = app_path("Http/Requests/{$class}/Update{$class}Request.php");
-        }
-
-        if ($web) {
+        if ($singleton) {
+            // A one-record screen: only the update FormRequest + the singleton controller / route / edit form.
             $files += [
-                'controller.stub' => app_path("Http/Controllers/Backend/{$class}Controller.php"),
-                'routes.stub' => base_path("{$moduleDir}/{$snakePlural}.php"),
-                'views/index.stub' => resource_path("views/backend/pages/{$snakePlural}/index.blade.php"),
-                'views/show.stub' => resource_path("views/backend/pages/{$snakePlural}/show.blade.php"),
-                'views/thead.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"),
-                // No scripts.blade.php — the shared datatable.js drives the table from the
-                // data-table component's :columns config (see views/index.stub).
+                'update-request.stub' => app_path("Http/Requests/{$class}/Update{$class}Request.php"),
+                'singleton-controller.stub' => app_path("Http/Controllers/Backend/{$class}Controller.php"),
+                'singleton-routes.stub' => base_path("{$moduleDir}/{$snakePlural}.php"),
+                'views/singleton-edit.stub' => resource_path("views/backend/pages/{$snakePlural}/edit.blade.php"),
+                'views/form.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php"),
             ];
-            // Create/edit forms are write surfaces — skipped for a read-only resource.
+        } else {
+            // FormRequests validate writes — a read-only resource has none.
             if (! $readOnly) {
-                $files['views/create.stub'] = resource_path("views/backend/pages/{$snakePlural}/create.blade.php");
-                $files['views/edit.stub'] = resource_path("views/backend/pages/{$snakePlural}/edit.blade.php");
-                $files['views/form.stub'] = resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php");
+                $files['store-request.stub'] = app_path("Http/Requests/{$class}/Store{$class}Request.php");
+                $files['update-request.stub'] = app_path("Http/Requests/{$class}/Update{$class}Request.php");
             }
-        }
 
-        if ($soft && $web) {
-            $files['views/trash.stub'] = resource_path("views/backend/pages/{$snakePlural}/trash.blade.php");
+            if ($web) {
+                $files += [
+                    'controller.stub' => app_path("Http/Controllers/Backend/{$class}Controller.php"),
+                    'routes.stub' => base_path("{$moduleDir}/{$snakePlural}.php"),
+                    'views/index.stub' => resource_path("views/backend/pages/{$snakePlural}/index.blade.php"),
+                    'views/show.stub' => resource_path("views/backend/pages/{$snakePlural}/show.blade.php"),
+                    'views/thead.stub' => resource_path("views/backend/pages/{$snakePlural}/partials/thead.blade.php"),
+                    // No scripts.blade.php — the shared datatable.js drives the table from the
+                    // data-table component's :columns config (see views/index.stub).
+                ];
+                // Create/edit forms are write surfaces — skipped for a read-only resource.
+                if (! $readOnly) {
+                    $files['views/create.stub'] = resource_path("views/backend/pages/{$snakePlural}/create.blade.php");
+                    $files['views/edit.stub'] = resource_path("views/backend/pages/{$snakePlural}/edit.blade.php");
+                    $files['views/form.stub'] = resource_path("views/backend/pages/{$snakePlural}/partials/form.blade.php");
+                }
+            }
+
+            if ($soft && $web) {
+                $files['views/trash.stub'] = resource_path("views/backend/pages/{$snakePlural}/trash.blade.php");
+            }
         }
 
         if ($this->option('tests')) {
             if (! $web) {
                 $this->warn('Skipped --tests: the generated feature test drives the web routes (re-run without --api-only to add them).');
-            } elseif ($readOnly) {
-                $this->warn('Skipped --tests: the generated test drives create/edit/delete, which a --read-only resource has not — write a read-only test by hand.');
+            } elseif ($readOnly || $singleton) {
+                $this->warn('Skipped --tests: the generated test drives create/edit/delete, which a --' . ($singleton ? 'singleton' : 'read-only') . ' resource has not — write one by hand.');
             } elseif ($guardOpt) {
                 // The scaffold authenticates a default App\Models\User on the web guard; a guard/portal
                 // resource is gated on '{$guardOpt}' (and a portal has its own user model), so the test
@@ -473,7 +516,13 @@ class AdminCoreMakeCommand extends Command
             }
         }
 
-        $this->createPermissions($kebab, $plural, $guard, $readOnly);
+        // Which permissions to seed: a singleton only needs edit; a read-only resource only list; else full CRUD.
+        $permActions = match (true) {
+            $singleton => ['edit'],
+            $readOnly => ['list'],
+            default => ['list', 'create', 'edit', 'delete'],
+        };
+        $this->createPermissions($kebab, $plural, $guard, $permActions);
         if ($web) {
             $this->registerMenuItem($plural, $snakePlural, $kebab, $menuName, $routeNs);
         }
@@ -991,16 +1040,17 @@ PHP);
         return $cases[1] ? implode('|', $cases[1]) : null;
     }
 
-    private function createPermissions(string $kebab, string $plural, string $guard = 'web', bool $readOnly = false): void
+    /**
+     * @param  array<int, string>  $actions  which permissions to seed (e.g. ['list','create','edit','delete'],
+     *                                        or ['list'] read-only, ['edit'] singleton)
+     */
+    private function createPermissions(string $kebab, string $plural, string $guard = 'web', array $actions = ['list', 'create', 'edit', 'delete']): void
     {
         if (! config('admin-core.permission.enabled') || ! Schema::hasTable('permissions')) {
             return;
         }
 
         $model = config('admin-core.permission.model', \Spatie\Permission\Models\Permission::class);
-        // A read-only resource only needs the list permission — it's the gate for index/getData/show/export, and
-        // the absent create/edit/delete permissions are exactly what hides the write buttons in the views.
-        $actions = $readOnly ? ['list'] : ['list', 'create', 'edit', 'delete'];
         $names = array_map(fn ($action) => "{$action}-{$kebab}", $actions);
 
         foreach ($names as $name) {

@@ -788,6 +788,69 @@ it('still generates a full CRUD JSON API without --read-only (regression)', func
     expect(File::exists(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))->toBeTrue();
 });
 
+it('generates a --singleton resource — one edit form + save, no list/create/delete', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'company:string, tax_rate:decimal',
+        '--migration' => true,
+        '--singleton' => true,
+    ])->assertSuccessful();
+
+    // Controller extends SingletonController, wires only the update request.
+    $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    expect($controller)
+        ->toContain('extends SingletonController')
+        ->toContain('use Ngos\AdminCore\Http\Controllers\SingletonController;')
+        ->toContain('$this->updateRequest = UpdateGizmoRequest::class;')
+        ->not->toContain('storeRequest')
+        ->not->toContain('extends WebController');
+    $lint = Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')));
+    expect($lint->successful())->toBeTrue($lint->output());
+
+    // Routes: the singleton macro only — no crud/getData/bulkDelete.
+    expect(File::get(base_path('routes/Web/Backend/Modules/gizmos.php')))
+        ->toContain("Route::crudSingleton('gizmo', GizmoController::class)")
+        ->not->toContain('Route::crud(')
+        ->not->toContain('bulkDelete')
+        ->not->toContain('getData');
+
+    // The edit view posts to update (NO id) + includes the form partial.
+    expect(File::get(resource_path('views/backend/pages/gizmos/edit.blade.php')))
+        ->toContain("route('admin.gizmos.update')")
+        ->toContain("@include('backend.pages.gizmos.partials.form')")
+        ->not->toContain('$object->getRouteKey()'); // singleton update takes no key
+    expect(File::exists(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))->toBeTrue();
+
+    // Only the update FormRequest; no Store, no index/show/create/thead views.
+    expect(File::exists(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php')))->toBeTrue();
+    expect(File::exists(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))->toBeFalse();
+    expect(File::exists(resource_path('views/backend/pages/gizmos/index.blade.php')))->toBeFalse();
+    expect(File::exists(resource_path('views/backend/pages/gizmos/show.blade.php')))->toBeFalse();
+    expect(File::exists(resource_path('views/backend/pages/gizmos/create.blade.php')))->toBeFalse();
+});
+
+it('rejects --singleton combined with --read-only (different shapes)', function () {
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--singleton' => true, '--read-only' => true])
+        ->expectsOutputToContain('different resource shapes')->assertFailed();
+});
+
+it('refuses to re-run a different shape over an existing resource (no orphan-file mix) without --force', function () {
+    // Generate a full CRUD resource…
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--migration' => true])->assertSuccessful();
+
+    // …then re-running as a singleton must refuse (it would dribble a singleton controller next to CRUD views).
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--singleton' => true])
+        ->expectsOutputToContain('already exists as a full/read-only')->assertFailed();
+
+    // The controller is untouched (still the CRUD one).
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))->toContain('extends WebController');
+
+    // --force converts it (overwrites) — now a singleton.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--singleton' => true, '--force' => true])
+        ->assertSuccessful();
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))->toContain('extends SingletonController');
+});
+
 it('adds no list footer to a resource with no money column', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
