@@ -677,3 +677,65 @@ it('rejects a sequence prefix with characters that could break the generated PHP
     // Common separators are fine.
     expect(fn () => fs('no:sequence:INV/2026', 'docs'))->not->toThrow(InvalidArgumentException::class);
 });
+
+// -- Relation-driven derived columns (--derived) -----------------------------------------------------
+
+it('compiles a --derived saving hook: relation compute + copy, fetched once', function () {
+    $f = fs('unit_id:foreign:units, qty:decimal:12:3, qty_base:decimal:12:3, variant_id:foreign:variants', 'items')
+        ->setDerived(['qty_base' => 'qty * unit_id.conversion_factor', 'variant_id' => 'unit_id.variant_id']);
+
+    $boot = $f->modelBoot();
+    expect($boot)
+        ->toContain('static::saving(function (self $model) {')
+        ->toContain('$unit = $model->unit_id ? \App\Models\Unit::find($model->unit_id) : null;')
+        ->toContain('$model->qty_base = ((float) ($model->qty ?? 0) * (float) ($unit?->conversion_factor ?? 0));')
+        ->toContain('$model->variant_id = $unit?->variant_id;'); // copy: no float cast
+    // The FK is fetched exactly once even though two derived columns reference it.
+    expect(substr_count($boot, 'Unit::find'))->toBe(1);
+});
+
+it('guards a divide in a derived expression against divide-by-zero', function () {
+    $boot = fs('unit_id:foreign:units, total:decimal:12:2, per_unit:decimal:12:2', 'items')
+        ->setDerived(['per_unit' => 'total / unit_id.pack_size'])->modelBoot();
+
+    expect($boot)->toContain('== 0.0 ? 0 :'); // blank/zero related attribute → 0, not a runtime error
+});
+
+it('rejects a --derived target that is not a stored column', function () {
+    expect(fn () => fs('unit_id:foreign:units', 'items')->setDerived(['nope' => 'unit_id.x']))
+        ->toThrow(InvalidArgumentException::class, 'must be a stored column');
+});
+
+it('rejects a relation reference whose column is not a declared foreign', function () {
+    expect(fn () => fs('unit_id:foreign:units, qty:decimal:12:2, qty_base:decimal:12:2', 'items')->setDerived(['qty_base' => 'qty * missing_id.factor']))
+        ->toThrow(InvalidArgumentException::class, "isn't a foreign column");
+});
+
+it('rejects a bare reference to an undeclared column', function () {
+    expect(fn () => fs('unit_id:foreign:units, qty_base:decimal:12:2', 'items')->setDerived(['qty_base' => 'ghost * 2']))
+        ->toThrow(InvalidArgumentException::class, "isn't a stored column");
+});
+
+it('rejects a malformed derived expression (trailing operator / unbalanced parens)', function () {
+    expect(fn () => fs('unit_id:foreign:units, x:decimal:12:2', 'items')->setDerived(['x' => 'unit_id.factor *']))
+        ->toThrow(InvalidArgumentException::class);
+    expect(fn () => fs('unit_id:foreign:units, x:decimal:12:2', 'items')->setDerived(['x' => '(unit_id.factor']))
+        ->toThrow(InvalidArgumentException::class, 'unbalanced');
+});
+
+it('rejects a derived column that references itself (would drift on every save)', function () {
+    expect(fn () => fs('total:decimal:12|2', 'items')->setDerived(['total' => 'total * 2']))
+        ->toThrow(InvalidArgumentException::class, "can't reference itself");
+});
+
+it('excludes a derived target from fillable / rules / form but keeps it a displayed column', function () {
+    $f = fs('unit_id:foreign:units, qty:decimal:12|3, qty_base:decimal:12|3', 'items')
+        ->setDerived(['qty_base' => 'qty * unit_id.conversion_factor']);
+
+    expect($f->fillable())->not->toContain('qty_base');        // set by the hook, never mass-assigned
+    expect($f->storeRules())->not->toContain("'qty_base'");    // never validated (no "required" on a blank)
+    expect($f->formFields())->not->toContain('name="qty_base"'); // no editable input
+    // …but it stays a real, nullable, DISPLAYED column.
+    expect($f->migrationColumns())->toContain("\$table->decimal('qty_base', 12, 3)->nullable();");
+    expect($f->showRows())->toContain('qty_base');
+});

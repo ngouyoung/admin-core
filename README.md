@@ -254,6 +254,27 @@ currency** — a mix fails loudly (a silently-wrong money total is worse). And t
 separate resource** this command doesn't scaffold — generate it (`admin-core:make InvoiceLine …`) too, or the
 list/show/API will error when the rollup dereferences a missing model (the generator warns you about this).
 
+**Denormalise from a picked relation (`--derived`).** A line item usually copies + computes from the row the
+user selects — a `qty_base` from the chosen unit's conversion factor, the `variant_id` behind the picked
+product-unit. `computed`/`rollup` work over the same row / a child, but not a **belongsTo** you just picked, so
+`--derived` writes those columns in the model's `saving()` hook:
+
+```bash
+php artisan admin-core:make PurchaseItem --migration \
+  --fields="unit_id:foreign:product_variant_units, variant_id:foreign:product_variants, qty:decimal:12:3, qty_base:decimal:12:3" \
+  --derived="qty_base = qty * unit_id.conversion_factor, variant_id = unit_id.variant_id"
+```
+
+The expression is arithmetic (`+ - * / ( )`) over same-row columns and `fk_column.attribute` references (the
+FK's related row); a **lone reference is a copy** (kept as-is — an id, a code; write it *alone*, since any
+operator forces float maths that would corrupt a large id). The related row is fetched **once per FK** and the
+columns recompute on every write (create + update) when a source changes; a missing relation / blank value
+resolves to `0`/`null` (a divide-by-zero yields `0`, never an error). A derived target is **not** in the form,
+validation or `$fillable` (the hook owns it) but stays a normal, nullable, displayed column; unknown columns,
+non-foreign references, self-references and malformed expressions are rejected at generation. Two limits: a bulk
+`Model::query()->update()` fires no model events so it **won't** re-derive (save models individually), and each
+save issues one `find()` per referenced FK. Pair it with `data-ac-compute` for the live in-form preview.
+
 **Enums are code, not schema.** `status:enum:draft|published` generates `App\Enums\ProductStatus` (a
 string-backed PHP enum) as the **single source of truth**: validation uses `Rule::enum`, the model casts
 to it, and the form select, index filter-tabs and factory iterate its `cases()`. The DB column stays a

@@ -21,6 +21,7 @@ class AdminCoreMakeCommand extends Command
                             {--audit : Log created/updated/deleted activity for this resource}
                             {--sortable : Add a drag-and-drop ordering column (sort) + reorder list}
                             {--unique=* : Composite unique over multiple columns, e.g. --unique="order_id,product_id" (repeatable). Use the ^ modifier for a single column.}
+                            {--derived=* : Denormalise a column from a picked belongsTo relation on save, e.g. --derived="qty_base=qty*unit_id.conversion_factor, variant_id=unit_id.variant_id" (repeatable; comma/semicolon-separated).}
                             {--migration : Also generate a create migration}
                             {--tests : Also generate a CRUD feature test (best paired with --migration)}
                             {--api : Also generate a JSON API (resource + controller + apiResource routes)}
@@ -169,6 +170,18 @@ class AdminCoreMakeCommand extends Command
             ->filter(fn ($g) => $g !== [])
             ->all();
 
+        // Relation-driven derived columns from --derived="col=expr, col2=expr2" — each pair `column=expression`.
+        $derived = [];
+        foreach ((array) $this->option('derived') as $spec) {
+            foreach (preg_split('/[;,]/', (string) $spec) as $pair) {
+                if (! str_contains($pair, '=')) {
+                    continue;
+                }
+                [$dcol, $dexpr] = explode('=', $pair, 2);
+                $derived[trim($dcol)] = trim($dexpr);
+            }
+        }
+
         try {
             $fields = (new FieldSet($fieldsDsl))
                 ->setTable($snakePlural)
@@ -177,7 +190,8 @@ class AdminCoreMakeCommand extends Command
                 ->setAudit($audit)
                 ->setSortable($sortable)
                 ->setClass($class)
-                ->setUniqueGroups($uniqueGroups);
+                ->setUniqueGroups($uniqueGroups)
+                ->setDerived($derived);
         } catch (\InvalidArgumentException $e) {
             $this->error($e->getMessage());
 

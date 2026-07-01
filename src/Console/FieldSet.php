@@ -1091,7 +1091,7 @@ PHP;
     public function fillable(): string
     {
         return collect($this->fields)
-            ->filter(fn ($f) => $this->isColumn($f) && empty($f['system'])) // system fields are set by trusted code, never mass-assigned
+            ->filter(fn ($f) => $this->isColumn($f) && empty($f['system']) && empty($f['derived'])) // system + derived cols are set by trusted code, never mass-assigned
             ->map(fn ($f) => "'{$f['name']}'")
             ->implode(', ');
     }
@@ -1150,22 +1150,283 @@ PHP;
      */
     public function modelBoot(): string
     {
-        $body = $this->bootBody();
+        $creating = $this->bootBody();
+        $saving = $this->derivedBody;
 
-        if ($body === '') {
+        if ($creating === '' && $saving === '') {
             return '';
         }
+
+        $blocks = [];
+        if ($creating !== '') {
+            $blocks[] = "        static::creating(function (self \$model) {\n{$creating}\n        });";
+        }
+        if ($saving !== '') {
+            // Derived columns recompute on every write (create + update) once their sources change.
+            $blocks[] = "        static::saving(function (self \$model) {\n{$saving}\n        });";
+        }
+        $body = implode("\n\n", $blocks);
 
         return <<<PHP
 
 
     protected static function booted(): void
     {
-        static::creating(function (self \$model) {
-$body
-        });
+{$body}
     }
 PHP;
+    }
+
+    // ---- Relation-driven derived columns (--derived) -----------------
+
+    /** @var array<string, string>  col => expression (arithmetic over columns + fk_col.attr relation refs) */
+    protected array $derived = [];
+
+    /** The compiled `static::saving` body for the derived columns, or '' — built (and validated) by setDerived(). */
+    protected string $derivedBody = '';
+
+    /**
+     * Denormalise columns from a picked belongsTo relation, set in the model's saving() hook — e.g.
+     * `--derived="qty_base=qty*unit_id.conversion_factor, variant_id=unit_id.variant_id"`. The expression is
+     * arithmetic (+ - * / ( )) over same-row columns and `fk_column.attribute` references (the FK's related row);
+     * a lone reference is a COPY (kept as-is, e.g. an id). Validated + compiled here so a bad spec fails cleanly.
+     *
+     * @param  array<string, string>  $derived
+     */
+    public function setDerived(array $derived): static
+    {
+        $this->derived = $derived;
+        $this->derivedBody = $this->buildDerivedHook();
+
+        return $this;
+    }
+
+    /** Compile every --derived expression into the saving() hook body (fetch each FK once, then assign). */
+    private function buildDerivedHook(): string
+    {
+        if ($this->derived === []) {
+            return '';
+        }
+
+        $byName = [];
+        $indexByName = [];
+        foreach ($this->fields as $i => $f) {
+            $byName[$f['name']] = $f;
+            $indexByName[$f['name']] = $i;
+        }
+
+        $fetches = []; // fk column => ['var' => relationName, 'model' => relModel]
+        $assigns = [];
+        foreach ($this->derived as $col => $expr) {
+            if (! isset($byName[$col]) || ! $this->isColumn($byName[$col])) {
+                throw new \InvalidArgumentException(
+                    "admin-core: --derived target '{$col}' must be a stored column declared in --fields.",
+                );
+            }
+            $rhs = $this->compileDerivedExpr($col, $expr, $byName, $fetches);
+            $assigns[] = "            \$model->{$col} = {$rhs};";
+
+            // The saving() hook owns this column — so it's never mass-assigned / validated / shown as a form
+            // input, and nullable so a copy of a missing relation can be null. It stays a real, DISPLAYED column
+            // (migration + cast + list/show/export), unlike a system field. The 'derived' flag drives the excludes.
+            $this->fields[$indexByName[$col]]['derived'] = true;
+            $this->fields[$indexByName[$col]]['nullable'] = true;
+        }
+
+        $lines = [];
+        foreach ($fetches as $fk => $info) {
+            // One fetch per distinct related FK (find() is null-safe on a missing FK).
+            $lines[] = "            \${$info['var']} = \$model->{$fk} ? \\App\\Models\\{$info['model']}::find(\$model->{$fk}) : null;";
+        }
+
+        return implode("\n", array_merge($lines, $assigns));
+    }
+
+    /** Compile one derived expression to a PHP right-hand side; collects the FK fetches it needs. */
+    private function compileDerivedExpr(string $col, string $expr, array $byName, array &$fetches): string
+    {
+        $tokens = $this->derivedTokens($col, $expr);
+        if ($tokens === []) {
+            throw new \InvalidArgumentException("admin-core: --derived '{$col}' has an empty expression.");
+        }
+
+        // A single bare reference is a COPY — keep the value as-is (an id / string), no float maths.
+        if (count($tokens) === 1 && $tokens[0]['t'] === 'ref') {
+            return $this->emitDerivedRef($col, $tokens[0]['v'], $byName, $fetches, false);
+        }
+
+        $pos = 0;
+        $php = $this->derivedSum($col, $tokens, $pos, $byName, $fetches);
+        if ($pos !== count($tokens)) {
+            throw new \InvalidArgumentException("admin-core: --derived '{$col}' has trailing input — check the operators.");
+        }
+
+        return $php;
+    }
+
+    /**
+     * Tokenise a derived expression: numbers, references (col or fk_col.attr), `+ - * / ( )`.
+     *
+     * @return array<int, array{t: string, v: string}>
+     */
+    private function derivedTokens(string $col, string $expr): array
+    {
+        $tokens = [];
+        $len = strlen($expr);
+        for ($i = 0; $i < $len;) {
+            $c = $expr[$i];
+            if ($c === ' ' || $c === "\t") {
+                $i++;
+            } elseif (ctype_digit($c) || $c === '.') {
+                $j = $i;
+                while ($j < $len && (ctype_digit($expr[$j]) || $expr[$j] === '.')) {
+                    $j++;
+                }
+                $num = substr($expr, $i, $j - $i);
+                if (! is_numeric($num)) {
+                    throw new \InvalidArgumentException("admin-core: --derived '{$col}' has a malformed number '{$num}'.");
+                }
+                $tokens[] = ['t' => 'num', 'v' => $num];
+                $i = $j;
+            } elseif (ctype_alpha($c) || $c === '_') {
+                $j = $i;
+                while ($j < $len && (ctype_alnum($expr[$j]) || $expr[$j] === '_')) {
+                    $j++;
+                }
+                $ref = substr($expr, $i, $j - $i);
+                if ($j < $len && $expr[$j] === '.') { // a relation reference: fk_col.attribute
+                    $k = $j + 1;
+                    while ($k < $len && (ctype_alnum($expr[$k]) || $expr[$k] === '_')) {
+                        $k++;
+                    }
+                    if ($k === $j + 1) {
+                        throw new \InvalidArgumentException("admin-core: --derived '{$col}' expects an attribute after '{$ref}.'.");
+                    }
+                    $ref .= '.' . substr($expr, $j + 1, $k - $j - 1);
+                    $j = $k;
+                }
+                $tokens[] = ['t' => 'ref', 'v' => $ref];
+                $i = $j;
+            } elseif (in_array($c, ['+', '-', '*', '/'], true)) {
+                $tokens[] = ['t' => 'op', 'v' => $c];
+                $i++;
+            } elseif ($c === '(' || $c === ')') {
+                $tokens[] = ['t' => $c === '(' ? 'lp' : 'rp', 'v' => $c];
+                $i++;
+            } else {
+                throw new \InvalidArgumentException("admin-core: --derived '{$col}' has an unexpected character '{$c}'.");
+            }
+        }
+
+        return $tokens;
+    }
+
+    /** @param array<int, array{t: string, v: string}> $tokens */
+    private function derivedSum(string $col, array $tokens, int &$pos, array $byName, array &$fetches): string
+    {
+        $left = $this->derivedProduct($col, $tokens, $pos, $byName, $fetches);
+        while (isset($tokens[$pos]) && $tokens[$pos]['t'] === 'op' && in_array($tokens[$pos]['v'], ['+', '-'], true)) {
+            $op = $tokens[$pos++]['v'];
+            $right = $this->derivedProduct($col, $tokens, $pos, $byName, $fetches);
+            $left = "({$left} {$op} {$right})";
+        }
+
+        return $left;
+    }
+
+    /** @param array<int, array{t: string, v: string}> $tokens */
+    private function derivedProduct(string $col, array $tokens, int &$pos, array $byName, array &$fetches): string
+    {
+        $left = $this->derivedUnary($col, $tokens, $pos, $byName, $fetches);
+        while (isset($tokens[$pos]) && $tokens[$pos]['t'] === 'op' && in_array($tokens[$pos]['v'], ['*', '/'], true)) {
+            $op = $tokens[$pos++]['v'];
+            $right = $this->derivedUnary($col, $tokens, $pos, $byName, $fetches);
+            // Guard a divide-by-zero so a blank/zero related attribute yields 0, not a runtime error.
+            $left = $op === '/' ? "((float) {$right} == 0.0 ? 0 : {$left} / {$right})" : "({$left} {$op} {$right})";
+        }
+
+        return $left;
+    }
+
+    /** @param array<int, array{t: string, v: string}> $tokens */
+    private function derivedUnary(string $col, array $tokens, int &$pos, array $byName, array &$fetches): string
+    {
+        if (isset($tokens[$pos]) && $tokens[$pos]['t'] === 'op' && in_array($tokens[$pos]['v'], ['+', '-'], true)) {
+            $op = $tokens[$pos++]['v'];
+            $operand = $this->derivedUnary($col, $tokens, $pos, $byName, $fetches);
+
+            return $op === '+' ? $operand : "(-{$operand})";
+        }
+
+        return $this->derivedPrimary($col, $tokens, $pos, $byName, $fetches);
+    }
+
+    /** @param array<int, array{t: string, v: string}> $tokens */
+    private function derivedPrimary(string $col, array $tokens, int &$pos, array $byName, array &$fetches): string
+    {
+        $tok = $tokens[$pos] ?? null;
+        if ($tok === null) {
+            throw new \InvalidArgumentException("admin-core: --derived '{$col}' ends unexpectedly.");
+        }
+        if ($tok['t'] === 'num') {
+            $pos++;
+
+            return $tok['v'];
+        }
+        if ($tok['t'] === 'ref') {
+            $pos++;
+
+            return $this->emitDerivedRef($col, $tok['v'], $byName, $fetches, true);
+        }
+        if ($tok['t'] === 'lp') {
+            $pos++;
+            $inner = $this->derivedSum($col, $tokens, $pos, $byName, $fetches);
+            if (($tokens[$pos]['t'] ?? '') !== 'rp') {
+                throw new \InvalidArgumentException("admin-core: --derived '{$col}' has an unbalanced parenthesis.");
+            }
+            $pos++;
+
+            return "({$inner})";
+        }
+
+        throw new \InvalidArgumentException("admin-core: --derived '{$col}' has an unexpected '{$tok['v']}'.");
+    }
+
+    /**
+     * Emit PHP for one reference. A `fk_col.attr` reads the FK's related row (recorded in $fetches); a bare name
+     * reads the same-row column. In numeric (arithmetic) context each is float-cast + null-coalesced to 0.
+     *
+     * @param  array<string, mixed>  $byName
+     */
+    private function emitDerivedRef(string $col, string $ref, array $byName, array &$fetches, bool $numeric): string
+    {
+        if (str_contains($ref, '.')) {
+            [$fk, $attr] = explode('.', $ref, 2);
+            if (! isset($byName[$fk]) || $byName[$fk]['type'] !== 'foreign') {
+                throw new \InvalidArgumentException(
+                    "admin-core: --derived '{$col}' references '{$ref}', but '{$fk}' isn't a foreign column here "
+                    . "(declare it, e.g. {$fk}:foreign:some_table).",
+                );
+            }
+            $fetches[$fk] = ['var' => $byName[$fk]['relation'], 'model' => $byName[$fk]['relModel']];
+            $php = "\${$byName[$fk]['relation']}?->{$attr}";
+
+            return $numeric ? "(float) ({$php} ?? 0)" : $php;
+        }
+
+        if ($ref === $col) {
+            throw new \InvalidArgumentException(
+                "admin-core: --derived '{$col}' can't reference itself — it's recomputed on every save (it would drift).",
+            );
+        }
+        if (! isset($byName[$ref]) || ! $this->isColumn($byName[$ref])) {
+            throw new \InvalidArgumentException(
+                "admin-core: --derived '{$col}' references '{$ref}', which isn't a stored column on this resource.",
+            );
+        }
+        $php = "\$model->{$ref}";
+
+        return $numeric ? "(float) ({$php} ?? 0)" : $php;
     }
 
     /** The `static::creating` assignment lines for system/slug fields, or '' when none apply. */
@@ -1297,8 +1558,8 @@ PHP;
     {
         $lines = [];
         foreach ($this->fields as $f) {
-            if (! $this->isColumn($f) || ! empty($f['system'])) {
-                continue; // belongsToMany via relationships; system fields set by hook
+            if (! $this->isColumn($f) || ! empty($f['system']) || ! empty($f['derived'])) {
+                continue; // belongsToMany via relationships; system + derived fields set by hook
             }
             $col = $f['name'];
             $fake = match (true) {
@@ -1516,9 +1777,9 @@ PHP;
     {
         $lines = [];
         foreach ($this->fields as $f) {
-            // System fields are never validated (set by trusted code); write-once
+            // System + derived fields are never validated (set by trusted code); write-once
             // fields have no update rule so update() can never change them.
-            if (! empty($f['system']) || ($update && ! empty($f['writeOnce']))) {
+            if (! empty($f['system']) || ! empty($f['derived']) || ($update && ! empty($f['writeOnce']))) {
                 continue;
             }
             $required = $f['nullable'] ? "'nullable'" : "'required'";
@@ -1785,8 +2046,8 @@ PHP;
             }
         }
         foreach ($this->fields as $f) {
-            if (! empty($f['system']) || in_array($f['type'], ['computed', 'rollup'], true)) {
-                continue; // system fields and computed/rollup (read-only, derived) values are never in the form
+            if (! empty($f['system']) || ! empty($f['derived']) || in_array($f['type'], ['computed', 'rollup'], true)) {
+                continue; // system, --derived, and computed/rollup values are set by code, never in the form
             }
             // Wrap in a field-guard so fieldPermissions() can lock a field for users who lack its permission.
             // A pure passthrough when the field isn't restricted (no markup change), so it's always safe to emit.

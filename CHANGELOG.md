@@ -2,7 +2,27 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
-## v2.78.0
+## v2.79.0
+
+**Relation-driven derived columns (`--derived`).** Denormalise a column from a picked belongsTo relation, set
+in the model's `saving()` hook — a line item's `qty_base = qty × unit.conversion_factor`, its `variant_id`
+copied from the chosen product-unit. `computed`/`rollup` cover same-row arithmetic and hasMany aggregates, but
+there was no primitive for a value derived from a **belongsTo** you just selected — the top gap found rebuilding
+the SMPOS ERP from scratch (it recurs identically in every line table).
+
+### Added
+- **`--derived="col=expr, col2=expr2"`** (repeatable, comma/semicolon-separated). The expression is arithmetic
+  (`+ - * / ( )`) over same-row columns and `fk_column.attribute` references (a declared foreign's related row);
+  a lone reference is a **copy** (kept as-is, e.g. an id). Generates a `saving()` hook that fetches each
+  referenced FK's related model **once** and assigns the columns, recomputing on create + update. Null-safe
+  (missing relation / blank → `0`/`null`; a divide-by-zero → `0`). Unknown columns, non-foreign references and
+  malformed expressions are rejected at generation (a dedicated tokeniser + recursive-descent compiler; a
+  self-reference is rejected — it would drift each save).
+- A derived target is **excluded from the form, validation rules, `$fillable` and the factory** (the hook owns
+  it) but stays a normal, **nullable, displayed** column (migration + cast + list/show/export) — like
+  `computed`/`rollup`, but stored.
+- The model's `booted()` now emits a `saving()` block (for `--derived`) alongside the existing `creating()`
+  block (system/slug/sequence fields).
 
 **Live computed fields (`data-ac-compute`).** A form field whose value derives from sibling fields, updated as
 the user types — a master-detail line's `line_total = qty × unit_price`, a `qty_base = qty × conversion_factor`.
