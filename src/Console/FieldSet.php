@@ -957,7 +957,9 @@ class FieldSet
             $out[$f['name']] = <<<BLADE
 {{-- One {$model} row for the "{$label}" repeater on the {$parentModel} form. The repeater passes \$name,
      \$index and \$row. Replace the example column with one input per {$model} field, named
-     \$name[\$index][field]; the hidden id tracks existing rows so they update in place. --}}
+     \$name[\$index][field]; the hidden id tracks existing rows so they update in place.
+     Live math: a field with data-ac-compute="qty * unit_price" fills from the row's other fields as you type
+     (compute.js) — see the commented "Line total" cell for the pattern. --}}
 @php(\$r = (array) (\$row ?? []))
 <div class="row g-2 align-items-end mb-2" data-ac-repeater-row>
     <input type="hidden" name="{{ \$name }}[{{ \$index }}][id]" value="{{ \$r['id'] ?? '' }}">
@@ -965,6 +967,13 @@ class FieldSet
         <label class="form-label small mb-1">Example</label>
         <input type="text" name="{{ \$name }}[{{ \$index }}][example]" class="form-control form-control-sm" value="{{ \$r['example'] ?? '' }}">
     </div>
+    {{-- A LIVE computed cell — updates from this row's qty * unit_price as the user types. Uncomment + rename
+         to your real fields; readonly since it's derived (the server re-computes it authoritatively on save):
+    <div class="col-auto">
+        <label class="form-label small mb-1">Line total</label>
+        <input type="text" readonly name="{{ \$name }}[{{ \$index }}][line_total]" class="form-control form-control-sm"
+               data-ac-compute="qty * unit_price" data-ac-compute-decimals="2" value="{{ \$r['line_total'] ?? '' }}">
+    </div> --}}
     <div class="col-auto d-flex align-items-end">
         <button type="button" class="btn btn-sm btn-link text-danger p-0" data-ac-repeater-remove title="Remove"><i class="bi bi-x-lg"></i></button>
     </div>

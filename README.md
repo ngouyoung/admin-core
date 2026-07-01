@@ -1101,6 +1101,15 @@ The `--access` kit ships a custom Bootstrap-5 theme (no AdminLTE) plus reusable 
   renders it once per existing row, plus a hidden `<template>` the Add button clones with a fresh unique
   index. Add/remove is inline JS (no build step); it posts `name[i][...]` arrays (indexes need not be
   sequential — re-index server-side).
+- **Live computed fields (`data-ac-compute`).** A field whose value derives from **sibling fields, updated as
+  the user types** — a line item's `line_total = qty × unit_price`, a `qty_base = qty × conversion_factor`. Put
+  `data-ac-compute="qty * unit_price"` on any input (it fills + posts the value) or element (it shows the
+  result as text); `data-ac-compute-decimals="2"` rounds it. Names resolve within the enclosing
+  `[data-ac-repeater-row]` first (so each line computes independently), else the `<form>`. It's a **safe
+  arithmetic evaluator** (`+ - * / ( )`, numbers, field names — never `eval`), so a money line preview is
+  client-side while the server re-computes the stored value authoritatively (pair it with a `computed` column).
+  The generated row partial ships a commented `line_total` example. (Cascading *selects* — Province → Commune
+  narrowing — are separate: `data-ac-depends` on `<x-admin-core::select>`.)
 - **`<x-admin-core::page-loader />`** — a thin top progress bar shown during full-page navigation; drop it
   once in the layout. Pairs with the pre-paint sidebar-state script for a flash-free refresh.
 - **`<x-admin-core::status :value="$object->status" />`** — the soft `.ac-status` pill for an enum value

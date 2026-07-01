@@ -2,7 +2,23 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
-## v2.77.0
+## v2.78.0
+
+**Live computed fields (`data-ac-compute`).** A form field whose value derives from sibling fields, updated as
+the user types — a master-detail line's `line_total = qty × unit_price`, a `qty_base = qty × conversion_factor`.
+The 3rd (final) gap from the SMPOS dogfood sweep: line-item forms wanted a live subtotal, not just a server-side
+`computed` accessor on save.
+
+### Added
+- **`data-ac-compute="qty * unit_price"`** on any input (fills + posts the value) or element (shows it as text),
+  recomputed live on input/change. Names resolve within the enclosing `[data-ac-repeater-row]` first (each line
+  computes independently), else the `<form>`. `data-ac-compute-decimals="2"` rounds the result. A **safe
+  arithmetic evaluator** (`+ - * / ( )`, numbers, field names — never `eval`; divide-by-zero → 0, malformed
+  degrades to 0). Shipped as `compute.js` (imported in `app.js`), wired to `DOMContentLoaded` +
+  `ac:repeater:added` so new repeater rows compute too.
+- The generated hasMany **row partial** now ships a commented `line_total` example showing the pattern.
+
+Publish the updated frontend assets (`compute.js` + `app.js`) and rebuild (`npm run build`).
 
 **Singleton resources (`--singleton`).** Some admin screens edit **one** record, not a table — Settings, a
 company profile, the current user's profile. `--singleton` scaffolds a model-backed, validated **edit form +

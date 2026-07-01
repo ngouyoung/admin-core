@@ -1,0 +1,146 @@
+// ---------------------------------------------------------------------------
+// Live computed fields — a field whose value is derived from sibling fields and
+// updated as the user types. Put data-ac-compute="qty * unit_price" on an input
+// (it fills + posts the value) or any element (it shows the result as text).
+//
+// Referenced names resolve within the enclosing repeater ROW ([data-ac-repeater-row])
+// first, else the <form> — so a master-detail line's line_total = qty * unit_price
+// updates per row, independently. A safe arithmetic evaluator (+ - * / ( ), numbers
+// and field names) — never eval(). Optional data-ac-compute-decimals="2" rounds it.
+//
+//   <input readonly data-ac-compute="qty * unit_price" data-ac-compute-decimals="2" ...>
+//   <span data-ac-compute="qty * conversion_factor">0</span>
+//
+// A compute may reference ANOTHER computed field (chained) in any order — the pass settles to a fixpoint. A
+// field must NOT reference its own name (a self-read resolves to 0). A form-level compute reads only form-level
+// fields, never a repeater row's — there's no cross-row aggregation; use a `rollup` column for a document total.
+// ---------------------------------------------------------------------------
+
+// A tiny recursive-descent evaluator: expr = term (('+'|'-') term)*, term = factor
+// (('*'|'/') factor)*, factor = number | name | '(' expr ')' | '-' factor. Unknown
+// input degrades to 0 rather than throwing. `resolve(name)` returns a field's number.
+function acComputeEval(expr, resolve) {
+    var s = String(expr || '');
+    var pos = 0;
+    var skip = function () { while (pos < s.length && s[pos] === ' ') pos++; };
+
+    function parseExpr() {
+        var v = parseTerm();
+        skip();
+        while (s[pos] === '+' || s[pos] === '-') {
+            var op = s[pos++];
+            var r = parseTerm();
+            v = op === '+' ? v + r : v - r;
+            skip();
+        }
+        return v;
+    }
+    function parseTerm() {
+        var v = parseFactor();
+        skip();
+        while (s[pos] === '*' || s[pos] === '/') {
+            var op = s[pos++];
+            var r = parseFactor();
+            v = op === '*' ? v * r : (r === 0 ? 0 : v / r); // divide-by-zero → 0, not Infinity
+            skip();
+        }
+        return v;
+    }
+    function parseFactor() {
+        skip();
+        if (s[pos] === '(') {
+            pos++;
+            var v = parseExpr();
+            skip();
+            if (s[pos] === ')') pos++;
+            return v;
+        }
+        if (s[pos] === '-') { pos++; return -parseFactor(); }
+        var num = /^[0-9]*\.?[0-9]+/.exec(s.slice(pos));
+        if (num) { pos += num[0].length; return parseFloat(num[0]); }
+        var id = /^[A-Za-z_][A-Za-z0-9_]*/.exec(s.slice(pos));
+        if (id) { pos += id[0].length; var n = Number(resolve(id[0])); return isNaN(n) ? 0 : n; }
+        pos++; // an unexpected character — consume it and treat as 0 so we never loop
+        return 0;
+    }
+
+    var result = parseExpr();
+    return isFinite(result) ? result : 0;
+}
+
+// The numeric value of a sibling field named `name`, within `scope`. Matches a repeater row's
+// name[<idx>][name] (name$="[name]") first, then a flat name="name" / #name. Skips `self` (so a computed field
+// can't read its OWN value and drift). When not rowScoped (a form-level compute), never reaches into a repeater
+// row's field — so a header field can't silently read row 0. Missing/blank → 0.
+function acComputeResolve(scope, name, self, rowScoped) {
+    var pick = function (sel) {
+        var els = scope.querySelectorAll(sel);
+        for (var i = 0; i < els.length; i++) {
+            if (els[i] === self) { continue; }
+            if (!rowScoped && els[i].closest('[data-ac-repeater-row]')) { continue; }
+            return els[i];
+        }
+        return null;
+    };
+    var el = pick('[name$="[' + name + ']"]') || pick('[name="' + name + '"]') || pick('#' + name);
+    if (!el) return 0;
+    var v = parseFloat(el.value);
+    return isNaN(v) ? 0 : v;
+}
+
+// Recompute one element from its data-ac-compute expression.
+function acComputeOne(el) {
+    var row = el.closest('[data-ac-repeater-row]');
+    var scope = row || el.closest('form') || document;
+    var val = acComputeEval(el.getAttribute('data-ac-compute'), function (name) {
+        return acComputeResolve(scope, name, el, !!row);
+    });
+
+    var dec = el.getAttribute('data-ac-compute-decimals');
+    if (dec !== null && dec !== '') {
+        var d = parseInt(dec, 10);
+        if (isNaN(d)) { d = 0; }
+        val = val.toFixed(Math.max(0, Math.min(100, d))); // toFixed only accepts 0..100 — clamp, never throw
+    } else {
+        val = Math.round(val * 1e6) / 1e6; // trim binary-float noise (0.1 + 0.2)
+    }
+
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+        el.value = val;
+    } else {
+        el.textContent = String(val);
+    }
+}
+
+// Recompute every data-ac-compute in a scope. Iterates to a fixpoint (bounded) so a compute that references
+// ANOTHER computed field settles regardless of DOM order; a per-field try/catch means one bad field (e.g. a
+// malformed expression) can't kill the rest of the pass.
+function acComputeScope(scope) {
+    var els = (scope || document).querySelectorAll('[data-ac-compute]');
+    if (! els.length) { return; }
+    var isField = function (el) { return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT'; };
+    for (var pass = 0; pass < 5; pass++) {
+        var changed = false;
+        els.forEach(function (el) {
+            var before = isField(el) ? el.value : el.textContent;
+            try { acComputeOne(el); } catch (e) { return; }
+            if ((isField(el) ? el.value : el.textContent) !== before) { changed = true; }
+        });
+        if (! changed) { break; }
+    }
+}
+
+// Any edit inside a row/form that holds computes re-derives that scope's computes, live.
+function acComputeOnInput(e) {
+    var scope = e.target.closest('[data-ac-repeater-row]') || e.target.closest('form');
+    if (scope && scope.querySelector('[data-ac-compute]')) {
+        acComputeScope(scope);
+    }
+}
+document.addEventListener('input', acComputeOnInput);
+document.addEventListener('change', acComputeOnInput);
+document.addEventListener('DOMContentLoaded', function () { acComputeScope(document); });
+// A repeater row just added — seed its computes from any prefilled values.
+document.addEventListener('ac:repeater:added', function (e) {
+    acComputeScope((e.detail && e.detail.repeater) || e.target || document);
+});
