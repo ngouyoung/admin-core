@@ -89,6 +89,32 @@ it('renders a card with header, body and footer slots', function () {
         ->toContain('Flush')->not->toContain('card-body');
 });
 
+it('renders transition buttons — a plain action posts, an input action opens a modal with its fields', function () {
+    $items = [
+        ['key' => 'post', 'label' => 'Post', 'icon' => 'bi bi-send', 'color' => 'success',
+            'url' => '/admin/x/transition/1/post', 'confirm' => null, 'form' => null],
+        ['key' => 'close', 'label' => 'Close', 'icon' => null, 'color' => 'primary',
+            'url' => '/admin/x/transition/1/close', 'confirm' => null, 'form' => [
+                ['name' => 'counted', 'label' => 'Counted', 'type' => 'number', 'options' => [], 'required' => true],
+                ['name' => 'method', 'label' => 'Method', 'type' => 'select', 'options' => ['cash' => 'Cash'], 'required' => false],
+                ['name' => 'note', 'label' => 'Note', 'type' => 'textarea', 'options' => [], 'required' => false],
+            ]],
+    ];
+    $html = Blade::render('<x-admin-core::transitions :items="$items" />', ['items' => $items]);
+
+    // Plain action: a POST form carrying the idempotency token.
+    expect($html)->toContain('action="/admin/x/transition/1/post"')
+        ->toContain('name="_idempotency_key"');
+
+    // Input action: a button that opens the modal + the modal with one control per field.
+    expect($html)->toContain('data-bs-target="#ac-tr-close"')
+        ->toContain('id="ac-tr-close"')                       // the modal
+        ->toContain('type="number"')->toContain('name="counted"')
+        ->toContain('<select name="method"')->toContain('>Cash<')
+        ->toContain('<textarea name="note"')
+        ->toContain('action="/admin/x/transition/1/close"');  // modal form posts to the transition
+});
+
 it('renders form-actions with a submit button and a cancel link', function () {
     $html = Blade::render('<x-admin-core::form-actions submit="Create" cancel="/admin/x" />');
 

@@ -55,6 +55,17 @@ class ActionWidgetController extends WebController
             Transition::make('cancel')->fromAny()->to('cancelled')->withoutPermission(),
             Transition::make('reopen')->from('cancelled')->to('draft')
                 ->guard(fn ($record) => $record->name !== 'locked-reopen'), // a vetoing guard
+
+            // A state transition that COLLECTS validated input — the validated values reach the handler.
+            Transition::make('close')->from('confirmed')->to('closed')->withoutPermission()
+                ->form(['counted' => ['required', 'numeric', 'min:0'], 'note' => ['nullable', 'string']])
+                ->handle(fn ($record, array $input) => $record->photo = 'counted:' . $input['counted'] . '|note:' . ($input['note'] ?? '')),
+
+            // A PURE action (no ->to()) — runs a side-effect without moving state, idempotent via the submit token.
+            Transition::make('pay-in')->fromAny()->withoutPermission()
+                ->guard(fn ($record) => $record->name !== 'no-payin') // a vetoing guard, for the release test
+                ->form(['amount' => ['required', 'numeric', 'min:1']])
+                ->handle(fn ($record, array $input) => $record->sort = (int) $record->sort + (int) $input['amount']),
         ];
     }
 

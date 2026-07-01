@@ -522,6 +522,56 @@ Action::make('refund')->requiresApproval()
 Run `php artisan admin-core:install` (adds `Route::adminCoreApprovals()`) + `php artisan migrate` (the
 `approvals` table), and grant `approve-{action}-{resource}` to your approver role.
 
+### Document state machine — transitions + input actions
+
+A document-style resource declares a `transitions()` state machine — each `Transition` is a show-page button
+that moves one record between states, **atomically** (lock → verify the `from` state → run the side-effect →
+claim the `to` state in one transaction, so a double-click can't post twice), gated by `{key}-{resource}`:
+
+```php
+protected function transitions(): array
+{
+    return [
+        Transition::make('post')->from('confirmed')->to('posted')->confirm()
+            ->handle(fn ($record) => $record->postToStock()),
+    ];
+}
+```
+
+**Actions that take input.** Add a `form()` and the action collects **validated input** first (the show page
+auto-renders a modal); the validated values reach the handler's second argument — so close-with-a-count,
+approve-with-a-note, ship-with-a-tracking-number, refund-with-an-amount no longer drop you into a bespoke route:
+
+```php
+Transition::make('close')->from('open')->to('closed')
+    ->form([
+        'closing_counted' => ['required', 'numeric', 'min:0'],          // → number input, required
+        'note'            => ['nullable', 'string'],                    // → text input
+        'method'          => ['rules' => ['required'], 'type' => 'select', 'options' => ['cash' => 'Cash', 'card' => 'Card']],
+    ])
+    ->handle(fn ($record, array $input) => app(ShiftService::class)->close($record, $input));
+```
+
+The input is validated **before** the lock (an invalid form redirects back with errors and re-opens the modal,
+holding no lock). Field types are inferred from the rules (`numeric`→number, `boolean`→checkbox, `date`→date,
+else text) or set explicitly (`type` ⇒ `text`/`number`/`textarea`/`select`/`date`/`checkbox`).
+
+**Pure actions (no state move).** Pass `to(null)` (or just omit `to()`) and the action runs its
+guarded + validated + atomic handler **without** advancing a state column — a cash pay-in, a recompute. With no
+state to claim, the action is kept idempotent by the form's one-time submit token (a double-submit 409s; a
+failed run releases the token so a genuine retry still goes through), the same guard the create form uses — so
+the auto-rendered modal always carries it. A direct/programmatic POST that omits `_idempotency_key` (or with
+`admin-core.forms.idempotency` off) isn't deduped, exactly as for any form:
+
+```php
+Transition::make('pay-in')->fromAny()
+    ->form(['amount' => ['required', 'numeric', 'min:1'], 'reason' => ['nullable', 'string']])
+    ->handle(fn ($record, array $input) => app(ShiftService::class)->payIn($record, $input));
+```
+
+A handler written `fn ($record) => …` (one parameter) still works — it just ignores the input. The
+`transition` route is wired by `Route::crud()` (skipped on a `--read-only` resource).
+
 ### Drag-to-reorder (`--sortable`)
 
 ```bash

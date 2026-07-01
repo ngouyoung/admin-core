@@ -18,6 +18,14 @@ use Illuminate\Support\Str;
  * and the atomic state change (lock → verify the `from` state → run the handler → set the `to` state, all in
  * one transaction, so a double-click can't run the side-effect twice). A record in a locked state can't be
  * edited or deleted.
+ *
+ * An action can also collect VALIDATED INPUT — declare a `form()` and the validated values reach the handler's
+ * second argument (the show page auto-renders a modal); and `to(null)` runs a side-effect WITHOUT moving state
+ * (a pure action — e.g. a cash pay-in), kept idempotent by the form's one-time submit token:
+ *
+ *   Transition::make('close')->from('open')->to('closed')
+ *       ->form(['closing_counted' => ['required', 'numeric', 'min:0'], 'note' => ['nullable', 'string']])
+ *       ->handle(fn ($record, array $input) => app(ShiftService::class)->close($record, $input))
  */
 class Transition
 {
@@ -30,7 +38,11 @@ class Transition
     /** @var array<int, string> source states ('*' = any) */
     protected array $from = [];
 
-    protected string $to = '';
+    /** Target state, or null for a pure action that runs a side-effect without moving state. */
+    protected ?string $to = null;
+
+    /** @var array<string, mixed>|Closure|null  field => rules (or a rich descriptor); null = no input form */
+    protected $form = null;
 
     protected ?string $permission = null;
 
@@ -88,9 +100,26 @@ class Transition
         return $this;
     }
 
-    public function to(string $state): static
+    /** The target state. Pass null (or never call this) for a pure action that doesn't move state. */
+    public function to(?string $state): static
     {
         $this->to = $state;
+
+        return $this;
+    }
+
+    /**
+     * Collect validated input before running — `field => rules`, or the rich form
+     * `field => ['rules' => [...], 'type' => 'number|text|textarea|select|date|checkbox', 'label' => '...',
+     * 'options' => [...]]`. The validated values are passed to the handler's second argument, and the show page
+     * renders a modal from this schema. A Closure schema is re-evaluated on each render + POST (no memoisation),
+     * so keep it cheap — resolve a small options list, not an expensive query per call.
+     *
+     * @param  array<string, mixed>|Closure  $schema
+     */
+    public function form(array|Closure $schema): static
+    {
+        $this->form = $schema;
 
         return $this;
     }
@@ -139,9 +168,97 @@ class Transition
         return $this->key;
     }
 
-    public function toState(): string
+    public function toState(): ?string
     {
         return $this->to;
+    }
+
+    /** Does this transition move the state column? (False = a pure side-effect action.) */
+    public function movesState(): bool
+    {
+        return $this->to !== null && $this->to !== '';
+    }
+
+    public function hasForm(): bool
+    {
+        return $this->form !== null;
+    }
+
+    /**
+     * The validation rules for the input form, `field => rules`.
+     *
+     * @return array<string, mixed>
+     */
+    public function formRules(): array
+    {
+        $rules = [];
+        foreach ($this->resolveForm() as $field => $def) {
+            $rules[$field] = is_array($def) && array_key_exists('rules', $def) ? $def['rules'] : $def;
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Field descriptors for the auto-rendered modal: name, label, type, options, required.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function formFields(): array
+    {
+        $fields = [];
+        foreach ($this->resolveForm() as $field => $def) {
+            $rich = is_array($def) && array_key_exists('rules', $def);
+            $rules = $rich ? $def['rules'] : $def;
+            $flat = is_array($rules) ? $rules : explode('|', (string) $rules);
+
+            $fields[] = [
+                'name' => $field,
+                'label' => ($rich ? ($def['label'] ?? null) : null) ?? Str::headline($field),
+                'type' => ($rich ? ($def['type'] ?? null) : null) ?? $this->inferType($flat),
+                'options' => $rich ? ($def['options'] ?? []) : [],
+                'required' => $this->flatHas($flat, 'required'),
+            ];
+        }
+
+        return $fields;
+    }
+
+    /** @return array<string, mixed> */
+    private function resolveForm(): array
+    {
+        $form = $this->form instanceof Closure ? ($this->form)() : $this->form;
+
+        return is_array($form) ? $form : [];
+    }
+
+    /** @param  array<int, mixed>  $rules */
+    private function inferType(array $rules): string
+    {
+        if ($this->flatHas($rules, 'numeric') || $this->flatHas($rules, 'integer')) {
+            return 'number';
+        }
+        if ($this->flatHas($rules, 'boolean')) {
+            return 'checkbox';
+        }
+        if ($this->flatHas($rules, 'date')) {
+            return 'date';
+        }
+
+        return 'text';
+    }
+
+    /** Whether a (flat) rules list contains a rule (matching its bare name, e.g. "min:0" matches "min"). */
+    private function flatHas(array $rules, string $name): bool
+    {
+        foreach ($rules as $rule) {
+            $bare = is_string($rule) ? strtolower(explode(':', $rule, 2)[0]) : '';
+            if ($bare === $name) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function getColor(): string
@@ -201,16 +318,21 @@ class Transition
         return $this->guard === null || (bool) ($this->guard)($record);
     }
 
-    /** Run the side-effect (if any) over the record. */
-    public function run(Model $record): void
+    /**
+     * Run the side-effect (if any) over the record, passing the validated form input. A handler declared with a
+     * single parameter (`fn ($record) => …`) simply ignores the second argument — backward-compatible.
+     *
+     * @param  array<string, mixed>  $input
+     */
+    public function run(Model $record, array $input = []): void
     {
         if ($this->handler !== null) {
-            ($this->handler)($record);
+            ($this->handler)($record, $input);
         }
     }
 
     /**
-     * Serialise for the show-page buttons.
+     * Serialise for the show-page buttons (+ the modal when the action collects input).
      *
      * @return array<string, mixed>
      */
@@ -223,6 +345,7 @@ class Transition
             'color' => $this->color,
             'url' => $url,
             'confirm' => $this->resolveConfirm(),
+            'form' => $this->hasForm() ? $this->formFields() : null,
         ];
     }
 }

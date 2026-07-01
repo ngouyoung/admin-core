@@ -1197,27 +1197,49 @@ abstract class WebController extends BaseController
         abort_if($resolved === null, 404);
         abort_unless($this->canTransition($resolved), 403);
 
+        // Validate the posted input BEFORE locking (so an invalid form never holds a row lock) — a failure
+        // throws ValidationException and redirects back with errors, exactly like any form. [] when no form.
+        $input = $resolved->hasForm() ? $request->validate($resolved->formRules()) : [];
+
+        // A pure action (no state move) has no state to claim — dedupe a double-submit via the form's one-time
+        // submit token, claimed up front (atomic put-if-absent). A repeat 409s; a failed run releases it below,
+        // so a genuine retry (same token) still goes through. A state-moving transition uses its state-claim.
+        $isPure = ! $resolved->movesState();
+        if ($isPure) {
+            abort_unless($this->claimSubmitToken(), 409);
+        }
+
         $key = $this->service->query()->getModel()->getRouteKeyName();
-        DB::transaction(function () use ($resolved, $id, $key) {
-            $record = $this->service->query()->where($key, $id)->lockForUpdate()->firstOrFail();
-            $current = (string) ($record->{$this->stateColumn} ?? '');
+        try {
+            DB::transaction(function () use ($resolved, $id, $key, $input) {
+                $record = $this->service->query()->where($key, $id)->lockForUpdate()->firstOrFail();
+                $current = (string) ($record->{$this->stateColumn} ?? '');
 
-            abort_unless($resolved->appliesTo($current), 409); // wrong state — already transitioned, or invalid
-            abort_unless($resolved->passesGuard($record), 422);
+                abort_unless($resolved->appliesTo($current), 409); // wrong state — already transitioned, or invalid
+                abort_unless($resolved->passesGuard($record), 422);
 
-            // Atomic claim: advance the state with a conditional update keyed on the state we just read, so a
-            // concurrent or double-submitted transition can't also win (correct even where lockForUpdate is a
-            // no-op, e.g. SQLite). 0 rows affected = lost the race.
-            $claimed = $this->service->query()->where($key, $id)->where($this->stateColumn, $current)
-                ->update([$this->stateColumn => $resolved->toState()]) === 1;
-            abort_unless($claimed, 409);
+                if ($resolved->movesState()) {
+                    // Atomic claim: advance the state with a conditional update keyed on the state we just read,
+                    // so a concurrent or double-submitted transition can't also win (correct even where
+                    // lockForUpdate is a no-op, e.g. SQLite). 0 rows affected = lost the race.
+                    $claimed = $this->service->query()->where($key, $id)->where($this->stateColumn, $current)
+                        ->update([$this->stateColumn => $resolved->toState()]) === 1;
+                    abort_unless($claimed, 409);
+                    $record->{$this->stateColumn} = $resolved->toState();
+                }
 
-            // Sync the in-memory model to the claimed state, then run the side-effect; a throw rolls the whole
-            // transaction back (the claim included), so a failed side-effect never leaves the record advanced.
-            $record->{$this->stateColumn} = $resolved->toState();
-            $resolved->run($record); // the side-effect (post movements, etc.)
-            $record->save();         // persist any mutations the handler made on the record
-        });
+                // Run the side-effect with the validated input; a throw rolls the whole transaction back (the
+                // state claim included), so a failed side-effect never leaves the record advanced.
+                $resolved->run($record, $input);
+                $record->save(); // persist any mutations the handler made on the record
+            });
+        } catch (\Throwable $e) {
+            if ($isPure) {
+                $this->releaseSubmitToken(); // the action didn't complete — don't burn its token
+            }
+
+            throw $e;
+        }
 
         return back()->with('success', __('admin-core::admin-core.states.transitioned'));
     }

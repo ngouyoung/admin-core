@@ -2,7 +2,30 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
-## v2.75.0
+## v2.76.0
+
+**Form-input transitions + pure actions.** A document action can now collect **validated input** and run a
+**side-effect without moving state** — closing the single most recurring gap found dogfooding SMPOS (close-shift
+needs a counted figure, checkout needs a payment method + amount, void needs a reason). Until now `runTransition`
+locked/claimed/guarded/ran a handler atomically but never read a request body, so the instant an action needed
+one field you fell off the skeleton into a bespoke route + controller + FormRequest + lock + idempotency you
+already had for free.
+
+### Added
+- **`Transition::form($schema)`** — declare `field => rules` (or the rich `field => ['rules' => [...], 'type' =>
+  ..., 'label' => ..., 'options' => [...]]`). The action's show-page button auto-renders a **modal**; the input
+  is validated **before** the lock and the validated values reach the handler's **second argument**:
+  `->handle(fn ($record, array $input) => …)`. A one-parameter handler still works (ignores the input).
+- **`Transition::to(null)`** (or omitting `to()`) — a **pure action** that runs the guarded + validated + atomic
+  handler **without** advancing a state column (a cash pay-in, a recompute). Kept idempotent by the form's
+  one-time submit token (`_idempotency_key`), so a double-submit 409s — the same guard the create form uses.
+  A state-moving transition keeps its atomic conditional state-claim.
+- Field types inferred from the rules (`numeric`→number, `boolean`→checkbox, `date`→date, else text) or set
+  explicitly; the modal re-opens with errors + the entered values after a failed validation.
+
+### Changed
+- `Transition::run()` now takes the validated input as a second argument (`run($record, array $input = [])`) —
+  backward-compatible with existing one-arg handlers.
 
 **Read-only resources (`--read-only`).** `admin-core:make Report --read-only` scaffolds a list + show + export
 (with the DataTable filters/totals) but no create/edit/delete/import — a report stays inside the skeleton

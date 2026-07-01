@@ -76,6 +76,71 @@ it('cannot run the same transition twice — the atomic state change wins once',
     expect($w->fresh()->status)->toBe('confirmed');
 });
 
+// -- Form-input actions (validated input → handler) --------------------------------------------------
+
+it('validates posted input and passes it to the handler of a state transition', function () {
+    $w = Widget::create(['name' => 'Doc', 'status' => 'confirmed']);
+
+    $this->post(transition($w, 'close'), ['counted' => '500', 'note' => 'ok'])->assertRedirect();
+
+    expect($w->fresh()->status)->toBe('closed')                       // state moved
+        ->and($w->fresh()->photo)->toBe('counted:500|note:ok');       // the validated input reached the handler
+});
+
+it('rejects invalid input (errors back) and leaves the record untouched — no lock held on a bad form', function () {
+    $w = Widget::create(['name' => 'Doc', 'status' => 'confirmed']);
+
+    $this->post(transition($w, 'close'), ['counted' => '', 'note' => 'x']) // counted is required|numeric
+        ->assertRedirect()->assertSessionHasErrors('counted');
+
+    expect($w->fresh()->status)->toBe('confirmed')                  // state NOT moved
+        ->and($w->fresh()->photo)->toBeNull();                     // handler never ran
+});
+
+it('runs a PURE action (no state move) and persists its side-effect', function () {
+    $w = Widget::create(['name' => 'Doc', 'status' => 'draft']);
+    $w->forceFill(['sort' => 0])->save();
+
+    $this->post(transition($w, 'pay-in'), ['amount' => '10', '_idempotency_key' => 'tok-a'])->assertRedirect();
+
+    expect($w->fresh()->sort)->toBe(10)            // the side-effect ran
+        ->and($w->fresh()->status)->toBe('draft'); // state UNCHANGED (pure action)
+});
+
+it('makes a pure action idempotent via the submit token (a double-submit runs once)', function () {
+    $w = Widget::create(['name' => 'Doc', 'status' => 'draft']);
+    $w->forceFill(['sort' => 0])->save();
+
+    $this->post(transition($w, 'pay-in'), ['amount' => '10', '_idempotency_key' => 'dup'])->assertRedirect();
+    $this->post(transition($w, 'pay-in'), ['amount' => '10', '_idempotency_key' => 'dup'])->assertStatus(409); // same token
+    $this->post(transition($w, 'pay-in'), ['amount' => '5', '_idempotency_key' => 'fresh'])->assertRedirect(); // new token
+
+    expect($w->fresh()->sort)->toBe(15); // 10 (once, not twice) + 5
+});
+
+it('releases a pure action token when the run is vetoed, so a corrected retry with the same token goes through', function () {
+    $w = Widget::create(['name' => 'no-payin', 'status' => 'draft']); // the pay-in guard vetoes this name
+    $w->forceFill(['sort' => 0])->save();
+
+    $this->post(transition($w, 'pay-in'), ['amount' => '10', '_idempotency_key' => 'retry'])->assertStatus(422);
+    $w->forceFill(['name' => 'ok'])->save(); // fix the vetoing condition
+
+    // The veto released the token, so the same token now runs (not a stale 409 that jams the action forever).
+    $this->post(transition($w, 'pay-in'), ['amount' => '10', '_idempotency_key' => 'retry'])->assertRedirect();
+    expect($w->fresh()->sort)->toBe(10);
+});
+
+it('surfaces the form fields in the show-page transition descriptor', function () {
+    $controller = app(ActionWidgetController::class);
+    $close = collect($controller->exposedTransitions(Widget::create(['name' => 'a', 'status' => 'confirmed'])))
+        ->firstWhere('key', 'close');
+
+    expect($close['form'])->toBeArray()
+        ->and(collect($close['form'])->pluck('name')->all())->toBe(['counted', 'note'])
+        ->and(collect($close['form'])->firstWhere('name', 'counted'))
+            ->toMatchArray(['type' => 'number', 'required' => true]); // inferred from numeric + required
+});
+
 // -- Permission gate ---------------------------------------------------------------------------------
 
 it('forbids a gated transition without the permission', function () {
