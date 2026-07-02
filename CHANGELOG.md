@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.3
+
+**Fix: the JSON API write path skipped the field-permission / state-column / locked-state guards the web
+surface enforces.** `ApiController::store/update/destroy` wrote the validated payload straight to the service —
+so on a resource with `--api`, a user holding the coarse `edit-…` permission could, over JSON, set a field
+guarded by a `fieldPermissions()` entry (e.g. `cost`), set the `status` column directly (bypassing a
+`transitions()` state machine), or edit/delete a record in a `$lockedStates` state — all of which the web
+`store/update/destroy` refuse. The base `ApiController` now applies the same three guards (a shared
+`Concerns\GuardsResourceWrites` trait, mirroring `WebController`): `store`/`update` strip denied fields + the
+state column, and `update`/`destroy` refuse a locked record (403). **Backward-compatible** — every guard is a
+no-op until the resource declares a policy. A resource opts its API in by declaring the same
+`fieldPermissions()` / `transitions()` / `$lockedStates` on its `…ApiController` as on its web twin (the
+generated stub now scaffolds these, plus an `$apiGuard` for token-authenticated APIs). Regression tests drive
+an API controller that declares all three through store/update/destroy (field stripped, state stripped, locked
+update/destroy → 403), mutation-verified. Found by a full-package audit.
+
 ## v2.79.2
 
 **Fix: a `status:enum` state column crashed the document state machine.** `WebController::transitionsFor()`,

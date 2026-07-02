@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\DB;
  */
 abstract class ApiController extends BaseController
 {
+    use Concerns\GuardsResourceWrites;
+
     /** @var class-string<JsonResource> The resource used to serialise responses. */
     protected string $resource;
 
@@ -97,7 +99,9 @@ abstract class ApiController extends BaseController
 
     public function store(): JsonResponse
     {
-        $data = app($this->storeRequest)->validated();
+        // Same write-time guards as the web store(): drop fields the user may not write, and refuse a direct
+        // set of the state column (it moves only through a transition). No-ops unless the resource declares a policy.
+        $data = $this->stripStateColumn($this->stripDeniedFields(app($this->storeRequest)->validated()));
         $object = DB::transaction(fn () => $this->service->create($data));
 
         return (new ($this->resource)($object))->response()->setStatusCode(201);
@@ -105,7 +109,8 @@ abstract class ApiController extends BaseController
 
     public function update(string $id): JsonResource
     {
-        $data = app($this->updateRequest)->validated();
+        $this->guardLocked($id); // a posted/locked document is read-only on the API too
+        $data = $this->stripStateColumn($this->stripDeniedFields(app($this->updateRequest)->validated()));
         $object = DB::transaction(fn () => $this->service->update($id, $data));
 
         return new ($this->resource)($object);
@@ -113,6 +118,7 @@ abstract class ApiController extends BaseController
 
     public function destroy(string $id): JsonResponse
     {
+        $this->guardLocked($id); // a locked document can't be deleted via the API either
         $this->service->delete($id);
 
         return response()->json(['data' => true]);

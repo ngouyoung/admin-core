@@ -88,5 +88,13 @@ abstract class TestCase extends Orchestra
         // JSON API index (top-level, like a real api.php module) — exercises
         // ApiController's search/sort/filter list query.
         Route::middleware('web')->get('api/widgets', [WidgetApiController::class, 'index'])->name('api.widgets.index');
+
+        // JSON API write routes for a policy-declaring controller — exercises ApiController's write-time guards
+        // (field-permission stripping, state-column stripping, locked-state refusal) at parity with the web store/update.
+        Route::middleware('web')->group(function () {
+            Route::post('api/policy-widgets', [\Ngos\AdminCore\Tests\Fixtures\PolicyWidgetApiController::class, 'store']);
+            Route::put('api/policy-widgets/{id}', [\Ngos\AdminCore\Tests\Fixtures\PolicyWidgetApiController::class, 'update']);
+            Route::delete('api/policy-widgets/{id}', [\Ngos\AdminCore\Tests\Fixtures\PolicyWidgetApiController::class, 'destroy']);
+        });
     }
 }

@@ -29,4 +29,27 @@ class DummyClassApiController extends ApiController
         $this->service = $service;
         $this->resource = DummyClassResource::class;__AC_ASSIGN_REQUESTS__
     }
+
+    // -- Write policy (optional) — declare the SAME policy as your web DummyClassController so the JSON API
+    //    enforces it too: store/update strip a field the user may not write, store/update refuse to set the
+    //    state column directly (transition-only), and update/destroy refuse a locked record. All no-ops until
+    //    declared. (The route's permission middleware still gates the coarse create/edit/delete either way.)
+    //
+    // protected array $lockedStates = ['posted', 'cancelled'];
+    //
+    // If your API authenticates on a non-default guard (Sanctum/Passport), set it here so the field-permission
+    // check resolves the right user (else it fails safe and strips every permissioned field):
+    // protected ?string $apiGuard = 'sanctum';
+    //
+    // /** @return array<string, string> field => permission required to write it */
+    // protected function fieldPermissions(): array
+    // {
+    //     return ['cost' => 'edit-cost-dummy-model'];
+    // }
+    //
+    // /** @return array<int, \Ngos\AdminCore\States\Transition> mirror the web controller's transitions() */
+    // protected function transitions(): array
+    // {
+    //     return [\Ngos\AdminCore\States\Transition::make('post')->from('draft')->to('posted')];
+    // }
 }
