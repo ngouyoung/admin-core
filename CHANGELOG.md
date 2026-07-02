@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.6
+
+**Fix: a `unique` rule on a `money` column compared the wrong scale (off by the currency factor).** A money
+column stores exact MINOR units (1500) but the form posts the MAJOR amount ("15.00"), and validation runs
+before the `MoneyCast` — so a generated `unique:table,price` compared "15.00" against the stored 1500. It missed
+a real duplicate (which then hit the DB unique index as a 500) and could wrongly reject a genuinely unique value
+(e.g. `$0.15`, stored 15, "already taken" when a `$15.00` row exists). A single-column money unique
+(`price:money^`) now emits a new `Rules\UniqueMoney` that converts the posted amount to minor units with the
+column's currency before checking. A per-record (`@currency`) money column, or a money column inside a
+`--unique` **composite**, is now rejected at generation with a clear message (uniqueness across mixed currencies
+is undefined, and a composite `->where` can't convert cleanly — use a single-column money unique or a custom
+rule). Regression tests cover the generated rule, both rejections, and the rule's minor-unit comparison
+(duplicate caught, false positive avoided, self-ignored on update). Found by a full-package audit.
+
 ## v2.79.5
 
 **Fix: CSV import bypassed the field-permission and state-column write guards.** `WebController::import()` wrote

@@ -182,7 +182,17 @@ class FieldSet
                 if (in_array($byName[$col]['type'], $nonIndexable, true)) {
                     throw new \InvalidArgumentException(
                         "admin-core: --unique can't include '{$col}' ({$byName[$col]['type']}) — a composite unique "
-                        . 'needs scalar columns (string, integer, money, foreign, enum, date, …).',
+                        . 'needs scalar columns (string, integer, foreign, enum, date, …).',
+                    );
+                }
+                if ($byName[$col]['type'] === 'money') {
+                    // A composite ->where('price', $this->input('price')) would compare the posted major amount
+                    // against the stored minor units (wrong by the currency scale). A single-column money unique
+                    // (price:money^) converts correctly via UniqueMoney; a composite one isn't supported.
+                    throw new \InvalidArgumentException(
+                        "admin-core: --unique can't include the money column '{$col}' — its stored minor-unit value "
+                        . "won't match the posted amount in a composite check. Use a single-column money unique "
+                        . "('{$col}:money^') or a custom rule.",
                     );
                 }
             }
@@ -1884,13 +1894,30 @@ PHP;
                 // resource, exclude trashed rows so a deleted value can be reused.
                 $ignoreColumn = $this->uuid ? 'uuid' : 'id';
                 $trashed = $this->softDeletes ? '->withoutTrashed()' : '';
-                // Update uses the imported short `Rule` (see updateUses()); store has no import slot, so it
-                // uses the fully-qualified name — same as the enum rule already does.
-                $rules[] = $update
-                    ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'), '{$ignoreColumn}'){$trashed}"
-                    : ($this->softDeletes
-                        ? "\\Illuminate\\Validation\\Rule::unique('{$this->table}', '{$f['name']}')->withoutTrashed()"
-                        : "'unique:{$this->table},{$f['name']}'");
+                if ($f['type'] === 'money') {
+                    // A money column stores minor units but the form posts the major amount, so a plain unique
+                    // rule compares the wrong scale — use UniqueMoney, which converts first. A per-record
+                    // (@currency) money column can't be unique (mixed-currency uniqueness is undefined).
+                    if ($f['currencyColumn'] !== null) {
+                        throw new \InvalidArgumentException(
+                            "admin-core: a per-record (@currency) money column ('{$f['name']}') can't be unique — "
+                            . 'uniqueness across amounts in different currencies is undefined.',
+                        );
+                    }
+                    $curArg = $f['currency'] !== null ? "'{$f['currency']}'" : 'null';
+                    $wt = $this->softDeletes ? 'true' : 'false';
+                    $rules[] = $update
+                        ? "new \\Ngos\\AdminCore\\Rules\\UniqueMoney('{$this->table}', '{$f['name']}', {$curArg}, \$this->route('id'), '{$ignoreColumn}', {$wt})"
+                        : "new \\Ngos\\AdminCore\\Rules\\UniqueMoney('{$this->table}', '{$f['name']}', {$curArg}, null, 'id', {$wt})";
+                } else {
+                    // Update uses the imported short `Rule` (see updateUses()); store has no import slot, so it
+                    // uses the fully-qualified name — same as the enum rule already does.
+                    $rules[] = $update
+                        ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'), '{$ignoreColumn}'){$trashed}"
+                        : ($this->softDeletes
+                            ? "\\Illuminate\\Validation\\Rule::unique('{$this->table}', '{$f['name']}')->withoutTrashed()"
+                            : "'unique:{$this->table},{$f['name']}'");
+                }
             }
 
             // A composite-unique group rides on its first column, with a ->where() for each of the others, so a
