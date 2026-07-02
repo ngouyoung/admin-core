@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.2
+
+**Fix: a `status:enum` state column crashed the document state machine.** `WebController::transitionsFor()`,
+`runTransition()` and `isLockedState()` read the state column as `(string) ($record->{$stateColumn} ?? '')` —
+but a generated `status:enum` resource **casts** that column to a `BackedEnum`, and `(string) $enum` throws a
+fatal `TypeError`. So **any** resource pairing `status:enum` with `transitions()` 500'd on its show page, its
+`/transition` POST, and its edit / delete / bulk-delete lock check. All three now read through a new
+`currentState()` helper that unwraps the enum (a `BackedEnum` by its `value`, a pure `UnitEnum` by its `name`)
+before comparing; a plain-string column is unchanged. The same `(string) $value` hazard in `Support\Search`'s
+label builder (an enum column configured as searchable) is unwrapped the same way. Regression tests drive a
+real enum-cast record through all three sites over HTTP (transition applied, invalid transition 409, locked
+edit/delete forbidden) — reverting any one site now 500s the suite instead of shipping silently. Found
+rebuilding SMPOS from scratch (its Sale / Purchase / Shift documents all pair `status:enum` with state-machine
+transitions), then hardened by an adversarial review.
+
 ## v2.79.1
 
 **Fix: `--audit` without soft-deletes crashed at boot.** `LogsActivity::bootLogsActivity()` called

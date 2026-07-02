@@ -4,6 +4,8 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Ngos\AdminCore\Tests\Fixtures\ActionWidgetController;
+use Ngos\AdminCore\Tests\Fixtures\EnumWidget;
+use Ngos\AdminCore\Tests\Fixtures\EnumWidgetStatus;
 use Ngos\AdminCore\Tests\Fixtures\NotifiableUser;
 use Ngos\AdminCore\Tests\Fixtures\Widget;
 
@@ -239,3 +241,64 @@ it('exposes only the transitions valid for the current state', function () {
     $posted = collect($controller->exposedTransitions(Widget::create(['name' => 'b', 'status' => 'posted'])))->pluck('key')->all();
     expect($posted)->toContain('cancel')->not->toContain('confirm', 'post');
 });
+
+// -- Enum-cast state columns -------------------------------------------------------------------------
+
+it('handles an ENUM-CAST state column (generated status:enum) without a string-cast fatal', function () {
+    // A generated document model casts `status` to a backed enum; (string) $enum fatals, so the state
+    // machine must unwrap the backing value everywhere it reads the column.
+    $w = Widget::create(['name' => 'Doc', 'status' => 'draft']);
+    $w->mergeCasts(['status' => TransitionTestStatus::class]);
+    expect($w->status)->toBeInstanceOf(TransitionTestStatus::class); // really enum-cast now
+
+    $controller = app(ActionWidgetController::class);
+
+    // transitionsFor (the show page) reads the state — must resolve 'draft' transitions, not fatal.
+    $keys = collect($controller->exposedTransitions($w))->pluck('key')->all();
+    expect($keys)->toContain('confirm')->not->toContain('post');
+});
+
+// EnumWidget CLASS-casts status to a backed enum, so these HTTP paths re-fetch an enum-cast record — covering
+// the two sites transitionsFor() can't reach: runTransition() (POST) and isLockedState() (the lock guard).
+
+it('runs an HTTP transition on an ENUM-CAST status column — runTransition unwraps the enum, no fatal', function () {
+    $w = EnumWidget::create(['name' => 'Doc', 'status' => 'draft']);
+
+    $this->post('/admin/enum-widgets/transition/' . $w->id . '/confirm')->assertRedirect();
+
+    expect($w->fresh()->status)->toBe(EnumWidgetStatus::Confirmed); // moved; (string)$enum would have 500'd
+});
+
+it('rejects an HTTP transition invalid for the ENUM-CAST current state (409, not a 500)', function () {
+    $w = EnumWidget::create(['name' => 'Doc', 'status' => 'draft']); // post is from "confirmed"
+
+    $this->post('/admin/enum-widgets/transition/' . $w->id . '/post')->assertStatus(409);
+
+    expect($w->fresh()->status)->toBe(EnumWidgetStatus::Draft);
+});
+
+it('locks edit + delete on an ENUM-CAST status column in a locked state — isLockedState unwraps the enum', function () {
+    $w = EnumWidget::create(['name' => 'Doc', 'status' => 'posted']); // 'posted' is locked
+
+    $this->put('/admin/enum-widgets/update/' . $w->id, ['name' => 'Changed'])->assertForbidden();
+    $this->delete('/admin/enum-widgets/delete/' . $w->id)->assertForbidden();
+
+    expect($w->fresh()->name)->toBe('Doc'); // unchanged — and no 500 from a string-cast on the enum
+});
+
+it('still allows edit on an ENUM-CAST status column in an unlocked state', function () {
+    $w = EnumWidget::create(['name' => 'Doc', 'status' => 'draft']);
+
+    $this->put('/admin/enum-widgets/update/' . $w->id, ['name' => 'Changed'])->assertRedirect();
+
+    expect($w->fresh()->name)->toBe('Changed');
+});
+
+enum TransitionTestStatus: string
+{
+    case Draft = 'draft';
+    case Confirmed = 'confirmed';
+    case Posted = 'posted';
+    case Cancelled = 'cancelled';
+    case Closed = 'closed';
+}

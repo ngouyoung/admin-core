@@ -1162,6 +1162,26 @@ abstract class WebController extends BaseController
     }
 
     /**
+     * The record's current state as a plain string. The state column is often ENUM-CAST on a generated model
+     * (status:enum) — an enum object can't be (string)-cast, so unwrap it first: a BackedEnum by its value
+     * (what the generator emits), a pure UnitEnum by its case name (how Laravel stores a non-backed cast).
+     */
+    protected function currentState($record): string
+    {
+        $raw = $record->{$this->stateColumn} ?? '';
+
+        if ($raw instanceof \BackedEnum) {
+            return (string) $raw->value;
+        }
+
+        if ($raw instanceof \UnitEnum) {
+            return $raw->name;
+        }
+
+        return (string) $raw;
+    }
+
+    /**
      * The transitions available for a record's current state that the current user may run — as button
      * descriptors for the show page.
      *
@@ -1173,7 +1193,7 @@ abstract class WebController extends BaseController
             return [];
         }
 
-        $current = (string) ($record->{$this->stateColumn} ?? '');
+        $current = $this->currentState($record);
         $items = [];
         foreach ($this->transitions() as $transition) {
             if ($transition->appliesTo($current) && $this->canTransition($transition) && $transition->passesGuard($record)) {
@@ -1213,7 +1233,7 @@ abstract class WebController extends BaseController
         try {
             DB::transaction(function () use ($resolved, $id, $key, $input) {
                 $record = $this->service->query()->where($key, $id)->lockForUpdate()->firstOrFail();
-                $current = (string) ($record->{$this->stateColumn} ?? '');
+                $current = $this->currentState($record);
 
                 abort_unless($resolved->appliesTo($current), 409); // wrong state — already transitioned, or invalid
                 abort_unless($resolved->passesGuard($record), 422);
@@ -1273,7 +1293,7 @@ abstract class WebController extends BaseController
     /** Is the record currently in a locked state? */
     protected function isLockedState($record): bool
     {
-        return in_array((string) ($record->{$this->stateColumn} ?? ''), $this->lockedStates, true);
+        return in_array($this->currentState($record), $this->lockedStates, true);
     }
 
     /**

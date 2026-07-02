@@ -63,6 +63,12 @@ abstract class TestCase extends Orchestra
                 Route::post('bulkDelete', [ActionWidgetController::class, 'bulkDelete'])->name('bulkDelete');
             });
 
+            // A state machine over an ENUM-CAST status column — exercises the transition/lock paths that
+            // re-fetch the record (runTransition, isLockedState) against a real backed-enum cast.
+            Route::prefix('enum-widgets')->name('enumWidgets.')->group(function () {
+                Route::crud('enum-widget', \Ngos\AdminCore\Tests\Fixtures\EnumWidgetController::class);
+            });
+
             // A singleton (one-record) screen — index (edit form) + update (save), no list/create/delete.
             Route::prefix('settings')->name('settings.')->group(function () {
                 Route::crudSingleton('setting', \Ngos\AdminCore\Tests\Fixtures\SettingSingletonController::class);

@@ -87,6 +87,13 @@ class Search
             if (is_array($value)) {
                 $value = $value[app()->getLocale()] ?? (reset($value) ?: null);
             }
+            // A searched column may be ENUM-CAST (status:enum) — an enum object can't be (string)-cast, so
+            // unwrap it (backing value, or case name for a pure enum) as we do for the transition state column.
+            if ($value instanceof \BackedEnum) {
+                $value = $value->value;
+            } elseif ($value instanceof \UnitEnum) {
+                $value = $value->name;
+            }
             if (filled($value)) {
                 return (string) $value;
             }
