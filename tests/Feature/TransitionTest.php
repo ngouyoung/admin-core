@@ -78,6 +78,15 @@ it('cannot run the same transition twice — the atomic state change wins once',
     expect($w->fresh()->status)->toBe('confirmed');
 });
 
+it('runs a fromAny transition on a record whose state is NULL (the claim matches NULL, not a spurious 409)', function () {
+    $w = Widget::create(['name' => 'NoStatus']); // status NULL (legacy/seeded row, or created before the machine)
+
+    // 'cancel' is ->fromAny()->to('cancelled'); the button shows, and clicking it must actually move the state.
+    $this->post(transition($w, 'cancel'))->assertRedirect();
+
+    expect($w->fresh()->status)->toBe('cancelled');
+});
+
 // -- Form-input actions (validated input → handler) --------------------------------------------------
 
 it('validates posted input and passes it to the handler of a state transition', function () {

@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.11
+
+**Fix: a `fromAny` transition on a NULL-status record always 409'd.** The atomic state-claim matched the current
+state with `where(stateColumn, $current)`, and `currentState()` maps a NULL column to `''` — but SQL
+`status = ''` never matches NULL, so the claim affected 0 rows and aborted 409, even though the transition
+button was shown (a legacy/seeded row, or one created before the state machine existed). The claim now matches
+a NULL column with `whereNull(...)`, so a `fromAny` (`*`) transition moves it correctly. Regression test covers
+a NULL-state record through a `fromAny` transition (mutation-verified). Found by a full-package audit.
+
 ## v2.79.10
 
 **Fix: a MyMemory quota/error response was stored as the translation.** MyMemory returns HTTP **200** for logical

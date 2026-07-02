@@ -1245,8 +1245,14 @@ abstract class WebController extends BaseController
                     // Atomic claim: advance the state with a conditional update keyed on the state we just read,
                     // so a concurrent or double-submitted transition can't also win (correct even where
                     // lockForUpdate is a no-op, e.g. SQLite). 0 rows affected = lost the race.
-                    $claimed = $this->service->query()->where($key, $id)->where($this->stateColumn, $current)
-                        ->update([$this->stateColumn => $resolved->toState()]) === 1;
+                    // Match the stored value by its null-ness: a NULL column needs whereNull, since
+                    // `where(col, '')` never matches NULL — which made a fromAny transition on a NULL-status
+                    // record always lose the claim (a spurious 409 though the button showed).
+                    $claim = $this->service->query()->where($key, $id);
+                    $claim = $record->{$this->stateColumn} === null
+                        ? $claim->whereNull($this->stateColumn)
+                        : $claim->where($this->stateColumn, $current);
+                    $claimed = $claim->update([$this->stateColumn => $resolved->toState()]) === 1;
                     abort_unless($claimed, 409);
                     $record->{$this->stateColumn} = $resolved->toState();
                 }
