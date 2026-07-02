@@ -43,8 +43,14 @@ class DashboardContext
 
         // Explicit custom window wins; its previous period is the same-length window immediately before it
         // (disjoint — ends one second before the current window starts). A reversed from/to is normalised.
-        $rawFrom = $request->date('from');
-        $rawTo = $request->date('to');
+        // Request::date() runs Carbon::parse on the raw query input, which THROWS on an unparseable value
+        // (?from=garbage) — guard it so a malformed date falls back to the preset range instead of a 500.
+        try {
+            $rawFrom = $request->date('from');
+            $rawTo = $request->date('to');
+        } catch (\Throwable) {
+            $rawFrom = $rawTo = null;
+        }
         if ($rawFrom && $rawTo) {
             $from = CarbonImmutable::parse($rawFrom);
             $to = CarbonImmutable::parse($rawTo);

@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.13
+
+**Fix: a malformed `?from`/`?to` on the dashboard returned a 500.** `DashboardContext::fromRequest()` read the
+custom window with `$request->date('from')`, which runs `Carbon::parse` on the raw query value and **throws**
+`InvalidFormatException` on anything unparseable (`?from=garbage`, `?to=2020-13-99`) — an uncaught 500 on the
+dashboard page and the widget AJAX endpoint. The parse is now guarded, so a bad date falls back to the preset
+range instead. Regression test drives a malformed `from`/`to` and asserts the default preset (mutation-verified).
+Found by a full-package audit.
+
 ## v2.79.12
 
 **Fix: audit logging could roll back the write it was observing.** `LogsActivity::recordActivity()` resolved the

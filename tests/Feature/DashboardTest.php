@@ -68,6 +68,15 @@ it('caches a widget payload for its TTL so the data closure runs once', function
     expect($calls)->toBe(1);
 });
 
+it('falls back to the preset range on a malformed ?from/?to (no 500)', function () {
+    // Request::date('from') runs Carbon::parse on the raw value — 'garbage' would throw. The context must
+    // degrade to the default preset, not bubble a 500.
+    $ctx = DashboardContext::fromRequest(new Illuminate\Http\Request(['from' => 'garbage', 'to' => 'not-a-date']));
+
+    expect($ctx->range)->toBe(config('admin-core.dashboard.default_range', '30d'))
+        ->and($ctx->range)->not->toBe('custom');
+});
+
 it('builds a date range + previous comparison window from a preset', function () {
     $now = CarbonImmutable::parse('2026-06-15 12:00:00');
 
