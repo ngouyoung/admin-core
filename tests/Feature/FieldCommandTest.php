@@ -61,6 +61,18 @@ it('adds a field to a resource whose $fillable is empty without writing invalid 
     expect(fn () => token_get_all($patched, TOKEN_PARSE))->not->toThrow(ParseError::class);
 });
 
+it('skips a media/gallery field (needs the HasMedia trait the full generator wires), not half-wiring it', function () {
+    makeGizmo();
+
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'photos:gallery'])
+        ->expectsOutputToContain('needs the full generator')
+        ->assertSuccessful();
+
+    // Not patched into the model, and no orphan migration — otherwise the edit page 500s on $object->mediaIn().
+    expect(File::get(app_path('Models/Gizmo.php')))->not->toContain("'photos'");
+    expect(glob(database_path('migrations/*_add_photos_to_gizmos_table.php')))->toBeEmpty();
+});
+
 it('adds new fields across migration, model, requests, views and factory', function () {
     makeGizmo();
 

@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.21
+
+**Fix: `admin-core:field` half-wired a `media`/`gallery` field.** Its "needs the full generator" skip list
+covered `image`/`file` but omitted `media`/`gallery`, so those leaked through and were patched into the form +
+model + migration **without** the `HasMedia` trait and library sync the full generator adds. The result: the
+edit page called `$object->mediaIn('photos')` on a model with no such method (a 500) plus a no-op migration
+whose `down()` dropped a non-existent column. `media`/`gallery` are now skipped with the same "regenerate with
+`admin-core:make … --force`" guidance as `image`/`file`. Regression test asserts the field is skipped and
+nothing is patched/migrated. Found by a second full-package audit.
+
 ## v2.79.20
 
 **Fix: `admin-core:field` wrote invalid PHP when the model's `$fillable` was empty.** The fillable patch

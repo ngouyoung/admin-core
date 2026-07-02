@@ -102,7 +102,10 @@ class AdminCoreFieldCommand extends Command
         }
         $needsWiring = array_map(fn ($f) => $f['name'], array_filter(
             $parsed,
-            fn ($f) => in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file'], true) || ! empty($f['system']),
+            // media/gallery need the HasMedia trait + library sync (like image/file) — this command can't
+            // surgically add the trait, so skip them rather than patch a form that calls $model->mediaIn() on
+            // a model that has no such method (a 500 on the edit page) + a no-op migration.
+            fn ($f) => in_array($f['type'], ['foreign', 'belongsToMany', 'image', 'file', 'media', 'gallery'], true) || ! empty($f['system']),
         ));
         foreach ($needsWiring as $name) {
             $this->warn("  needs the full generator — skipped: {$name} (relation/upload/system field; regenerate with `admin-core:make {$class} --fields=\"…\" --force`, or wire it by hand)");
