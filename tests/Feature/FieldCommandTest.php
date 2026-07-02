@@ -73,6 +73,20 @@ it('skips a media/gallery field (needs the HasMedia trait the full generator wir
     expect(glob(database_path('migrations/*_add_photos_to_gizmos_table.php')))->toBeEmpty();
 });
 
+it('skips a hasMany field (needs the child model + repeater wiring), not half-wiring it', function () {
+    makeGizmo();
+
+    // hasMany needs a child model/table, the repeater row partial and controller sync — none of which this
+    // command can patch. Half-wiring it would 500 the create/edit form (repeater with no row partial).
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'lines:hasMany'])
+        ->expectsOutputToContain('needs the full generator')
+        ->assertSuccessful();
+
+    expect(File::get(app_path('Models/Gizmo.php')))->not->toContain('lines');
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))->not->toContain('lines');
+    expect(glob(database_path('migrations/*_add_lines_to_gizmos_table.php')))->toBeEmpty();
+});
+
 it('adds new fields across migration, model, requests, views and factory', function () {
     makeGizmo();
 

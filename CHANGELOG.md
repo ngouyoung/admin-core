@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.29
+
+**Fix: `admin-core:field` half-wired a `hasMany` field instead of skipping it.** The needs-full-generator skip
+list covered `foreign`/`belongsToMany`/`media`/`gallery`/uploads but missed `hasMany` — so
+`admin-core:field Order "lines:hasMany"` patched a repeater into the form with no child model, no row partial
+and no controller sync, 500-ing the create/edit pages. `hasMany` is now skipped with the same
+"needs the full generator" warning as its siblings. Regression test asserts nothing is patched into the model,
+form or migrations (mutation-verified). Completes the v2.79.21 skip-list fix — the list now covers every
+FieldSet relation/wiring type. Found by a third full-package audit.
+
 ## v2.79.28
 
 **Fix: `admin-core:page` accepted names that scaffold broken PHP and brick the app.** `Str::studly()` keeps
