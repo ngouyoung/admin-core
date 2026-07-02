@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.30
+
+**Fix: lazy/auto-refresh dashboard widgets ignored a custom date window.** The widget endpoint URL carried only
+`?range=`, but the endpoint rebuilds its context from its own request — and `range=custom` without `from`/`to`
+falls back to the default preset. So on a dashboard filtered to a custom window (`?from=…&to=…`), every lazy or
+auto-refreshing widget quietly rendered default-range (30-day) numbers next to correctly-scoped inline widgets.
+The URL now carries the actual window: `from`/`to` for a custom range, `?range=` for presets. Regression test
+renders the dashboard under a custom-window request and asserts the widget URL carries both dates
+(mutation-verified). Found by a third full-package audit.
+
 ## v2.79.29
 
 **Fix: `admin-core:field` half-wired a `hasMany` field instead of skipping it.** The needs-full-generator skip

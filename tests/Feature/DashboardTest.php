@@ -141,6 +141,23 @@ it('renders a lazy widget as a skeleton + endpoint url (not inline)', function (
         ->not->toContain('Heavy'); // the value loads via the endpoint, so the title isn't rendered inline
 });
 
+it('carries a custom from/to window on the lazy widget endpoint url', function () {
+    config(['admin-core.dashboard.widgets' => [
+        ['type' => 'stat', 'key' => 'heavy', 'title' => 'Heavy', 'lazy' => true, 'value' => fn () => 1],
+    ]]);
+    Route::middleware('web')->prefix('admin')->name('admin.')->group(fn () => Route::adminCoreDashboard());
+    Route::getRoutes()->refreshNameLookups(); // tests add routes after boot; refresh so Route::has() sees it
+
+    // The endpoint rebuilds the context from ITS OWN request — a bare ?range=custom would fall back to the
+    // default preset, so a custom-range dashboard would quietly lazy-load 30-day data. The widget URL must
+    // carry the actual window.
+    $this->app->instance('request', Illuminate\Http\Request::create('/admin/dashboard', 'GET', ['from' => '2026-01-05', 'to' => '2026-01-20']));
+
+    expect(Blade::render('<x-admin-core::dashboard />'))
+        ->toContain('from=2026-01-05')
+        ->toContain('to=2026-01-20');
+});
+
 it('does not share a cached payload between two different custom date windows', function () {
     cache()->flush();
     $calls = 0;

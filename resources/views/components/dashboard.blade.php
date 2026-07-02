@@ -11,6 +11,12 @@
 
     $acPrefix = config('admin-core.route.name_prefix');
     $acHasEndpoint = \Illuminate\Support\Facades\Route::has($acPrefix . 'dashboard.widget');
+    // The lazy/refresh endpoint rebuilds the context from ITS request, so the widget URL must carry the
+    // whole window: a custom range travels as from/to (range=custom alone would fall back to the default
+    // preset and quietly render 30-day data), presets travel as ?range=.
+    $acWindowQuery = http_build_query($acContext->range === 'custom' && $acContext->hasRange()
+        ? ['from' => $acContext->from->toDateString(), 'to' => $acContext->to->toDateString()]
+        : ['range' => $acContext->range]);
     $acCanCustomize = config('admin-core.dashboard.customizable', true)
         && auth()->check()
         && \Illuminate\Support\Facades\Route::has($acPrefix . 'dashboard.layout');
@@ -56,7 +62,7 @@
     @forelse ($acWidgets as $acWidget)
         @php
             $acSpan = max(1, min(12, $acWidget->colSpan()));
-            $acUrl = $acHasEndpoint ? route($acPrefix . 'dashboard.widget', $acWidget->key()) . '?range=' . $acContext->range : null;
+            $acUrl = $acHasEndpoint ? route($acPrefix . 'dashboard.widget', $acWidget->key()) . '?' . $acWindowQuery : null;
             $acLazy = $acWidget->lazy() && $acUrl;
             $acRefresh = $acWidget->refreshSeconds() > 0 && $acUrl ? $acWidget->refreshSeconds() : null;
         @endphp
