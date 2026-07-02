@@ -17,9 +17,16 @@ class AdminCoreUninstallCommand extends Command
     {
         $purge = $this->option('purge');
 
-        $warning = $purge
-            ? 'This will un-wire admin-core AND delete the files it published (config, layout, access module, front-end kit).'
-            : 'This will un-wire admin-core (routes, middleware alias, User trait). Published files stay on disk.';
+        if ($purge) {
+            // Informed consent: --purge deletes owned paths whether or not you edited them, so a customised
+            // layout / app.scss / dashboard view goes too. Show the count + spell out that local edits are lost.
+            $existing = array_filter($this->ownedFiles(), fn ($f) => File::exists($f) && ! File::isDirectory($f));
+            $warning = 'This will un-wire admin-core AND permanently delete the ' . count($existing) . ' published '
+                . 'file(s) (config, layout, access module, front-end kit) — INCLUDING any local edits you made to '
+                . 'them. Back up anything you customised first.';
+        } else {
+            $warning = 'This will un-wire admin-core (routes, middleware alias, User trait). Published files stay on disk.';
+        }
         $this->warn($warning);
 
         if (! $this->option('force') && ! $this->confirm('Continue?', false)) {

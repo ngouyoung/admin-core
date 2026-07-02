@@ -72,6 +72,14 @@ it('un-registers the --api-auth provider from bootstrap/providers.php (host prov
     $original === null ? File::delete($path) : File::put($path, $original);
 });
 
+it('warns that --purge deletes customised files too (informed consent), and aborts on "no"', function () {
+    $this->artisan('admin-core:uninstall', ['--purge' => true])
+        ->expectsOutputToContain('INCLUDING any local edits you made to them')
+        ->expectsConfirmation('Continue?', 'no')
+        ->expectsOutput('Aborted.')
+        ->assertExitCode(0);
+});
+
 it('lists the --api-auth files among the purge targets (so --purge deletes them, not orphans)', function () {
     $command = new \Ngos\AdminCore\Console\AdminCoreUninstallCommand();
     $owned = (new ReflectionMethod($command, 'ownedFiles'))->invoke($command);

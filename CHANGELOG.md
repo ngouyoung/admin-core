@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.17
+
+**Hardening: `uninstall --purge` now gives informed consent before deleting customised files.** `--purge` deletes
+every path admin-core published (config, layout, `app.js`/`app.scss`, dashboard + login views, the access module)
+whether or not you edited it — so a customised layout or theme went too, with only a generic warning. The
+confirmation now states the exact file count and spells out that **local edits to those files are lost**, so the
+choice is informed. (No change to what's deleted; `--purge` is still opt-in + confirmed.) Regression test asserts
+the warning and that answering "no" aborts. Found by a full-package audit.
+
 ## v2.79.16
 
 **Hardening: escape the row key in the data-table checkbox render.** `datatable.js` built the select-row checkbox
