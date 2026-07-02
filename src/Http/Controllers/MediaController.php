@@ -63,7 +63,10 @@ class MediaController extends Controller
                 'mimes:' . config('admin-core.uploads.allowed_mimes', 'jpg,jpeg,png,webp,gif,pdf,doc,docx,xls,xlsx,csv,txt,zip'),
                 'max:' . (int) config('admin-core.uploads.max_kb', 12288),
             ],
-            'collection' => ['nullable', 'string', 'max:191'],
+            // A single path-safe segment — it's concatenated into the storage dir ('media/'.$collection), so
+            // reject '../..', slashes, dots, etc. (which would path-traverse to the disk root or crash
+            // Flysystem) with a clean 422 instead.
+            'collection' => ['nullable', 'string', 'max:191', 'regex:/^[A-Za-z0-9_-]+$/'],
         ]);
 
         $items = collect($request->file('files'))

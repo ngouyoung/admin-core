@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.14
+
+**Fix: the media-upload `collection` field wasn't path-validated.** It was validated only as
+`nullable|string|max:191`, then concatenated into the storage directory (`'media/'.$collection`). A crafted
+value like `../..` path-traversed to the disk root (misplacing the file) or crashed Flysystem's
+`PathTraversalDetected` as an unhandled 500. `collection` is now restricted to a safe single segment
+(`[A-Za-z0-9_-]+`), so a bad value fails with a clean 422. Regression tests cover the rejection + a valid name.
+Found by a full-package audit.
+
 ## v2.79.13
 
 **Fix: a malformed `?from`/`?to` on the dashboard returned a 500.** `DashboardContext::fromRequest()` read the

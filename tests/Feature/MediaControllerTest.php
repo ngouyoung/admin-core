@@ -48,6 +48,24 @@ it('rejects an upload that carries no files', function () {
     expect(MediaItem::count())->toBe(0);
 });
 
+it('rejects a path-traversing collection name with a clean 422 (not a Flysystem crash / misplaced file)', function () {
+    $this->post(
+        '/admin/media/upload',
+        ['files' => [UploadedFile::fake()->image('a.png')], 'collection' => '../..'],
+        ['Accept' => 'application/json'],
+    )->assertStatus(422)->assertJsonValidationErrors('collection');
+
+    expect(MediaItem::count())->toBe(0); // never reaches the disk
+});
+
+it('accepts a safe collection name', function () {
+    $this->post('/admin/media/upload', [
+        'files' => [UploadedFile::fake()->image('a.png')], 'collection' => 'product_photos',
+    ])->assertOk();
+
+    expect(MediaItem::first()->collection)->toBe('product_photos');
+});
+
 it('rejects a dangerous upload (svg / executable) via the allowlist', function () {
     $this->post(
         '/admin/media/upload',
