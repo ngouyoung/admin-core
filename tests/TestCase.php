@@ -61,6 +61,7 @@ abstract class TestCase extends Orchestra
             Route::prefix('action-widgets')->name('actionWidgets.')->group(function () {
                 Route::crud('action-widget', ActionWidgetController::class);
                 Route::post('bulkDelete', [ActionWidgetController::class, 'bulkDelete'])->name('bulkDelete');
+                Route::post('import', [ActionWidgetController::class, 'import'])->name('import'); // CSV import (write-policy guarded)
             });
 
             // A state machine over an ENUM-CAST status column — exercises the transition/lock paths that

@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.5
+
+**Fix: CSV import bypassed the field-permission and state-column write guards.** `WebController::import()` wrote
+each validated row straight to the service, skipping the `stripDeniedFields()` + `stripStateColumn()` that
+`store()`/`update()` apply. So a user with the `create-…` permission (which gates import) could, by uploading a
+CSV, set a field they're forbidden to write via a `fieldPermissions()` entry, or import a row directly into a
+`transitions()`-owned state (e.g. born `posted`, then locked) — the two guards the create form enforces.
+`import()` now applies the same `stripStateColumn(stripDeniedFields(...))` per row. No-op unless the resource
+declares a policy. Regression tests import a CSV carrying a denied field and a state column and assert both are
+stripped (mutation-verified). Found by a full-package audit.
+
 ## v2.79.4
 
 **Fix: a `computed` division crashed on a zero denominator.** A `computed` field like `unit_price:computed:total/qty`

@@ -643,7 +643,10 @@ abstract class WebController extends BaseController
                 continue;
             }
 
-            DB::transaction(fn () => $this->service->create($validator->validated()));
+            // Same write-time guards as store(): a CSV must not let a user set a field they can't write
+            // (fieldPermissions) nor import a row directly into a state the transition machine owns.
+            $data = $this->stripStateColumn($this->stripDeniedFields($validator->validated()));
+            DB::transaction(fn () => $this->service->create($data));
             $imported++;
         }
         fclose($handle);
