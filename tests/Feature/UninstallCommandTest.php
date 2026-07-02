@@ -80,6 +80,28 @@ it('warns that --purge deletes customised files too (informed consent), and abor
         ->assertExitCode(0);
 });
 
+it('excludes the frontend/access tree from purge targets on a minimal install (no framework file deletion)', function () {
+    File::deleteDirectory(resource_path('js')); // ensure no frontend-kit signal → a minimal install
+    $command = new \Ngos\AdminCore\Console\AdminCoreUninstallCommand();
+    $owned = (new ReflectionMethod($command, 'ownedFiles'))->invoke($command);
+
+    // The framework-owned resources/js/app.js must NOT be a purge target; the minimal config IS ours.
+    expect($owned)->not->toContain(resource_path('js/app.js'))
+        ->and($owned)->toContain(config_path('admin-core.php'));
+});
+
+it('claims the frontend/access tree when the kit IS installed', function () {
+    File::ensureDirectoryExists(resource_path('js'));
+    File::copy(dirname(__DIR__, 2) . '/stubs/frontend/resources/js/datatable.js.stub', resource_path('js/datatable.js'));
+
+    $command = new \Ngos\AdminCore\Console\AdminCoreUninstallCommand();
+    $owned = (new ReflectionMethod($command, 'ownedFiles'))->invoke($command);
+
+    expect($owned)->toContain(resource_path('js/app.js')); // now ours to purge
+
+    File::deleteDirectory(resource_path('js'));
+});
+
 it('lists the --api-auth files among the purge targets (so --purge deletes them, not orphans)', function () {
     $command = new \Ngos\AdminCore\Console\AdminCoreUninstallCommand();
     $owned = (new ReflectionMethod($command, 'ownedFiles'))->invoke($command);

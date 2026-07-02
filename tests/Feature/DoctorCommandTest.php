@@ -18,8 +18,27 @@ function doctorDest(): string
     return resource_path('js/datepicker.js');
 }
 
+beforeEach(function () {
+    // Establish the "frontend kit installed" signal (an admin-core-specific asset), so doctor actually
+    // inspects files — on a minimal install it (correctly) skips, and would otherwise report nothing here.
+    File::ensureDirectoryExists(resource_path('js'));
+    File::copy(dirname(__DIR__, 2) . '/stubs/frontend/resources/js/datatable.js.stub', resource_path('js/datatable.js'));
+});
+
 afterEach(function () {
     File::deleteDirectory(resource_path('js'));
+});
+
+it('skips entirely when the frontend kit is not installed (minimal install — no false drift)', function () {
+    File::deleteDirectory(resource_path('js'));   // undo the beforeEach signal → a minimal (config-only) install
+    File::ensureDirectoryExists(dirname(doctorDest()));
+    File::put(doctorDest(), "// a framework/CDN default, NOT ours to manage\n");
+
+    $this->artisan('admin-core:doctor')
+        ->expectsOutputToContain('frontend kit not installed')
+        ->assertSuccessful(); // no false "drifted"/"missing", exit 0
+
+    expect(File::get(doctorDest()))->toBe("// a framework/CDN default, NOT ours to manage\n"); // untouched
 });
 
 it('reports a file that matches the package as in sync (no drift for it)', function () {

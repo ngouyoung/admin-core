@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.22
+
+**Fix: lifecycle commands treated the `--access` frontend kit as always-installed.** `uninstall`'s
+`ownedFiles()` and `doctor`'s `managedFiles()` unconditionally mapped the whole `frontend/resources` +
+`frontend/views/backend` + access-module tree to the app — but that tree is published only by
+`install --access`. After a **minimal** install those destinations hold the framework's own files (e.g.
+`resources/js/app.js`): so `uninstall --purge` / `reinstall` deleted the framework's `app.js` (breaking the Vite
+build), and `doctor` reported the minimal app as "drifted" (false failure) — with `--fix --force` overwriting a
+working minimal layout with the theme stub (dashboard 500). Both commands now detect the kit via an
+admin-core-specific asset (`resources/js/datatable.js` / `resources/sass/app.scss`) and only claim/inspect the
+frontend tree when it's actually installed; `doctor` prints "frontend kit not installed" and exits clean
+otherwise. Regression tests cover the minimal-install skip on both commands. Found by a second full-package audit.
+
 ## v2.79.21
 
 **Fix: `admin-core:field` half-wired a `media`/`gallery` field.** Its "needs the full generator" skip list

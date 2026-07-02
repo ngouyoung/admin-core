@@ -177,30 +177,45 @@ class AdminCoreUninstallCommand extends Command
             app_path('Providers/ApiAuthServiceProvider.php'),
         ];
 
-        $map = [
-            'frontend/resources' => resource_path(),
-            'frontend/views/backend' => resource_path('views/backend'),
-            'access/Models' => app_path('Models'),
-            'access/Auth' => app_path('Http/Controllers/Auth'),
-            'access/Http' => app_path('Http'),
-            'access/Services' => app_path('Services'),
-            'access/database/seeders' => database_path('seeders'),
-            'access/database/migrations' => database_path('migrations'),
-            'access/views/backend' => resource_path('views/backend'),
-        ];
+        // The frontend kit + access module (the `$map` tree) is published ONLY by `install --access`. On a
+        // minimal install those destinations hold the FRAMEWORK's own files (e.g. resources/js/app.js) — not
+        // ours — so purging them by path would delete the user's/framework's files. Only claim the tree when
+        // the kit was actually installed here.
+        if ($this->frontendKitInstalled()) {
+            $map = [
+                'frontend/resources' => resource_path(),
+                'frontend/views/backend' => resource_path('views/backend'),
+                'access/Models' => app_path('Models'),
+                'access/Auth' => app_path('Http/Controllers/Auth'),
+                'access/Http' => app_path('Http'),
+                'access/Services' => app_path('Services'),
+                'access/database/seeders' => database_path('seeders'),
+                'access/database/migrations' => database_path('migrations'),
+                'access/views/backend' => resource_path('views/backend'),
+            ];
 
-        foreach ($map as $rel => $dest) {
-            $src = __DIR__ . '/../../stubs/' . $rel;
-            if (! File::isDirectory($src)) {
-                continue;
-            }
-            foreach (File::allFiles($src) as $file) {
-                $relative = ltrim(str_replace($src, '', $file->getPathname()), DIRECTORY_SEPARATOR);
-                $files[] = $dest . DIRECTORY_SEPARATOR . preg_replace('/\.stub$/', '', $relative);
+            foreach ($map as $rel => $dest) {
+                $src = __DIR__ . '/../../stubs/' . $rel;
+                if (! File::isDirectory($src)) {
+                    continue;
+                }
+                foreach (File::allFiles($src) as $file) {
+                    $relative = ltrim(str_replace($src, '', $file->getPathname()), DIRECTORY_SEPARATOR);
+                    $files[] = $dest . DIRECTORY_SEPARATOR . preg_replace('/\.stub$/', '', $relative);
+                }
             }
         }
 
         return array_unique($files);
+    }
+
+    /**
+     * Was the --access frontend kit actually installed here? Detected by an admin-core-specific asset a minimal
+     * (config-only) install never publishes and a default Laravel app doesn't have.
+     */
+    private function frontendKitInstalled(): bool
+    {
+        return File::exists(resource_path('js/datatable.js')) || File::exists(resource_path('sass/app.scss'));
     }
 
     private function removeEmptyDirs(): void

@@ -34,6 +34,15 @@ class AdminCoreDoctorCommand extends Command
 
     public function handle(): int
     {
+        // Only the --access frontend kit publishes these files. On a minimal install the target paths hold the
+        // framework's own defaults (e.g. resources/js/app.js) — comparing them to our stubs falsely reports
+        // "drifted"/"missing", and --fix --force would overwrite a working minimal app with the theme stub.
+        if (! $this->frontendKitInstalled()) {
+            $this->line('admin-core frontend kit not installed (run <info>admin-core:install --access</info>) — nothing to check.');
+
+            return self::SUCCESS;
+        }
+
         $managed = $this->managedFiles();
 
         $ok = $drift = $missing = [];
@@ -103,6 +112,15 @@ class AdminCoreDoctorCommand extends Command
      *
      * @return array<string, string>
      */
+    /**
+     * Was the --access frontend kit actually installed here? Detected by an admin-core-specific asset that a
+     * minimal (config-only) install never publishes and a default Laravel app doesn't have.
+     */
+    private function frontendKitInstalled(): bool
+    {
+        return File::exists(resource_path('js/datatable.js')) || File::exists(resource_path('sass/app.scss'));
+    }
+
     private function managedFiles(): array
     {
         $fe = __DIR__ . '/../../stubs/frontend';
