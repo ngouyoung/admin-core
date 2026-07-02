@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.25
+
+**Fix: `admin-core:make --portal` didn't singularize the portal name like `admin-core:portal`.** `make` used
+`Str::kebab($portal)` while `admin-core:portal` builds the guard + route loader from `Str::kebab(Str::singular(…))`.
+So `admin-core:portal merchants` created the `merchant` guard globbing `routes/Merchant/Modules`, but
+`admin-core:make Order --portal=merchants` wrote the route module to the never-globbed `routes/Merchants/Modules`
+(a 404) and seeded permissions on a nonexistent `merchants` guard. `make` now singularizes too, so a plural
+portal name routes into the real portal. Regression test generates with `--portal=merchants` and asserts the
+module lands in `Merchant/` (not `Merchants/`) on the `merchant` guard. Found by a second full-package audit.
+
 ## v2.79.24
 
 **Hardening: `AutoTranslate` ran for unauthenticated requests (quota-drain vector).** The middleware sits on the

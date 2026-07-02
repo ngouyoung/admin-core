@@ -1442,6 +1442,21 @@ it('points filter-tabs at the enum column counting only displayed columns (passw
         ->not->toContain("'data' => 'secret'");        // password is not a table column
 });
 
+it('singularizes a plural --portal name to match admin-core:portal (merchants → merchant)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--portal' => 'merchants', // PLURAL — admin-core:portal builds the guard/loader from the singular
+    ])->assertSuccessful();
+
+    // Lands in the SINGULAR portal dir + guard (the one admin-core:portal globs), not the never-loaded Merchants/.
+    expect(File::exists(base_path('routes/Merchant/Modules/gizmos.php')))->toBeTrue()
+        ->and(File::exists(base_path('routes/Merchants/Modules/gizmos.php')))->toBeFalse();
+    expect(File::get(base_path('routes/Merchant/Modules/gizmos.php')))
+        ->toContain("Route::crud('gizmo', GizmoController::class, 'merchant')")
+        ->toContain('permission:list-gizmo,merchant');
+});
+
 it('routes a resource into a portal with --portal (dir + route-names + controller prefix + guard)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

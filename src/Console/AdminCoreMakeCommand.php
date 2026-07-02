@@ -102,7 +102,9 @@ class AdminCoreMakeCommand extends Command
         // menu) AND scopes permissions/gates to its guard. --guard/--menu remain low-level
         // overrides. $guard is used for permission creation; the route suffix/arg are only
         // emitted when a non-default guard is in play, so plain admin resources stay clean.
-        $portal = $this->option('portal') ? Str::kebab($this->option('portal')) : null;
+        // Singularize to match admin-core:portal (which builds the guard/loader from Str::singular) — else
+        // `--portal=merchants` routes to the never-globbed Merchants/Modules + a nonexistent `merchants` guard.
+        $portal = $this->option('portal') ? Str::kebab(Str::singular($this->option('portal'))) : null;
         $guardOpt = $this->option('guard') ?: $portal;
         $menuName = $this->option('menu') ?: $portal;
         $guard = $guardOpt ?: config('admin-core.permission.guard', config('auth.defaults.guard', 'web'));
