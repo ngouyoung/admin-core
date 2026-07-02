@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.18
+
+**Fix: `ajaxDelete()` bypassed locked-state protection.** The row-menu ("kebab") delete button posts to the
+`ajaxDelete/{id}` route, whose handler called `service->delete($id)` with **no `guardLocked($id)`** — unlike
+`delete()`, `update()` and the bulk/restore paths. So a record in a `$lockedStates` state (e.g. a posted
+invoice) that `/delete` refuses with 403 was permanently deletable via `/ajaxDelete` (200) — and once
+soft-deleted couldn't be restored. `ajaxDelete()` now applies the same `guardLocked()` first. Regression test
+asserts a locked record survives an `ajaxDelete` (403). Found by a second full-package audit.
+
 ## v2.79.17
 
 **Hardening: `uninstall --purge` now gives informed consent before deleting customised files.** `--purge` deletes

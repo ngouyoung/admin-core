@@ -242,6 +242,7 @@ abstract class WebController extends BaseController
 
     public function ajaxDelete(int|string $id): JsonResponse
     {
+        $this->guardLocked($id); // a posted/cancelled document is read-only — same guard as delete()
         $this->service->delete($id);
 
         return response()->json(['code' => 200, 'message' => 'OK', 'data' => true]);

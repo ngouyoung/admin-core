@@ -185,8 +185,10 @@ it('refuses to edit or delete a record in a locked state', function () {
 
     $this->put('/admin/action-widgets/update/' . $w->id, ['name' => 'Changed'])->assertForbidden();
     $this->delete('/admin/action-widgets/delete/' . $w->id)->assertForbidden();
+    // The row-menu delete goes through ajaxDelete — it must honour the lock too (was a bypass).
+    $this->delete('/admin/action-widgets/ajaxDelete/' . $w->id)->assertForbidden();
 
-    expect($w->fresh()->name)->toBe('Doc'); // unchanged
+    expect($w->fresh()->name)->toBe('Doc')->and(Widget::find($w->id))->not->toBeNull(); // unchanged + not deleted
 });
 
 it('still allows edit/delete in an unlocked state', function () {
