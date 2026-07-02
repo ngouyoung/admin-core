@@ -306,7 +306,18 @@ class FieldSet
             // field list is comma-split; defaults to 10,2 when omitted).
             $decimalPrecision = $decimalScale = null;
             if (str_starts_with($spec, 'decimal:')) {
-                $parts = array_map('trim', explode('|', substr($spec, 8)));
+                // Precision/scale are PIPE-separated (`decimal:12|3`) — the field list is comma-split and the
+                // name/type is colon-split, so a colon here (`decimal:12:3`) used to slip through and silently
+                // fall back to (10,2), quietly corrupting the schema + the DecimalPrecision rule. Reject it.
+                $arg = trim(substr($spec, 8));
+                if ($arg !== '' && ! preg_match('/^\d+(\|\d+)?$/', $arg)) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: decimal precision must be digits separated by a PIPE, e.g. `amount:decimal:12|3` "
+                        . "(you wrote `decimal:{$arg}`)."
+                        . (str_contains($arg, ':') ? ' Use a pipe `|`, not a colon `:`.' : ''),
+                    );
+                }
+                $parts = array_map('trim', explode('|', $arg));
                 $decimalPrecision = ctype_digit($parts[0]) ? (int) $parts[0] : null;
                 $decimalScale = isset($parts[1]) && ctype_digit($parts[1]) ? (int) $parts[1] : null;
                 $spec = 'decimal';

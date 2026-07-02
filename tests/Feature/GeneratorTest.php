@@ -854,7 +854,7 @@ it('refuses to re-run a different shape over an existing resource (no orphan-fil
 it('wires --derived relation-driven columns into a saving() hook (valid PHP)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
-        '--fields' => 'unit_id:foreign:units, variant_id:foreign:variants, qty:decimal:12:3, qty_base:decimal:12:3',
+        '--fields' => 'unit_id:foreign:units, variant_id:foreign:variants, qty:decimal:12|3, qty_base:decimal:12|3',
         '--derived' => ['qty_base=qty*unit_id.conversion_factor, variant_id=unit_id.variant_id'],
         '--migration' => true,
     ])->assertSuccessful();
@@ -873,7 +873,7 @@ it('wires --derived relation-driven columns into a saving() hook (valid PHP)', f
 it('fails cleanly on a bad --derived spec (unknown foreign)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
-        '--fields' => 'qty:decimal:12:2, qty_base:decimal:12:2',
+        '--fields' => 'qty:decimal:12|2, qty_base:decimal:12|2',
         '--derived' => ['qty_base=qty*unit_id.conversion_factor'], // unit_id isn't declared
     ])->expectsOutputToContain("isn't a foreign column")->assertFailed();
 });

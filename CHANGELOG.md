@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.7
+
+**Fix: a colon-separated decimal precision was silently ignored.** `amount:decimal:12:3` (a colon, where the DSL
+wants a pipe: `decimal:12|3`) slipped through and quietly fell back to `decimal(10,2)` — corrupting the column and
+its `DecimalPrecision` rule, so a value valid for `(12,3)` was then rejected by validation and truncated by the
+column, with no error at generation. A malformed precision (a colon, or any non-digit/non-pipe form) is now
+**rejected** with a clear message pointing at the pipe syntax. Regression test covers the rejection; the suite's
+own colon-form usages were corrected to the pipe form. Found by a full-package audit.
+
 ## v2.79.6
 
 **Fix: a `unique` rule on a `money` column compared the wrong scale (off by the currency factor).** A money

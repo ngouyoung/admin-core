@@ -25,6 +25,18 @@ it('parses decimal precision/scale (decimal:p|s) and casts to that scale, defaul
     expect(fs('amount:decimal:12|4?')->migrationColumns())->toContain("\$table->decimal('amount', 12, 4)->nullable()");
 });
 
+it('rejects a colon-separated decimal precision instead of silently falling back to (10,2)', function () {
+    // `decimal:12:3` (colon, not pipe) used to slip through and quietly become decimal(10,2), corrupting the
+    // schema + the DecimalPrecision rule. It must now fail loudly, pointing at the pipe syntax.
+    expect(fn () => fs('amount:decimal:12:3'))
+        ->toThrow(InvalidArgumentException::class, 'Use a pipe `|`, not a colon `:`');
+    expect(fn () => fs('amount:decimal:12:3'))
+        ->toThrow(InvalidArgumentException::class, 'decimal precision must be digits');
+    // A non-numeric precision is rejected too (no silent fallback).
+    expect(fn () => fs('amount:decimal:wide'))
+        ->toThrow(InvalidArgumentException::class, 'decimal precision must be digits');
+});
+
 it('accepts both H:i and H:i:s for a time field (so an exported TIME round-trips on import)', function () {
     // A TIME column exports as H:i:s; the form posts H:i. The rule must accept both.
     expect(fs('start:time')->storeRules())->toContain("'date_format:H:i,H:i:s'");
@@ -689,7 +701,7 @@ it('rejects a sequence prefix with characters that could break the generated PHP
 // -- Relation-driven derived columns (--derived) -----------------------------------------------------
 
 it('compiles a --derived saving hook: relation compute + copy, fetched once', function () {
-    $f = fs('unit_id:foreign:units, qty:decimal:12:3, qty_base:decimal:12:3, variant_id:foreign:variants', 'items')
+    $f = fs('unit_id:foreign:units, qty:decimal:12|3, qty_base:decimal:12|3, variant_id:foreign:variants', 'items')
         ->setDerived(['qty_base' => 'qty * unit_id.conversion_factor', 'variant_id' => 'unit_id.variant_id']);
 
     $boot = $f->modelBoot();
@@ -703,7 +715,7 @@ it('compiles a --derived saving hook: relation compute + copy, fetched once', fu
 });
 
 it('guards a divide in a derived expression against divide-by-zero', function () {
-    $boot = fs('unit_id:foreign:units, total:decimal:12:2, per_unit:decimal:12:2', 'items')
+    $boot = fs('unit_id:foreign:units, total:decimal:12|2, per_unit:decimal:12|2', 'items')
         ->setDerived(['per_unit' => 'total / unit_id.pack_size'])->modelBoot();
 
     expect($boot)->toContain('== 0.0 ? 0 :'); // blank/zero related attribute → 0, not a runtime error
@@ -715,19 +727,19 @@ it('rejects a --derived target that is not a stored column', function () {
 });
 
 it('rejects a relation reference whose column is not a declared foreign', function () {
-    expect(fn () => fs('unit_id:foreign:units, qty:decimal:12:2, qty_base:decimal:12:2', 'items')->setDerived(['qty_base' => 'qty * missing_id.factor']))
+    expect(fn () => fs('unit_id:foreign:units, qty:decimal:12|2, qty_base:decimal:12|2', 'items')->setDerived(['qty_base' => 'qty * missing_id.factor']))
         ->toThrow(InvalidArgumentException::class, "isn't a foreign column");
 });
 
 it('rejects a bare reference to an undeclared column', function () {
-    expect(fn () => fs('unit_id:foreign:units, qty_base:decimal:12:2', 'items')->setDerived(['qty_base' => 'ghost * 2']))
+    expect(fn () => fs('unit_id:foreign:units, qty_base:decimal:12|2', 'items')->setDerived(['qty_base' => 'ghost * 2']))
         ->toThrow(InvalidArgumentException::class, "isn't a stored column");
 });
 
 it('rejects a malformed derived expression (trailing operator / unbalanced parens)', function () {
-    expect(fn () => fs('unit_id:foreign:units, x:decimal:12:2', 'items')->setDerived(['x' => 'unit_id.factor *']))
+    expect(fn () => fs('unit_id:foreign:units, x:decimal:12|2', 'items')->setDerived(['x' => 'unit_id.factor *']))
         ->toThrow(InvalidArgumentException::class);
-    expect(fn () => fs('unit_id:foreign:units, x:decimal:12:2', 'items')->setDerived(['x' => '(unit_id.factor']))
+    expect(fn () => fs('unit_id:foreign:units, x:decimal:12|2', 'items')->setDerived(['x' => '(unit_id.factor']))
         ->toThrow(InvalidArgumentException::class, 'unbalanced');
 });
 
