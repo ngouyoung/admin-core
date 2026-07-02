@@ -29,6 +29,15 @@ class MyMemoryTranslator extends HttpTranslator
             ->throw()
             ->json();
 
+        // MyMemory signals LOGICAL errors (quota exhausted, invalid langpair) with HTTP 200 but a non-200
+        // `responseStatus` in the body — and stuffs the warning INTO translatedText (e.g. "MYMEMORY WARNING:
+        // YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY…"). ->throw() only catches 4xx/5xx, so without
+        // this check that warning would be saved as the field's value. Throw so translate() falls back to source.
+        $status = $response['responseStatus'] ?? null;
+        if ($status !== null && (int) $status !== 200) {
+            throw new RuntimeException("MyMemory error (responseStatus {$status}): " . ($response['responseData']['translatedText'] ?? 'unknown'));
+        }
+
         $translated = $response['responseData']['translatedText'] ?? null;
 
         if (! is_string($translated) || $translated === '') {

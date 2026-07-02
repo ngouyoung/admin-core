@@ -56,6 +56,30 @@ it('is fail-safe: a provider error returns the original text unchanged', functio
     expect((new MyMemoryTranslator)->translate('Hello', 'en', 'fr'))->toBe('Hello');
 });
 
+it('treats a MyMemory HTTP-200 error body (quota/invalid langpair) as a failure, not the translation', function () {
+    // MyMemory returns HTTP 200 with the error in a non-200 responseStatus and the warning IN translatedText.
+    Http::fake([
+        'api.mymemory.translated.net/*' => Http::response([
+            'responseStatus' => 429,
+            'responseData' => ['translatedText' => 'MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR TODAY. NEXT AVAILABLE IN 07 HOURS'],
+        ]),
+    ]);
+
+    // Must fall back to the source text, NOT store the all-caps warning as the field value.
+    expect((new MyMemoryTranslator)->translate('Milk', 'en', 'km'))->toBe('Milk');
+});
+
+it('accepts a MyMemory HTTP-200 success (responseStatus 200)', function () {
+    Http::fake([
+        'api.mymemory.translated.net/*' => Http::response([
+            'responseStatus' => 200,
+            'responseData' => ['translatedText' => 'Lait'],
+        ]),
+    ]);
+
+    expect((new MyMemoryTranslator)->translate('Milk', 'en', 'fr'))->toBe('Lait');
+});
+
 it('short-circuits empty text, same locale and over-length input without calling the provider', function () {
     Http::fake(); // any call would record; we assert none happen
     config()->set('admin-core.translation.max_length', 5);

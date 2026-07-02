@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.10
+
+**Fix: a MyMemory quota/error response was stored as the translation.** MyMemory returns HTTP **200** for logical
+errors (anonymous quota exhausted, invalid langpair), carrying the error in a non-200 `responseStatus` and the
+warning text *inside* `translatedText` (e.g. `"MYMEMORY WARNING: YOU USED ALL AVAILABLE FREE TRANSLATIONS FOR
+TODAY…"`). Laravel's `->throw()` only fires on 4xx/5xx, so the driver read `translatedText` and returned the
+warning — which `AutoTranslate` then saved as a translatable field's value. `MyMemoryTranslator` now checks
+`responseStatus` and throws on a non-200, so `HttpTranslator::translate()`'s fail-safe falls back to the source
+text instead. Regression tests cover the HTTP-200-error body (→ source) and a normal success. Found by a
+full-package audit.
+
 ## v2.79.9
 
 **Fix: an approval could end up "approved" while its action was rolled back — unrecoverable.** `ApprovalController::approve()`
