@@ -54,9 +54,12 @@ trait LogsActivity
             return;
         }
 
-        $causer = $this->resolveCauser();
-
         try {
+            // Inside the try: resolving the causer walks the configured guards, and a portal guard named in
+            // admin-core config but missing from auth.php throws "Auth guard [x] is not defined" — which, left
+            // uncaught here, would roll back the very write this observes. Audit is best-effort; the write wins.
+            $causer = $this->resolveCauser();
+
             ActivityLog::create([
                 'log_name' => class_basename($this),
                 'description' => $description,
@@ -84,8 +87,12 @@ trait LogsActivity
         ));
 
         foreach ($guards as $guard) {
-            if (auth()->guard($guard)->check()) {
-                return auth()->guard($guard)->user();
+            try {
+                if (auth()->guard($guard)->check()) {
+                    return auth()->guard($guard)->user();
+                }
+            } catch (\Throwable) {
+                continue; // a guard named in admin-core config but not defined in auth.php — skip, don't throw
             }
         }
 

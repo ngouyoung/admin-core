@@ -84,6 +84,18 @@ it('does not break the write when the activity_logs table is missing (pre-migrat
         ->and(AuditedWidget::find($widget->id))->not->toBeNull();
 });
 
+it('does not break the write when a configured portal guard is missing from auth.php', function () {
+    // A guard named in admin-core config but never defined in auth.php: resolving the causer calls
+    // auth()->guard('ghost') → "Auth guard [ghost] is not defined". That must NOT roll back the write.
+    config(['admin-core.permission.guards.ghost' => ['super_role' => 'ghost-admin']]);
+    // deliberately DO NOT define auth.guards.ghost
+
+    $widget = AuditedWidget::create(['name' => 'Delta']); // must not throw / roll back
+
+    expect($widget->exists)->toBeTrue()
+        ->and(AuditedWidget::find($widget->id))->not->toBeNull();
+});
+
 it('attributes the change to the active portal guard, not the default web guard', function () {
     Schema::create('merchant_users', function (Blueprint $t) {
         $t->id();

@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.12
+
+**Fix: audit logging could roll back the write it was observing.** `LogsActivity::recordActivity()` resolved the
+causer *before* the try/catch that guarantees audit never breaks the write — and `resolveCauser()` walks the
+configured guards, so a portal guard named in `admin-core.permission.guards` but missing from `auth.php` threw
+"Auth guard [x] is not defined", which propagated out of the model event and rolled back every create/update/
+delete on that audited model. Causer resolution now runs inside the try (audit is best-effort; the write wins),
+and `resolveCauser()` skips an undefined guard rather than throwing. Regression test saves an audited model
+with a misconfigured guard and asserts the write succeeds (mutation-verified). Found by a full-package audit.
+
 ## v2.79.11
 
 **Fix: a `fromAny` transition on a NULL-status record always 409'd.** The atomic state-claim matched the current
