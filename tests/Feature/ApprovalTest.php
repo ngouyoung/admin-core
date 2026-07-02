@@ -115,6 +115,34 @@ it('runs the original action and marks approved when an approver approves', func
         ->and($approval->fresh()->decided_at)->not->toBeNull();
 });
 
+it('rolls the approval back to pending when the action handler throws (retryable, not stuck approved)', function () {
+    Notification::fake();
+    config()->set('admin-core.permission.enabled', true);
+    Gate::define('approve-boom-action-widget', fn () => true);
+    $this->actingAs(new NotifiableUser(['name' => 'Owner']));
+    $w = Widget::create(['name' => 'a']);
+    $approval = Approval::create([
+        'uuid' => (string) \Illuminate\Support\Str::uuid(),
+        'action' => 'boom', // its handler throws
+        'resource' => 'action-widget',
+        'handler' => \Ngos\AdminCore\Tests\Fixtures\ActionWidgetController::class,
+        'payload' => ['ids' => [$w->id], 'label' => 'Boom'],
+        'status' => 'pending',
+    ]);
+
+    // The handler throws → the claim + action roll back together. Whether the test env re-throws or renders a
+    // 500, the transaction is rolled back, so the approval must stay PENDING (retryable), not stuck 'approved'.
+    try {
+        $this->post('/admin/approvals/' . $approval->uuid . '/approve');
+    } catch (\Throwable $e) {
+        // expected: the handler's exception
+    }
+
+    expect($approval->fresh()->status)->toBe('pending')       // rolled back — not 'approved'
+        ->and($approval->fresh()->decided_at)->toBeNull();
+    Notification::assertNothingSent();                        // never told the requester it was approved
+});
+
 it('marks rejected WITHOUT running the action', function () {
     Notification::fake();
     config()->set('admin-core.permission.enabled', true);

@@ -34,6 +34,9 @@ class ActionWidgetController extends WebController
                 ->handle(fn (Collection $records) => ['message' => $records->count() . ' counted']),
             Action::make('refund')->requiresApproval()
                 ->handle(fn (Collection $records) => $records->each->update(['status' => 'refunded'])),
+            // A requires-approval action whose handler THROWS — for the "approve rolls back on failure" test.
+            Action::make('boom')->requiresApproval()
+                ->handle(fn (Collection $records) => throw new \RuntimeException('boom in the approved handler')),
             Action::make('bulk-only')->onlyBulk()->withoutPermission()->handle(fn (Collection $records) => null),
             Action::make('row-only')->onlyOnRow()->withoutPermission()->handle(fn (Collection $records) => null),
         ];

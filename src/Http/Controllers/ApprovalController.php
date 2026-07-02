@@ -6,6 +6,7 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 use Ngos\AdminCore\Models\Approval;
 use Ngos\AdminCore\Notifications\AdminNotification;
 
@@ -35,13 +36,16 @@ class ApprovalController extends Controller
         // Re-run the original action through the requester's controller (the only place its handler lives).
         abort_unless(is_subclass_of($approval->handler, WebController::class), 422);
 
-        // Atomically claim the request BEFORE executing — the DB decides the single winner, so a concurrent
-        // or double-submitted approve can't run a (non-idempotent) action twice. Lose the claim → already
-        // decided → 404.
-        abort_unless($this->claim($approval, 'approved', $request->input('note')), 404);
+        // Claim + execute in ONE transaction. The atomic claim still decides the single winner (a concurrent /
+        // double-submitted approve loses it → 404), but wrapping it WITH the action means a throwing handler
+        // rolls the claim back too — so the request returns to 'pending' and is retryable, instead of being
+        // stuck 'approved' with its effect rolled back and no way to re-run it.
+        DB::transaction(function () use ($approval, $request) {
+            abort_unless($this->claim($approval, 'approved', $request->input('note')), 404);
+            app($approval->handler)->applyApprovedAction($approval->action, $approval->ids());
+        });
 
-        app($approval->handler)->applyApprovedAction($approval->action, $approval->ids());
-        $this->notifyRequester($approval, true);
+        $this->notifyRequester($approval, true); // after commit — never notify "approved" for a rolled-back run
 
         return back()->with('success', __('admin-core::admin-core.approvals.approved'));
     }

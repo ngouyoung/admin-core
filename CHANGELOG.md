@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.9
+
+**Fix: an approval could end up "approved" while its action was rolled back — unrecoverable.** `ApprovalController::approve()`
+committed the `pending → approved` claim in its own autocommitted `UPDATE` and only *then* ran the approved
+action (in a separate transaction). If the action handler threw, its transaction rolled back but the claim was
+already committed — leaving the request `approved` with nothing done, and no retry path (it's no longer
+`pending`, so re-approving 404s). The claim and the action now run in **one** transaction, so a throwing handler
+rolls the claim back too — the request returns to `pending` and is retryable (mirrors `runTransition`). The
+requester notification stays outside the transaction, so it never fires for a rolled-back run. Regression test
+approves an action whose handler throws and asserts the request stays `pending` + no notification
+(mutation-verified). Found by a full-package audit.
+
 ## v2.79.8
 
 **Fix: global search could leak rows a portal user isn't allowed to list.** The per-entry permission gate read
