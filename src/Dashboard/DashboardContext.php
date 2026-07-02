@@ -114,15 +114,24 @@ class DashboardContext
     }
 
     /**
-     * A stable key segment uniquely identifying this window for caching: the preset name for presets, but the
-     * actual from/to timestamps for a custom window — so two different custom ranges never share a cache entry.
+     * A stable key segment uniquely identifying this view-state for caching: the preset name for presets, the
+     * actual from/to timestamps for a custom window, plus a hash of any extra params — so two different custom
+     * ranges, or the same range under different params (a saved filter, a ?status= …), never share an entry.
      */
     public function cacheSignature(): string
     {
-        if ($this->range === 'custom' && $this->from && $this->to) {
-            return 'custom:' . $this->from->getTimestamp() . '-' . $this->to->getTimestamp();
+        $signature = $this->range === 'custom' && $this->from && $this->to
+            ? 'custom:' . $this->from->getTimestamp() . '-' . $this->to->getTimestamp()
+            : $this->range;
+
+        // Params scope a widget's data just like the window does. range/from/to are already represented
+        // above; ksort so ?a=1&b=2 and ?b=2&a=1 share an entry.
+        $params = array_diff_key($this->params, array_flip(['range', 'from', 'to']));
+        if ($params !== []) {
+            ksort($params);
+            $signature .= ':p:' . md5((string) json_encode($params));
         }
 
-        return $this->range;
+        return $signature;
     }
 }

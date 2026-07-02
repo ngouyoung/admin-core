@@ -180,6 +180,35 @@ it('does not share a cached payload between two different custom date windows', 
     expect($calls)->toBe(2);
 });
 
+it('does not share a cached payload between two different param sets on the same range', function () {
+    cache()->flush();
+    $calls = 0;
+    config(['admin-core.dashboard.widgets' => [
+        ['type' => 'stat', 'title' => 'Heavy', 'cache' => 60, 'value' => function () use (&$calls) {
+            $calls++;
+
+            return 1;
+        }],
+    ]]);
+    $dashboard = app(Dashboard::class);
+    $widget = $dashboard->widgets()->first();
+
+    // Params scope a widget's data just like the date window — a ?status= filter must not be served
+    // the other status's cached numbers within the TTL.
+    $dashboard->payload($widget, DashboardContext::fromPreset('30d', null, ['status' => 'paid']));
+    $dashboard->payload($widget, DashboardContext::fromPreset('30d', null, ['status' => 'void']));
+    expect($calls)->toBe(2);
+
+    // …while the same params (whatever the key order) do share the entry, and range/from/to in params
+    // don't fragment the preset key (they're already part of the signature).
+    $dashboard->payload($widget, DashboardContext::fromPreset('30d', null, ['status' => 'paid']));
+    expect($calls)->toBe(2)
+        ->and(DashboardContext::fromPreset('30d', null, ['b' => 2, 'a' => 1])->cacheSignature())
+            ->toBe(DashboardContext::fromPreset('30d', null, ['a' => 1, 'b' => 2])->cacheSignature())
+        ->and(DashboardContext::fromPreset('30d', null, ['range' => '30d'])->cacheSignature())
+            ->toBe(DashboardContext::fromPreset('30d')->cacheSignature());
+});
+
 it('dedupes widgets that resolve to the same key, keeping the first', function () {
     config(['admin-core.dashboard.widgets' => [
         ['type' => 'stat', 'title' => 'Sales', 'value' => fn () => 1], // key "sales"

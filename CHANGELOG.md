@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.31
+
+**Fix: the widget cache key ignored `DashboardContext::$params`.** The cache key was
+`key + range/window + user`, so a widget whose data reads `$context->params` (a saved filter, a `?status=` …)
+served whichever param set was cached first to every other param set for that user until the TTL expired.
+`cacheSignature()` now appends a stable hash of the params (minus `range`/`from`/`to`, which the signature
+already carries; key-order insensitive) — no change for widgets without extra params. Regression test proves
+two param sets miss each other's entries while identical/reordered params still share one (mutation-verified).
+Found by a third full-package audit. Closes out that audit: all 5 findings fixed (v2.79.27–v2.79.31).
+
 ## v2.79.30
 
 **Fix: lazy/auto-refresh dashboard widgets ignored a custom date window.** The widget endpoint URL carried only
