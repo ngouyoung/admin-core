@@ -39,6 +39,16 @@ class AdminCorePageCommand extends Command
             return self::FAILURE;
         }
 
+        // The name becomes a PHP class, a route path and a single-quoted config/menu entry — Str::studly()
+        // keeps characters like ' or a leading digit, which would scaffold files that fail php -l and brick
+        // the whole app (the route module + config are loaded on every request). Refuse anything that isn't
+        // a valid class name instead of writing broken PHP with a success message.
+        if (! preg_match('/^[A-Za-z][A-Za-z0-9]*$/', $class)) {
+            $this->error("'{$this->argument('name')}' isn't a usable page name — use letters/numbers/spaces starting with a letter, e.g. \"Sales Report\".");
+
+            return self::FAILURE;
+        }
+
         $controller = "{$class}Controller";
         $slug = Str::kebab($class);                 // Reports → reports, SalesReport → sales-report
         $label = Str::headline($class);             // Reports / Sales Report

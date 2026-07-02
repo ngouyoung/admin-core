@@ -132,3 +132,20 @@ it('refuses to overwrite an existing page without --force', function () {
     $this->artisan('admin-core:page', ['name' => 'Reports', '--no-menu' => true])->assertSuccessful();
     $this->artisan('admin-core:page', ['name' => 'Reports', '--no-menu' => true])->assertFailed();
 });
+
+it('refuses a name that would scaffold broken PHP, writing nothing', function () {
+    // Str::studly() keeps ' and leading digits, and the name lands inside single-quoted PHP in the
+    // controller, the auto-loaded route module and the config menu entry — a bad name must fail the
+    // command up front, not scaffold files that brick the app on the next request.
+    $snapshot = fn () => array_merge(
+        File::glob(app_path('Http/Controllers/Backend/*')),
+        File::glob(base_path('routes/Web/Backend/Modules/*')),
+    );
+    $before = $snapshot();
+
+    foreach (["Manager's Report", '2024 Report'] as $bad) {
+        $this->artisan('admin-core:page', ['name' => $bad, '--no-menu' => true])->assertFailed();
+    }
+
+    expect($snapshot())->toBe($before); // nothing new scaffolded
+});

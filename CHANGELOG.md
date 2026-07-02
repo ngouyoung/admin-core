@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.28
+
+**Fix: `admin-core:page` accepted names that scaffold broken PHP and brick the app.** `Str::studly()` keeps
+characters like `'` and leading digits, and the page name lands inside single-quoted PHP in the generated
+controller class, the route module and the config menu entry — so `admin-core:page "Manager's Report"` printed
+"scaffolded" but wrote files that fail `php -l`, and because the route module + config load on every request the
+whole app went fatal. The command now validates the studly name (`/^[A-Za-z][A-Za-z0-9]*$/`) and refuses up
+front, writing nothing. Regression test drives both an apostrophe and a leading-digit name and asserts failure
+with zero files created (mutation-verified). Found by a third full-package audit.
+
 ## v2.79.27
 
 **Fix: the generated trash screen was broken for `--uuid` (hybrid-key) resources.** `trash.stub` keyed the
