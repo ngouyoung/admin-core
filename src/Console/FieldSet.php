@@ -764,10 +764,13 @@ class FieldSet
             $this->failExpr($name, "a value can't be divided by a money amount");
         }
         if ($aMoney) {
+            // Money::divide() returns null on a zero (or null) divisor, so no extra guard is needed here.
             return ['php' => $a['php'] . '?->divide(' . $b['php'] . ')', 'type' => 'money'];
         }
 
-        return ['php' => '(' . $a['php'] . ' / ' . $b['php'] . ')', 'type' => 'numeric'];
+        // Guard a divide-by-zero so a blank/zero denominator yields 0, not a DivisionByZeroError that would 500
+        // the list/show/API rendering the appended accessor (matches the --derived compiler's division guard).
+        return ['php' => '((float) (' . $b['php'] . ') === 0.0 ? 0 : (' . $a['php'] . ' / ' . $b['php'] . '))', 'type' => 'numeric'];
     }
 
     /**

@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.4
+
+**Fix: a `computed` division crashed on a zero denominator.** A `computed` field like `unit_price:computed:total/qty`
+compiled to an **unguarded** division — `Money::divide()` guarded only a `null` divisor (not `0`), and the numeric
+compiler emitted a bare `($a / $b)`. So a single row with `qty = 0` threw `DivisionByZeroError` when the appended
+accessor was read — 500'ing the **whole** list / show page / API response (the field is in `$appends`). The
+sibling `--derived` compiler already guarded this; `computed` now matches: `Money::divide()` returns **null** on a
+zero (or null) divisor, and the numeric branch emits `((float) $b === 0.0 ? 0 : ($a / $b))`. A non-zero divisor is
+unchanged. Regression tests cover `Money::divide(0) → null` and the guarded numeric emission. Found by a
+full-package audit.
+
 ## v2.79.3
 
 **Fix: the JSON API write path skipped the field-permission / state-column / locked-state guards the web

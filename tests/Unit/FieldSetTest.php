@@ -458,6 +458,14 @@ it('compiles money +/- money to ->add()/->subtract(), and money / scalar to ->di
         ->toContain('fn () => $this->total?->divide($this->parts)');
 });
 
+it('guards a numeric computed division against divide-by-zero (a zero denominator → 0, not a 500)', function () {
+    // Parity with the --derived compiler: a computed `x / qty` with qty = 0 must not throw DivisionByZeroError
+    // when the appended accessor is read during list/show/API serialization.
+    $acc = fs('total:decimal, qty:integer, avg:computed:total / qty')->accessors();
+    expect($acc)->toContain('=== 0.0 ? 0 :');
+    // The money branch needs no inline guard — Money::divide() returns null on a zero divisor.
+});
+
 it('rejects nonsensical money arithmetic', function () {
     expect(fn () => fs('a:money, b:money, t:computed:a * b'))                 // money x money
         ->toThrow(InvalidArgumentException::class, "two money amounts can't be multiplied");

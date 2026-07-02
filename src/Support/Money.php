@@ -156,10 +156,18 @@ final class Money implements Arrayable, JsonSerializable, Stringable
         return $factor === null ? null : new self((int) round($this->minor * (float) $factor), $this->currency);
     }
 
-    /** Divide the amount by a divisor (e.g. split a total), rounded back to whole minor units. Null → null. */
+    /**
+     * Divide the amount by a divisor (e.g. split a total), rounded back to whole minor units. Null → null, and
+     * a ZERO divisor → null too (a computed `total / qty` with qty = 0 has no value — return null rather than
+     * throw DivisionByZeroError and 500 the row it renders on).
+     */
     public function divide(int|float|string|null $divisor): ?self
     {
-        return $divisor === null ? null : new self((int) round($this->minor / (float) $divisor), $this->currency);
+        if ($divisor === null || (float) $divisor === 0.0) {
+            return null;
+        }
+
+        return new self((int) round($this->minor / (float) $divisor), $this->currency);
     }
 
     public function isZero(): bool

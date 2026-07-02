@@ -106,6 +106,13 @@ it('divides and rounds back to whole minor units (incl. a string divisor)', func
         ->and(Money::fromMinor(1000, 'USD')->divide('3')->minor)->toBe(333); // 333.33 -> 333
 });
 
+it('returns null on a ZERO divisor instead of throwing DivisionByZeroError', function () {
+    // A computed `unit_price = total / qty` with qty = 0 must be blank, not a 500 on every row that renders it.
+    expect(Money::fromMinor(1000, 'USD')->divide(0))->toBeNull()
+        ->and(Money::fromMinor(1000, 'USD')->divide('0'))->toBeNull()
+        ->and(Money::fromMinor(1000, 'USD')->divide(0.0))->toBeNull();
+});
+
 it('treats a null operand as null, not a crash (so a computed total over a nullable column is blank)', function () {
     expect(Money::fromMinor(1000, 'USD')->add(null))->toBeNull()
         ->and(Money::fromMinor(1000, 'USD')->subtract(null))->toBeNull()
