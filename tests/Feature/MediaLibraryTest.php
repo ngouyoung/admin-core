@@ -45,6 +45,18 @@ it('stores an upload into the library and registers it', function () {
     Storage::disk('public')->assertExists($item->path);
 });
 
+it('records the STORED (downscaled) dimensions, not the pre-compression original', function () {
+    config()->set('admin-core.uploads.compress', true);
+    config()->set('admin-core.uploads.max_width', 60);
+
+    // A 120×80 upload is re-encoded to WebP and downscaled to 60 wide — width/height must reflect the STORED
+    // file (60×40), not the original 120×80 that's never served.
+    $item = app(MediaLibrary::class)->store(UploadedFile::fake()->image('wide.png', 120, 80), 'brand');
+
+    expect($item->width)->toBe(60)       // downscaled to max_width, not 120
+        ->and($item->height)->toBe(40);  // aspect ratio preserved (80 × 60/120)
+});
+
 it('deletes a library item and its underlying file', function () {
     $lib = app(MediaLibrary::class);
     $item = $lib->store(UploadedFile::fake()->image('x.png'), 'default');

@@ -18,14 +18,18 @@ class MediaLibrary
     public function store(UploadedFile $file, string $collection = 'default'): MediaItem
     {
         $collection = trim($collection) ?: 'default';
-        [$width, $height] = $this->dimensions($file);
+
+        // Store first, then measure the STORED asset: Media::store() re-encodes images to WebP downscaled to
+        // max_width, so the original UploadedFile's dimensions don't match the file that's actually served.
+        $path = Media::store($file, 'media/' . $collection);
+        [$width, $height] = $this->dimensions($path, (string) $file->getMimeType());
 
         return MediaItem::create([
             // Strip HTML-dangerous chars from the user-supplied filename (defense-in-depth vs an XSS payload in the
             // name) and cap at the column length (255) so a long name can't 500.
             'name' => mb_substr(str_replace(['<', '>', '"', "'"], '', $file->getClientOriginalName()), 0, 255),
 
-            'path' => Media::store($file, 'media/' . $collection),
+            'path' => $path,
             'disk' => Media::disk(),
             'mime' => $file->getMimeType(),
             'size' => $file->getSize(),
@@ -82,13 +86,26 @@ class MediaLibrary
     /**
      * @return array{0: int|null, 1: int|null} [width, height] for an image upload, else [null, null]
      */
-    private function dimensions(UploadedFile $file): array
+    /**
+     * Dimensions of the STORED file (read back from its disk), so width/height reflect the served asset —
+     * WebP, downscaled to max_width — not the pre-compression upload. Non-images / unreadable → [null, null].
+     *
+     * @return array{0: ?int, 1: ?int}
+     */
+    private function dimensions(string $path, string $originalMime): array
     {
-        if (str_starts_with((string) $file->getMimeType(), 'image/')) {
-            $size = @getimagesize($file->getRealPath());
+        if (! str_starts_with($originalMime, 'image/')) {
+            return [null, null];
+        }
+
+        try {
+            $binary = \Illuminate\Support\Facades\Storage::disk(Media::disk())->get($path);
+            $size = is_string($binary) ? @getimagesizefromstring($binary) : false;
             if ($size !== false) {
                 return [$size[0], $size[1]];
             }
+        } catch (\Throwable) {
+            // remote/CDN disk we can't read back, or a decode failure — leave dimensions unknown
         }
 
         return [null, null];

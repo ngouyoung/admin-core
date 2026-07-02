@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.26
+
+**Fix: media `width`/`height` recorded the pre-compression original, not the stored asset.** `MediaLibrary::store()`
+measured dimensions from the incoming `UploadedFile`, but `Media::store()` re-encodes images to WebP downscaled
+to `max_width` — so a 4000×3000 upload persisted `4000×3000` for a served 1600×1200 file. Dimensions are now
+read back from the stored file, so they match what's actually served (non-image/unreadable → null). Regression
+test uploads a 120×80 image with `max_width=60` and asserts the recorded `60×40` (mutation-verified). Found by a
+second full-package audit.
+
 ## v2.79.25
 
 **Fix: `admin-core:make --portal` didn't singularize the portal name like `admin-core:portal`.** `make` used
