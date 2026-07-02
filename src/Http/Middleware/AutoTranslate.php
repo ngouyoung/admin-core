@@ -33,8 +33,33 @@ class AutoTranslate
     protected function shouldRun(Request $request): bool
     {
         return config('admin-core.translation.enabled', true)
+            // Only inside an AUTHENTICATED request — this middleware sits on the global `web` group, so without
+            // this an anonymous POST (with a CSRF token) to any route + `_translate[]=…` could force up to
+            // rate_limit live outbound third-party translate calls, draining the quota and tying up a worker.
+            && $this->isAuthenticated()
             && in_array($request->method(), ['POST', 'PUT', 'PATCH'], true)
             && is_array($request->input('_translate'));
+    }
+
+    /** Authenticated on the default guard OR any configured portal guard (multi-portal), ignoring undefined guards. */
+    protected function isAuthenticated(): bool
+    {
+        $guards = array_unique(array_merge(
+            [config('auth.defaults.guard', 'web')],
+            array_keys((array) config('admin-core.permission.guards', [])),
+        ));
+
+        foreach ($guards as $guard) {
+            try {
+                if (auth()->guard($guard)->check()) {
+                    return true;
+                }
+            } catch (\Throwable) {
+                continue; // a guard named in admin-core config but not defined in auth.php — skip
+            }
+        }
+
+        return false;
     }
 
     protected function fill(Request $request): void

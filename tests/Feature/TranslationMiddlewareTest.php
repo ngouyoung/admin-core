@@ -30,10 +30,26 @@ beforeEach(function () {
 
 function runAutoTranslate(Request $request): Request
 {
+    // AutoTranslate only runs inside an authenticated request (anon quota-drain guard), so authenticate first.
+    test()->actingAs(new \Ngos\AdminCore\Tests\Fixtures\NotifiableUser(['name' => 'Admin']));
     (new AutoTranslate)->handle($request, fn ($r) => response("ok"));
 
     return $request;
 }
+
+it('does NOT translate for an unauthenticated request (anonymous quota-drain guard)', function () {
+    app()->setLocale('en');
+    $request = Request::create('/save', 'POST', [
+        '_translate' => ['name'],
+        'name' => ['en' => '', 'km' => 'សួស្ដី'],
+    ]);
+
+    // No actingAs → anonymous. The middleware must not translate (the marker strip on line 28 is unconditional).
+    (new AutoTranslate)->handle($request, fn ($r) => response('ok'));
+
+    expect($request->input('name.en'))->toBe('')          // NOT filled — would be "[en] …" if translation ran
+        ->and($request->input('name.km'))->toBe('សួស្ដី'); // source untouched
+});
 
 it('fills empty locales from the one the user filled, and strips the marker', function () {
     app()->setLocale('en');

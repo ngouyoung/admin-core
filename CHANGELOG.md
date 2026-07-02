@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.24
+
+**Hardening: `AutoTranslate` ran for unauthenticated requests (quota-drain vector).** The middleware sits on the
+global `web` group and gated only on `translation.enabled` + write-method + a `_translate[]` marker — never on
+authentication. So an anonymous client (with a CSRF token) POSTing to any web route (e.g. `/login`) with
+`_translate[]=field0…field59` could force up to `rate_limit` (60) sequential live third-party translation calls,
+draining the shared quota and tying up a worker. `shouldRun()` now also requires an authenticated user —
+**guard-agnostic** (the default guard or any configured portal guard), so multi-portal auto-translate still
+works; only true anons are blocked. Regression test asserts an unauthenticated request performs no translation
+(mutation-verified). Found by a second full-package audit.
+
 ## v2.79.23
 
 **Fix: the JSON API rejected a required-but-gated field the web path accepts.** `ApiController::update()`
