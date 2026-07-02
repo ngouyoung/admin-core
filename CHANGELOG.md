@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.19
+
+**Fix: the toast helper rendered its message as HTML (DOM-XSS sink).** `notify.js` passed the toast text to
+SweetAlert2's `title`, which renders as live HTML — so any `toastr.*(...)` call carrying untrusted data was an
+XSS vector. Most visibly, the opt-in realtime bell (`realtime.js` → `toastr.info(payload.message)`) would run a
+broadcast like a customer name `<img src=x onerror=…>` as script in the authenticated admin's session. The
+helper now uses `titleText`, which renders the message as inert text. New JS test asserts the toast uses
+`titleText` (not `title`) for a hostile string. Found by a second full-package audit.
+
 ## v2.79.18
 
 **Fix: `ajaxDelete()` bypassed locked-state protection.** The row-menu ("kebab") delete button posts to the
