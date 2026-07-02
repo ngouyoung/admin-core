@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.27
+
+**Fix: the generated trash screen was broken for `--uuid` (hybrid-key) resources.** `trash.stub` keyed the
+restore/force-delete route params and the bulk-select checkbox value off `$item->id`, but the controller and
+`BaseService` resolve trashed records by `getRouteKeyName()` — the uuid under hybrid keys. So every restore /
+force-delete 404'd and bulk restore/force-delete silently matched nothing while still reporting success. The
+view now uses `$item->getRouteKey()` at all three sites (identical output for plain-id resources). Regression
+test asserts the generated trash view keys off `getRouteKey()` and never passes `->id` to a route
+(mutation-verified). Found by a third full-package audit (view layer). Existing generated trash views should be
+re-generated or hand-patched; `admin-core:doctor` stub-drift will flag them.
+
 ## v2.79.26
 
 **Fix: media `width`/`height` recorded the pre-compression original, not the stored asset.** `MediaLibrary::store()`

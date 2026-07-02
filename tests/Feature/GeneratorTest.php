@@ -1572,6 +1572,16 @@ it('adds a trash screen and soft-delete routes with --soft-deletes', function ()
             ->toContain('restore')->toContain('forceDelete')
         ->and(File::get(app_path('Models/Gizmo.php')))->toContain('SoftDeletes')
         ->and(File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))->toContain('softDeletes');
+
+    // The trash screen must key restore/force-delete/bulk-select off getRouteKey(): the controller
+    // and service resolve trashed records by getRouteKeyName(), so under hybrid keys (--uuid)
+    // keying off ->id would 404 every restore and silently no-op every bulk action.
+    $trash = File::get(resource_path('views/backend/pages/gizmos/trash.blade.php'));
+    expect($trash)
+        ->toContain('value="{{ $item->getRouteKey() }}"')
+        ->toContain(".restore', \$item->getRouteKey())")
+        ->toContain(".forceDelete', \$item->getRouteKey())")
+        ->not->toContain('$item->id)'); // no route/checkbox arg keyed off the raw id
 });
 
 it('adds a plain index with the # modifier (but not when the column is already unique)', function () {
