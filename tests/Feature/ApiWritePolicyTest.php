@@ -73,3 +73,18 @@ it('API update allows a write when the record is NOT in a locked state', functio
 
     expect($w->fresh()->name)->toBe('Changed');
 });
+
+it('API update accepts a required-but-gated field the user omits (raw-original merge, like the web)', function () {
+    config()->set('admin-core.permission.enabled', true);
+    config()->set('test.require_secret', true); // 'secret' is now required AND gated by edit-secret-widget
+    $this->actingAs(new NotifiableUser(['name' => 'U'])); // lacks edit-secret-widget
+
+    $w = Widget::create(['name' => 'Doc', 'status' => 'draft', 'secret' => 'kept']);
+
+    // The user can't write `secret` (so omits it) — validation must not 422 on the required rule; the update
+    // applies to `name` and leaves `secret` untouched (matches the web update).
+    $this->putJson('/api/policy-widgets/' . $w->id, ['name' => 'Changed'])->assertOk();
+
+    expect($w->fresh()->name)->toBe('Changed')
+        ->and($w->fresh()->secret)->not->toBeNull(); // unchanged, not wiped
+});

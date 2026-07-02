@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.23
+
+**Fix: the JSON API rejected a required-but-gated field the web path accepts.** `ApiController::update()`
+validated the request without the pre-validation raw-original merge `WebController::update()` applies — so a
+field that is both in `fieldPermissions()` and `required` blocked a restricted user: correctly omitting the
+field they can't write returned 422 ("field is required"), while the identical web update succeeded. The API
+now merges the stored value of each denied field back into the request before validation (then
+`stripDeniedFields` drops it from the write), so the one permission model holds on both surfaces. Regression
+test updates through the API omitting a required+gated field and asserts success + the field unchanged
+(mutation-verified). Found by a second full-package audit.
+
 ## v2.79.22
 
 **Fix: lifecycle commands treated the `--access` frontend kit as always-installed.** `uninstall`'s

@@ -109,6 +109,14 @@ abstract class ApiController extends BaseController
 
     public function update(string $id): JsonResource
     {
+        // Force the stored value of any field the user may not write back into the request BEFORE validation,
+        // so a `required` rule on a gated field still passes when the user (correctly) omits it. stripDeniedFields
+        // then drops it from the write. Mirrors WebController::update() — the API and web enforce one model.
+        if (($denied = $this->deniedFields()) !== []) {
+            $existing = $this->service->find($id);
+            request()->merge(collect($denied)->mapWithKeys(fn ($f) => [$f => $existing->getRawOriginal($f)])->all());
+        }
+
         $this->guardLocked($id); // a posted/locked document is read-only on the API too
         $data = $this->stripStateColumn($this->stripDeniedFields(app($this->updateRequest)->validated()));
         $object = DB::transaction(fn () => $this->service->update($id, $data));
