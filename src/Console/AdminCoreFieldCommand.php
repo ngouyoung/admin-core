@@ -214,10 +214,12 @@ class AdminCoreFieldCommand extends Command
     {
         $contents = File::get($path);
 
-        // 1. $fillable — append the new names.
+        // 1. $fillable — append the new names. Guard an EMPTY array (`$fillable = []`, e.g. a sequence/auth/
+        // gallery-only resource): prepending ', ' there yields `[, 'amount']`, a fatal parse error. (Mirrors
+        // the guarded $hidden patch below.)
         $contents = preg_replace_callback(
             '/(protected \$fillable = \[)(.*?)(\];)/s',
-            fn ($m) => $m[1] . rtrim($m[2]) . ', ' . $fs->fillable() . $m[3],
+            fn ($m) => $m[1] . (trim($m[2]) === '' ? '' : rtrim($m[2]) . ', ') . $fs->fillable() . $m[3],
             $contents,
             1,
         );

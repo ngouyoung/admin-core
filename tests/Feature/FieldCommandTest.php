@@ -40,6 +40,27 @@ it('refuses when the table has no migration and does not exist (no orphan migrat
     expect(File::get(app_path('Models/Gizmo.php')))->not->toContain("'sku'");
 });
 
+it('adds a field to a resource whose $fillable is empty without writing invalid PHP', function () {
+    // A sequence/auth-only resource has no mass-assignable columns → `protected $fillable = [];`. Prepending
+    // ', ' there used to yield `[, 'amount']`, a fatal parse error that broke the model's autoload.
+    test()->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'entry_no:sequence:LED, posted_by:auth',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $model = app_path('Models/Gizmo.php');
+    expect(File::get($model))->toContain('protected $fillable = [];'); // precondition: empty
+
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'amount:decimal'])->assertSuccessful();
+
+    $patched = File::get($model);
+    expect($patched)->toContain("protected \$fillable = ['amount'];") // valid — not `[, 'amount']`
+        ->and($patched)->not->toContain('[,');
+    // And it parses as valid PHP (no fatal).
+    expect(fn () => token_get_all($patched, TOKEN_PARSE))->not->toThrow(ParseError::class);
+});
+
 it('adds new fields across migration, model, requests, views and factory', function () {
     makeGizmo();
 

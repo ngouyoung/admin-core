@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.20
+
+**Fix: `admin-core:field` wrote invalid PHP when the model's `$fillable` was empty.** The fillable patch
+unconditionally prepended `', '`, so on a resource with no mass-assignable columns (`protected $fillable = [];`
+— e.g. a sequence/auth-only ledger) adding a field produced `[, 'amount']`, a fatal parse error that broke the
+model's autoload (→ migrate and every request 500). The patch now guards the empty case (mirroring the
+`$hidden` patch), producing `['amount']`. Regression test adds a field to an empty-`$fillable` resource and
+asserts valid, parseable output (mutation-verified). Found by a second full-package audit.
+
 ## v2.79.19
 
 **Fix: the toast helper rendered its message as HTML (DOM-XSS sink).** `notify.js` passed the toast text to
