@@ -37,6 +37,18 @@ it('rejects a colon-separated decimal precision instead of silently falling back
         ->toThrow(InvalidArgumentException::class, 'decimal precision must be digits');
 });
 
+it('rejects a decimal whose scale exceeds its precision (an invalid column the DB refuses)', function () {
+    expect(fn () => fs('rate:decimal:2|5'))
+        ->toThrow(InvalidArgumentException::class, "scale (5) can't exceed its precision (2)");
+});
+
+it('bounds the factory fake to the column precision (a small decimal never overflows its own migration)', function () {
+    // decimal(4,2) tops out at 99.99 — the factory must not fake up to 1000.
+    expect(fs('rate:decimal:4|2')->factoryDefinition())->toContain("'rate' => fake()->randomFloat(2, 1, 99)");
+    // A wide column stays capped at 1000 for readable data.
+    expect(fs('big:decimal:12|2')->factoryDefinition())->toContain("'big' => fake()->randomFloat(2, 1, 1000)");
+});
+
 it('accepts both H:i and H:i:s for a time field (so an exported TIME round-trips on import)', function () {
     // A TIME column exports as H:i:s; the form posts H:i. The rule must accept both.
     expect(fs('start:time')->storeRules())->toContain("'date_format:H:i,H:i:s'");

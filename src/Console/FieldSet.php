@@ -320,6 +320,15 @@ class FieldSet
                 $parts = array_map('trim', explode('|', $arg));
                 $decimalPrecision = ctype_digit($parts[0]) ? (int) $parts[0] : null;
                 $decimalScale = isset($parts[1]) && ctype_digit($parts[1]) ? (int) $parts[1] : null;
+                // Scale counts toward precision, so scale > precision is an invalid column the DB rejects at
+                // migrate time ("M must be >= D"). Reject it up front rather than shipping a broken migration.
+                if ($decimalPrecision !== null && $decimalScale !== null && $decimalScale > $decimalPrecision) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: decimal scale ({$decimalScale}) can't exceed its precision ({$decimalPrecision}) — "
+                        . "decimal({$decimalPrecision},{$decimalScale}) is invalid. Widen the precision (e.g. "
+                        . "`decimal:" . ($decimalScale + $decimalScale) . "|{$decimalScale}`).",
+                    );
+                }
                 $spec = 'decimal';
             }
 
@@ -1593,7 +1602,7 @@ PHP;
                 $f['name'] === 'email' || $f['type'] === 'email' => 'fake()->safeEmail()',
                 $f['type'] === 'text' => 'fake()->paragraph()',
                 $f['type'] === 'integer' => 'fake()->numberBetween(1, 1000)',
-                $f['type'] === 'decimal' => 'fake()->randomFloat(' . ($f['scale'] ?? 2) . ', 1, 1000)',
+                $f['type'] === 'decimal' => $this->decimalFactoryFake($f),
                 // A major amount — the MoneyCast converts it to the stored minor-unit integer.
                 $f['type'] === 'money' => 'fake()->randomFloat(2, 1, 1000)',
                 $f['type'] === 'boolean' => 'fake()->boolean()',
@@ -1614,6 +1623,23 @@ PHP;
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * A factory fake for a decimal column that fits its precision — decimal(4,2) tops out at 99.99, so a flat
+     * `randomFloat(2, 1, 1000)` overflows the very column it migrates (a "Out of range" error / silent truncation
+     * on the generated feature test). Bound the integer part to (precision − scale) digits, capped at 1000 for
+     * readable data on wide columns.
+     */
+    private function decimalFactoryFake(array $f): string
+    {
+        $precision = (int) ($f['precision'] ?? 10);
+        $scale = (int) ($f['scale'] ?? 2);
+        $intDigits = max($precision - $scale, 0);
+        $max = $intDigits === 0 ? 0 : min(1000, (10 ** $intDigits) - 1);
+        $min = $max >= 1 ? 1 : 0;
+
+        return "fake()->randomFloat({$scale}, {$min}, {$max})";
     }
 
     public function relations(): string

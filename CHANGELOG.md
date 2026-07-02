@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.15
+
+**Fix: two decimal-precision edge cases produced un-migratable / un-testable output.** (1) `decimal:2|5`
+(scale > precision) generated `decimal(2,5)`, which the database rejects at migrate time ("M must be >= D") —
+now rejected at generation with a clear message. (2) The factory always faked a decimal in `1..1000` regardless
+of the column, so `decimal:4|2` (max 99.99) overflowed its own migration (an "Out of range" error / silent
+truncation in the generated feature test) — the fake is now bounded to the column's `(precision − scale)`
+integer digits (capped at 1000 for wide columns), e.g. `decimal(4,2)` fakes `randomFloat(2, 1, 99)`. Regression
+tests cover the rejection and the bounded factory. Found by a full-package audit.
+
 ## v2.79.14
 
 **Fix: the media-upload `collection` field wasn't path-validated.** It was validated only as
