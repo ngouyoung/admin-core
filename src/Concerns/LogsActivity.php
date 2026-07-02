@@ -29,8 +29,12 @@ trait LogsActivity
         });
         // 'restored' / 'forceDeleted' only ever fire for SoftDeletes models; harmless (never dispatched)
         // otherwise. Without them, un-deleting or permanently deleting a record left no (accurate) audit trail.
-        static::restored(fn ($model) => $model->recordActivity('restored'));
-        static::forceDeleted(fn ($model) => $model->recordActivity('force_deleted'));
+        // Use registerModelEvent, NOT the static::restored()/forceDeleted() helpers: those helpers exist only on
+        // a SoftDeletes model, so on a plain --audit model (e.g. an --audit --read-only resource, where
+        // soft-deletes is dropped) they fall through __callStatic → `new static` → a re-entrant boot
+        // (LogicException). registerModelEvent just wires the listener; the event never fires without SoftDeletes.
+        static::registerModelEvent('restored', fn ($model) => $model->recordActivity('restored'));
+        static::registerModelEvent('forceDeleted', fn ($model) => $model->recordActivity('force_deleted'));
     }
 
     public function recordActivity(string $description): void

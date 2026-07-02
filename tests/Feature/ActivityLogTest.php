@@ -115,3 +115,29 @@ it('attributes the change to the active portal guard, not the default web guard'
 
     Schema::dropIfExists('merchant_users');
 });
+
+it('boots + logs a plain --audit model with NO SoftDeletes (registerModelEvent, not the crashing statics)', function () {
+    // Before the fix, bootLogsActivity()'s static::restored()/forceDeleted() on a non-SoftDeletes model fell
+    // through __callStatic → `new static` → a re-entrant boot LogicException (an --audit --read-only resource).
+    Schema::dropIfExists('plain_audited');
+    Schema::create('plain_audited', function (Blueprint $t) {
+        $t->id();
+        $t->string('name');
+        $t->timestamps();
+    });
+
+    $m = PlainAuditedWidget::create(['name' => 'X']); // booting here threw before the fix
+    $m->update(['name' => 'Y']);
+    $m->delete();
+
+    expect(ActivityLog::whereIn('description', ['created', 'updated', 'deleted'])->count())->toBe(3);
+});
+
+class PlainAuditedWidget extends \Illuminate\Database\Eloquent\Model
+{
+    use \Ngos\AdminCore\Concerns\LogsActivity;
+
+    protected $table = 'plain_audited';
+
+    protected $guarded = [];
+}

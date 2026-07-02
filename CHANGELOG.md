@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.1
+
+**Fix: `--audit` without soft-deletes crashed at boot.** `LogsActivity::bootLogsActivity()` called
+`static::restored()` / `static::forceDeleted()`, which exist **only** on a SoftDeletes model — on a plain
+audited model they fell through `__callStatic` → `new static` → a re-entrant boot (`LogicException`, surfacing
+at route registration / any model resolution). Dormant because `--audit` usually pairs with `--soft-deletes`,
+but **`--read-only --audit`** (read-only drops soft-deletes) produced an audited, non-soft-deletes model that
+crashed the app. Now registered via `registerModelEvent('restored'/'forceDeleted', …)` — wires the listener
+without instantiating; the events simply never fire on a non-SoftDeletes model. Found rebuilding SMPOS from
+scratch.
+
 ## v2.79.0
 
 **Relation-driven derived columns (`--derived`).** Denormalise a column from a picked belongsTo relation, set
