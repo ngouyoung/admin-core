@@ -88,7 +88,9 @@ function acBuildColumns(cols) {
             return {
                 data: c.data, name: c.data, orderable: false, searchable: false,
                 className: 'text-center',
-                render: (d) => '<input type="checkbox" class="row-check" value="' + d + '">',
+                // Escape the row key before interpolating into HTML — normally a uuid/int, but a resource whose
+                // route key is a user-controlled string would otherwise be a stored-XSS vector (defence in depth).
+                render: (d) => '<input type="checkbox" class="row-check" value="' + acEsc(d) + '">',
             };
         }
         const col = { data: c.data };

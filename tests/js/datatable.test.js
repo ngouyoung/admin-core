@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DATATABLE_STUB, loadStub } from './helpers.js';
 
 // The real shipped datatable.js (escaping + custom-action dispatch + bulk-button injection + filters/views).
-const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates } = loadStub(
+const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates, acBuildColumns } = loadStub(
     DATATABLE_STUB,
-    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates }',
+    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates, acBuildColumns }',
 );
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -16,6 +16,21 @@ beforeEach(() => {
     window.toastr = { success: vi.fn(), error: vi.fn() };
     window.Swal = { fire: vi.fn().mockResolvedValue({ value: true }) };
     jQuery.ajax = vi.fn((opts) => { if (opts.success) opts.success({ message: 'srv ok' }); });
+});
+
+describe('acBuildColumns', () => {
+    it('escapes the row key in the checkbox render (defence in depth)', () => {
+        const cols = acBuildColumns([{ type: 'check', data: 'uuid' }]);
+        const html = cols[0].render('"><img onerror=alert(1)>');
+
+        expect(html).not.toContain('<img');                 // no live tag injected
+        expect(html).toContain('value="&quot;&gt;&lt;img'); // the key is HTML-escaped inside the attribute
+    });
+
+    it('passes a plain key through unchanged', () => {
+        const cols = acBuildColumns([{ type: 'check', data: 'uuid' }]);
+        expect(cols[0].render('019f-abc')).toBe('<input type="checkbox" class="row-check" value="019f-abc">');
+    });
 });
 
 describe('acEsc', () => {

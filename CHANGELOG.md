@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.16
+
+**Hardening: escape the row key in the data-table checkbox render.** `datatable.js` built the select-row checkbox
+as `'…value="' + d + '">'` with the row's primary key un-escaped — normally a uuid/int (safe), but a resource
+whose route key is a user-controlled string would make it a stored-XSS vector. The value is now run through the
+module's `acEsc()` (like every other interpolated value — defence in depth). New JS tests assert the checkbox
+render escapes a hostile key and passes a plain key through unchanged. Found by a full-package audit.
+
 ## v2.79.15
 
 **Fix: two decimal-precision edge cases produced un-migratable / un-testable output.** (1) `decimal:2|5`
