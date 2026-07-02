@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.8
+
+**Fix: global search could leak rows a portal user isn't allowed to list.** The per-entry permission gate read
+the user from the **default** guard (`auth()->user()`) and, when that returned null, **skipped the gate entirely**
+and returned every configured resource. On a multi-portal setup (a portal authenticates on its own guard, e.g.
+`merchant`) the default guard has no user — so the gate was bypassed and search leaked rows the portal user has
+no `list-…` permission for. The gate is now **guard-aware** (`Route::adminCoreSearch('merchant')` threads the
+portal's guard through to `Search::query(..., guard:)`, mirroring `Sidebar`) and **fails safe**: when a permission
+is required but no user resolves, the entry is skipped rather than returned. Single-portal / permission-disabled
+behaviour is unchanged. Regression tests cover the fail-safe path and per-portal-guard resolution. Found by a
+full-package audit.
+
 ## v2.79.7
 
 **Fix: a colon-separated decimal precision was silently ignored.** `amount:decimal:12:3` (a colon, where the DSL

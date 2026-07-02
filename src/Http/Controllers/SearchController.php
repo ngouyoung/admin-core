@@ -16,6 +16,10 @@ class SearchController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        return response()->json(Search::query((string) $request->query('q', '')));
+        // The portal's guard (if Route::adminCoreSearch('merchant') set one) so the permission gate resolves the
+        // right user; null falls back to the default guard.
+        $guard = $request->route()?->defaults['acSearchGuard'] ?? null;
+
+        return response()->json(Search::query((string) $request->query('q', ''), guard: $guard));
     }
 }

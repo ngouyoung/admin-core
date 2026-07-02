@@ -13,9 +13,13 @@ class Search
      *
      * Returns a flat, grouped list: [['group' => , 'label' => , 'url' => , 'icon' => ], …], capped per group.
      *
+     * @param  string|null  $guard  Auth guard whose user the `can` checks run against (multi-portal: e.g.
+     *                              'merchant'). Null = the application's default guard. Pass a portal's guard
+     *                              (Route::adminCoreSearch('merchant')) or the gate resolves the wrong user.
+     *
      * @return array<int, array{group: string, label: string, url: string|null, icon: string}>
      */
-    public static function query(string $term, int $perGroup = 5): array
+    public static function query(string $term, int $perGroup = 5, ?string $guard = null): array
     {
         $term = trim($term);
         if ($term === '') {
@@ -33,12 +37,17 @@ class Search
             // Don't leak records the user can't list: gate each entry on its permission — explicit
             // (`'permission' => 'list-foo'`) or, by default, the convention `list-{kebab(ClassBasename)}`
             // that admin-core:make grants. Set `'permission' => null` on an entry to opt out of the gate.
-            if (config('admin-core.permission.enabled', true) && ($user = auth()->user())) {
+            // Resolve the user on THIS portal's guard (a portal user isn't on the default guard), and FAIL SAFE:
+            // when a permission is required but no user resolves, skip the entry rather than returning everything.
+            if (config('admin-core.permission.enabled', true)) {
                 $permission = array_key_exists('permission', $cfg)
                     ? $cfg['permission']
                     : 'list-' . \Illuminate\Support\Str::kebab(class_basename($model));
-                if (is_string($permission) && $permission !== '' && ! $user->can($permission)) {
-                    continue;
+                if (is_string($permission) && $permission !== '') {
+                    $user = auth()->guard($guard)->user();
+                    if ($user === null || ! $user->can($permission)) {
+                        continue;
+                    }
                 }
             }
 

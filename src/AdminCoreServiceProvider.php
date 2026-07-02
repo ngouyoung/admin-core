@@ -261,8 +261,11 @@ class AdminCoreServiceProvider extends ServiceProvider
      */
     protected function registerSearchMacro(): void
     {
-        Route::macro('adminCoreSearch', function () {
-            Route::get('search', [SearchController::class, 'index'])->name('search');
+        // $guard: a portal passes its auth guard (Route::adminCoreSearch('merchant')) so the per-entry
+        // permission gate resolves THAT portal's user — else it checks the default guard, finds no user, and
+        // (now) returns nothing rather than leaking. Stashed as a route default the controller reads.
+        Route::macro('adminCoreSearch', function (?string $guard = null) {
+            Route::get('search', [SearchController::class, 'index'])->name('search')->defaults('acSearchGuard', $guard);
         });
     }
 
