@@ -288,6 +288,37 @@ it('generates a migration that actually runs', function () {
         ->and(Schema::hasColumns('gizmos', ['id', 'name', 'price', 'body']))->toBeTrue();
 });
 
+it('drops the belongsToMany pivot table on rollback (down() cleans up extraSchema)', function () {
+    // A tags table the pivot's FK constrains against — must exist first.
+    Schema::dropIfExists('tags');
+    Schema::create('tags', function (Illuminate\Database\Schema\Blueprint $t) {
+        $t->id();
+        $t->string('name');
+    });
+
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, tags:belongsToMany',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // Run THIS migration's up()/down() directly (isolated from any other migrations in the dir).
+    $file = collect(glob(database_path('migrations/*_create_gizmos_table.php')))->first();
+    // The generated down() must drop the pivot before the main table (the pivot FKs gizmos).
+    expect(File::get($file))->toContain("Schema::dropIfExists('gizmo_tag');");
+
+    $migration = require $file;
+    $migration->up();
+    expect(Schema::hasTable('gizmos'))->toBeTrue()
+        ->and(Schema::hasTable('gizmo_tag'))->toBeTrue(); // pivot created by extraSchema up()
+
+    $migration->down(); // must drop BOTH — pivot first, then gizmos — cleanly
+    expect(Schema::hasTable('gizmos'))->toBeFalse()
+        ->and(Schema::hasTable('gizmo_tag'))->toBeFalse(); // pivot cleaned up by down()
+
+    Schema::dropIfExists('tags');
+});
+
 it('uses the hybrid key strategy with --uuid (bigint PK + public uuid + bigint FKs)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.80
+
+**Fix: a belongsToMany pivot table wasn't dropped on migration rollback.** The create migration's `up()` built
+the pivot via `extraSchema()`, but `down()` only dropped the main table — so `migrate:rollback` left the pivot
+behind, and re-migrating failed with "table already exists". `down()` now drops each pivot FIRST (they carry a
+foreign key to the main table), then the main table, via a new `extraSchemaDown()` + `__AC_EXTRA_SCHEMA_DOWN__`
+stub placeholder. Regression test generates a belongsToMany resource and runs its `up()`+`down()`, asserting the
+pivot is created then cleanly dropped (mutation-verified). Re-generate the create migration for affected
+resources if you rely on rollback. Found by a sixth full-package audit (migration-seed dimension).
+
 ## v2.79.79
 
 **Fix: a belongsToMany field's rule rejected a valid empty selection.** The generated rule was a bare

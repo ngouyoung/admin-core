@@ -1173,6 +1173,27 @@ PHP;
         return implode("\n", $blocks);
     }
 
+    /**
+     * The `Schema::dropIfExists('{pivot}')` line(s) for the migration's down() — one per belongsToMany pivot
+     * extraSchema() created. Dropped FIRST (before the main table), since each pivot has a foreign key to it.
+     * Without these, migrate:rollback leaves the pivot table behind and the next migrate fails on "already exists".
+     */
+    public function extraSchemaDown(): string
+    {
+        $lines = [];
+        $self = Str::singular($this->table);
+        foreach ($this->fields as $f) {
+            if ($f['type'] !== 'belongsToMany') {
+                continue;
+            }
+            $pair = [$self, Str::singular($f['relTable'])];
+            sort($pair);
+            $lines[] = "        Schema::dropIfExists('" . implode('_', $pair) . "');";
+        }
+
+        return implode("\n", $lines);
+    }
+
     // ---- Model -------------------------------------------------------
 
     public function fillable(): string

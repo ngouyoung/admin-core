@@ -372,6 +372,7 @@ class AdminCoreMakeCommand extends Command
             '__AC_MODEL_BOOT__' => $fields->modelBoot(),
             '__AC_COLUMNS__' => $fields->migrationColumns(),
             '__AC_EXTRA_SCHEMA__' => $fields->extraSchema(),
+            '__AC_EXTRA_SCHEMA_DOWN__' => $fields->extraSchemaDown(), // drop pivots before the main table in down()
             '__AC_UNIQUE__' => $fields->uniqueConstraints(),
             '__AC_ENCTYPE__' => $fields->enctype(),
             '__AC_SERVICE_USES__' => $fields->serviceUses(),

@@ -21,6 +21,7 @@ __AC_EXTRA_SCHEMA__
 
     public function down(): void
     {
+__AC_EXTRA_SCHEMA_DOWN__
         Schema::dropIfExists('dummyModels');
     }
 };
