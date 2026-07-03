@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.63
+
+**Fix: `ActivityLog::subject()` lost the audited record once it was soft-deleted.** Completeness sweep of the
+same MorphTo/soft-delete class fixed in v2.79.58 (causer) and v2.79.60 (approval): the `subject()` relation still
+applied the default soft-delete scope, so the Activity Log screen couldn't resolve WHICH record a log was about
+after that record was soft-deleted. `subject()` now uses `withTrashed()` too (applied only to soft-deletable
+concrete types), closing the pattern across every morphTo the package ships. Regression test soft-deletes both
+the causer and the subject and asserts the log still resolves each (mutation-verified). Found by the fifth
+audit's completeness re-scan.
+
 ## v2.79.62
 
 **Fix: `admin-core:translate --force` never refreshed placeholder-bearing strings.** A string carrying a

@@ -76,11 +76,18 @@ it('still resolves the causer after that user is soft-deleted (audit attribution
         'causer_id' => $alice->id,
     ]);
 
-    $alice->delete(); // Alice is offboarded (soft-deleted)
+    // Also point the log's SUBJECT at a soft-deletable record, then soft-delete it.
+    $subject = $causerModel->create(['name' => 'Order-9']);
+    $log->forceFill(['subject_type' => $causerModel::class, 'subject_id' => $subject->id])->save();
 
-    // The log must still name Alice — not lose attribution to 'system' the moment she's soft-deleted.
+    $alice->delete();   // Alice is offboarded (soft-deleted)
+    $subject->delete(); // the audited record is soft-deleted
+
+    // The log must still name Alice (causer) AND resolve its subject after both are soft-deleted.
     expect($log->fresh()->causer)->not->toBeNull()
-        ->and($log->fresh()->causer->name)->toBe('Alice');
+        ->and($log->fresh()->causer->name)->toBe('Alice')
+        ->and($log->fresh()->subject)->not->toBeNull()
+        ->and($log->fresh()->subject->name)->toBe('Order-9');
 
     Schema::dropIfExists('causer_users');
 });

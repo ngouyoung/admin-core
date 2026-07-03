@@ -42,7 +42,10 @@ class ActivityLog extends Model
 
     public function subject(): MorphTo
     {
-        return $this->morphTo();
+        // withTrashed(): an audit entry must still resolve WHICH record it was about after that record is
+        // soft-deleted — otherwise the Activity Log screen can't show the subject of a deleted row. MorphTo
+        // applies this only to concrete subject types that use SoftDeletes.
+        return $this->morphTo()->withTrashed();
     }
 
     public function causer(): MorphTo
