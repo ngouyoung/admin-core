@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.56
+
+**Fix: bracketed (repeater) select/editor fields never showed the `is-invalid` state.** The sibling field
+components already convert a bracketed name to the dot-notation error-bag key (`items[0][category_id]` →
+`items.0.category_id`), but `select` and `editor` still checked `$errors->has($name)` with the raw bracketed
+name — always false — so a validation error on a repeater-row select/editor rendered the error text (form-row
+converts correctly) but left the control un-highlighted. Both now use the same `$errorKey` conversion as
+`input`/`textarea`/`money-input`. Regression test shares a dot-key error bag and asserts both light up, with no
+false positive on a clean field (mutation-verified). Found by a fifth full-package audit (components dimension).
+
 ## v2.79.55
 
 **Fix: a per-record-currency money input showed the wrong currency after a validation failure.** The generated

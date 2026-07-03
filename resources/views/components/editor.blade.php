@@ -8,10 +8,14 @@
      ckeditor.js, drop it in public/, and change the src below to a local path (remove the integrity attr).
      Extra attributes pass through to the textarea. --}}
 @props(['name', 'label' => null, 'value' => null, 'minHeight' => '250px'])
-@php $label ??= \Illuminate\Support\Str::headline($name); @endphp
+@php
+    $label ??= \Illuminate\Support\Str::headline($name);
+    // Error-bag keys are dot-notation — convert a bracketed name (settings[body]) so is-invalid detects it.
+    $errorKey = rtrim(str_replace(['[', ']'], ['.', ''], $name), '.');
+@endphp
 <x-admin-core::form-row :name="$name" :label="$label">
     <textarea name="{{ $name }}" id="{{ $name }}" data-min-height="{{ $minHeight }}"
-        {{ $attributes->class(['form-control', 'js-editor', 'is-invalid' => $errors->has($name)]) }}>{{ $value }}</textarea>
+        {{ $attributes->class(['form-control', 'js-editor', 'is-invalid' => $errors->has($errorKey)]) }}>{{ $value }}</textarea>
 </x-admin-core::form-row>
 @once
     @push('scripts')

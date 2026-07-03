@@ -40,6 +40,27 @@ it('renders the editor component as a CKEditor-bound textarea', function () {
     expect($html)->toContain('<textarea')->toContain('name="body"')->toContain('js-editor')->toContain('Body:');
 });
 
+it('flags a bracketed (repeater) select/editor field as invalid via the dot-notation error key', function () {
+    // Laravel stores error keys in dot notation. A repeater field's bracketed name must be converted
+    // (items[0][category_id] → items.0.category_id) to detect its error — else is-invalid never lights up.
+    $bag = new ViewErrorBag;
+    $bag->put('default', new Illuminate\Support\MessageBag([
+        'items.0.category_id' => ['Required.'],
+        'settings.body' => ['Required.'],
+    ]));
+    view()->share('errors', $bag);
+
+    $select = Blade::render('<x-admin-core::select name="items[0][category_id]" :options="[]" />');
+    $editor = Blade::render('<x-admin-core::editor name="settings[body]" />');
+
+    expect($select)->toContain('is-invalid')   // the bracketed select gets the invalid class
+        ->and($editor)->toContain('is-invalid'); // and the bracketed editor too
+
+    // A field with NO error stays clean (no false positive).
+    expect(Blade::render('<x-admin-core::select name="items[0][other]" :options="[]" />'))
+        ->not->toContain('is-invalid');
+});
+
 it('renders the button as a <button>, and as an <a> when href is given', function () {
     expect(Blade::render('<x-admin-core::button variant="danger" icon="bi bi-trash">Delete</x-admin-core::button>'))
         ->toContain('<button')->toContain('btn btn-danger')->toContain('bi bi-trash')->toContain('Delete');

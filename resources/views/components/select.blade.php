@@ -27,6 +27,9 @@
 @props(['name', 'label' => null, 'value' => null, 'options' => [], 'placeholder' => null, 'multiple' => false, 'enhance' => true, 'ajaxUrl' => null, 'source' => null, 'dependsOn' => []])
 @php
     $label ??= \Illuminate\Support\Str::headline($name);
+    // Error-bag keys are dot-notation, so a repeater/bracketed name (items[0][category_id]) must be
+    // converted (items.0.category_id) to detect its error — otherwise is-invalid never lights up.
+    $errorKey = rtrim(str_replace(['[', ']'], ['.', ''], $name), '.');
     $selected = array_map('strval', (array) $value);
     // `source` resolves the remote endpoint dynamically from the route-name prefix; an explicit ajax-url wins.
     // No matching `select` route → $ajaxUrl stays null → it renders as a plain static select.
@@ -45,7 +48,7 @@
             'form-select',
             'admin-core-select' => $enhance && ! $remote,
             'admin-core-select-ajax' => $remote,
-            'is-invalid' => $errors->has($name),
+            'is-invalid' => $errors->has($errorKey),
         ]) }}>
         @if ($placeholder !== null && ! $multiple)<option value="">{{ $placeholder }}</option>@endif
         @foreach ($options as $val => $text)
