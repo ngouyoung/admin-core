@@ -76,3 +76,24 @@ it('does not gate routes when permission is disabled', function () {
 
     expect(collect($route->gatherMiddleware())->contains(fn ($m) => str_contains($m, 'permission:')))->toBeFalse();
 });
+
+it('falls back to the default {action}-{resource} pattern when the config key is absent', function () {
+    config()->set('admin-core.permission.enabled', true);
+    // A host whose published config array has no `pattern` key at all (partial/customised config): the macro
+    // must default it, not str_replace against null → an empty `permission:` gate that locks everyone out.
+    $perm = config('admin-core.permission');
+    unset($perm['pattern']);
+    config()->set('admin-core.permission', $perm);
+    expect(config('admin-core.permission.pattern'))->toBeNull(); // precondition: key genuinely missing
+
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::prefix('nopat')->name('nopat.')->group(function () {
+            Route::crud('nopat', WidgetController::class);
+        });
+    });
+    Route::getRoutes()->refreshNameLookups();
+
+    $middleware = Route::getRoutes()->getByName('admin.nopat.index')->gatherMiddleware();
+    expect($middleware)->toContain('permission:list-nopat') // the default pattern applied…
+        ->and($middleware)->not->toContain('permission:');  // …never the bare empty-permission gate
+});

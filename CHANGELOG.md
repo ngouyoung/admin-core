@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.72
+
+**Fix: `Route::crud()` had no default for a missing `permission.pattern`, locking everyone out.** The crud macro
+read `config('admin-core.permission.pattern')` with no fallback (unlike `crudSingleton`, the API gate and the
+generator, which all default it). A host whose published config array lacks that key resolved it to null, so
+`str_replace` produced a bare `permission:` gate that no role holds — every crud route denied to everyone. The
+macro now defaults to `{action}-{resource}`. Regression test unsets the key and asserts routes gate on
+`permission:list-…`, never the empty permission (mutation-verified). Found by a sixth full-package audit
+(routing-provider dimension).
+
 ## v2.79.71
 
 **Fix: rolling back an `admin-core:field` add-migration crashed on SQLite when the field had an index.** The

@@ -183,7 +183,10 @@ class AdminCoreServiceProvider extends ServiceProvider
             $permission = fn (string $action) => 'permission:' . str_replace(
                 ['{action}', '{resource}'],
                 [$action, $resource],
-                config('admin-core.permission.pattern')
+                // Default the pattern (matching registerSingletonMacro + the generator) — a config missing
+                // this key would otherwise str_replace against null, gating every route on the empty
+                // permission `permission:` (which no role holds → everyone locked out).
+                config('admin-core.permission.pattern', '{action}-{resource}')
             ) . $suffix;
 
             $guard = function (string $action, Closure $routes) use ($enabled, $permission) {
