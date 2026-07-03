@@ -69,6 +69,26 @@ it('does not freeze a failed provider call as a translation — the key retries 
     expect(File::get($this->target))->toContain("'language' => 'DONE'");
 });
 
+it('refreshes a placeholder string to the current source on --force (not frozen to a stale copy)', function () {
+    Http::fake([
+        'api.mymemory.translated.net/*' => Http::response(['responseData' => ['translatedText' => 'XX']]),
+    ]);
+    File::ensureDirectoryExists(dirname($this->target));
+    // A stale verbatim-English copy of a placeholder string from an OLD source wording.
+    File::put($this->target, "<?php\n\nreturn ['auth' => ['two_factor_throttled' => 'OLD wording :seconds']];\n");
+
+    // Without --force: the existing (possibly hand-translated) value is kept — placeholders never machine-translate.
+    $this->artisan('admin-core:translate', ['locale' => 'th'])->assertSuccessful();
+    expect(File::get($this->target))->toContain('OLD wording :seconds');
+
+    // With --force: it re-seeds the CURRENT English source (still verbatim — never machine-mangled), so the
+    // stale wording is refreshed for the human to re-translate, not frozen forever.
+    $this->artisan('admin-core:translate', ['locale' => 'th', '--force' => true])->assertSuccessful();
+    expect(File::get($this->target))
+        ->not->toContain('OLD wording')
+        ->toContain(':seconds'); // the current source (with its intact placeholder) was re-seeded
+});
+
 it('fails clearly when the driver is null', function () {
     config()->set('admin-core.translation.driver', 'null');
 

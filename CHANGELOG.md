@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.62
+
+**Fix: `admin-core:translate --force` never refreshed placeholder-bearing strings.** A string carrying a
+Laravel placeholder (`:seconds`, `{n}`) is deliberately never machine-translated (the provider mangles the
+token), so it's seeded as a verbatim source copy for manual translation — but the placeholder branch kept the
+existing value even under `--force`, so a stale English copy stayed frozen after the source wording changed
+upstream. `--force` now re-seeds the CURRENT source for placeholder strings too (still verbatim, never
+machine-mangled), matching how `--force` regenerates every other string; a normal run still keeps an existing
+(hand) translation. Regression test asserts a stale copy is refreshed only under `--force`
+(mutation-verified). Found by a fifth full-package audit (translate-jobs dimension).
+
 ## v2.79.61
 
 **Add: opt-in activity-log pruning (parity with the error log).** `activity_logs` grew unbounded — one row per

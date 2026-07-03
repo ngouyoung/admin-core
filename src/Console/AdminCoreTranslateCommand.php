@@ -94,7 +94,11 @@ class AdminCoreTranslateCommand extends Command
                     // Never machine-translate a string carrying a Laravel placeholder (:name) or {…} token —
                     // the provider mangles it (e.g. ":seconds" → ": secondes") and breaks runtime substitution.
                     // Keep any existing translation, else copy the source verbatim for manual translation.
-                    $out[$key] = is_string($current) && trim($current) !== '' ? $current : $value;
+                    // --force still applies here: it re-seeds the CURRENT source, so a placeholder string whose
+                    // English wording changed upstream isn't frozen to its old verbatim copy forever.
+                    $out[$key] = ! $this->option('force') && is_string($current) && trim($current) !== ''
+                        ? $current
+                        : $value;
                 } elseif (! $this->option('force') && is_string($current) && trim($current) !== '' && $current !== $value) {
                     $out[$key] = $current; // keep a REAL existing translation (not a frozen source==source passthrough)
                 } else {
