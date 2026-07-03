@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.81
+
+**Fix: the `--access` add-avatar migration crashed on a host that already had an `avatar` (or `uuid`) column.**
+`0001_01_01_000013_add_avatar_to_users_table` added both columns unconditionally — unlike its `add_locale`
+sibling, it had no `Schema::hasColumn` guard, so `admin-core:install --access` on an app whose users table
+already carried an `avatar` (a common column name) died with "duplicate column name". Each column is now added
+only when missing, and `down()` drops the uuid unique index before the column (SQLite-safe, matching v2.79.71).
+Regression tests run the migration on a plain table, on one that pre-has `avatar` (no crash, idempotent), and
+through a clean rollback (mutation-verified). Found by a sixth full-package audit (migration-seed dimension).
+Completes the audit-6 batch (v2.79.64–v2.79.81).
+
 ## v2.79.80
 
 **Fix: a belongsToMany pivot table wasn't dropped on migration rollback.** The create migration's `up()` built
