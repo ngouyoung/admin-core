@@ -17,9 +17,11 @@ beforeEach(function () {
     });
     Schema::create('dashboard_layouts', function (Blueprint $t) {
         $t->id();
-        $t->unsignedBigInteger('user_id')->unique();
+        $t->unsignedBigInteger('user_id');
+        $t->string('guard')->nullable();
         $t->json('layout');
         $t->timestamps();
+        $t->unique(['user_id', 'guard']);
     });
     Route::middleware('web')->prefix('admin')->name('admin.')->group(fn () => Route::adminCoreDashboard());
     Route::getRoutes()->refreshNameLookups(); // tests add routes after boot; refresh so Route::has() sees them
@@ -37,7 +39,7 @@ afterEach(function () {
 
 it('arranges widgets by the user saved order and hides the hidden ones', function () {
     $user = NotifiableUser::create(['name' => 'U']);
-    DashboardLayout::create(['user_id' => $user->id, 'layout' => ['order' => ['c', 'a'], 'hidden' => ['b']]]);
+    DashboardLayout::create(['user_id' => $user->id, 'guard' => 'web', 'layout' => ['order' => ['c', 'a'], 'hidden' => ['b']]]);
 
     $this->actingAs($user);
 
@@ -52,7 +54,7 @@ it('falls back to the declared order when the user has no saved layout', functio
 
 it('appends widgets added since the layout was saved', function () {
     $user = NotifiableUser::create(['name' => 'U']);
-    DashboardLayout::create(['user_id' => $user->id, 'layout' => ['order' => ['b'], 'hidden' => []]]);
+    DashboardLayout::create(['user_id' => $user->id, 'guard' => 'web', 'layout' => ['order' => ['b'], 'hidden' => []]]);
 
     $this->actingAs($user);
 
@@ -81,6 +83,30 @@ it('filters a saved layout down to real widget keys', function () {
     $layout = DashboardLayout::where('user_id', $user->id)->first()->layout;
     expect($layout['order'])->toBe(['a', 'b'])   // unknown 'bogus' dropped
         ->and($layout['hidden'])->toBe(['c']);   // unknown 'ghost' dropped
+});
+
+it('saves + reads a portal (non-default-guard) user\'s layout, namespaced by guard', function () {
+    config()->set('admin-core.permission.guards', ['merchant' => []]);
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+
+    // A merchant-guard user authenticated on the MERCHANT guard only (default guard untouched) — auth()->id()
+    // would be null here, so the old code silently no-op'd the save. currentUser() must resolve them.
+    $merchant = NotifiableUser::create(['name' => 'Merchant']);
+    auth()->guard('merchant')->setUser($merchant);
+
+    app(Dashboard::class)->saveLayout(['b', 'a'], ['c']);
+
+    // Persisted under the merchant guard, and read back for the same guard.
+    $row = DashboardLayout::where('user_id', $merchant->id)->where('guard', 'merchant')->first();
+    expect($row)->not->toBeNull()
+        ->and($row->layout['order'])->toBe(['b', 'a'])
+        ->and(app(Dashboard::class)->layout()['order'])->toBe(['b', 'a']);
+
+    // A WEB user with the SAME id must NOT see the merchant layout (no cross-guard collision).
+    $web = NotifiableUser::find($merchant->id) ?? NotifiableUser::create(['name' => 'Web']);
+    auth()->guard('merchant')->logout();
+    $this->actingAs($web); // default (web) guard
+    expect(app(Dashboard::class)->layout())->toBe([]); // no merchant row leaks to the web guard
 });
 
 it('shows the Customize button for an authenticated user', function () {

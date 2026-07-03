@@ -79,12 +79,15 @@ class Dashboard
     /** The current user's saved layout (['order' => [...], 'hidden' => [...]]), or [] when none. */
     public function layout(): array
     {
-        $userId = auth()->id();
+        [$userId, $guard] = $this->currentUser();
         if ($userId === null || ! Schema::hasTable('dashboard_layouts')) {
             return [];
         }
 
-        $row = DashboardLayout::query()->where('user_id', $userId)->first();
+        $row = DashboardLayout::query()
+            ->where('user_id', $userId)
+            ->where('guard', $guard)
+            ->first();
         if (! $row) {
             return [];
         }
@@ -95,7 +98,7 @@ class Dashboard
     /** Persist the current user's arrangement (the customize-mode save). No-op when unauthenticated. */
     public function saveLayout(array $order, array $hidden): void
     {
-        $userId = auth()->id();
+        [$userId, $guard] = $this->currentUser();
         if ($userId === null) {
             return;
         }
@@ -104,12 +107,40 @@ class Dashboard
         $valid = $this->widgets()->map(fn (Widget $w) => $w->key())->all();
 
         DashboardLayout::query()->updateOrCreate(
-            ['user_id' => $userId],
+            ['user_id' => $userId, 'guard' => $guard],
             ['layout' => [
                 'order' => array_values(array_intersect($order, $valid)),
                 'hidden' => array_values(array_intersect($hidden, $valid)),
             ]],
         );
+    }
+
+    /**
+     * The signed-in user's [id, guard] across the default guard AND any configured portal guard — so a portal
+     * dashboard (whose user is authenticated on a NON-default guard) resolves, instead of auth()->id() reading
+     * only the default guard and returning null (a silent no-op save). The guard is stored alongside so user
+     * id 5 on the merchant guard never collides with id 5 on the web guard.
+     *
+     * @return array{0: int|string|null, 1: ?string}
+     */
+    protected function currentUser(): array
+    {
+        $guards = array_unique(array_merge(
+            [config('auth.defaults.guard', 'web')],
+            array_keys((array) config('admin-core.permission.guards', [])),
+        ));
+
+        foreach ($guards as $guard) {
+            try {
+                if (auth()->guard($guard)->check()) {
+                    return [auth()->guard($guard)->id(), (string) $guard];
+                }
+            } catch (\Throwable) {
+                continue; // a guard named in admin-core config but not defined in auth.php — skip
+            }
+        }
+
+        return [null, null];
     }
 
     private function make($widget): ?Widget

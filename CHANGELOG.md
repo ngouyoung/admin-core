@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.73
+
+**Fix: dashboard "Customize" saved nothing for a portal user, and could collide layouts across guards.**
+`Dashboard::layout()`/`saveLayout()` resolved the user via `auth()->id()` (the DEFAULT guard only), so a portal
+dashboard — whose user is authenticated on a non-default guard — got `null` and the save silently no-op'd; and
+`dashboard_layouts.user_id` was unique alone, so id 5 on a portal guard would share a row with id 5 on the web
+guard. Both fixed: a guard-agnostic `currentUser()` resolves the signed-in user across the default + configured
+portal guards, and layouts are now keyed and stored per (user_id, guard). The create migration adds a `guard`
+column with a composite unique; a new auto-loaded upgrade migration adds it to existing tables (swapping the
+old unique). Regression test saves/reads a merchant-guard layout and asserts no leak to the web guard
+(mutation-verified). **Existing installs: run `php artisan migrate`.** Found by a sixth full-package audit
+(caching-state dimension).
+
 ## v2.79.72
 
 **Fix: `Route::crud()` had no default for a missing `permission.pattern`, locking everyone out.** The crud macro
