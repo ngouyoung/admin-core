@@ -147,6 +147,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Max DataTables page length (list getData safety cap)
+    |--------------------------------------------------------------------------
+    | The hard ceiling on the list endpoint's `length` — a client requesting
+    | `?length=-1` (show all) or a huge value is capped to this, so one request
+    | can't fetch + serialise the whole table into memory. Mirrors the JSON
+    | API's `api.max_per_page`.
+    */
+    'pagination_max' => 500,
+
+    /*
+    |--------------------------------------------------------------------------
     | Forms
     |--------------------------------------------------------------------------
     | idempotency: generated create forms carry a one-time <x-admin-core::idempotency-key /> token, and

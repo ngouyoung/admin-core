@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.76
+
+**Fix: the list `getData()` had no page-length cap, so `?length=-1` fetched the whole table.** A user with only
+list permission could request `?length=-1` ("show all") or `?length=999999` and yajra would fetch + serialise
+every row into one response — unbounded memory. `getData()` now clamps an out-of-range `length` to a new
+`admin-core.pagination_max` config (default 500), mirroring the JSON API's `max_per_page`; ordinary page sizes
+and the no-length case are untouched, and the total count is still reported. Regression test asserts `-1` and a
+huge value are capped while a normal size passes (mutation-verified). Found by a sixth full-package audit
+(datatables-search dimension).
+
 ## v2.79.75
 
 **Fix: searching a translatable (JSON) list column matched the JSON keys, not the text.** A translatable column

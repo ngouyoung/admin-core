@@ -102,6 +102,24 @@ it('returns datatable json from getData', function () {
         ->assertJsonFragment(['name' => 'Listme']);
 });
 
+it('caps the DataTables page length so ?length=-1 (show all) cannot fetch the whole table', function () {
+    config()->set('admin-core.pagination_max', 5);
+    for ($i = 0; $i < 12; $i++) {
+        Widget::create(['name' => "W{$i}"]);
+    }
+
+    // length=-1 ("show all") is capped to pagination_max (5), not the full 12 rows.
+    $json = $this->getJson('/admin/widgets/getData?draw=1&start=0&length=-1')->assertOk()->json();
+    expect(count($json['data']))->toBe(5)
+        ->and($json['recordsTotal'])->toBe(12); // the total is still reported; only the page is bounded
+
+    // A huge explicit length is capped too.
+    expect(count($this->getJson('/admin/widgets/getData?draw=1&start=0&length=999999')->json('data')))->toBe(5);
+
+    // An ordinary page size is untouched.
+    expect(count($this->getJson('/admin/widgets/getData?draw=1&start=0&length=3')->json('data')))->toBe(3);
+});
+
 it('returns select2-shaped {id,text} results from the remote select source, filtered by the term', function () {
     Widget::create(['name' => 'Apple']);
     Widget::create(['name' => 'Banana']);

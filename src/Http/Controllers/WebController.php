@@ -250,6 +250,17 @@ abstract class WebController extends BaseController
 
     public function getData($relation = null)
     {
+        // Cap the DataTables page length: `?length=-1` (show all) or a huge value would fetch + serialise the
+        // whole table into memory. Mirrors the JSON API's max_per_page. Only clamps an explicit out-of-range
+        // value; ordinary page sizes (and the no-length case) are untouched.
+        if (request()->has('length')) {
+            $max = (int) config('admin-core.pagination_max', 500);
+            $length = (int) request('length');
+            if ($length < 1 || $length > $max) {
+                request()->merge(['length' => $max]);
+            }
+        }
+
         $query = $this->service->query($relation);
         $this->applyListFilters($query, request());
 
