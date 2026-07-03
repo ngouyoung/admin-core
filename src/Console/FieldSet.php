@@ -1953,7 +1953,10 @@ PHP;
                     $rules = [$required, "'integer'", "'exists:{$f['relTable']},id'"];
                     break;
                 case 'belongsToMany':
-                    $lines[] = "            '{$f['name']}' => ['array'],";
+                    // nullable + array (like media/gallery/hasMany): an empty/absent selection is a valid
+                    // empty relation. A bare ['array'] wrongly rejects null with validation.array — so a form
+                    // (or API) that submits no tags 422s instead of syncing an empty set.
+                    $lines[] = "            '{$f['name']}' => ['nullable', 'array'],";
                     $lines[] = "            '{$f['name']}.*' => ['integer', 'exists:{$f['relTable']},id'],";
                     continue 2;
                 case 'media':

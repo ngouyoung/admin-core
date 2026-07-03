@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.79
+
+**Fix: a belongsToMany field's rule rejected a valid empty selection.** The generated rule was a bare
+`['array']`, so submitting no items (null / absent — a valid empty relation) failed with `validation.array`
+and 422'd the form/API, even though the sibling relations (media/gallery/hasMany) all use `['nullable', 'array']`.
+The rule is now `['nullable', 'array']` too, so an empty selection syncs an empty set; a non-array value is
+still rejected. Regression tests assert the generated rule and drive the real validator with null/absent/valid/
+non-array inputs (mutation-verified). Found by a sixth full-package audit (validation-gen dimension).
+
 ## v2.79.78
 
 **Add: a config-cache-safe way to register closure dashboard widgets.** The documented inline widget form uses

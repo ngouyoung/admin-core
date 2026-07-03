@@ -417,6 +417,20 @@ it('handles belongsToMany with a pivot migration and sync', function () {
     expect($f->extraSchema())->toContain("Schema::create('product_tag'");
     expect($f->relations())->toContain('belongsToMany');
     expect($f->serviceBody())->toContain('->sync(');
+    // nullable + array — an empty/absent selection is a valid empty relation (not a validation.array 422).
+    expect($f->storeRules())
+        ->toContain("'tags' => ['nullable', 'array']")
+        ->toContain("'tags.*' => ['integer', 'exists:tags,id']");
+});
+
+it('validates an empty/absent belongsToMany selection as a valid empty relation', function () {
+    // Reproduce the exact generated rule against the real validator: null must pass (sync an empty set),
+    // not fail with validation.array as a bare ['array'] rule would.
+    $rules = ['tags' => ['nullable', 'array'], 'tags.*' => ['integer']];
+    expect(validator(['tags' => null], $rules)->fails())->toBeFalse();  // no tags → valid
+    expect(validator([], $rules)->fails())->toBeFalse();                // absent → valid
+    expect(validator(['tags' => [1, 2]], $rules)->fails())->toBeFalse(); // a real selection → valid
+    expect(validator(['tags' => 'nope'], $rules)->fails())->toBeTrue();  // a non-array → still rejected
 });
 
 it('renders a belongsToMany field as a searchable remote multi-select (no whole-table eager-load)', function () {
