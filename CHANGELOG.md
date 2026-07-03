@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.38
+
+**Fix: a duplicate field name in one `--fields` spec scaffolded a broken resource with a success message.**
+`admin-core:make Product --fields="sku:string, sku:integer"` (an easy copy-paste slip) emitted BOTH columns in
+one Schema block — `php artisan migrate` fails with a duplicate-column error — and duplicate `rules()`/`casts()`
+array keys, where PHP silently keeps the last. FieldSet now rejects a repeated field name up front with a clear
+message, so `make` and `admin-core:field` fail cleanly and write nothing. Regression test covers the throw and
+the zero-file failure (mutation-verified). Found by a fourth full-package audit (generator-consistency).
+
 ## v2.79.37
 
 **Fix: the generator hardcoded `{action}-{resource}` permission names while `Route::crud()` resolves them from

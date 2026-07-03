@@ -1596,6 +1596,22 @@ it('derives every seeded and gated permission name from permission.pattern', fun
     config()->set('admin-core.permission.pattern', '{action}-{resource}');
 });
 
+it('refuses a duplicate field name instead of emitting a broken migration', function () {
+    // 'sku' twice would emit two $table->…('sku') lines in ONE Schema block (migrate fails) and
+    // duplicate rules()/casts() keys (PHP silently keeps the last) — while reporting success.
+    expect(fn () => new \Ngos\AdminCore\Console\FieldSet('sku:string, sku:integer'))
+        ->toThrow(InvalidArgumentException::class, 'more than once');
+
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'sku:string, sku:integer',
+        '--migration' => true,
+    ])->assertFailed();
+
+    expect(glob(database_path('migrations/*_create_gizmos_table.php')))->toBeEmpty()
+        ->and(File::exists(app_path('Models/Gizmo.php')))->toBeFalse(); // nothing scaffolded
+});
+
 it('adds a trash screen and soft-delete routes with --soft-deletes', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

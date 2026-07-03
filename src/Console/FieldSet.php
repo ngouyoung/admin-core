@@ -453,6 +453,16 @@ class FieldSet
                 $field['relTable'] = $child;
                 $field['relModel'] = Str::studly(Str::singular($child));
             }
+            // Reject a repeated field name: two entries would emit a duplicate column in ONE Schema
+            // block (migrate fails) and duplicate rules()/casts() array keys (PHP silently keeps the last),
+            // while the command still reports success.
+            foreach ($fields as $existing) {
+                if ($existing['name'] === $name) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: field '{$name}' is declared more than once in the field spec — each field may appear only once.",
+                    );
+                }
+            }
             $fields[] = $field;
         }
 
