@@ -63,9 +63,28 @@ abstract class SingletonController extends WebController
         $data = $this->stripDeniedFields(app($this->updateRequest)->validated());
         $scope = $this->recordScope();
 
-        // forceFill($scope) AFTER fill($data) re-asserts the owner keys — a tampered/omitted scope column can't
-        // repoint the row to another owner, and the scope is set even when the column isn't fillable.
-        DB::transaction(fn () => $record->fill($data)->forceFill($scope)->save());
+        // Re-resolve INSIDE the transaction (row-locked) so a row created since record() ran above is
+        // UPDATED, not duplicated. forceFill($scope) AFTER fill($data) re-asserts the owner keys — a
+        // tampered/omitted scope column can't repoint the row to another owner, and the scope is set even
+        // when the column isn't fillable.
+        $write = fn () => DB::transaction(
+            fn () => $this->service->query()->lockForUpdate()->firstOrNew($scope)
+                ->fill($data)->forceFill($scope)->save(),
+        );
+
+        if ($record->exists) {
+            $write();
+        } else {
+            // The FIRST save inserts the row, and there may be no unique constraint on the scope — two
+            // concurrent first saves (a double-submit) would both see "no row" and both INSERT. Serialize
+            // them behind an atomic cache lock; the loser then finds the winner's row and updates it.
+            try {
+                cache()->lock('admin-core:singleton:' . md5(static::class . '|' . json_encode($scope)), 10)
+                    ->block(5, $write);
+            } catch (\Illuminate\Contracts\Cache\LockTimeoutException|\BadMethodCallException) {
+                $write(); // a stuck lock / lock-less cache store — still transactional + re-resolved
+            }
+        }
 
         return back()->with('success', $this->message('updated'));
     }

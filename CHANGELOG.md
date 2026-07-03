@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.40
+
+**Fix: two concurrent FIRST saves of a singleton screen created two rows.** `SingletonController::update()`
+resolved the record with `firstOrNew()` OUTSIDE the write transaction — a double-submit before the first
+insert committed made both requests see "no row" and both INSERT (the scope usually has no unique constraint),
+after which every read returned whichever row the DB ordered first, silently discarding the other save. The
+write now re-resolves the row `lockForUpdate()` INSIDE the transaction (a row created mid-request is UPDATED,
+not duplicated) and the first-ever save is serialized behind an atomic cache lock, so the loser updates the
+winner's row. Regression test commits a "concurrent" row mid-request and asserts one row, updated
+(mutation-verified). Found by a fourth full-package audit (concurrency dimension).
+
 ## v2.79.39
 
 **Fix: re-running `make` on a portal/guarded resource without restating `--portal`/`--guard` mis-scoped the new

@@ -34,6 +34,22 @@ it('updates the SAME record on later saves — never a second row', function () 
         ->and(Widget::first()->name)->toBe('Updated');
 });
 
+it('updates the row a concurrent first save created instead of inserting a duplicate (race)', function () {
+    // Simulate a concurrent request committing the FIRST row mid-request: record() has already returned
+    // an unsaved instance when the FormRequest resolves — create the row exactly there. The write must
+    // re-resolve and UPDATE that row, not save its stale unsaved instance as a second one.
+    app()->resolving(\Ngos\AdminCore\Tests\Fixtures\StoreWidgetRequest::class, function () {
+        if (Widget::count() === 0) {
+            Widget::create(['name' => 'Winner']);
+        }
+    });
+
+    $this->put('/admin/settings', ['name' => 'Updated by loser'])->assertRedirect();
+
+    expect(Widget::count())->toBe(1)
+        ->and(Widget::first()->name)->toBe('Updated by loser');
+});
+
 it('validates the input like any form (name required) and saves nothing on failure', function () {
     $this->put('/admin/settings', ['name' => ''])->assertSessionHasErrors('name');
 
