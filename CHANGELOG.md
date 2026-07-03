@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.59
+
+**Fix: `admin-core:translate` froze a failed provider call into the locale file as a real translation.** The
+Translator fails safe at runtime by returning the source string on an outage / rate-limit / oversized text —
+correct for the middleware, but the batch command persisted that source as the locale's "translation" and
+counted it, so the untranslated English was frozen in and never retried. The command now skips a result equal
+to its source (omit the key → runtime falls back to the source locale, and the next run retries), and no longer
+keeps a previously-frozen `source==source` entry. Regression test fails every call on the first run (key absent,
+not frozen) then succeeds on the second (the key translates — proving it was retryable), mutation-verified.
+Found by a fifth full-package audit (translate-jobs dimension).
+
 ## v2.79.58
 
 **Fix: activity-log attribution silently became 'system' once the causing user was soft-deleted.** The

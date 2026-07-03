@@ -47,6 +47,28 @@ it('keeps an existing translation unless --force is passed', function () {
     expect(File::get($this->target))->toContain("'language' => 'NEW'");
 });
 
+it('does not freeze a failed provider call as a translation — the key retries on the next run', function () {
+    // One fake whose behaviour flips between the two runs (repeated Http::fake() calls don't replace).
+    $failing = true;
+    Http::fake(function () use (&$failing) { // by-reference so the two runs see the flip
+        // HTTP-200 but responseStatus 429 (quota) → the translator throws → fails safe to the SOURCE string.
+        return $failing
+            ? Http::response(['responseStatus' => 429, 'responseData' => ['translatedText' => 'quota']])
+            : Http::response(['responseData' => ['translatedText' => 'DONE']]);
+    });
+
+    // First run: every call fails. The command must NOT persist the source as a "translation".
+    $this->artisan('admin-core:translate', ['locale' => 'th'])->assertSuccessful();
+    $first = File::exists($this->target) ? File::get($this->target) : '';
+    expect($first)->not->toContain("'language' =>"); // absent (not frozen) → runtime falls back + next run retries
+
+    // Second run (no --force): the provider now succeeds → the key that failed before is translated,
+    // proving the earlier failure was retryable, not frozen into the file.
+    $failing = false;
+    $this->artisan('admin-core:translate', ['locale' => 'th'])->assertSuccessful();
+    expect(File::get($this->target))->toContain("'language' => 'DONE'");
+});
+
 it('fails clearly when the driver is null', function () {
     config()->set('admin-core.translation.driver', 'null');
 

@@ -95,10 +95,18 @@ class AdminCoreTranslateCommand extends Command
                     // the provider mangles it (e.g. ":seconds" → ": secondes") and breaks runtime substitution.
                     // Keep any existing translation, else copy the source verbatim for manual translation.
                     $out[$key] = is_string($current) && trim($current) !== '' ? $current : $value;
-                } elseif (! $this->option('force') && is_string($current) && trim($current) !== '') {
-                    $out[$key] = $current; // keep an existing translation
+                } elseif (! $this->option('force') && is_string($current) && trim($current) !== '' && $current !== $value) {
+                    $out[$key] = $current; // keep a REAL existing translation (not a frozen source==source passthrough)
                 } else {
-                    $out[$key] = $translator->translate($value, $from, $to);
+                    $translated = $translator->translate($value, $from, $to);
+                    // The Translator fails SAFE at runtime by returning the source unchanged (outage / rate
+                    // limit / oversized). In this batch command that must NOT be persisted as a "translation":
+                    // omit the key so it's retried on the next run (and the runtime falls back to the source
+                    // locale meanwhile) instead of freezing the English into the target file forever.
+                    if ($translated === $value) {
+                        continue;
+                    }
+                    $out[$key] = $translated;
                     $this->translatedCount++;
                 }
             } else {
