@@ -900,9 +900,11 @@ it('wires a per-record money currency (@column → cast reads the row currency, 
     expect(File::get(app_path('Models/Gizmo.php')))
         ->toContain("'total' => \\Ngos\\AdminCore\\Casts\\MoneyCast::class.':@currency',");
 
-    // The form passes this row's currency (an enum, normalised by the component) so editing shows its symbol.
+    // The form passes this row's currency via old() FIRST — so after a validation failure the redisplayed
+    // input shows the symbol/step of the currency the user just picked, not the default. (An enum value is
+    // normalised by the component.)
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
-        ->toContain('<x-admin-core::money-input name="total" label="Total" :currency="$object?->currency"');
+        ->toContain('<x-admin-core::money-input name="total" label="Total" :currency="old(\'currency\', $object?->currency)"');
 
     // A per-record column gets NO amount range filter (one bound can't honour each row's decimals).
     expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))

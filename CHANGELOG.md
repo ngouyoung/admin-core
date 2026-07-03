@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.55
+
+**Fix: a per-record-currency money input showed the wrong currency after a validation failure.** The generated
+`money-input` passed `:currency="$object?->currency"`, so on a redisplayed create form (`$object` null) it fell
+back to the configured default — the amount repopulated from `old()` but the symbol/step reverted, e.g. a KHR
+amount shown with a `$` and two decimals. The currency now reads `old('currency', $object?->currency)` FIRST,
+so the redisplay honours the currency the user picked (a fresh record with no old input still uses the default).
+Regression test asserts the generated form snippet reads the currency via `old()` (mutation-verified). Found by
+a fifth full-package audit (components dimension).
+
 ## v2.79.54
 
 **Fix: `admin-core:uninstall --purge` orphaned the account route and the three install migrations.**

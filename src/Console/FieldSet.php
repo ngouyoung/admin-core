@@ -2236,10 +2236,12 @@ PHP;
                 return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" step=\"0.01\" :value=\"{$old}\"{$ro} />";
             case 'money':
                 // Edit the major amount (price->major() === "15.00"); the symbol + step come from the currency.
-                // Per-record currency: pass this row's currency column (an enum is normalised by the component),
-                // so editing shows the record's symbol (a new record falls back to the configured default).
+                // Per-record currency: pass this row's currency column (an enum is normalised by the component)
+                // via old() FIRST, so after a validation failure the redisplayed input shows the symbol/step of
+                // the currency the user just picked — not the default (a new record with no old() input still
+                // falls back to the configured default).
                 $cur = ! empty($f['currencyColumn'])
-                    ? " :currency=\"\$object?->{$f['currencyColumn']}\""
+                    ? " :currency=\"old('{$f['currencyColumn']}', \$object?->{$f['currencyColumn']})\""
                     : (! empty($f['currency']) ? " currency=\"{$f['currency']}\"" : '');
 
                 return "<x-admin-core::money-input name=\"{$col}\" label=\"{$label}\"{$cur} :value=\"old('{$col}', \$object?->{$col}?->major())\"{$ro} />";
