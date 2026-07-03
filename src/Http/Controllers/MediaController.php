@@ -20,16 +20,17 @@ class MediaController extends Controller
 
     public function index(Request $request): View
     {
+        [$search, $collection] = [$this->stringQuery($request, 'search'), $this->stringQuery($request, 'collection')];
         $items = $this->library
-            ->query($request->query('search'), $request->query('collection'))
+            ->query($search, $collection)
             ->paginate((int) config('admin-core.pagination', 50))
             ->withQueryString();
 
         return view('admin-core::media.index', [
             'items' => $items,
             'collections' => $this->library->collections(),
-            'search' => $request->query('search'),
-            'collection' => $request->query('collection'),
+            'search' => $search,
+            'collection' => $collection,
         ]);
     }
 
@@ -37,7 +38,7 @@ class MediaController extends Controller
     public function list(Request $request): JsonResponse
     {
         $items = $this->library
-            ->query($request->query('search'), $request->query('collection'))
+            ->query($this->stringQuery($request, 'search'), $this->stringQuery($request, 'collection'))
             ->paginate((int) config('admin-core.pagination', 50));
 
         return response()->json([
@@ -75,6 +76,14 @@ class MediaController extends Controller
             ->values();
 
         return response()->json(['data' => $items]);
+    }
+
+    /** A query param as a string or null — `?search[]=x` (an array) must not TypeError into a 500. */
+    private function stringQuery(Request $request, string $key): ?string
+    {
+        $value = $request->query($key);
+
+        return is_string($value) ? $value : null;
     }
 
     public function destroy(MediaItem $media): JsonResponse

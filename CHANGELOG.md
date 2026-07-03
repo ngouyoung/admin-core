@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.45
+
+**Fix: `?search[]=x` 500'd the media library instead of returning results.** `Request::query()` returns an
+ARRAY for a bracketed param, which crashed `MediaLibrary::query(?string …)` with an uncaught TypeError on both
+the library screen and the picker's JSON list — any hand-edited/misbuilt URL took the whole page down. Both
+endpoints now normalise `search`/`collection` to string-or-null. Regression test drives the picker with array
+params and asserts a normal JSON response (mutation-verified). Found by a fourth full-package audit
+(http-endpoints dimension).
+
 ## v2.79.44
 
 **Fix: an animated GIF upload was silently flattened to a single static WebP frame.** The compression pipeline

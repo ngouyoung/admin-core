@@ -85,6 +85,14 @@ it('lists library items as JSON for the picker', function () {
         ->assertJsonCount(1, 'data');
 });
 
+it('treats an array search/collection param as absent instead of a TypeError 500', function () {
+    app(MediaLibrary::class)->store(UploadedFile::fake()->image('a.png'), 'default');
+
+    // ?search[]=x makes query('search') an array — it must not reach the ?string-typed library query.
+    $this->get('/admin/media/list?search[]=x&search[]=y')->assertOk()->assertJsonCount(1, 'data');
+    $this->get('/admin/media/list?collection[]=x')->assertOk();
+});
+
 it('deletes a media item (and its file) via the endpoint', function () {
     $item = app(MediaLibrary::class)->store(UploadedFile::fake()->image('x.png'));
     $path = $item->path;
