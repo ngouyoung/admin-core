@@ -172,6 +172,12 @@ class AdminCoreUninstallCommand extends Command
             resource_path('views/auth/login.blade.php'),
             resource_path('views/auth/two-factor-challenge.blade.php'),
             base_path('routes/Web/Backend/Modules/assessments.php'),
+            // The three fixed-name migrations install copies from the top-level stubs dir (NOT the access/
+            // tree, so the map walk below never sees them). The distinctive 000020–000022 names are ours,
+            // never the framework's own timestamped migrations.
+            database_path('migrations/0001_01_01_000020_create_activity_logs_table.php'),
+            database_path('migrations/0001_01_01_000021_create_notifications_table.php'),
+            database_path('migrations/0001_01_01_000022_create_error_logs_table.php'),
             // --api-auth footprint (stubs/api-auth) — copied to fixed paths, not a walked stub dir.
             app_path('Http/Controllers/Api/AuthController.php'),
             app_path('Providers/ApiAuthServiceProvider.php'),
@@ -182,6 +188,10 @@ class AdminCoreUninstallCommand extends Command
         // ours — so purging them by path would delete the user's/framework's files. Only claim the tree when
         // the kit was actually installed here.
         if ($this->frontendKitInstalled()) {
+            // The account module's route is copied to a fixed path by `install --access` (like assessments.php),
+            // not via a walked stub dir — claim it here so --purge doesn't orphan it.
+            $files[] = base_path('routes/Web/Backend/Modules/account.php');
+
             $map = [
                 'frontend/resources' => resource_path(),
                 'frontend/views/backend' => resource_path('views/backend'),

@@ -87,7 +87,14 @@ it('excludes the frontend/access tree from purge targets on a minimal install (n
 
     // The framework-owned resources/js/app.js must NOT be a purge target; the minimal config IS ours.
     expect($owned)->not->toContain(resource_path('js/app.js'))
-        ->and($owned)->toContain(config_path('admin-core.php'));
+        ->and($owned)->toContain(config_path('admin-core.php'))
+        // The three fixed-name migrations install copies on every install belong to the base purge list
+        // (not the --access-only tree) — else --purge orphans them.
+        ->and($owned)->toContain(database_path('migrations/0001_01_01_000020_create_activity_logs_table.php'))
+        ->and($owned)->toContain(database_path('migrations/0001_01_01_000021_create_notifications_table.php'))
+        ->and($owned)->toContain(database_path('migrations/0001_01_01_000022_create_error_logs_table.php'))
+        // account.php is --access-only, so it must NOT be claimed on a minimal install.
+        ->and($owned)->not->toContain(base_path('routes/Web/Backend/Modules/account.php'));
 });
 
 it('claims the frontend/access tree when the kit IS installed', function () {
@@ -97,7 +104,8 @@ it('claims the frontend/access tree when the kit IS installed', function () {
     $command = new \Ngos\AdminCore\Console\AdminCoreUninstallCommand();
     $owned = (new ReflectionMethod($command, 'ownedFiles'))->invoke($command);
 
-    expect($owned)->toContain(resource_path('js/app.js')); // now ours to purge
+    expect($owned)->toContain(resource_path('js/app.js'))                                 // now ours to purge
+        ->and($owned)->toContain(base_path('routes/Web/Backend/Modules/account.php'));    // the --access account route too
 
     File::deleteDirectory(resource_path('js'));
 });

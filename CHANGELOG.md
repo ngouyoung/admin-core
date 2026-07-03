@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.54
+
+**Fix: `admin-core:uninstall --purge` orphaned the account route and the three install migrations.**
+`ownedFiles()` derived most purge targets by walking the stub dirs, but four files install copies to fixed
+paths were never listed: `routes/Web/Backend/Modules/account.php` (`install --access`) and the three
+fixed-name migrations `0001_01_01_000020/21/22_create_{activity_logs,notifications,error_logs}_table.php`
+(copied from the top-level stubs dir, outside the walked `access/` tree). `--purge` reported "N files deleted"
+yet left these behind. All four are now claimed — the migrations in the base list (published on every install),
+`account.php` gated behind the frontend-kit signal (`--access` only). Regression tests assert both
+(mutation-verified). Found by a fifth full-package audit (install-lifecycle dimension).
+
 ## v2.79.53
 
 **Fix: the media picker's library search had no stale-response guard.** Typing fast fired overlapping `loadGrid`
