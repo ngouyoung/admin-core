@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.64
+
+**Fix (regression in v2.79.55): a per-record-currency money input 500'd on a non-string `old()` currency.**
+v2.79.55 correctly threaded `old('currency', …)` into the money input, but `old()` returns the raw flashed
+input verbatim — so a hand-crafted `currency[]=USD` array (which fails enum validation and is flashed back)
+reached `Money::config(?string)` and threw an uncaught `TypeError`, 500-ing the redisplayed create/edit page
+for any resource with a per-record money currency. The component now coerces a non-string, non-enum currency to
+null (falls back to the configured default). Regression test renders the component with an array currency and
+asserts no crash (mutation-verified). Found by a sixth full-package audit (regression-review of v2.79.49–63).
+
 ## v2.79.63
 
 **Fix: `ActivityLog::subject()` lost the audited record once it was soft-deleted.** Completeness sweep of the

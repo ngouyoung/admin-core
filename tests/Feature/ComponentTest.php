@@ -40,6 +40,19 @@ it('renders the editor component as a CKEditor-bound textarea', function () {
     expect($html)->toContain('<textarea')->toContain('name="body"')->toContain('js-editor')->toContain('Body:');
 });
 
+it('renders the money-input with the currency step/symbol, and survives a non-string currency (array old input)', function () {
+    config()->set('admin-core.money.currencies', ['KHR' => ['symbol' => '៛', 'decimals' => 0, 'position' => 'before']]);
+
+    // Normal per-record currency.
+    $html = Blade::render('<x-admin-core::money-input name="total" currency="KHR" :value="15000" />');
+    expect($html)->toContain('៛')->toContain('step="1"')->toContain('name="total"');
+
+    // After a validation failure a hand-crafted currency[]=… flashes an ARRAY into the currency prop.
+    // Money::config(?string) would TypeError-500 the redisplay — the component must coerce it to null (default).
+    $arr = Blade::render('<x-admin-core::money-input name="total" :currency="$c" :value="15000" />', ['c' => ['KHR', 'USD']]);
+    expect($arr)->toContain('name="total"'); // rendered, no TypeError
+});
+
 it('flags a bracketed (repeater) select/editor field as invalid via the dot-notation error key', function () {
     // Laravel stores error keys in dot notation. A repeater field's bracketed name must be converted
     // (items[0][category_id] → items.0.category_id) to detect its error — else is-invalid never lights up.

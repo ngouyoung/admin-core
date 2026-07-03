@@ -15,7 +15,11 @@
 @php
     $label ??= \Illuminate\Support\Str::headline($name);
     // A per-record currency may arrive as a BackedEnum (the row's enum column) — use its backing code.
+    // It may also arrive as raw old() input after a validation failure: coerce anything that isn't a plain
+    // string (e.g. a hand-crafted currency[]=… array) to null so Money::config(?string) can't TypeError-500
+    // the redisplayed form; a null falls back to the configured default currency.
     $currency = $currency instanceof \BackedEnum ? $currency->value : $currency;
+    $currency = is_string($currency) ? $currency : null;
     $cfg = \Ngos\AdminCore\Support\Money::config($currency);
     $step = $cfg['decimals'] > 0 ? '0.' . str_repeat('0', $cfg['decimals'] - 1) . '1' : '1';
     $errorKey = rtrim(str_replace(['[', ']'], ['.', ''], $name), '.');
