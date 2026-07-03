@@ -158,6 +158,20 @@ it('marks rejected WITHOUT running the action', function () {
         ->and($approval->fresh()->decision_note)->toBe('nope');
 });
 
+it('treats an array note as absent instead of a TypeError 500', function () {
+    Notification::fake();
+    config()->set('admin-core.permission.enabled', true);
+    Gate::define('approve-refund-action-widget', fn () => true);
+    $this->actingAs(new NotifiableUser(['name' => 'Owner']));
+    $approval = pendingRefund(Widget::create(['name' => 'a']));
+
+    // note[]=x makes input('note') an array — it must not reach the ?string-typed claim().
+    $this->post('/admin/approvals/' . $approval->uuid . '/reject', ['note' => ['x', 'y']])->assertRedirect();
+
+    expect($approval->fresh()->status)->toBe('rejected')
+        ->and($approval->fresh()->decision_note)->toBeNull(); // the junk note is dropped, not crashed on
+});
+
 it('forbids deciding without the action approve permission', function () {
     config()->set('admin-core.permission.enabled', true); // guest → cannot approve
     $w = Widget::create(['name' => 'a']);

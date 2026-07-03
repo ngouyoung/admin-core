@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.46
+
+**Fix: an array `note` param 500'd approve/reject.** `POST …/reject` with `note[]=x` (a repeated form key —
+trivial to send) made `$request->input('note')` an array, which crashed the `?string`-typed `claim()` with an
+uncaught TypeError instead of deciding the approval. Both endpoints now normalise the note to string-or-null.
+Regression test rejects with an array note and asserts the decision lands with a null note
+(mutation-verified). Found by a fourth full-package audit (http-endpoints dimension).
+
 ## v2.79.45
 
 **Fix: `?search[]=x` 500'd the media library instead of returning results.** `Request::query()` returns an

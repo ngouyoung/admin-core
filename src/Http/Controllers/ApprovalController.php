@@ -41,7 +41,7 @@ class ApprovalController extends Controller
         // rolls the claim back too — so the request returns to 'pending' and is retryable, instead of being
         // stuck 'approved' with its effect rolled back and no way to re-run it.
         DB::transaction(function () use ($approval, $request) {
-            abort_unless($this->claim($approval, 'approved', $request->input('note')), 404);
+            abort_unless($this->claim($approval, 'approved', $this->note($request)), 404);
             app($approval->handler)->applyApprovedAction($approval->action, $approval->ids());
         });
 
@@ -54,11 +54,19 @@ class ApprovalController extends Controller
     {
         $approval = $this->pendingOrFail($id);
         abort_unless($this->canDecide($approval), 403);
-        abort_unless($this->claim($approval, 'rejected', $request->input('note')), 404);
+        abort_unless($this->claim($approval, 'rejected', $this->note($request)), 404);
 
         $this->notifyRequester($approval, false);
 
         return back()->with('success', __('admin-core::admin-core.approvals.rejected'));
+    }
+
+    /** The decision note as a string or null — `note[]=x` (an array) must not TypeError into a 500. */
+    private function note(Request $request): ?string
+    {
+        $note = $request->input('note');
+
+        return is_string($note) ? $note : null;
     }
 
     private function pendingOrFail(string $id): Approval
