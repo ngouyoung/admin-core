@@ -1119,6 +1119,28 @@ BLADE;
         return implode("\n", $lines);
     }
 
+    /**
+     * `$table->dropUnique/dropIndex([...])` lines for the single-column unique (^) / indexed (#) fields — for
+     * an add-migration's down(), which must drop a column's index BEFORE the column itself (SQLite errors
+     * on "index … after drop column" otherwise). Empty when no field carries an index.
+     */
+    public function migrationDropIndexes(): string
+    {
+        $lines = [];
+        foreach ($this->fields as $f) {
+            if (! $this->isColumn($f) || $f['type'] === 'foreign') {
+                continue; // relations/derived aren't plain columns; a foreign key indexes itself + is skipped by admin-core:field
+            }
+            if (! empty($f['unique'])) {
+                $lines[] = "            \$table->dropUnique(['{$f['name']}']);";
+            } elseif (! empty($f['index'])) {
+                $lines[] = "            \$table->dropIndex(['{$f['name']}']);";
+            }
+        }
+
+        return implode("\n", $lines);
+    }
+
     /** `$table->unique([...])` lines for each composite-unique group (inside the create block), or ''. */
     public function uniqueConstraints(): string
     {

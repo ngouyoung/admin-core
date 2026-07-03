@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.71
+
+**Fix: rolling back an `admin-core:field` add-migration crashed on SQLite when the field had an index.** The
+generated `down()` did `dropColumn([...])` directly, but SQLite errors ("index … after drop column: no such
+column") if a `^`(unique)/`#`(index) column's index isn't dropped first. `down()` now emits `dropUnique`/
+`dropIndex` for each indexed column BEFORE `dropColumn` (cross-DB safe; a no-op when no field is indexed).
+Regression test generates an `sku:string^` add-migration and runs its `up()`+`down()` against a live SQLite
+table, asserting a clean rollback (mutation-verified — removing the index-drop reproduces the crash). Found by a
+sixth full-package audit (migration-seed dimension).
+
 ## v2.79.70
 
 **Fix: a one-to-one `foreign^` field validated uniqueness but never created the DB constraint.** The `foreign`

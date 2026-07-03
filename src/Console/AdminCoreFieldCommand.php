@@ -213,6 +213,7 @@ class AdminCoreFieldCommand extends Command
         File::put($target, strtr(File::get($this->stub('add-migration.stub')), [
             '__AC_TABLE__' => $table,
             '__AC_COLUMNS__' => $fs->migrationColumns(),
+            '__AC_DROP_INDEXES__' => $fs->migrationDropIndexes(), // dropped BEFORE the columns (SQLite order)
             '__AC_DROP__' => $drop,
         ]));
         $this->line('  <info>created</info> ' . $this->relative($target));

@@ -110,6 +110,32 @@ it('skips a hasMany field (needs the child model + repeater wiring), not half-wi
     expect(glob(database_path('migrations/*_add_lines_to_gizmos_table.php')))->toBeEmpty();
 });
 
+it('rolls back an add-migration that adds a UNIQUE column without crashing on SQLite (index dropped first)', function () {
+    makeGizmo();
+    // A live base table for the add-migration to operate on (the field command needs it to exist).
+    Schema::dropIfExists('gizmos');
+    Schema::create('gizmos', function (Illuminate\Database\Schema\Blueprint $t) {
+        $t->id();
+        $t->string('name');
+    });
+
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'sku:string^'])->assertSuccessful();
+
+    $file = collect(glob(database_path('migrations/*_add_sku_to_gizmos_table.php')))->first();
+    expect($file)->not->toBeNull();
+    // down() must drop the unique index BEFORE the column, or SQLite errors on "index … after drop column".
+    expect(File::get($file))->toContain("dropUnique(['sku'])");
+
+    $migration = require $file;
+    $migration->up();
+    expect(Schema::hasColumn('gizmos', 'sku'))->toBeTrue();
+
+    $migration->down(); // the actual crash path — must complete cleanly
+    expect(Schema::hasColumn('gizmos', 'sku'))->toBeFalse();
+
+    Schema::dropIfExists('gizmos');
+});
+
 it('adds new fields across migration, model, requests, views and factory', function () {
     makeGizmo();
 

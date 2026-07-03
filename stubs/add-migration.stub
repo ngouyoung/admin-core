@@ -16,6 +16,7 @@ __AC_COLUMNS__
     public function down(): void
     {
         Schema::table('__AC_TABLE__', function (Blueprint $table) {
+__AC_DROP_INDEXES__
             $table->dropColumn([__AC_DROP__]);
         });
     }
