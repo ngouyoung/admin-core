@@ -2140,7 +2140,9 @@ PHP;
             // belongsToMany renders a remote (searchable + paginated) multi-select — preselect only the currently
             // attached rows as an id => label map; the rest load on search (no eager-load of the whole table).
             if ($f['type'] === 'belongsToMany') {
-                $out[] = "@php(\${$f['relation']}Selected = isset(\$object) ? \$object->{$f['relation']}->mapWithKeys(fn (\$i) => [\$i->getKey() => ac_localize(\$i->name)])->all() : [])";
+                // ac_bt_options resolves attached rows withTrashed(), so a soft-deleted-but-attached row stays
+                // selected — otherwise the next save's sync() silently detaches it (pivot data loss).
+                $out[] = "@php(\${$f['relation']}Selected = ac_bt_options(\$object ?? null, '{$f['relation']}'))";
             }
         }
         foreach ($this->fields as $f) {

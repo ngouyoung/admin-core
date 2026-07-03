@@ -65,3 +65,28 @@ if (! function_exists('ac_fk_option')) {
         return $related ? [$model->{$fkColumn} => ac_localize($related->name)] : [];
     }
 }
+
+if (! function_exists('ac_bt_options')) {
+    /**
+     * The `[id => name]` selected options for a belongsToMany field's edit-form multi-select — INCLUDING
+     * attached rows that have been soft-deleted. A plain `$model->relation` applies the related model's
+     * SoftDeletes scope, so a soft-deleted-but-attached row is omitted from the selected set → the next save's
+     * `sync()` (which replaces the pivot with only the posted ids) silently DETACHES it, losing pivot data the
+     * user never saw. Resolving withTrashed() keeps it selected, so sync() preserves the attachment.
+     *
+     * @return array<int|string, string>
+     */
+    function ac_bt_options(?object $model, string $relation): array
+    {
+        if ($model === null || ! method_exists($model, $relation)) {
+            return [];
+        }
+
+        $query = $model->{$relation}();
+        if (in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive($query->getRelated()), true)) {
+            $query = $query->withTrashed();
+        }
+
+        return $query->get()->mapWithKeys(fn ($i) => [$i->getKey() => ac_localize($i->name)])->all();
+    }
+}

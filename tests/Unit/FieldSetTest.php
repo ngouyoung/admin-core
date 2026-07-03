@@ -373,8 +373,9 @@ it('renders a belongsToMany field as a searchable remote multi-select (no whole-
         ->toContain('source="tags"')
         ->toContain('multiple');
 
-    // Preselect only the attached pivot rows; never eager-load the whole related table into <option>s.
-    expect($form)->toContain('$object->tags->mapWithKeys')
+    // Preselect the attached pivot rows (withTrashed-aware via ac_bt_options, so a soft-deleted attached row
+    // stays selected and sync() can't silently detach it); never eager-load the whole related table.
+    expect($form)->toContain("ac_bt_options(\$object ?? null, 'tags')")
         ->toContain("old('tags', array_keys(\$tagsSelected))")
         ->not->toContain("Tag::orderBy('id')");
 });

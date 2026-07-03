@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.68
+
+**Fix: a soft-deleted attached belongsToMany row was silently detached on the next save.** The edit form built
+the multi-select's selected options from `$object->relation`, which applies the related model's SoftDeletes
+scope — so a soft-deleted-but-attached row was absent from the selected set, and saving (even to change an
+unrelated field) ran `sync()` with only the visible ids, silently DETACHING the invisible one (pivot data
+loss). The generated form now resolves selected options via a new `ac_bt_options()` helper that includes
+withTrashed() rows when the related model supports it, keeping them selected so `sync()` preserves them.
+Regression test attaches then soft-deletes a row and asserts it stays in the option set (mutation-verified).
+Found by a sixth full-package audit (eloquent-model dimension). Sibling of v2.79.67 (belongsTo).
+
 ## v2.79.67
 
 **Fix: a soft-deleted belongsTo parent silently nulled the foreign key on the next edit.** The edit form built

@@ -230,6 +230,61 @@ it('ac_fk_option keeps a SOFT-DELETED parent as the selected option (so the next
     Schema::dropIfExists('sd_cats');
 });
 
+it('ac_bt_options keeps a SOFT-DELETED attached row selected (so sync cannot silently detach it)', function () {
+    Schema::create('sd_tags', function (Blueprint $t) {
+        $t->id();
+        $t->string('name');
+        $t->softDeletes();
+    });
+    Schema::create('sd_posts', function (Blueprint $t) {
+        $t->id();
+    });
+    Schema::create('sd_post_tag', function (Blueprint $t) {
+        $t->unsignedBigInteger('post_id');
+        $t->unsignedBigInteger('tag_id');
+    });
+
+    $tagTable = new class extends \Illuminate\Database\Eloquent\Model {
+        use \Illuminate\Database\Eloquent\SoftDeletes;
+
+        protected $table = 'sd_tags';
+        protected $guarded = [];
+        public $timestamps = false;
+    };
+    $postModel = new class extends \Illuminate\Database\Eloquent\Model {
+        protected $table = 'sd_posts';
+        protected $guarded = [];
+        public $timestamps = false;
+
+        public function tags(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+        {
+            return $this->belongsToMany(get_class(new class extends \Illuminate\Database\Eloquent\Model {
+                use \Illuminate\Database\Eloquent\SoftDeletes;
+
+                protected $table = 'sd_tags';
+                public $timestamps = false;
+            }), 'sd_post_tag', 'post_id', 'tag_id');
+        }
+    };
+
+    $kept = $tagTable->create(['name' => 'kept']);
+    $gone = $tagTable->create(['name' => 'gone']);
+    $post = $postModel->create([]);
+    $post->tags()->attach([$kept->id, $gone->id]);
+    $gone->delete(); // soft-delete an ATTACHED tag (pivot row untouched)
+
+    // Default relation drops the trashed tag; ac_bt_options must keep BOTH so the option (and its posted id)
+    // survives — otherwise sync([kept]) detaches 'gone'.
+    expect($post->fresh()->tags)->toHaveCount(1);            // precondition: default scope hides 'gone'
+    $opts = ac_bt_options($post->fresh(), 'tags');
+    expect($opts)->toHaveKey($kept->id)->toHaveKey($gone->id) // both present → both posted → sync keeps both
+        ->and($opts[$gone->id])->toBe('gone');
+
+    Schema::dropIfExists('sd_post_tag');
+    Schema::dropIfExists('sd_posts');
+    Schema::dropIfExists('sd_tags');
+});
+
 it('sorts the list by the related name (the generated orderColumn subquery)', function () {
     // Order by the category name via the same correlated subquery the generator emits.
     $sub = RelCategory::select('name')->whereColumn('rel_categories.id', 'rel_gadgets.category_id');
