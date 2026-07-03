@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.67
+
+**Fix: a soft-deleted belongsTo parent silently nulled the foreign key on the next edit.** The edit form built
+the foreign select's current option from `$object->relation`, which applies the related model's SoftDeletes
+scope — so once the parent was soft-deleted the option vanished, the select rendered with nothing selected, and
+saving ANY field posted an empty value that nulled the FK (a `ConvertEmptyStringsToNull` → null). The generated
+form now resolves the current option via a new `ac_fk_option()` helper that looks the row up `withTrashed()`
+when the related model supports it, so a soft-deleted parent stays selected and the FK is preserved. Regression
+tests cover the helper (soft-deleted parent resolves, null FK → no option) and the generated form
+(mutation-verified). Found by a sixth full-package audit (eloquent-model dimension).
+
 ## v2.79.66
 
 **Security fix: `Html::clean()`'s dangerous-URL filter was bypassable, allowing stored XSS in richtext.** The

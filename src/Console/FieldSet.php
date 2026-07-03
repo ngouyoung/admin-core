@@ -2189,8 +2189,10 @@ PHP;
             case 'foreign':
                 // Searchable + paginated remote select. `source` resolves the related resource's `select` route
                 // dynamically (falls back to a plain select if it has none). Only the current value is rendered —
-                // the rest load on search, so the form never eager-loads the whole related table.
-                $sel = "\$object?->{$f['relation']} ? [\$object->{$col} => ac_localize(\$object->{$f['relation']}->name)] : []";
+                // the rest load on search, so the form never eager-loads the whole related table. ac_fk_option
+                // resolves the current row withTrashed() so a SOFT-DELETED parent still renders as the selected
+                // option — otherwise the missing option makes the next save post empty and NULL the FK.
+                $sel = "ac_fk_option(\$object, '{$f['relation']}', '{$col}')";
                 // Cascade: if the related table carries another of this form's foreign keys, narrow by it.
                 $deps = $this->dependsOn($f);
                 $dependsAttr = '';

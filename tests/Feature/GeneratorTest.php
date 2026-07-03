@@ -311,6 +311,11 @@ it('uses the hybrid key strategy with --uuid (bigint PK + public uuid + bigint F
     // the foreign key is allowlisted as a Select2 filter, so a child select can cascade off this resource
     expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
         ->toContain("\$this->selectFilters = ['category_id'];");
+
+    // The edit-form select resolves its current option via ac_fk_option (withTrashed-aware), so a
+    // soft-deleted parent stays selected and the next save can't null the FK.
+    expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
+        ->toContain("ac_fk_option(\$object, 'category', 'category_id')");
 });
 
 it('soft-deletes every resource when generator.soft_deletes is on, and --no-soft-deletes opts out', function () {

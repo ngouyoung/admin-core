@@ -179,6 +179,57 @@ it('appends the related name to the CSV export, next to the FK id', function () 
         ->toContain('Audio');
 });
 
+it('ac_fk_option keeps a SOFT-DELETED parent as the selected option (so the next save cannot null the FK)', function () {
+    Schema::create('sd_cats', function (Blueprint $t) {
+        $t->id();
+        $t->string('name');
+        $t->softDeletes();
+    });
+    Schema::create('sd_items', function (Blueprint $t) {
+        $t->id();
+        $t->unsignedBigInteger('cat_id')->nullable();
+    });
+
+    $catModel = new class extends \Illuminate\Database\Eloquent\Model {
+        use \Illuminate\Database\Eloquent\SoftDeletes;
+
+        protected $table = 'sd_cats';
+        protected $guarded = [];
+        public $timestamps = false;
+    };
+    $itemModel = new class extends \Illuminate\Database\Eloquent\Model {
+        protected $table = 'sd_items';
+        protected $guarded = [];
+        public $timestamps = false;
+
+        public function cat(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+        {
+            return $this->belongsTo(get_class(new class extends \Illuminate\Database\Eloquent\Model {
+                use \Illuminate\Database\Eloquent\SoftDeletes;
+
+                protected $table = 'sd_cats';
+                public $timestamps = false;
+            }), 'cat_id');
+        }
+    };
+
+    $cat = $catModel->create(['name' => 'Snacks']);
+    $item = $itemModel->create(['cat_id' => $cat->id]);
+    $cat->delete(); // the parent is soft-deleted while the item still references it
+
+    // The default relation resolves to null for a trashed parent — ac_fk_option must still return the option
+    // so the edit-form select keeps 'Snacks' selected (else the next save posts empty and NULLs cat_id).
+    expect($item->fresh()->cat)->toBeNull();                              // precondition: default scope hides it
+    expect(ac_fk_option($item->fresh(), 'cat', 'cat_id'))->toBe([$cat->id => 'Snacks']);
+
+    // A genuinely null FK → no option (not a crash).
+    $orphan = $itemModel->create(['cat_id' => null]);
+    expect(ac_fk_option($orphan, 'cat', 'cat_id'))->toBe([]);
+
+    Schema::dropIfExists('sd_items');
+    Schema::dropIfExists('sd_cats');
+});
+
 it('sorts the list by the related name (the generated orderColumn subquery)', function () {
     // Order by the category name via the same correlated subquery the generator emits.
     $sub = RelCategory::select('name')->whereColumn('rel_categories.id', 'rel_gadgets.category_id');
