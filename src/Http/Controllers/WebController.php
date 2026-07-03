@@ -517,7 +517,10 @@ abstract class WebController extends BaseController
             $this->service->query($relations ?: null)->lazy()->each(function ($row) use ($out, $columns, $relations) {
                 $cells = array_map(fn ($c) => $this->csvCell($row->getAttribute($c)), $columns);
                 foreach ($relations as $relation) {
-                    $related = $row->{$relation};
+                    // getRelationValue() (not $row->{$relation}) so a scalar column that happens to share the
+                    // relation's name — e.g. a `category` column alongside a `category_id` foreign → `category`
+                    // relation — resolves to the RELATION, not the string attribute (which would crash on ?->name).
+                    $related = $row->getRelationValue($relation);
                     // belongsToMany → a Collection of related models (join their names); belongsTo → one model.
                     // ac_localize so a translatable related name exports as the localized string, not raw
                     // JSON (belongsTo) or an "Array to string conversion" crash (belongsToMany).

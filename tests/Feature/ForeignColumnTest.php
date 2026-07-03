@@ -90,6 +90,18 @@ it('exports belongsTo name and belongsToMany joined names', function () {
         ->toMatch('/"?red, new"?|"?new, red"?/'); // belongsToMany: related names joined
 });
 
+it('exports the relation, not a colliding scalar column of the same name (no crash)', function () {
+    // A scalar column named exactly like the belongsTo relation ('category' + 'category_id'): $row->category
+    // would return the STRING attribute, and ?->name on a string crashed the whole streamed export.
+    Schema::table('rel_gadgets', fn (Blueprint $t) => $t->string('category')->nullable());
+    RelGadget::query()->update(['category' => 'RAW-SCALAR']);
+
+    $csv = exportCsv(gadgetExportController());
+
+    // The relation resolved to its related model's name (not the scalar string, and not a crash).
+    expect($csv)->toContain('Phones')->toContain('Audio');
+});
+
 it('exports only the chosen columns via ?columns[] (field picker), whitelisted', function () {
     $csv = trim(preg_replace('/^\xEF\xBB\xBF/', '', exportCsv(gadgetExportController(), ['columns' => ['name', 'tags']])));
     $header = strtok($csv, "\n");

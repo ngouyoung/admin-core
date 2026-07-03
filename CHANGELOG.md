@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.50
+
+**Fix: export crashed when a scalar column shared a relation's name.** A resource with both a `category` scalar
+column and a `category_id` foreign → `category` relation in `exportRelations` resolved `$row->category` to the
+STRING attribute, and `?->name` on a string threw mid-stream — the whole CSV export 500'd with no output.
+Export now reads the relation via `getRelationValue()`, which ignores the colliding attribute. Regression test
+adds a `category` scalar column beside the `category` relation and asserts the export resolves the related name
+without crashing (mutation-verified). Found by a fifth full-package audit (export dimension).
+
 ## v2.79.49
 
 **Fix (regression in v2.79.39): the scope-inference re-run missed guarded SINGLETON resources.** `existingScope()`
