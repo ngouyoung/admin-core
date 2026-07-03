@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.75
+
+**Fix: searching a translatable (JSON) list column matched the JSON keys, not the text.** A translatable column
+had no `filterColumn`, so yajra's default `LIKE '%term%'` ran against the raw JSON blob (`{"en":"Phones",…}`) —
+searching `en` matched EVERY row (the locale key is in every value), and searching a real word could match
+across locales unpredictably. The generator now emits a `filterColumn` that searches each configured locale's
+JSON VALUE (`name->en`, `name->km`, …), so the search matches what the user reads. Regression tests assert the
+generated `filterColumn` body and prove, against SQLite, that a JSON-key substring matches nothing while a real
+value substring matches its row (mutation-verified). Re-generate or hand-patch existing translatable resources.
+Found by a sixth full-package audit (datatables-search dimension).
+
 ## v2.79.74
 
 **Fix: the list `getData()` JSON could ship a hashed column that `export()` already strips.** `export()` drops

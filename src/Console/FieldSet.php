@@ -2763,8 +2763,17 @@ PHP;
             'datetime' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']}?->format('Y-m-d H:i'))",
             'image' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<img src=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" style=\"height:36px\" class=\"rounded\">' : '')",
             'file' => "            ->addColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<a href=\"' . \\Ngos\\AdminCore\\Support\\Media::url(\$row->{$f['name']}) . '\" target=\"_blank\">file</a>' : '')",
-            // Translatable JSON: show the current locale (fall back to the first filled one).
-            'translatable' => "            ->editColumn('{$f['name']}', fn (\$row) => ac_localize(\$row->{$f['name']}))",
+            // Translatable JSON: show the current locale (fall back to the first filled one). Search the
+            // per-locale VALUES via JSON paths — a plain LIKE on the raw column matches the JSON KEYS too
+            // (searching "en" would match every row's `{"en":…}`).
+            'translatable' => "            ->editColumn('{$f['name']}', fn (\$row) => ac_localize(\$row->{$f['name']}))\n"
+                . "            ->filterColumn('{$f['name']}', function (\$q, \$keyword) {\n"
+                . "                \$q->where(function (\$sub) use (\$keyword) {\n"
+                . "                    foreach (array_keys((array) config('admin-core.translation.locales', ['en' => 'English'])) as \$acLocale) {\n"
+                . "                        \$sub->orWhere('{$f['name']}->' . \$acLocale, 'like', '%' . \$keyword . '%');\n"
+                . "                    }\n"
+                . "                });\n"
+                . "            })",
             // Rich text: strip HTML to a short plain-text preview in the list.
             'richtext' => "            ->editColumn('{$f['name']}', fn (\$row) => \\Illuminate\\Support\\Str::limit(strip_tags((string) \$row->{$f['name']}), 60))",
             default => null,

@@ -262,6 +262,45 @@ it('builds a translatable field (JSON + array cast + translatable-input + per-lo
     // List + show render the active locale via ac_localize (same helper as FK display), never the raw array.
     expect($f->getDataColumns())->toContain('ac_localize($row->name)');
     expect($f->showRows())->toContain('ac_localize($object->name)');
+
+    // Search hits the per-locale VALUES via JSON paths (name->en …), NOT a plain LIKE on the raw column —
+    // which would match the JSON KEYS too (searching "en" would match every row's {"en":…}).
+    expect($f->getDataColumns())
+        ->toContain("->filterColumn('name', function (\$q, \$keyword) {")
+        ->toContain("\$sub->orWhere('name->' . \$acLocale, 'like', '%' . \$keyword . '%');");
+});
+
+it('the generated translatable filterColumn searches the locale VALUE, not the JSON key', function () {
+    config(['admin-core.translation.locales' => ['en' => 'English', 'km' => 'Khmer']]);
+    Schema::create('tl_prods', function (Illuminate\Database\Schema\Blueprint $t) {
+        $t->id();
+        $t->json('name');
+    });
+    Illuminate\Support\Facades\DB::table('tl_prods')->insert([
+        ['name' => json_encode(['en' => 'Phones', 'km' => 'ទូរស័ព្ទ'])],
+        ['name' => json_encode(['en' => 'Bicycles', 'km' => 'កង់'])],
+    ]);
+
+    // The exact body the generator emits: search each locale's JSON value.
+    $search = function ($q, $keyword) {
+        $q->where(function ($sub) use ($keyword) {
+            foreach (array_keys((array) config('admin-core.translation.locales', ['en' => 'English'])) as $acLocale) {
+                $sub->orWhere('name->' . $acLocale, 'like', '%' . $keyword . '%');
+            }
+        });
+    };
+
+    // "en" (a JSON KEY present in every row) must match NOTHING (the pre-fix raw LIKE matched all).
+    $q1 = Illuminate\Support\Facades\DB::table('tl_prods');
+    $search($q1, 'en');
+    expect($q1->count())->toBe(0);
+
+    // A real value substring matches its row (in either locale).
+    $q2 = Illuminate\Support\Facades\DB::table('tl_prods');
+    $search($q2, 'Phone');
+    expect($q2->count())->toBe(1);
+
+    Schema::dropIfExists('tl_prods');
 });
 
 it('derives a slug from a translatable name using the default locale (never Str::slug an array)', function () {
