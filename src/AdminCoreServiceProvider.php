@@ -58,6 +58,7 @@ class AdminCoreServiceProvider extends ServiceProvider
         $this->registerTwoFactor();
         $this->registerErrorLogging();
         $this->registerErrorLogPruning();
+        $this->registerActivityLogPruning();
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -147,6 +148,22 @@ class AdminCoreServiceProvider extends ServiceProvider
 
         $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function ($schedule): void {
             $schedule->command('model:prune', ['--model' => [\Ngos\AdminCore\Models\ErrorLog::class]])->daily();
+        });
+    }
+
+    /**
+     * Prune audit rows past their retention window. Off by default (retention 0 = keep forever, the safe
+     * choice for an audit trail); set `admin-core.activity_log.retention_days` to opt in. Same mechanism as
+     * error-log pruning. On demand: `model:prune --model="Ngos\AdminCore\Models\ActivityLog"`.
+     */
+    protected function registerActivityLogPruning(): void
+    {
+        if ((int) config('admin-core.activity_log.retention_days', 0) <= 0) {
+            return;
+        }
+
+        $this->callAfterResolving(\Illuminate\Console\Scheduling\Schedule::class, function ($schedule): void {
+            $schedule->command('model:prune', ['--model' => [\Ngos\AdminCore\Models\ActivityLog::class]])->daily();
         });
     }
 

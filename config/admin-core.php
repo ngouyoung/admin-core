@@ -336,6 +336,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Activity log retention (--audit)
+    |--------------------------------------------------------------------------
+    | Audit rows older than this many days are pruned by a daily `model:prune`
+    | (needs the app's scheduler cron). Defaults to 0 = keep FOREVER, the safe
+    | choice for an audit trail — set a positive number to opt in. On demand:
+    |   php artisan model:prune --model="Ngos\AdminCore\Models\ActivityLog"
+    */
+    'activity_log' => [
+        'retention_days' => 0,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | API (--api)
     |--------------------------------------------------------------------------
     | Resources generated with --api expose a JSON API (JsonResource + apiResource

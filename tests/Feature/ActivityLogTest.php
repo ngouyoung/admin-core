@@ -29,6 +29,30 @@ beforeEach(function () {
     });
 });
 
+it('prunes activity older than the retention window (opt-in), keeping recent rows', function () {
+    config()->set('admin-core.activity_log.retention_days', 30);
+
+    ActivityLog::create(['description' => 'recent']);
+    $old = ActivityLog::create(['description' => 'old']);
+    ActivityLog::whereKey($old->id)->update(['created_at' => now()->subDays(40)]);
+
+    (new ActivityLog)->pruneAll();
+
+    expect(ActivityLog::count())->toBe(1)
+        ->and(ActivityLog::first()->description)->toBe('recent');
+});
+
+it('keeps every activity row when retention is 0 (the default — audit trail kept forever)', function () {
+    config()->set('admin-core.activity_log.retention_days', 0);
+
+    $old = ActivityLog::create(['description' => 'old']);
+    ActivityLog::whereKey($old->id)->update(['created_at' => now()->subDays(400)]);
+
+    (new ActivityLog)->pruneAll();
+
+    expect(ActivityLog::count())->toBe(1);
+});
+
 it('still resolves the causer after that user is soft-deleted (audit attribution survives offboarding)', function () {
     Schema::dropIfExists('causer_users');
     Schema::create('causer_users', function (Blueprint $table) {

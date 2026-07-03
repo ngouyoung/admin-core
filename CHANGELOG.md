@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.61
+
+**Add: opt-in activity-log pruning (parity with the error log).** `activity_logs` grew unbounded — one row per
+audited write, with no config, scheduled command, or `Prunable` implementation, unlike `ErrorLog`. `ActivityLog`
+is now `MassPrunable` with a `prunable()` window driven by `admin-core.activity_log.retention_days`, and the
+service provider schedules a daily `model:prune` when retention is set. Defaults to **0 = keep forever** (the
+safe choice for an audit trail — pruning is opt-in and never silently destroys history). On demand:
+`php artisan model:prune --model="Ngos\AdminCore\Models\ActivityLog"`. Regression tests cover pruning past the
+window and the keep-forever default (mutation-verified). Found by a fifth full-package audit.
+
 ## v2.79.60
 
 **Fix: an approval's requester/approver name vanished once that user was soft-deleted.** Same MorphTo/soft-delete
