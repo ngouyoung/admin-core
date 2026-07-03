@@ -114,3 +114,14 @@ it('is idempotent — existing portal files are skipped on a re-run', function (
     // Still exactly one create migration (never duplicated).
     expect(glob(database_path('migrations/*_create_shops_table.php')))->toHaveCount(1);
 });
+
+
+it('refuses a portal name that would scaffold broken PHP, writing nothing', function () {
+    $before = \Illuminate\Support\Facades\File::glob(app_path('Models/*'));
+
+    foreach (["O'Brien", '2024 shop'] as $bad) {
+        $this->artisan('admin-core:portal', ['name' => $bad])->assertFailed();
+    }
+
+    expect(\Illuminate\Support\Facades\File::glob(app_path('Models/*')))->toBe($before);
+});

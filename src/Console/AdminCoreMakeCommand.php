@@ -54,6 +54,14 @@ class AdminCoreMakeCommand extends Command
         }
 
         $class = Str::studly(Str::singular($name));
+        // The name becomes PHP class names / route paths / single-quoted config strings — Str::studly()/kebab()
+        // keep characters like ' and leading digits, which scaffold files that fail php -l and can brick the
+        // app (route modules + config load on every request). Refuse instead of writing broken PHP.
+        if (! preg_match('/^[A-Za-z][A-Za-z0-9]*$/', $class)) {
+            $this->error("'{$name}' isn't a usable resource name — use letters/numbers/spaces starting with a letter, e.g. \"Product\" or \"Purchase Order\".");
+
+            return self::FAILURE;
+        }
         $plural = Str::plural($class);
         $camel = Str::camel($class);
         $snakePlural = Str::snake(Str::pluralStudly($class));

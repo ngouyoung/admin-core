@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.48
+
+**Fix: `make`, `make-widget` and `portal` accepted names that scaffold broken PHP and brick the app.** The same
+class as the v2.79.28 page-command fix, now swept across the remaining generators: `Str::studly()`/`kebab()`
+keep characters like `'` and leading digits, so `admin-core:make "Manager's Product"`,
+`admin-core:make-widget "2024 Sales"` and `admin-core:portal "O'Brien"` wrote class files failing `php -l` —
+and the portal command even injected `'o'-brien' => …` into `config/auth.php`, a parse error that takes the
+WHOLE app down on the next request. All three commands now validate the derived name up front and refuse,
+writing nothing. Regression tests drive apostrophe + leading-digit names through each command and assert zero
+files scaffolded (mutation-verified — the mutant run reproduced the full app-brick against the real test app).
+
 ## v2.79.47
 
 **Fix: `admin-core:field` silently wired an enum field to a stale existing enum class.** Re-defining an enum

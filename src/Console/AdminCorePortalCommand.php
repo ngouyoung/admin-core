@@ -22,6 +22,14 @@ class AdminCorePortalCommand extends Command
     public function handle(): int
     {
         $name = Str::kebab(Str::singular($this->argument('name')));   // merchant
+        // The name becomes PHP class names / route paths / single-quoted config strings — Str::studly()/kebab()
+        // keep characters like ' and leading digits, which scaffold files that fail php -l and can brick the
+        // app (route modules + config load on every request). Refuse instead of writing broken PHP.
+        if (! preg_match('/^[a-z][a-z0-9-]*$/', $name)) {
+            $this->error("'{$this->argument('name')}' isn't a usable portal name — use letters/numbers starting with a letter, e.g. \"merchant\".");
+
+            return self::FAILURE;
+        }
         $studly = Str::studly($name);                                 // Merchant
         $table = Str::snake(Str::pluralStudly($studly));              // merchants
         $force = (bool) $this->option('force');

@@ -1635,6 +1635,22 @@ it('refuses a unique modifier on a TEXT/JSON column instead of emitting a migrat
         ->toContain("\$table->json('name')");
 });
 
+it('refuses a resource name that would scaffold broken PHP, writing nothing', function () {
+    // Str::studly() keeps ' and leading digits — the name lands in class names, route modules and config,
+    // so a bad name scaffolds files that fail php -l and brick the app (same class as the page-command fix).
+    $snapshot = fn () => array_merge(
+        File::glob(app_path('Models/*')),
+        File::glob(base_path('routes/Web/Backend/Modules/*')),
+    );
+    $before = $snapshot();
+
+    foreach (["Manager's Product", '2024 Report'] as $bad) {
+        $this->artisan('admin-core:make', ['name' => $bad, '--fields' => 'name:string'])->assertFailed();
+    }
+
+    expect($snapshot())->toBe($before); // nothing new scaffolded
+});
+
 it('refuses a duplicate field name instead of emitting a broken migration', function () {
     // 'sku' twice would emit two $table->…('sku') lines in ONE Schema block (migrate fails) and
     // duplicate rules()/casts() keys (PHP silently keeps the last) — while reporting success.

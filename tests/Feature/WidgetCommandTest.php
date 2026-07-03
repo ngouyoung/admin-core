@@ -43,3 +43,14 @@ it('refuses to overwrite an existing widget without --force', function () {
     $this->artisan('admin-core:make-widget', ['name' => 'Dup'])->assertFailed();
     $this->artisan('admin-core:make-widget', ['name' => 'Dup', '--force' => true])->assertSuccessful();
 });
+
+
+it('refuses a widget name that would scaffold broken PHP, writing nothing', function () {
+    $before = \Illuminate\Support\Facades\File::glob(app_path('Dashboard/*'));
+
+    foreach (["Manager's Sales", '2024 Sales'] as $bad) {
+        $this->artisan('admin-core:make-widget', ['name' => $bad])->assertFailed();
+    }
+
+    expect(\Illuminate\Support\Facades\File::glob(app_path('Dashboard/*')))->toBe($before);
+});

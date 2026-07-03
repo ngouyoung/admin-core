@@ -29,6 +29,14 @@ class AdminCoreMakeWidgetCommand extends Command
         }
 
         $class = Str::studly($this->argument('name'));
+        // The name becomes PHP class names / route paths / single-quoted config strings — Str::studly()/kebab()
+        // keep characters like ' and leading digits, which scaffold files that fail php -l and can brick the
+        // app (route modules + config load on every request). Refuse instead of writing broken PHP.
+        if (! preg_match('/^[A-Za-z][A-Za-z0-9]*$/', $class)) {
+            $this->error("'{$this->argument('name')}' isn't a usable widget name — use letters/numbers/spaces starting with a letter, e.g. \"Sales Today\".");
+
+            return self::FAILURE;
+        }
         if (! Str::endsWith($class, 'Widget')) {
             $class .= 'Widget';
         }
