@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.47
+
+**Fix: `admin-core:field` silently wired an enum field to a stale existing enum class.** Re-defining an enum
+field after a hand-revert that left `app/Enums/XStatus.php` behind (an easy miss — it's a separate file)
+re-wired the model/requests/form/factory to the OLD class: the form select and `Rule::enum` accepted only the
+stale cases and rejected every value the new spec intended, with a success message. The command now pre-flight
+compares the existing class's cases against the requested spec BEFORE patching anything: different cases fail
+with a clear message (`--force` regenerates), identical cases stay the idempotent re-run. Regression test
+covers both branches with zero files patched on refusal (mutation-verified). Found by a fourth full-package
+audit (generator-consistency dimension).
+
 ## v2.79.46
 
 **Fix: an array `note` param 500'd approve/reject.** `POST …/reject` with `note[]=x` (a repeated form key —

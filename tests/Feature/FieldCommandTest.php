@@ -73,6 +73,29 @@ it('skips a media/gallery field (needs the HasMedia trait the full generator wir
     expect(glob(database_path('migrations/*_add_photos_to_gizmos_table.php')))->toBeEmpty();
 });
 
+it('refuses to wire an enum field to a stale enum class with different cases', function () {
+    makeGizmo();
+
+    // A leftover app/Enums/GizmoStatus.php from an earlier attempt (hand-reverted column, forgot the file).
+    File::ensureDirectoryExists(app_path('Enums'));
+    File::put(app_path('Enums/GizmoStatus.php'), "<?php\n\nnamespace App\\Enums;\n\nenum GizmoStatus: string\n{\n    case Draft = 'draft';\n    case Published = 'published';\n}\n");
+
+    // Re-defining with DIFFERENT cases must fail BEFORE anything is patched — otherwise the form select +
+    // Rule::enum would silently accept only draft/published and reject every new value.
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'status:enum:pending|approved'])
+        ->expectsOutputToContain('DIFFERENT cases')
+        ->assertFailed();
+
+    expect(File::get(app_path('Models/Gizmo.php')))->not->toContain("'status'");
+    expect(glob(database_path('migrations/*_add_status_to_gizmos_table.php')))->toBeEmpty();
+
+    // IDENTICAL cases are the idempotent re-run — allowed.
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'status:enum:draft|published'])
+        ->assertSuccessful();
+
+    File::delete(app_path('Enums/GizmoStatus.php'));
+});
+
 it('skips a hasMany field (needs the child model + repeater wiring), not half-wiring it', function () {
     makeGizmo();
 

@@ -126,6 +126,10 @@ class AdminCoreFieldCommand extends Command
         $fields = $fs->fields();
         $names = array_map(fn ($f) => $f['name'], $fields);
 
+        if (! $this->assertEnumsCompatible($fs)) {
+            return self::FAILURE; // BEFORE any write — nothing is half-patched
+        }
+
         $this->writeMigration($snakePlural, $fs, $names);
         $this->patchModel($model, $fs, $fields);
         $this->patchBoot($model, $fs);
@@ -632,6 +636,31 @@ class AdminCoreFieldCommand extends Command
             $contents,
             1,
         );
+    }
+
+    /**
+     * Pre-flight, before ANY file is patched: an existing app/Enums class whose cases differ from the
+     * requested spec would be silently re-wired — the form select + Rule::enum would accept only the STALE
+     * cases and reject every value the new spec intended. Refuse up front (--force overwrites the class).
+     */
+    private function assertEnumsCompatible(FieldSet $fs): bool
+    {
+        foreach ($fs->enumDefinitions() as $def) {
+            $target = app_path("Enums/{$def['class']}.php");
+            if (! File::exists($target) || $this->option('force')) {
+                continue;
+            }
+            preg_match_all("/case \w+ = '([^']+)'/", File::get($target), $m);
+            if ($m[1] !== array_values($def['cases'])) {
+                $this->error("app/Enums/{$def['class']}.php already exists with DIFFERENT cases ('"
+                    . implode('|', $m[1]) . "' vs requested '" . implode('|', $def['cases'])
+                    . "'). Re-run with --force to regenerate it, or delete the stale file first.");
+
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** Generate a backed enum class per new enum field (skips ones that exist). */
