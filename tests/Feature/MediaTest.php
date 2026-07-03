@@ -38,6 +38,27 @@ it('compresses an uploaded image to WebP, downscaled to max_width', function () 
         ->and(Storage::disk('public')->exists($path))->toBeTrue();
 });
 
+it('keeps an animated GIF untouched instead of flattening it to a single WebP frame', function () {
+    if (! function_exists('imagewebp')) {
+        $this->markTestSkipped('GD has no WebP support');
+    }
+    config()->set('admin-core.uploads', ['disk' => 'public', 'cdn_url' => null, 'compress' => true, 'max_width' => 100, 'quality' => 80]);
+    Storage::fake('public');
+
+    // A 2-frame animated GIF — the WebP re-encode writes a single frame, so it must be stored as-is.
+    $m = \Intervention\Image\ImageManager::gd();
+    $frame = $m->create(4, 4)->fill('ff0000');
+    $gif = (string) $m->animate(function ($a) use ($frame) {
+        $a->add($frame, 0.1);
+        $a->add($frame, 0.1);
+    })->toGif();
+
+    $path = Media::store(UploadedFile::fake()->createWithContent('sticker.gif', $gif), 'photos');
+
+    expect($path)->toEndWith('.gif')  // original kept, not re-encoded
+        ->and($m->read(Storage::disk('public')->get($path))->isAnimated())->toBeTrue(); // still animated
+});
+
 it('stores the original (no WebP) when compression is off or it is not an image', function () {
     config()->set('admin-core.uploads', ['disk' => 'public', 'cdn_url' => null, 'compress' => false]);
     Storage::fake('public');

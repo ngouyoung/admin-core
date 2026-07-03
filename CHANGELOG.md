@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.44
+
+**Fix: an animated GIF upload was silently flattened to a single static WebP frame.** The compression pipeline
+re-encodes every image, but GD's WebP encode writes ONE frame — an animated banner/sticker uploaded to any
+image/media/gallery field lost its animation with no warning. `Media::store()` now detects animation and keeps
+the original file untouched (via the existing non-image fallback path); still images compress exactly as
+before. Regression test uploads a 2-frame GIF and asserts the stored file is still an animated `.gif`
+(mutation-verified). Found by a fourth full-package audit (media dimension).
+
 ## v2.79.43
 
 **Fix: `name:translatable^` scaffolded a migration MySQL rejects while silently dropping the unique rule.**

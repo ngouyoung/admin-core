@@ -80,6 +80,12 @@ class Media
     {
         $image = ImageManager::gd()->read($file instanceof UploadedFile ? $file->getRealPath() : $file);
 
+        // The WebP re-encode writes a SINGLE frame — it would silently flatten an animated GIF to a still
+        // of its first frame. Bail out so store()'s fallback keeps the original animation untouched.
+        if ($image->isAnimated()) {
+            throw new \RuntimeException('animated image — keep the original untouched');
+        }
+
         $maxWidth = (int) config('admin-core.uploads.max_width', 1600);
         if ($maxWidth > 0 && $image->width() > $maxWidth) {
             $image->scaleDown(width: $maxWidth);
