@@ -25,7 +25,11 @@ if (! function_exists('ac_localize')) {
     function ac_localize($value): string
     {
         if (is_array($value)) {
-            return (string) ($value[app()->getLocale()] ?? collect($value)->first(fn ($v) => filled($v)) ?? '');
+            // The current locale falls through when its value is BLANK (''), not just absent — a record
+            // saved with only one language filled must show that language, not an empty cell.
+            $current = $value[app()->getLocale()] ?? null;
+
+            return (string) (filled($current) ? $current : (collect($value)->first(fn ($v) => filled($v)) ?? ''));
         }
 
         return (string) ($value ?? '');

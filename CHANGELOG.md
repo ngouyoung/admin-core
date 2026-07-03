@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.42
+
+**Fix: `ac_localize()` returned '' when the current locale's value was blank instead of falling back.** A
+translatable value saved with only one language filled (`{"en": "", "km": "ស្រាបៀរ"}` — translation disabled,
+or auto-translate skipped) rendered as an EMPTY cell in every list/label/option for users browsing in the
+blank locale, even though a real value existed. `??` only falls through on null — the helper now treats a
+blank current-locale value as missing and falls back to the first filled language (`'0'` still counts as a
+real value). Regression test covers blank-current fallback, filled-current precedence and the all-blank case
+(mutation-verified). Found by a fourth full-package audit (translation dimension).
+
 ## v2.79.41
 
 **Fix: `Money::multiply()`/`divide()` silently yielded $0.00 on int overflow.** The raw `(int)` cast of an

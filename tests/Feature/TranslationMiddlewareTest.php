@@ -205,3 +205,16 @@ it('keeps the translations already fetched when the budget runs out mid-field', 
         ->and($request->input('name.fr'))->toBe('[fr] Hello')
         ->and($request->input('name.th'))->toBe(''); // over budget — correctly left blank
 });
+
+
+it('ac_localize falls back past a BLANK current-locale value (not just an absent one)', function () {
+    app()->setLocale('en');
+
+    // Saved with only Khmer filled (translation off, or auto-translate skipped) — the English list
+    // must show the Khmer text, not a blank cell.
+    expect(ac_localize(['en' => '', 'km' => 'ស្រាបៀរ']))->toBe('ស្រាបៀរ')
+        ->and(ac_localize(['en' => 'Beer', 'km' => 'ស្រាបៀរ']))->toBe('Beer')  // filled current wins
+        ->and(ac_localize(['en' => '0', 'km' => 'x']))->toBe('0')               // '0' is a real value
+        ->and(ac_localize(['en' => '', 'km' => '']))->toBe('')                  // nothing anywhere
+        ->and(ac_localize('plain'))->toBe('plain');
+});
