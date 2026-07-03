@@ -19,6 +19,21 @@ it('resolves inline config-array widgets and renders their data', function () {
     expect($data['value'])->toBe('4,200')->and($data['title'])->toBe('Widgets'); // numeric values are formatted
 });
 
+it('resolves a runtime-registered (closure) widget, appended to the config ones (config-cache safe path)', function () {
+    config(['admin-core.dashboard.widgets' => [
+        ['type' => 'stat', 'key' => 'cfg', 'title' => 'FromConfig', 'value' => 1],
+    ]]);
+    // A closure widget registered in a service provider's boot() — the cache-safe home for closures.
+    Dashboard::flushRegistered();
+    Dashboard::register(['type' => 'stat', 'key' => 'reg', 'title' => 'Registered', 'value' => fn () => 7]);
+
+    $widgets = app(Dashboard::class)->widgets();
+    expect($widgets->map(fn ($w) => $w->key())->all())->toContain('cfg', 'reg') // both config + registered appear
+        ->and($widgets->firstWhere(fn ($w) => $w->key() === 'reg')->data(DashboardContext::fromPreset('30d'))['value'])->toBe('7');
+
+    Dashboard::flushRegistered(); // don't leak into other tests
+});
+
 it('resolves a class-string widget through the container', function () {
     config(['admin-core.dashboard.widgets' => [DashboardTestStat::class]]);
 

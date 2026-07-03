@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.78
+
+**Add: a config-cache-safe way to register closure dashboard widgets.** The documented inline widget form uses
+closures (`'value' => fn ($c) => …`), but a closure in `config/admin-core.php` makes `php artisan config:cache`
+fatal (`var_export` can't serialise a Closure), breaking the whole app in production. New
+`Dashboard::register(...)` lets you register widgets at runtime from a service provider's `boot()` (which runs
+even when the config is cached), appended to the config widgets. The config docblock now warns about the
+closure/`config:cache` incompatibility and shows the `register()` pattern; the inline config example is now
+closure-free. Regression test registers a closure widget and asserts it resolves alongside config ones
+(mutation-verified). Found by a sixth full-package audit (caching-state dimension).
+
 ## v2.79.77
 
 **Fix: a `--derived` column was silently zeroed once its source row was soft-deleted.** The generated `saving()`

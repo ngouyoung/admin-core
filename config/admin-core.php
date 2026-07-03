@@ -223,16 +223,24 @@ return [
     | data — the package only lays the widgets out, so this is fully app-agnostic.
     |
     |   'widgets' => [
-    |       \App\Dashboard\RevenueWidget::class,                              // a class widget
-    |       ['type' => 'stat', 'title' => 'Users', 'icon' => 'bi-people',     // an inline widget
-    |        'value'    => fn ($c) => \App\Models\User::query()->tap(fn ($q) => $c->scope($q))->count(),
-    |        'previous' => fn ($c) => \App\Models\User::query()->tap(fn ($q) => $c->scopePrevious($q))->count(),
-    |        'link'     => '/admin/users'],
-    |       ['type' => 'chart', 'title' => 'Signups', 'col' => 6,
-    |        'chart' => fn ($c) => ['type' => 'line', 'series' => [...], 'categories' => [...]]],
-    |       ['type' => 'list', 'title' => 'Latest orders',
-    |        'rows' => fn ($c) => [['label' => '...', 'meta' => '...', 'link' => '...', 'badge' => '...']]],
+    |       \App\Dashboard\RevenueWidget::class,                              // a class widget (config-cache safe)
+    |       ['type' => 'stat', 'title' => 'Active', 'icon' => 'bi-people',    // an inline widget WITHOUT closures
+    |        'value' => 42, 'link' => '/admin/users'],
     |   ],
+    |
+    | IMPORTANT — closures + `php artisan config:cache`: a widget with a CLOSURE (an inline
+    | `'value' => fn ($c) => …`) must NOT live in this config array, because `config:cache` serialises the
+    | config with var_export and fatals on a Closure ("Call to undefined method Closure::__set_state()"),
+    | breaking the whole app. Put closure widgets in a class widget (extend StatWidget/ChartWidget/ListWidget)
+    | OR register them at runtime from a service provider's boot(), which runs even when the config is cached:
+    |
+    |   // app/Providers/AppServiceProvider::boot()
+    |   \Ngos\AdminCore\Dashboard\Dashboard::register([
+    |       'type' => 'stat', 'title' => 'Users', 'icon' => 'bi-people',
+    |       'value'    => fn ($c) => \App\Models\User::query()->tap(fn ($q) => $c->scope($q))->count(),
+    |       'previous' => fn ($c) => \App\Models\User::query()->tap(fn ($q) => $c->scopePrevious($q))->count(),
+    |       'link'     => '/admin/users',
+    |   ]);
     */
     'dashboard' => [
         'widgets' => [],

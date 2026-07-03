@@ -13,10 +13,38 @@ use Ngos\AdminCore\Models\DashboardLayout;
  */
 class Dashboard
 {
+    /**
+     * Widgets registered at RUNTIME (a service provider's boot()), appended to the config ones. This is the
+     * cache-safe home for a widget that needs a CLOSURE (an inline `'value' => fn ($c) => …`): a closure in
+     * config/admin-core.php makes `php artisan config:cache` fatal (var_export can't serialise a Closure),
+     * whereas boot() runs on every request even when the config is cached.
+     *
+     * @var array<int, mixed>
+     */
+    protected static array $registered = [];
+
+    /**
+     * Register dashboard widget(s) at runtime (class-string, Widget instance, or inline config array). Call
+     * from a service provider's boot() so closure-based widgets don't have to live in the (cacheable) config.
+     */
+    public static function register(mixed ...$widgets): void
+    {
+        foreach ($widgets as $widget) {
+            static::$registered[] = $widget;
+        }
+    }
+
+    /** Forget all runtime-registered widgets (test helper / re-registration). */
+    public static function flushRegistered(): void
+    {
+        static::$registered = [];
+    }
+
     /** @return Collection<int,Widget> the widgets the current user may see, in declared order */
     public function widgets(): Collection
     {
         return collect(config('admin-core.dashboard.widgets', []))
+            ->merge(static::$registered)
             ->map(fn ($widget) => $this->make($widget))
             ->filter()
             ->filter(fn (Widget $widget) => $this->visible($widget))
