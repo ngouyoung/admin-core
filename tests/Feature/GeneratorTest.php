@@ -1458,6 +1458,25 @@ it('singularizes a plural --portal name to match admin-core:portal (merchants â†
         ->toContain('permission:list-gizmo,merchant');
 });
 
+it('re-uses the existing portal scope when re-running make without --portal', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--portal' => 'merchant',
+    ])->assertSuccessful();
+
+    // The documented add-a-channel workflow â€” but forgetting to restate --portal. Without the scope
+    // inference the API gates land on the DEFAULT guard (403s no merchant role can satisfy) and a stray
+    // web module appears under the admin tree.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--api' => true])->assertSuccessful();
+
+    expect(File::get(base_path('routes/Api/Modules/gizmos.php')))->toContain(",merchant'")
+        ->and(File::exists(base_path('routes/Web/Backend/Modules/gizmos.php')))->toBeFalse()
+        ->and(File::exists(base_path('routes/Merchant/Modules/gizmos.php')))->toBeTrue();
+
+    File::deleteDirectory(base_path('routes/Merchant'));
+});
+
 it('routes a resource into a portal with --portal (dir + route-names + controller prefix + guard)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

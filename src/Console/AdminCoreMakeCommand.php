@@ -106,6 +106,18 @@ class AdminCoreMakeCommand extends Command
         // `--portal=merchants` routes to the never-globbed Merchants/Modules + a nonexistent `merchants` guard.
         $portal = $this->option('portal') ? Str::kebab(Str::singular($this->option('portal'))) : null;
         $guardOpt = $this->option('guard') ?: $portal;
+        // Re-running over an EXISTING portal/guarded resource (adding --api, more fields, …) without
+        // restating --portal/--guard would silently scope the new channel's gates + seeded permissions to
+        // the DEFAULT guard — 403s no portal role can satisfy, and a stray module under the admin tree.
+        // Infer the existing scope from the resource's route module instead.
+        if ($portal === null && $guardOpt === null) {
+            [$portal, $guardOpt] = $this->existingScope($snakePlural);
+            if ($portal !== null || $guardOpt !== null) {
+                $this->line('  <info>scope</info> re-using the existing '
+                    . ($portal ? "portal '{$portal}'" : "guard '{$guardOpt}'")
+                    . ' (pass --portal/--guard to override)');
+            }
+        }
         $menuName = $this->option('menu') ?: $portal;
         $guard = $guardOpt ?: config('admin-core.permission.guard', config('auth.defaults.guard', 'web'));
         $permSuffix = $guardOpt ? ",{$guardOpt}" : '';
@@ -1071,6 +1083,35 @@ PHP);
      * @param  array<int, string>  $actions  which permissions to seed (e.g. ['list','create','edit','delete'],
      *                                        or ['list'] read-only, ['edit'] singleton)
      */
+    /**
+     * The portal + guard an EXISTING resource was generated with, inferred from its route module —
+     * [portal, guard], both null when the resource doesn't exist yet or is a plain admin resource.
+     *
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function existingScope(string $snakePlural): array
+    {
+        // A portal resource's web module lives in routes/{StudlyPortal}/Modules (never Web/Backend, and
+        // routes/Api/Modules is the JSON API's home, not a portal).
+        foreach (File::glob(base_path("routes/*/Modules/{$snakePlural}.php")) as $file) {
+            $dir = basename(dirname(dirname($file)));
+            if (in_array($dir, ['Web', 'Api'], true)) {
+                continue;
+            }
+            $portal = Str::kebab($dir);
+
+            return [$portal, $portal];
+        }
+
+        // A --guard resource lives under Web/Backend but pins the guard as Route::crud()'s third argument.
+        $module = base_path("routes/Web/Backend/Modules/{$snakePlural}.php");
+        if (File::exists($module) && preg_match("/Route::crud\('[^']+',\s*[^,)]+,\s*'([^']+)'/", File::get($module), $m)) {
+            return [null, $m[1]];
+        }
+
+        return [null, null];
+    }
+
     /** A permission NAME from the configurable pattern — matching what Route::crud() gates at request time. */
     private function permissionName(string $action, string $kebab): string
     {

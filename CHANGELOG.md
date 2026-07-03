@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.39
+
+**Fix: re-running `make` on a portal/guarded resource without restating `--portal`/`--guard` mis-scoped the new
+channel.** The documented add-a-channel workflow (`admin-core:make Order --portal=merchant`, later
+`admin-core:make Order --api`) silently scoped the second run to the DEFAULT guard: API gates carried no guard
+argument (403s no merchant role can satisfy), new permissions seeded on the wrong guard, and a stray web module
+appeared under the admin tree. `make` now infers the existing scope from the resource's route module (portal
+dir, or `Route::crud()`'s guard argument) when neither option is given, and says so
+(`scope re-using the existing portal 'merchant'`); pass `--portal`/`--guard` to override. Regression test
+re-runs `--api` over a portal resource and asserts the merchant-guard gates + no stray admin module
+(mutation-verified). Found by a fourth full-package audit.
+
 ## v2.79.38
 
 **Fix: a duplicate field name in one `--fields` spec scaffolded a broken resource with a success message.**
