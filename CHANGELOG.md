@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.57
+
+**Fix: scaffolded logins shared one rate-limit bucket (`email|ip`), causing cross-surface lockout.** The admin
+login and every generated portal login used the identical throttle key, so 5 failed attempts on one login
+screen locked the same email out of every other login screen (even a portal the user never touched, from a
+shared office/NAT IP). Each login surface now namespaces its key by its guard — admin uses
+`config('auth.defaults.guard')`, a portal uses its own guard — so they throttle independently. Regression tests
+pin the admin stub's guard-namespaced key and assert a generated portal login carries its own guard in the key
+(mutation-verified). Found by a fifth full-package audit (auth dimension).
+
 ## v2.79.56
 
 **Fix: bracketed (repeater) select/editor fields never showed the `is-invalid` state.** The sibling field

@@ -19,6 +19,14 @@ it('LoginController hands off to the 2FA challenge without completing the login'
         ->toContain("redirect()->route('two-factor.login')");
 });
 
+it('LoginController namespaces the rate-limit key by the login surface (no cross-surface lockout)', function () {
+    // A bare email|ip key is shared by every scaffolded login (admin + each portal), so a lockout on one
+    // login screen locks the user out of the others. The admin key includes its guard.
+    expect(tfStub('access/Auth/LoginController.php.stub'))
+        ->toContain("config('auth.defaults.guard') . '|' . Str::lower(\$request->input('email'))")
+        ->not->toContain("Str::transliterate(Str::lower(\$request->input('email')) . '|' . \$request->ip())");
+});
+
 it('TwoFactorChallengeController verifies, burns recovery codes single-use, throttles, and clears the pending session', function () {
     expect(tfStub('access/Auth/TwoFactorChallengeController.php.stub'))
         ->toContain('verifyTwoFactorCode(')

@@ -51,7 +51,10 @@ it('scaffolds a separate-guard portal (model + login + dashboard)', function () 
     // Login authenticates on the shop guard and lands on its dashboard.
     expect(File::get(app_path('Http/Controllers/Shop/Auth/LoginController.php')))
         ->toContain("Auth::guard('shop')->attempt")
-        ->toContain("route('shop.dashboard')");
+        ->toContain("route('shop.dashboard')")
+        // The rate-limit key is namespaced by THIS portal's guard, so a lockout here can't lock a user out of
+        // the admin login (or another portal) — each login surface throttles independently.
+        ->toContain("'shop|' . Str::lower(\$request->input('email'))");
 
     // Dashboard renders this portal's permission-filtered menu via the component.
     expect(File::get(resource_path('views/shop/layout.blade.php')))

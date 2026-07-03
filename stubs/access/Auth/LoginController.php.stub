@@ -24,8 +24,10 @@ class LoginController extends Controller
             'password' => ['required'],
         ]);
 
-        // Throttle brute-force: 5 failed attempts per email+IP, then a short lockout.
-        $throttleKey = Str::transliterate(Str::lower($request->input('email')) . '|' . $request->ip());
+        // Throttle brute-force: 5 failed attempts per email+IP, then a short lockout. Namespaced by the login
+        // surface (guard) so a lockout on one login screen can't lock a user out of a different one — a
+        // portal login (its own guard) uses a distinct bucket.
+        $throttleKey = Str::transliterate(config('auth.defaults.guard') . '|' . Str::lower($request->input('email')) . '|' . $request->ip());
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
             $seconds = RateLimiter::availableIn($throttleKey);
