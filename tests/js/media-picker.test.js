@@ -65,4 +65,45 @@ describe('media picker XSS hardening', () => {
         expect(items.querySelectorAll('[onerror]')).toHaveLength(0);        // url didn't break out of src=
         expect(items.querySelector('img').getAttribute('onerror')).toBeNull();
     });
+
+    it('ignores a stale (out-of-order) search response so it cannot overwrite the newer results', async () => {
+        // Two searches in flight: the FIRST (slow) must not clobber the SECOND (fast) when it finally arrives.
+        const resolvers = {}; // search term -> resolve fn for that fetch
+        global.fetch = vi.fn().mockImplementation((url) => {
+            const term = new URL(url, 'http://x').searchParams.get('search');
+            return new Promise((res) => {
+                resolvers[term] = () => res({ ok: true, json: () => Promise.resolve({
+                    data: [{ id: 1, name: `item-${term}`, url: '/u', is_image: false }],
+                }) });
+            });
+        });
+
+        initMediaPicker();
+        const modal = document.getElementById('acMediaPicker');
+        const grid = modal.querySelector('[data-ac-picker-grid]');
+        const searchBox = modal.querySelector('[data-ac-picker-search]');
+
+        // Open (fires a search='' request we leave pending), then type "a" then "ab" — both via loadGrid.
+        const show = new Event('show.bs.modal');
+        show.relatedTarget = document.getElementById('open');
+        modal.dispatchEvent(show);
+
+        searchBox.value = 'a';
+        searchBox.dispatchEvent(new Event('input'));
+        await new Promise((r) => setTimeout(r, 300)); // flush the 250ms debounce → loadGrid('a')
+
+        searchBox.value = 'ab';
+        searchBox.dispatchEvent(new Event('input'));
+        await new Promise((r) => setTimeout(r, 300)); // → loadGrid('ab'), the newest request
+
+        // The newer "ab" resolves first and renders; the older "a" resolves AFTER and must be dropped.
+        resolvers.ab();
+        await tick();
+        expect(grid.querySelector('[title="item-ab"]')).not.toBeNull();
+
+        resolvers.a(); // stale — arrives late
+        await tick();
+        expect(grid.querySelector('[title="item-a"]')).toBeNull();  // did NOT overwrite
+        expect(grid.querySelector('[title="item-ab"]')).not.toBeNull(); // "ab" still shown
+    });
 });

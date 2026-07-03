@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.53
+
+**Fix: the media picker's library search had no stale-response guard.** Typing fast fired overlapping `loadGrid`
+fetches; if an earlier (slower) search resolved AFTER a later (faster) one, its now-abandoned results
+overwrote `grid.innerHTML` — the admin saw a grid that didn't match the search box. `loadGrid()` now stamps
+each request with a monotonic sequence and drops any response that isn't the latest (success and error paths).
+Regression test (jsdom) fires two searches, resolves the newer first, then the older, and asserts the stale
+result is discarded (mutation-verified). Found by a fifth full-package audit (js-stubs dimension).
+
 ## v2.79.52
 
 **Fix: cascading ajax selects leaked a document listener on every repeater row.** `enhanceAjaxSelects()` re-runs

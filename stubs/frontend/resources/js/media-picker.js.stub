@@ -60,11 +60,14 @@ function initMediaPicker() {
         if (single) modal.querySelector('[data-bs-dismiss="modal"]')?.click();
     };
 
+    let gridSeq = 0; // request sequence — so an out-of-order (slow) response can't overwrite a newer search
     const loadGrid = () => {
+        const seq = ++gridSeq;
         grid.innerHTML = '<div class="text-muted small p-3">Loading…</div>';
         fetch(modal.dataset.acListUrl + '?search=' + encodeURIComponent(search.value || ''), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then((r) => r.json())
             .then((d) => {
+                if (seq !== gridSeq) return; // a newer search fired after this one — drop the stale result
                 grid.innerHTML = d.data.length ? '' : '<div class="text-muted small p-3">No media yet — upload above.</div>';
                 d.data.forEach((m) => {
                     const col = document.createElement('div');
@@ -78,7 +81,7 @@ function initMediaPicker() {
                     grid.appendChild(col);
                 });
             })
-            .catch(() => { grid.innerHTML = '<div class="text-danger small p-3">Could not load the library.</div>'; });
+            .catch(() => { if (seq === gridSeq) grid.innerHTML = '<div class="text-danger small p-3">Could not load the library.</div>'; });
     };
 
     modal.addEventListener('show.bs.modal', (e) => {
