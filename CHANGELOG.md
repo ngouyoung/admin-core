@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.33
+
+**Fix: import only dropped image/file columns declared in array-form rules.** The export→import round-trip
+drops `image`/`file` columns from validation (a CSV carries a stored PATH, not an upload) — but the filter
+only recognised `['nullable', 'image']` array rules, not the equally-valid pipe-string form
+`'nullable|image|max:2048'`. A resource using string rules had every row with a photo path rejected by the
+`image` rule on re-import of its own export. The filter now normalises both forms (and rule parameters like
+`image:allow_svg`). Regression test round-trips a CSV through a pipe-string-rule resource (mutation-verified).
+Found by a fourth full-package audit (import/export dimension).
+
 ## v2.79.32
 
 **Fix: locked-state enforcement had a check-then-write race (TOCTOU).** `guardLocked()` is a point-in-time

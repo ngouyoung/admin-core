@@ -377,6 +377,28 @@ it('drops image/file columns on import (a CSV cannot carry a file) and still imp
     expect(Widget::where('name', 'Alpha')->exists())->toBeTrue();
 });
 
+it('drops image/file columns on import in the pipe-string rule form too', function () {
+    // Same as above but the FormRequest declares 'nullable|image|max:2048' (string form) — equally valid
+    // Laravel, and the exported-path round-trip must not be rejected for it.
+    $controller = new class(new Ngos\AdminCore\Tests\Fixtures\WidgetService(new Widget)) extends \Ngos\AdminCore\Http\Controllers\WebController {
+        public function __construct($service)
+        {
+            $this->service = $service;
+            $this->routeBase = 'pipewidgets.';
+            $this->storeRequest = \Ngos\AdminCore\Tests\Fixtures\StoreWidgetImagePipeRequest::class;
+        }
+    };
+    app()->instance('ac-pipe-controller', $controller);
+    \Illuminate\Support\Facades\Route::middleware('web')->post('admin/pipewidgets/import', fn (\Illuminate\Http\Request $r) => app('ac-pipe-controller')->import($r))->name('admin.pipewidgets.import');
+
+    $csv = "name,photo\nBeta,products/old-pic.jpg\n";
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);
+
+    $this->post('admin/pipewidgets/import', ['file' => $file])->assertRedirect();
+
+    expect(Widget::where('name', 'Beta')->exists())->toBeTrue();
+});
+
 it('reorders records by sort position', function () {
     $a = Widget::create(['name' => 'a']);
     $b = Widget::create(['name' => 'b']);

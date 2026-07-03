@@ -597,7 +597,14 @@ abstract class WebController extends BaseController
         // A CSV can't carry an uploaded file, so drop image/file columns from validation: the exported
         // path string would fail the `image`/`file` rule, and the service ignores non-UploadedFile values
         // anyway. validated() then omits them, so they're not imported and the record keeps its file.
-        $rules = array_filter($rules, fn ($r) => ! (is_array($r) && (in_array('image', $r, true) || in_array('file', $r, true))));
+        // Both rule forms count — array ['nullable', 'image'] AND pipe-string 'nullable|image|max:2048'
+        // (rule parameters like image:allow_svg too).
+        $rules = array_filter($rules, function ($r) {
+            $parts = is_string($r) ? explode('|', $r) : (is_array($r) ? $r : [$r]);
+            $names = array_map(fn ($rule) => is_string($rule) ? strtolower(explode(':', $rule, 2)[0]) : '', $parts);
+
+            return ! (in_array('image', $names, true) || in_array('file', $names, true));
+        });
         $fillable = $model->getFillable();
         // Columns the model casts to array/json — their cells are decoded back from the
         // JSON string the export wrote, so a round-tripped json field imports as an array.
