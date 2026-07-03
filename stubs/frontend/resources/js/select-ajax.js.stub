@@ -11,10 +11,36 @@
 // select send the parent field's value as a `filter` and reload when it changes,
 // so Province → Commune → Village narrows each level to the one above.
 // ---------------------------------------------------------------------------
+let acCascadeBound = false;
+
 function enhanceAjaxSelects(scope) {
     const $ = window.jQuery;
     if (!$ || !$.fn || !$.fn.select2) {
         return; // select2 not loaded on this page
+    }
+
+    // Cascade wiring is installed ONCE for the whole document, not once per select. The old code bound a
+    // fresh `$(document).on('change', parentSelector, …)` for every select — so every repeater row that was
+    // added rebound another document-level listener that was never removed on row removal, leaking listeners
+    // and firing stale handlers for rows long gone. This single delegated listener reads the parent→child
+    // relationship from each select's data-ac-depends at change time, so added/removed rows need no rebind.
+    if (!acCascadeBound) {
+        acCascadeBound = true;
+        $(document).on('change', (e) => {
+            const changed = e.target;
+            $('.admin-core-select-ajax').each(function () {
+                let deps = {};
+                try {
+                    deps = JSON.parse($(this).attr('data-ac-depends') || '{}');
+                } catch (err) {
+                    deps = {};
+                }
+                const dependsOnChanged = Object.keys(deps).some((col) => $(deps[col]).is(changed));
+                if (dependsOnChanged) {
+                    $(this).val(null).trigger('change'); // clear → re-query with the new parent value
+                }
+            });
+        });
     }
 
     $(scope).find('.admin-core-select-ajax').each(function () {
@@ -60,12 +86,8 @@ function enhanceAjaxSelects(scope) {
                 processResults: (data) => data, // endpoint already returns {results, pagination:{more}}
             },
         });
-
-        // Cascade: when a parent changes, clear this select so it re-queries with the new value.
-        // Clearing fires `change`, so a deeper child (Village ← Commune ← Province) clears in turn.
-        Object.keys(depends).forEach((col) => {
-            $(document).on('change', depends[col], () => $el.val(null).trigger('change'));
-        });
+        // Cascade clearing is handled by the single document-level listener above (reads data-ac-depends),
+        // so a deeper child (Village ← Commune ← Province) still clears in turn without a per-select listener.
     });
 }
 

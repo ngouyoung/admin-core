@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.52
+
+**Fix: cascading ajax selects leaked a document listener on every repeater row.** `enhanceAjaxSelects()` re-runs
+on each `ac:repeater:added`, and it bound a fresh `$(document).on('change', parentSelector, …)` per select —
+never removed when a row was deleted. Adding/removing repeater rows (master-detail forms) accumulated
+document-level listeners without bound, and each stale handler still fired for rows long gone. The cascade is
+now wired as a SINGLE document listener installed once, which reads each select's `data-ac-depends` at change
+time — so added/removed rows need no rebind and nothing leaks. Regression test (real jQuery in jsdom) asserts
+exactly one document change listener after many add/remove cycles, and that the parent→child clear still fires
+(mutation-verified). Found by a fifth full-package audit (js-stubs dimension).
+
 ## v2.79.51
 
 **Fix: 2FA `enable` took no password and silently un-confirmed an already-active account.** The scaffolded
