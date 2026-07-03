@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.32
+
+**Fix: locked-state enforcement had a check-then-write race (TOCTOU).** `guardLocked()` is a point-in-time
+read that ran BEFORE the write, in a separate transaction — so a concurrent transition landing in between
+(e.g. while the FormRequest validated) let an update/delete proceed against a record that was by then locked
+(a posted invoice silently edited or deleted). `runTransition()` already closed this race for itself with
+`lockForUpdate()` + an in-transaction re-check; the same discipline now wraps every plain write path via new
+`guardedWrite()`/`guardedTrashedWrite()` helpers: web update/delete/ajaxDelete/restore/forceDelete, API
+update/destroy, and the three bulk queries take `lockForUpdate()` inside their transactions. No-op (plain
+transaction) for resources without `$lockedStates`. Regression tests simulate the race deterministically
+(the state flips between guard and write via a container `resolving` hook) on both the web and API channels
+(mutation-verified). Found by a fourth full-package audit (concurrency dimension).
+
 ## v2.79.31
 
 **Fix: the widget cache key ignored `DashboardContext::$params`.** The cache key was

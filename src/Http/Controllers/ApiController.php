@@ -117,9 +117,9 @@ abstract class ApiController extends BaseController
             request()->merge(collect($denied)->mapWithKeys(fn ($f) => [$f => $existing->getRawOriginal($f)])->all());
         }
 
-        $this->guardLocked($id); // a posted/locked document is read-only on the API too
+        $this->guardLocked($id); // a posted/locked document is read-only on the API too (early fail)
         $data = $this->stripStateColumn($this->stripDeniedFields(app($this->updateRequest)->validated()));
-        $object = DB::transaction(fn () => $this->service->update($id, $data));
+        $object = $this->guardedWrite($id, fn () => $this->service->update($id, $data));
 
         return new ($this->resource)($object);
     }
@@ -127,7 +127,7 @@ abstract class ApiController extends BaseController
     public function destroy(string $id): JsonResponse
     {
         $this->guardLocked($id); // a locked document can't be deleted via the API either
-        $this->service->delete($id);
+        $this->guardedWrite($id, fn () => $this->service->delete($id));
 
         return response()->json(['data' => true]);
     }

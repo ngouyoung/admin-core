@@ -58,6 +58,20 @@ it('API update refuses to write a record in a locked state (403)', function () {
     expect($w->fresh()->name)->toBe('Doc'); // unchanged
 });
 
+it('API update refuses a record that becomes locked between the guard check and the write (TOCTOU race)', function () {
+    $w = Widget::create(['name' => 'Doc', 'status' => 'draft']); // UNLOCKED when guardLocked() runs
+
+    // The update FormRequest resolves AFTER guardLocked() passed — a concurrent transition lands there.
+    // guardedWrite() must re-check inside its transaction and refuse, mirroring the web channel.
+    app()->resolving(\Ngos\AdminCore\Tests\Fixtures\ActionWidgetRequest::class, function () use ($w) {
+        Widget::where('id', $w->id)->update(['status' => 'posted']);
+    });
+
+    $this->putJson('/api/policy-widgets/' . $w->id, ['name' => 'Changed'])->assertForbidden();
+
+    expect($w->fresh()->name)->toBe('Doc');
+});
+
 it('API destroy refuses to delete a record in a locked state (403)', function () {
     $w = Widget::create(['name' => 'Doc', 'status' => 'posted']);
 

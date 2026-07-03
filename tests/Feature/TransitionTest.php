@@ -191,6 +191,21 @@ it('refuses to edit or delete a record in a locked state', function () {
     expect($w->fresh()->name)->toBe('Doc')->and(Widget::find($w->id))->not->toBeNull(); // unchanged + not deleted
 });
 
+it('refuses an update when the record becomes locked between the guard check and the write (TOCTOU race)', function () {
+    $w = Widget::create(['name' => 'Doc', 'status' => 'draft']); // UNLOCKED when guardLocked() runs
+
+    // Simulate a concurrent transition landing mid-request: the update FormRequest resolves AFTER
+    // guardLocked() has already passed — flip the record into a locked state exactly there, before the
+    // write executes. guardedWrite() must re-check inside its transaction and refuse.
+    app()->resolving(\Ngos\AdminCore\Tests\Fixtures\ActionWidgetRequest::class, function () use ($w) {
+        Widget::where('id', $w->id)->update(['status' => 'posted']);
+    });
+
+    $this->put('/admin/action-widgets/update/' . $w->id, ['name' => 'Changed'])->assertForbidden();
+
+    expect($w->fresh()->name)->toBe('Doc'); // the stale-guard write never happened
+});
+
 it('still allows edit/delete in an unlocked state', function () {
     $w = Widget::create(['name' => 'Doc', 'status' => 'draft']);
 

@@ -2,6 +2,7 @@
 
 namespace Ngos\AdminCore\Http\Controllers\Concerns;
 
+use Illuminate\Support\Facades\DB;
 use Ngos\AdminCore\States\Transition;
 
 /**
@@ -140,5 +141,28 @@ trait GuardsResourceWrites
         if ($this->isLockedState($this->service->find($id))) {
             abort(403, __('admin-core::admin-core.states.locked'));
         }
+    }
+
+    /**
+     * Run a write inside a transaction with the record row-locked and the locked-state check re-run on the
+     * locked row. guardLocked() alone is a point-in-time read — a concurrent transition can move the record
+     * into a locked state between that check and the write (e.g. while the FormRequest validates).
+     * runTransition() closes the same race with lockForUpdate + re-check; this applies the identical
+     * discipline to the plain update/delete write paths. A no-op wrapper (plain transaction) when the
+     * resource declares no locked states.
+     */
+    protected function guardedWrite(int|string $id, \Closure $write)
+    {
+        return DB::transaction(function () use ($id, $write) {
+            if ($this->lockedStates !== []) {
+                $key = $this->service->query()->getModel()->getRouteKeyName();
+                $record = $this->service->query()->where($key, $id)->lockForUpdate()->first();
+                if ($record !== null && $this->isLockedState($record)) {
+                    abort(403, __('admin-core::admin-core.states.locked'));
+                }
+            }
+
+            return $write();
+        });
     }
 }
