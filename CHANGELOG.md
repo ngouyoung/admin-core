@@ -2,6 +2,14 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.60
+
+**Fix: an approval's requester/approver name vanished once that user was soft-deleted.** Same MorphTo/soft-delete
+interaction as v2.79.58: the approvals screen showed '—' for a request filed or decided by a since-offboarded
+user. `requester()` and `approver()` now use `withTrashed()` (applied only to soft-deletable concrete types).
+Regression test soft-deletes a requester and asserts the approval still resolves their name
+(mutation-verified). Found by a fifth full-package audit (notifications/activity dimension).
+
 ## v2.79.59
 
 **Fix: `admin-core:translate` froze a failed provider call into the locale file as a real translation.** The

@@ -41,6 +41,36 @@ beforeEach(function () {
 
 afterEach(fn () => Schema::dropIfExists('approvals'));
 
+it('still resolves the requester after that user is soft-deleted (approvals screen keeps the name)', function () {
+    Schema::dropIfExists('req_users');
+    Schema::create('req_users', function (Blueprint $t) {
+        $t->id();
+        $t->string('name');
+        $t->softDeletes();
+    });
+
+    $reqModel = new class extends \Illuminate\Database\Eloquent\Model {
+        use \Illuminate\Database\Eloquent\SoftDeletes;
+
+        protected $table = 'req_users';
+        protected $guarded = [];
+        public $timestamps = false;
+    };
+    $bob = $reqModel->create(['name' => 'Bob']);
+
+    $approval = \Ngos\AdminCore\Models\Approval::create([
+        'action' => 'refund', 'handler' => 'X', 'payload' => ['ids' => [1]], 'status' => 'pending',
+    ]);
+    $approval->requester()->associate($bob)->save(); // morph columns aren't fillable
+
+    $bob->delete(); // requester offboarded
+
+    expect($approval->fresh()->requester)->not->toBeNull()
+        ->and($approval->fresh()->requester->name)->toBe('Bob');
+
+    Schema::dropIfExists('req_users');
+});
+
 // -- Request side (runAction branch) ----------------------------------------------------------------
 
 it('files a pending approval instead of executing, for a requester who cannot approve', function () {

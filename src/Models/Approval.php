@@ -43,14 +43,17 @@ class Approval extends Model
         return 'uuid';
     }
 
+    // withTrashed(): the requester/approver must still resolve after that user is soft-deleted (offboarded)
+    // — otherwise the approvals screen shows '—' for a request they filed/decided. MorphTo applies this only
+    // to concrete types that use SoftDeletes, so a non-soft-deletable user is unaffected.
     public function requester(): MorphTo
     {
-        return $this->morphTo();
+        return $this->morphTo()->withTrashed();
     }
 
     public function approver(): MorphTo
     {
-        return $this->morphTo();
+        return $this->morphTo()->withTrashed();
     }
 
     /** @param  Builder<Approval>  $query */
