@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.69
+
+**Fix: `AccessSeeder` crashed with `GuardDoesNotMatch` once any non-default-guard permission existed.** The
+seeder granted the admin role `Permission::all()` — but Spatie rejects syncing a permission whose guard differs
+from the role's, so after even one `admin-core:make --guard=…`/`--portal=…` resource seeded a permission on
+another guard, re-seeding (`db:seed`, a deploy) threw and aborted. The seeder now grants only permissions on the
+admin role's own guard (`Permission::where('guard_name', $admin->guard_name)`). Regression tests (real Spatie
+models) prove the scoped sync grants the web permission without crashing, that the old `Permission::all()` throws
+`GuardDoesNotMatch`, and that the stub ships the scoped query (mutation-verified). Found by a sixth full-package
+audit (migration-seed dimension).
+
 ## v2.79.68
 
 **Fix: a soft-deleted attached belongsToMany row was silently detached on the next save.** The edit form built

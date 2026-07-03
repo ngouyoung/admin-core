@@ -74,9 +74,11 @@ class AccessSeeder extends Seeder
             Setting::firstOrCreate(['key' => $key], ['value' => $meta['value'], 'type' => $meta['type'], 'group' => 'general']);
         }
 
-        // 3. Admin role holds every permission.
+        // 3. Admin role holds every permission ON ITS OWN GUARD. Scope to the admin guard — a portal resource
+        //    (admin-core:make --guard=…/--portal=…) seeds permissions on OTHER guards, and Spatie's
+        //    syncPermissions() throws GuardDoesNotMatch if handed a permission whose guard differs from the role's.
         $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
-        $admin->syncPermissions(Permission::all());
+        $admin->syncPermissions(Permission::where('guard_name', $admin->guard_name)->get());
 
         // 4. Admin user.
         $user = User::firstOrCreate(
