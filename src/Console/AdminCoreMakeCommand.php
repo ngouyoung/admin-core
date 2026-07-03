@@ -109,6 +109,13 @@ class AdminCoreMakeCommand extends Command
         $menuName = $this->option('menu') ?: $portal;
         $guard = $guardOpt ?: config('admin-core.permission.guard', config('auth.defaults.guard', 'web'));
         $permSuffix = $guardOpt ? ",{$guardOpt}" : '';
+        // Permission NAMES derive from the configurable pattern — the same one Route::crud() resolves its
+        // gates from at request time. Seeding/gating hardcoded '{action}-{resource}' names under a custom
+        // pattern locked even the super role out of the new resource (gates and grants never matched).
+        $permList = $this->permissionName('list', $kebab);
+        $permCreate = $this->permissionName('create', $kebab);
+        $permEdit = $this->permissionName('edit', $kebab);
+        $permDelete = $this->permissionName('delete', $kebab);
         $crudGuardArg = $guardOpt ? ", '{$guardOpt}'" : '';
         // Read-only codegen: tell Route::crud to skip the write routes, drop the FormRequest import/assigns from
         // the controller, and omit the import/bulkDelete routes — so a read-only resource has no write surface.
@@ -120,11 +127,11 @@ class AdminCoreMakeCommand extends Command
         // The import/bulkDelete routes (create + delete permissions) — dropped for a read-only resource.
         $writeRoutes = $readOnly ? '' : <<<PHP
                 Route::get('import-template', 'importTemplate')->name('importTemplate')
-                    ->middleware(config('admin-core.permission.enabled') ? 'permission:create-{$kebab}{$permSuffix}' : []);
+                    ->middleware(config('admin-core.permission.enabled') ? 'permission:{$permCreate}{$permSuffix}' : []);
                 Route::post('import', 'import')->name('import')
-                    ->middleware(config('admin-core.permission.enabled') ? 'permission:create-{$kebab}{$permSuffix}' : []);
+                    ->middleware(config('admin-core.permission.enabled') ? 'permission:{$permCreate}{$permSuffix}' : []);
                 Route::post('bulkDelete', 'bulkDelete')->name('bulkDelete')
-                    ->middleware(config('admin-core.permission.enabled') ? 'permission:delete-{$kebab}{$permSuffix}' : []);
+                    ->middleware(config('admin-core.permission.enabled') ? 'permission:{$permDelete}{$permSuffix}' : []);
 
         PHP;
         // The JSON API's write routes (store/update/destroy) — dropped for a read-only resource, so --read-only
@@ -202,9 +209,9 @@ class AdminCoreMakeCommand extends Command
 
         $sortRoutes = $sortable ? sprintf(
             "\n    Route::post('reorder', [%sController::class, 'reorder'])->name('reorder')\n"
-            . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:edit-%s%s' : []);",
+            . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:%s%s' : []);",
             $class,
-            $kebab,
+            $permEdit,
             $permSuffix,
         ) : '';
 
@@ -268,7 +275,7 @@ class AdminCoreMakeCommand extends Command
         // tokens) because strtr does not re-scan replaced text.
         $softRoutes = $soft ? sprintf(
             "\n    Route::controller(%sController::class)\n"
-            . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:delete-%s%s' : [])\n"
+            . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:%s%s' : [])\n"
             . "        ->group(function () {\n"
             . "            Route::get('trash', 'trash')->name('trash');\n"
             . "            Route::put('restore/{id}', 'restore')->name('restore');\n"
@@ -277,7 +284,7 @@ class AdminCoreMakeCommand extends Command
             . "            Route::post('bulkForceDelete', 'bulkForceDelete')->name('bulkForceDelete');\n"
             . "        });",
             $class,
-            $kebab,
+            $permDelete,
             $permSuffix,
         ) : '';
 
@@ -313,6 +320,10 @@ class AdminCoreMakeCommand extends Command
             'DummyClass' => $class,
             'dummyModels' => $snakePlural,
             'dummyModel' => $camel,
+            'list-dummy-model' => $permList,
+            'create-dummy-model' => $permCreate,
+            'edit-dummy-model' => $permEdit,
+            'delete-dummy-model' => $permDelete,
             'dummy-model' => $kebab,
             '__AC_FILLABLE__' => $fields->fillable(),
             '__AC_HIDDEN__' => $fields->hidden(),
@@ -698,7 +709,7 @@ PHP);
                     return; // already in the menu — idempotent
                 }
                 $urlPrefix = rtrim($routeNs, '.');
-                $entry = "['label' => '{$label}', 'route' => '{$route}', 'icon' => 'bi bi-circle', 'can' => 'list-{$kebab}', 'match' => '{$urlPrefix}/{$snakePlural}*'],";
+                $entry = "['label' => '{$label}', 'route' => '{$route}', 'icon' => 'bi bi-circle', 'can' => '{$this->permissionName('list', $kebab)}', 'match' => '{$urlPrefix}/{$snakePlural}*'],";
                 $contents = preg_replace_callback($markerRe, fn () => $entry . "\n        {$marker}", $contents, 1);
                 File::put($config, $contents);
                 $this->line('  <info>menu</info> added "' . $label . '" to config/admin-core.php (run config:clear if you cache config)');
@@ -761,7 +772,7 @@ PHP);
             'route' => $route,
             'icon' => 'bi bi-circle',
             'match' => $match,
-            'permission' => "list-{$kebab}",
+            'permission' => $this->permissionName('list', $kebab),
             'sort' => (int) $model::max('sort') + 1,
             'is_active' => true,
         ]);
@@ -1060,6 +1071,16 @@ PHP);
      * @param  array<int, string>  $actions  which permissions to seed (e.g. ['list','create','edit','delete'],
      *                                        or ['list'] read-only, ['edit'] singleton)
      */
+    /** A permission NAME from the configurable pattern — matching what Route::crud() gates at request time. */
+    private function permissionName(string $action, string $kebab): string
+    {
+        return str_replace(
+            ['{action}', '{resource}'],
+            [$action, $kebab],
+            (string) config('admin-core.permission.pattern', '{action}-{resource}'),
+        );
+    }
+
     private function createPermissions(string $kebab, string $plural, string $guard = 'web', array $actions = ['list', 'create', 'edit', 'delete']): void
     {
         if (! config('admin-core.permission.enabled') || ! Schema::hasTable('permissions')) {
@@ -1067,7 +1088,7 @@ PHP);
         }
 
         $model = config('admin-core.permission.model', \Spatie\Permission\Models\Permission::class);
-        $names = array_map(fn ($action) => "{$action}-{$kebab}", $actions);
+        $names = array_map(fn ($action) => $this->permissionName($action, $kebab), $actions);
 
         foreach ($names as $name) {
             $model::firstOrCreate(['name' => $name, 'guard_name' => $guard]);
@@ -1116,7 +1137,7 @@ PHP);
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
-        $this->line("  <info>permissions</info> " . implode('/', $actions) . "-{$kebab}{$grouped}{$granted}");
+        $this->line("  <info>permissions</info> " . implode(' / ', $names) . "{$grouped}{$granted}");
     }
 
     private function relative(string $path): string

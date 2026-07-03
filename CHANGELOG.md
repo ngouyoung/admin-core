@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.37
+
+**Fix: the generator hardcoded `{action}-{resource}` permission names while `Route::crud()` resolves them from
+`permission.pattern`.** Under a custom pattern (e.g. `manage-{resource}-{action}`), `admin-core:make` seeded
+Permission rows, granted the super role, wrote the extra route gates (show/export/import/bulkDelete/trash/
+reorder), the menu `can`, the widget permission, the views' `@can` checks and the generated test's grants all
+under the WRONG names — so the crud gates never matched anything and even the super role was locked out of the
+new resource. Every generated artifact now resolves from the same pattern: generation-time via a shared
+`permissionName()` helper, and the API route module + generated feature test resolve at request time exactly
+like `Route::crud()`. Set a custom pattern BEFORE generating resources. Regression test generates under a
+custom pattern and asserts every gate/`@can` uses it (mutation-verified). Found by a fourth full-package audit.
+
 ## v2.79.36
 
 **Fix: AutoTranslate threw away translations it had already paid for when the budget ran out mid-field.**

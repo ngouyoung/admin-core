@@ -10,7 +10,11 @@ use Ngos\AdminCore\Http\Middleware\AuthorizeApiPermission;
 // Passport/Sanctum token is authorized. (A --guard=api resource instead pins its own guard, passed to
 // the middleware as a second argument.)
 $gate = fn (string $action) => config('admin-core.permission.enabled')
-    ? AuthorizeApiPermission::class . ':' . $action . '-dummy-model__AC_PERM_GUARD__'
+    ? AuthorizeApiPermission::class . ':' . str_replace(
+        ['{action}', '{resource}'],
+        [$action, 'dummy-model'],
+        (string) config('admin-core.permission.pattern', '{action}-{resource}'),
+    ) . '__AC_PERM_GUARD__'
     : [];
 
 Route::middleware(config('admin-core.api.middleware', ['auth:sanctum']))

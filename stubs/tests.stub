@@ -27,7 +27,11 @@ class DummyClassTest extends TestCase
             $model = config('admin-core.permission.model', \Spatie\Permission\Models\Permission::class);
             $names = ['backend', 'access'];
             foreach ($abilities as $ability) {
-                $names[] = "{$ability}-dummy-model";
+                $names[] = str_replace(
+                    ['{action}', '{resource}'],
+                    [$ability, 'dummy-model'],
+                    (string) config('admin-core.permission.pattern', '{action}-{resource}'),
+                );
             }
             foreach ($names as $name) {
                 $model::firstOrCreate(['name' => $name, 'guard_name' => 'web']);

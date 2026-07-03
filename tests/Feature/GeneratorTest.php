@@ -1246,7 +1246,7 @@ it('generates a CRUD feature test with --tests', function () {
     expect(File::get($path))
         ->toContain('class GizmoTest extends TestCase')
         ->toContain("route('admin.gizmos.update', \$object->getRouteKey())") // hybrid route key
-        ->toContain('-gizmo"')                                               // resource permission (e.g. "{$ability}-gizmo")
+        ->toContain("[\$ability, 'gizmo']")                                  // permission names resolve from permission.pattern
         ->toContain('->assertForbidden()')                                   // permission gating
         ->toContain("\$payload['avatar'] = \\Illuminate\\Http\\UploadedFile::fake()->image('avatar.jpg')")
         ->toContain('assertModelMissing($object)');                          // hard delete
@@ -1306,7 +1306,8 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         ->toContain("->name('api.gizmos.')")
         ->toContain("[GizmoApiController::class, 'index']")
         ->toContain('use Ngos\AdminCore\Http\Middleware\AuthorizeApiPermission;')
-        ->toContain("AuthorizeApiPermission::class . ':' . \$action . '-gizmo'")
+        ->toContain("AuthorizeApiPermission::class . ':' . str_replace(")
+        ->toContain("[\$action, 'gizmo'],")
         ->toContain("'destroy'])->name('destroy')->middleware(\$gate('delete'))")
         ->toContain("->middleware(\$gate('list'))")
         // The guard token is a middleware-arg fragment (',merchant'), never injected into prose. A plain
@@ -1557,6 +1558,42 @@ it('adds a sort toggle and reorder route with --sortable', function () {
         ->toContain('toggle-sort')->toContain('sort-panel')
         ->and(File::get(base_path('routes/Web/Backend/Modules/gizmos.php')))->toContain('reorder')
         ->and(File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))->toContain("'sort'");
+});
+
+it('derives every seeded and gated permission name from permission.pattern', function () {
+    // Route::crud() resolves its gates from this pattern at request time — the generated route module,
+    // views, menu entry and seeded permission rows must resolve from the SAME pattern, or a host with a
+    // custom pattern gets gates that no seeded/granted permission ever matches (even super is locked out).
+    config()->set('admin-core.permission.pattern', 'manage-{resource}-{action}');
+
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string',
+        '--soft-deletes' => true,
+        '--sortable' => true,
+        '--api' => true,
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    $routes = File::get(base_path('routes/Web/Backend/Modules/gizmos.php'));
+    expect($routes)
+        ->toContain('permission:manage-gizmo-list')      // show/export gates
+        ->toContain('permission:manage-gizmo-create')    // import gates
+        ->toContain('permission:manage-gizmo-delete')    // bulkDelete + trash gates
+        ->toContain('permission:manage-gizmo-edit')      // reorder gate
+        ->not->toContain('permission:list-gizmo')
+        ->not->toContain('permission:create-gizmo')
+        ->not->toContain('permission:edit-gizmo')
+        ->not->toContain('permission:delete-gizmo');
+
+    // The views' @can checks and the API's request-time gate resolve from the same pattern.
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->toContain("can('manage-gizmo-create')")
+        ->toContain("can('manage-gizmo-delete')");
+    expect(File::get(base_path('routes/Api/Modules/gizmos.php')))
+        ->toContain("config('admin-core.permission.pattern'");
+
+    config()->set('admin-core.permission.pattern', '{action}-{resource}');
 });
 
 it('adds a trash screen and soft-delete routes with --soft-deletes', function () {
