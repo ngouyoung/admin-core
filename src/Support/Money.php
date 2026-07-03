@@ -45,11 +45,20 @@ final class Money implements Arrayable, JsonSerializable, Stringable
         $code = self::currencyCode($currency);
         $decimals = self::config($code)['decimals'];
 
+        // An out-of-range amount must FAIL, not silently store as $0.00: (float) '1e400' is INF, whose
+        // digits all strip away below — the submitted amount would vanish without an error.
+        if (is_float($major) && ! is_finite($major)) {
+            throw new InvalidArgumentException('Money: amount is out of range (not a finite number).');
+        }
+
         // Coerce floats / ints — and any scientific notation a number input may submit ("1e3") — to a plain
         // fixed-point string first, so the integer parse below sees only digits + a dot.
         $string = (string) $major;
         if (is_float($major) || is_int($major) || preg_match('/e/i', $string)) {
             $numeric = preg_replace('/[^0-9eE.+\-]/', '', $string) ?? '';
+            if (is_numeric($numeric) && ! is_finite((float) $numeric)) {
+                throw new InvalidArgumentException("Money: amount '{$string}' is out of range.");
+            }
             $string = is_numeric($numeric) ? sprintf('%.10F', (float) $numeric) : $string;
         }
 
@@ -67,6 +76,13 @@ final class Money implements Arrayable, JsonSerializable, Stringable
         // Round to `decimals` fractional digits by the next digit, with integer carry — no float.
         $kept = substr(str_pad($frac, $decimals, '0'), 0, $decimals);
         $roundUp = (int) ($frac[$decimals] ?? '0') >= 5;
+
+        // Overflow guard: the minor-unit magnitude must fit a PHP int — a silent (int) cast past
+        // PHP_INT_MAX (19 digits) would wrap or zero the stored amount. ≤ 18 digits always fits.
+        if (strlen(ltrim($int . $kept, '0')) > 18) {
+            throw new InvalidArgumentException("Money: amount '{$string}' exceeds the storable range.");
+        }
+
         $magnitude = (int) ($int . $kept) + ($roundUp ? 1 : 0);
 
         return new self($negative ? -$magnitude : $magnitude, $code);

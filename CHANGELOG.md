@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.35
+
+**Fix: an out-of-range money amount was silently stored as $0.00.** `Money::fromMajor('1e400')` coerces via
+`(float)` to INF, whose "digits" all strip away in the parser — so a `price=1e400` submission (which passes
+Laravel's `numeric` rule, since `is_numeric(INF)` is true) silently persisted 0 minor units: the amount
+vanished with no error. Three layers now: (1) `fromMajor()` throws `InvalidArgumentException` on non-finite
+input AND when the minor-unit magnitude would overflow a PHP int (>18 digits — the silent `(int)` wrap);
+(2) generated money rules gain a `between:±1e14` bound so form/API input gets a 422, not a 500;
+(3) `UniqueMoney` and the money list-filter bound catch the exception gracefully (validation failure /
+ignored filter). Regression tests cover all three (mutation-verified). Found by a fourth full-package audit.
+
 ## v2.79.34
 
 **Fix: a leading-zero numeric literal in a computed/derived formula became octal in the generated PHP.**

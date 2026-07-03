@@ -650,7 +650,7 @@ it('wires a money field end-to-end (bigInteger column, MoneyCast, money-input, f
 
     // Validation: the form posts a major amount, validated as numeric.
     expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
-        ->toContain("'price' => ['required', 'numeric']");
+        ->toContain("'price' => ['required', 'numeric', 'between:-99999999999999,99999999999999']");
 
     // Form renders the money-input (with the currency override for the pinned column).
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))

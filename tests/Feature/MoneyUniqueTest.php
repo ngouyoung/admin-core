@@ -80,3 +80,18 @@ it('UniqueMoney ignores the record being updated', function () {
     $self = Validator::make(['price' => '15.00'], ['price' => [new UniqueMoney('prices', 'price', 'USD', $id, 'id')]]);
     expect($self->fails())->toBeFalse();
 });
+
+
+it('UniqueMoney fails validation (not a 500) on an out-of-range amount', function () {
+    $failed = false;
+    (new \Ngos\AdminCore\Rules\UniqueMoney('mny_products', 'price'))
+        ->validate('price', '1e400', function () use (&$failed) { $failed = true; });
+
+    expect($failed)->toBeTrue();
+});
+
+
+it('bounds generated money rules so an INF-range amount fails validation up front', function () {
+    expect((new \Ngos\AdminCore\Console\FieldSet('price:money'))->storeRules())
+        ->toContain("'between:-99999999999999,99999999999999'");
+});

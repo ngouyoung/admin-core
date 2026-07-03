@@ -37,7 +37,13 @@ class UniqueMoney implements ValidationRule
             return; // 'nullable' owns the empty case
         }
 
-        $minor = Money::fromMajor((string) $value, $this->currency)->minor; // compare in the stored minor units
+        try {
+            $minor = Money::fromMajor((string) $value, $this->currency)->minor; // compare in the stored minor units
+        } catch (\InvalidArgumentException) {
+            $fail(__('validation.numeric')); // out-of-range amount — a validation failure, not a 500
+
+            return;
+        }
 
         $query = DB::table($this->table)->where($this->column, $minor);
         if ($this->ignore !== null) {

@@ -1858,7 +1858,9 @@ PHP;
                     break;
                 case 'money':
                     // The form posts a major amount ("15.00"); the MoneyCast parses it to minor units.
-                    $rules = [$required, "'numeric'"];
+                    // 'numeric' alone accepts 1e400 (INF) — Money::fromMajor() would throw on it, so bound
+                    // the amount to what the minor-unit bigint can store (±1e14 survives ×10^4 decimals).
+                    $rules = [$required, "'numeric'", "'between:-99999999999999,99999999999999'"];
                     break;
                 case 'computed':
                 case 'rollup':

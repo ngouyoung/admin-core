@@ -123,3 +123,21 @@ it('treats false as null (not zero)', function () {
 
     expect($m->fresh()->price)->toBeNull();
 });
+
+
+it('throws on an out-of-range amount instead of silently storing $0.00', function () {
+    // (float) '1e400' is INF — every digit strips away in the parser, so without the guard the submitted
+    // amount silently became 0 minor units. An unstorable amount must FAIL loudly.
+    expect(fn () => \Ngos\AdminCore\Support\Money::fromMajor('1e400', 'USD'))
+        ->toThrow(InvalidArgumentException::class);
+    expect(fn () => \Ngos\AdminCore\Support\Money::fromMajor(INF, 'USD'))
+        ->toThrow(InvalidArgumentException::class);
+    // 20 integer digits → minor units past PHP_INT_MAX: the (int) cast would wrap/zero it.
+    expect(fn () => \Ngos\AdminCore\Support\Money::fromMajor('99999999999999999999', 'USD'))
+        ->toThrow(InvalidArgumentException::class);
+
+    // Ordinary amounts (incl. exact half-cent rounding and scientific shorthand) still parse.
+    expect(\Ngos\AdminCore\Support\Money::fromMajor('15.00', 'USD')->minor)->toBe(1500)
+        ->and(\Ngos\AdminCore\Support\Money::fromMajor('1.005', 'USD')->minor)->toBe(101)
+        ->and(\Ngos\AdminCore\Support\Money::fromMajor('1e3', 'USD')->minor)->toBe(100000);
+});

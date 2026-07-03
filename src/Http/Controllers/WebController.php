@@ -384,11 +384,15 @@ abstract class WebController extends BaseController
                     : \Ngos\AdminCore\Support\Money::fromMajor($v, $def['currency'] ?? null)->minor;
                 $min = is_array($value) ? ($value['min'] ?? null) : null;
                 $max = is_array($value) ? ($value['max'] ?? null) : null;
-                if (is_scalar($min) && $min !== '' && is_numeric($min)) {
-                    $query->where($column, '>=', $bound($min));
-                }
-                if (is_scalar($max) && $max !== '' && is_numeric($max)) {
-                    $query->where($column, '<=', $bound($max));
+                try {
+                    if (is_scalar($min) && $min !== '' && is_numeric($min)) {
+                        $query->where($column, '>=', $bound($min));
+                    }
+                    if (is_scalar($max) && $max !== '' && is_numeric($max)) {
+                        $query->where($column, '<=', $bound($max));
+                    }
+                } catch (\InvalidArgumentException) {
+                    // an out-of-range hand-crafted bound (?min=1e400) — ignore the filter, don't 500 the list
                 }
             } elseif ($type === 'text') {
                 if (is_scalar($value) && $value !== '') {
