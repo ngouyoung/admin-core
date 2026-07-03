@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.51
+
+**Fix: 2FA `enable` took no password and silently un-confirmed an already-active account.** The scaffolded
+`TwoFactorController::enable()` accepted a plain request (unlike `disable`/`regenerate`, which require the
+current password), and `enableTwoFactorAuthentication()` unconditionally cleared `two_factor_confirmed_at` and
+rotated the secret — so a double-submit, a back-button, or a hijacked session could lock a user out of their
+working authenticator until they re-scanned. Two guards: `enable()` now requires the current password
+(`TwoFactorPasswordRequest`, matching disable/regenerate), and `enableTwoFactorAuthentication()` is a no-op when
+2FA is already confirmed (re-provision requires an explicit disable first). Regression tests cover the no-op on
+a confirmed account and the password requirement (mutation-verified). Found by a fifth full-package audit
+(auth dimension).
+
 ## v2.79.50
 
 **Fix: export crashed when a scalar column shared a relation's name.** A resource with both a `category` scalar

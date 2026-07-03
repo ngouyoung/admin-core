@@ -42,9 +42,21 @@ function mgmtUser(): TwoFactorUser
     return TwoFactorUser::create(['name' => 'A', 'email' => 'mgmt@example.com', 'password' => Hash::make('secret-pass')]);
 }
 
-it('enable() generates an unconfirmed secret + recovery codes', function () {
+it('enable() requires the current password (re-auth) before provisioning', function () {
     $u = mgmtUser();
-    $this->actingAs($u)->post(route('admin.profile.two-factor.enable'))->assertRedirect();
+
+    // No / wrong password → validation error, nothing provisioned (a hijacked session can't re-provision 2FA).
+    $this->actingAs($u)->post(route('admin.profile.two-factor.enable'))
+        ->assertSessionHasErrors('current_password');
+    $this->actingAs($u)->post(route('admin.profile.two-factor.enable'), ['current_password' => 'wrong'])
+        ->assertSessionHasErrors('current_password');
+    expect($u->fresh()->hasEnabledTwoFactorAuthentication())->toBeFalse();
+});
+
+it('enable() generates an unconfirmed secret + recovery codes with the correct password', function () {
+    $u = mgmtUser();
+    $this->actingAs($u)->post(route('admin.profile.two-factor.enable'), ['current_password' => 'secret-pass'])
+        ->assertRedirect();
 
     $u->refresh();
     expect($u->hasEnabledTwoFactorAuthentication())->toBeTrue();
@@ -97,7 +109,7 @@ it('all 2FA management endpoints 404 when the feature is disabled', function () 
     config(['admin-core.two_factor.enabled' => false]);
     $u = mgmtUser();
 
-    $this->actingAs($u)->post(route('admin.profile.two-factor.enable'))->assertNotFound();
+    $this->actingAs($u)->post(route('admin.profile.two-factor.enable'), ['current_password' => 'secret-pass'])->assertNotFound();
     $this->actingAs($u)->post(route('admin.profile.two-factor.confirm'), ['code' => '123456'])->assertNotFound();
     $this->actingAs($u)->delete(route('admin.profile.two-factor.disable'), ['current_password' => 'secret-pass'])->assertNotFound();
     $this->actingAs($u)->post(route('admin.profile.two-factor.recovery-codes'), ['current_password' => 'secret-pass'])->assertNotFound();

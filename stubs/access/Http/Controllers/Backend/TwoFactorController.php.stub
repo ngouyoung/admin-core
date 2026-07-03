@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Backend;
 use App\Http\Requests\Profile\ConfirmTwoFactorRequest;
 use App\Http\Requests\Profile\TwoFactorPasswordRequest;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Ngos\AdminCore\Http\Controllers\BaseController;
 
@@ -15,8 +14,12 @@ use Ngos\AdminCore\Http\Controllers\BaseController;
  */
 class TwoFactorController extends BaseController
 {
-    /** Generate a secret + recovery codes (unconfirmed). The profile view then shows the QR to scan. */
-    public function enable(Request $request): RedirectResponse
+    /**
+     * Generate a secret + recovery codes (unconfirmed). The profile view then shows the QR to scan. Requires
+     * the current password (re-auth) — matching disable/regenerate — so a hijacked/unattended session can't
+     * silently re-provision the second factor. A no-op if 2FA is already confirmed (see the trait).
+     */
+    public function enable(TwoFactorPasswordRequest $request): RedirectResponse
     {
         abort_unless(config('admin-core.two_factor.enabled'), 404);
 

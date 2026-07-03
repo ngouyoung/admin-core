@@ -42,9 +42,18 @@ trait TwoFactorAuthenticatable
         ])));
     }
 
-    /** Generate a fresh secret + recovery codes. Unconfirmed until the user verifies a code. */
+    /**
+     * Generate a fresh secret + recovery codes. Unconfirmed until the user verifies a code. A no-op when 2FA
+     * is already CONFIRMED — re-running (double-submit, back button, a hijacked session) would otherwise wipe
+     * two_factor_confirmed_at and rotate the secret, locking the user out of their working authenticator until
+     * they re-scan. Use disableTwoFactor() then enable to intentionally re-set up.
+     */
     public function enableTwoFactorAuthentication(): void
     {
+        if ($this->hasConfirmedTwoFactorAuthentication()) {
+            return;
+        }
+
         $this->forceFill([
             'two_factor_secret' => Crypt::encryptString($this->google2fa()->generateSecretKey()),
             'two_factor_recovery_codes' => Crypt::encryptString((string) json_encode($this->generateRecoveryCodes())),

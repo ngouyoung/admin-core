@@ -77,6 +77,21 @@ it('confirms 2FA on a valid code and disables it cleanly', function () {
     expect($u->fresh()->getAttribute('two_factor_secret'))->toBeNull();
 });
 
+it('does not re-provision (wipe the secret / un-confirm) an already-confirmed 2FA account', function () {
+    $u = tfUser();
+    $u->enableTwoFactorAuthentication();
+    $secret = Crypt::decryptString($u->getAttribute('two_factor_secret'));
+    $u->confirmTwoFactor((new Google2FA())->getCurrentOtp($secret));
+    expect($u->fresh()->hasConfirmedTwoFactorAuthentication())->toBeTrue();
+
+    // A second enable (double-submit / back button / hijacked session) must be a no-op — otherwise it
+    // rotates the secret and clears two_factor_confirmed_at, locking the user out of their authenticator.
+    $u->enableTwoFactorAuthentication();
+
+    expect($u->fresh()->hasConfirmedTwoFactorAuthentication())->toBeTrue()      // still confirmed
+        ->and(Crypt::decryptString($u->fresh()->getAttribute('two_factor_secret')))->toBe($secret); // secret unchanged
+});
+
 it('burns a used recovery code (single-use) and keeps the set size constant', function () {
     $u = tfUser();
     $u->enableTwoFactorAuthentication();
