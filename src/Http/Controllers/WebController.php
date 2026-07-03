@@ -257,6 +257,19 @@ abstract class WebController extends BaseController
         $aggregates = $this->computeListAggregates($query);
 
         $dataTables = DataTables::of($query);
+
+        // Never ship a password hash to the list: hide anything the model marks $hidden PLUS any hashed-cast
+        // column (defense-in-depth, matching export()) — a hashed column that isn't in $hidden would otherwise
+        // be serialized into every row's JSON.
+        $model = $this->service->query()->getModel();
+        $secret = array_values(array_unique(array_merge(
+            $model->getHidden(),
+            array_keys(array_filter($model->getCasts(), fn ($cast) => $cast === 'hashed')),
+        )));
+        if ($secret !== []) {
+            $dataTables->makeHidden($secret);
+        }
+
         if ($aggregates !== []) {
             $dataTables->with('acAggregates', $aggregates);
         }

@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.74
+
+**Fix: the list `getData()` JSON could ship a hashed column that `export()` already strips.** `export()` drops
+`$hidden` + hashed-cast columns independently, but `getData()` relied solely on the model's `toArray()`/`$hidden`
+— so a hashed column NOT in `$hidden` (a model predating the generated `$hidden`) leaked its bcrypt hash into
+every list row. `getData()` now applies the same secret set via yajra's `makeHidden()` (defense-in-depth;
+generated password fields were already safe via `$hidden`). Regression test asserts a hashed column is absent
+from the list JSON while the row still renders (mutation-verified). Found by a sixth full-package audit
+(datatables-search dimension).
+
 ## v2.79.73
 
 **Fix: dashboard "Customize" saved nothing for a portal user, and could collide layouts across guards.**

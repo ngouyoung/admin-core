@@ -334,6 +334,18 @@ it('never exports a password (hashed) column', function () {
         ->not->toContain('$2y$');
 });
 
+it('never ships a hashed column in the getData list JSON (defense-in-depth, matching export)', function () {
+    // Widget casts `secret` hashed but has no $hidden (models predating the generated $hidden). getData
+    // serializes every row via toArray, so without the strip the bcrypt hash would leak into the list.
+    Widget::create(['name' => 'Listme', 'secret' => 'topsecret123']);
+
+    $json = $this->getJson('/admin/widgets/getData')->assertOk()->getContent();
+
+    expect($json)->toContain('Listme')     // the row is there…
+        ->not->toContain('secret')         // …but the hashed column key is stripped
+        ->not->toContain('$2y$');          // …and the bcrypt hash never appears
+});
+
 it('encodes array/enum values for CSV export instead of writing "Array"', function () {
     // csvCell turns a json/array-cast attribute into a JSON string (fputcsv would otherwise
     // emit a literal "Array" + a PHP warning); enums export their backing value.
