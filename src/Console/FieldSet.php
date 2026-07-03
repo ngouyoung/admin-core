@@ -1322,8 +1322,10 @@ PHP;
 
         $lines = [];
         foreach ($fetches as $fk => $info) {
-            // One fetch per distinct related FK (find() is null-safe on a missing FK).
-            $lines[] = "            \${$info['var']} = \$model->{$fk} ? \\App\\Models\\{$info['model']}::find(\$model->{$fk}) : null;";
+            // One fetch per distinct related FK. ac_find resolves the source row withTrashed() when it's
+            // soft-deletable — otherwise a soft-deleted source would re-fetch null and the next save would
+            // recompute this denormalised value to 0, silently corrupting a previously-correct number.
+            $lines[] = "            \${$info['var']} = ac_find(\\App\\Models\\{$info['model']}::class, \$model->{$fk});";
         }
 
         return implode("\n", array_merge($lines, $assigns));

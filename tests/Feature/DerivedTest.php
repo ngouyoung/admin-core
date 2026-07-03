@@ -14,6 +14,7 @@ beforeEach(function () {
         $t->id();
         $t->decimal('conversion_factor', 12, 4);
         $t->unsignedBigInteger('variant_id');
+        $t->softDeletes(); // the source can be soft-deleted (a real inventory offboarding)
     });
 
     Schema::dropIfExists('dv_items');
@@ -62,8 +63,25 @@ it('is null-safe when the relation is absent (no crash)', function () {
         ->and($item->fresh()->variant_id)->toBeNull();      // copied null
 });
 
+it('keeps the derived value correct after the source row is SOFT-DELETED (no silent zeroing on next save)', function () {
+    $unit = DvUnit::create(['conversion_factor' => 12, 'variant_id' => 7]);
+    $item = DvItem::create(['unit_id' => $unit->id, 'qty' => 3]);
+    expect((float) $item->fresh()->qty_base)->toBe(36.0); // 3 * 12
+
+    $unit->delete(); // the source unit is soft-deleted (offboarded), item still references it
+
+    // Editing an UNRELATED field re-runs the saving() hook; a plain find() would re-fetch null and recompute
+    // qty_base to 0. ac_find resolves the trashed unit, so the denormalised value stays correct.
+    $item->update(['qty' => 3]); // qty unchanged; the point is the hook fires
+
+    expect((float) $item->fresh()->qty_base)->toBe(36.0)   // NOT zeroed
+        ->and((int) $item->fresh()->variant_id)->toBe(7);  // still the unit's variant
+});
+
 class DvUnit extends Model
 {
+    use \Illuminate\Database\Eloquent\SoftDeletes;
+
     protected $table = 'dv_units';
 
     protected $guarded = [];
@@ -84,7 +102,7 @@ class DvItem extends Model
     protected static function booted(): void
     {
         static::saving(function (self $model) {
-            $unit = $model->unit_id ? DvUnit::find($model->unit_id) : null;
+            $unit = ac_find(DvUnit::class, $model->unit_id); // withTrashed-aware, like the generator emits
             $model->qty_base = ((float) ($model->qty ?? 0) * (float) ($unit?->conversion_factor ?? 0));
             $model->variant_id = $unit?->variant_id;
         });
@@ -97,4 +115,14 @@ it('canonicalises leading-zero numeric literals in --derived expressions too (oc
         ->setDerived(['qty_base' => 'qty * 010']);
 
     expect($fs->modelBoot())->toContain('* 10)')->not->toContain('010');
+});
+
+it('fetches the derived source via ac_find (withTrashed-aware), not a plain find()', function () {
+    $fs = (new \Ngos\AdminCore\Console\FieldSet('unit_id:foreign:units, qty:decimal, qty_base:decimal'))
+        ->setTable('items')
+        ->setDerived(['qty_base' => 'qty * unit_id.conversion_factor']);
+
+    expect($fs->modelBoot())
+        ->toContain('ac_find(\App\Models\Unit::class, $model->unit_id)')
+        ->not->toContain('Unit::find($model->unit_id)');
 });

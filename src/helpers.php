@@ -90,3 +90,31 @@ if (! function_exists('ac_bt_options')) {
         return $query->get()->mapWithKeys(fn ($i) => [$i->getKey() => ac_localize($i->name)])->all();
     }
 }
+
+if (! function_exists('ac_find')) {
+    /**
+     * Find a related model by id for a `--derived` recompute — INCLUDING a soft-deleted row. A plain find()
+     * applies the SoftDeletes scope, so once the source row (e.g. the Unit a qty_base is derived from) is
+     * soft-deleted, the next save of ANY field would re-fetch null and recompute the denormalised value to 0,
+     * silently corrupting a previously-correct number. Resolves withTrashed() when the model supports it.
+     *
+     * @template TModel of \Illuminate\Database\Eloquent\Model
+     * @param  class-string<TModel>  $modelClass
+     * @return TModel|null
+     */
+    function ac_find(string $modelClass, int|string|null $id)
+    {
+        if ($id === null) {
+            return null;
+        }
+
+        $query = $modelClass::query();
+        if (in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive($modelClass), true)) {
+            // withoutGlobalScope(SoftDeletingScope) === withTrashed(), but it's a base-Builder method (so it
+            // type-checks against a variable class-string, unlike the SoftDeletes macro withTrashed()).
+            $query->withoutGlobalScope(\Illuminate\Database\Eloquent\SoftDeletingScope::class);
+        }
+
+        return $query->find($id);
+    }
+}

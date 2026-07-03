@@ -774,11 +774,11 @@ it('compiles a --derived saving hook: relation compute + copy, fetched once', fu
     $boot = $f->modelBoot();
     expect($boot)
         ->toContain('static::saving(function (self $model) {')
-        ->toContain('$unit = $model->unit_id ? \App\Models\Unit::find($model->unit_id) : null;')
+        ->toContain('$unit = ac_find(\App\Models\Unit::class, $model->unit_id);') // withTrashed-aware fetch
         ->toContain('$model->qty_base = ((float) ($model->qty ?? 0) * (float) ($unit?->conversion_factor ?? 0));')
         ->toContain('$model->variant_id = $unit?->variant_id;'); // copy: no float cast
     // The FK is fetched exactly once even though two derived columns reference it.
-    expect(substr_count($boot, 'Unit::find'))->toBe(1);
+    expect(substr_count($boot, 'ac_find(\App\Models\Unit::class'))->toBe(1);
 });
 
 it('guards a divide in a derived expression against divide-by-zero', function () {

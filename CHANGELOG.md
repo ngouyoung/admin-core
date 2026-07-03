@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.77
+
+**Fix: a `--derived` column was silently zeroed once its source row was soft-deleted.** The generated `saving()`
+hook fetched the source via `Model::find()`, which applies the SoftDeletes scope — so after the source (e.g. the
+Unit a `qty_base` is derived from) was soft-deleted, the next save of ANY field re-fetched null and recomputed
+the denormalised value to 0, corrupting a previously-correct number. The hook now fetches via a new `ac_find()`
+helper that resolves the row `withTrashed()` when the model is soft-deletable. Regression tests cover the helper
+and the end-to-end recompute after a soft-delete (mutation-verified). Re-generate or hand-patch affected
+resources. Found by a sixth full-package audit (eloquent-model dimension).
+
 ## v2.79.76
 
 **Fix: the list `getData()` had no page-length cap, so `?length=-1` fetched the whole table.** A user with only

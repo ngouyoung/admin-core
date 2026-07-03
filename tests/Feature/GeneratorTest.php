@@ -867,7 +867,7 @@ it('wires --derived relation-driven columns into a saving() hook (valid PHP)', f
     $model = File::get(app_path('Models/Gizmo.php'));
     expect($model)
         ->toContain('static::saving(function (self $model) {')
-        ->toContain('$unit = $model->unit_id ? \App\Models\Unit::find($model->unit_id) : null;')
+        ->toContain('$unit = ac_find(\App\Models\Unit::class, $model->unit_id);') // withTrashed-aware fetch
         ->toContain('$model->qty_base = ((float) ($model->qty ?? 0) * (float) ($unit?->conversion_factor ?? 0));')
         ->toContain('$model->variant_id = $unit?->variant_id;');
 
