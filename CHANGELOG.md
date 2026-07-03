@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.34
+
+**Fix: a leading-zero numeric literal in a computed/derived formula became octal in the generated PHP.**
+Both expression compilers (`:computed:` accessors and `--derived` saving-hooks) embedded the token verbatim —
+so `discount:computed:qty * 010` generated `($this->qty * 010)`, which PHP reads as octal (qty × **8**, not 10):
+silently wrong arithmetic forever, with `php -l` clean. `qty * 018` didn't even parse. Numeric literals are now
+canonicalised (`010` → `10`; float literals like `0.5`/`010.5` are already decimal in PHP and pass through).
+Regression tests cover both compilers (mutation-verified). Found by a fourth full-package audit
+(money-arithmetic dimension).
+
 ## v2.79.33
 
 **Fix: import only dropped image/file columns declared in array-form rules.** The export→import round-trip

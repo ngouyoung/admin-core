@@ -90,3 +90,11 @@ class DvItem extends Model
         });
     }
 }
+
+
+it('canonicalises leading-zero numeric literals in --derived expressions too (octal trap)', function () {
+    $fs = (new \Ngos\AdminCore\Console\FieldSet('qty:decimal, qty_base:decimal'))
+        ->setDerived(['qty_base' => 'qty * 010']);
+
+    expect($fs->modelBoot())->toContain('* 10)')->not->toContain('010');
+});

@@ -94,3 +94,18 @@ it('adds two money columns when both are present', function () {
 
     expect((string) $line->grand_total)->toBe('$5.50');
 });
+
+
+it('canonicalises leading-zero numeric literals so PHP cannot read them as octal', function () {
+    // PHP parses the INTEGER literal 010 as OCTAL 8 — a formula `qty * 010` would silently compute with 8,
+    // and 018 would not even parse. The compiler must emit the decimal value the author typed.
+    $php = (new \Ngos\AdminCore\Console\FieldSet('qty:integer, discount:computed:qty * 010'))->accessors();
+    expect($php)->toContain('$this->qty * 10)')->not->toContain('010');
+
+    $php = (new \Ngos\AdminCore\Console\FieldSet('qty:integer, discount:computed:qty * 018'))->accessors();
+    expect($php)->toContain('$this->qty * 18)'); // 018 is a PHP parse error if embedded raw
+
+    // Floats keep their exact form — 0.5 is decimal in PHP already.
+    $php = (new \Ngos\AdminCore\Console\FieldSet('qty:integer, half:computed:qty * 0.5'))->accessors();
+    expect($php)->toContain('$this->qty * 0.5)');
+});

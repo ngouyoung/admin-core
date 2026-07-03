@@ -716,6 +716,16 @@ class FieldSet
     }
 
     /**
+     * A numeric literal safe to embed in generated PHP: PHP reads a leading-zero INTEGER literal as octal
+     * ('010' === 8 — silent wrong arithmetic) or refuses to parse it outright ('018') — canonicalise to the
+     * decimal value the author typed. Float literals ('010.5') are already decimal in PHP and pass through.
+     */
+    private function numericLiteral(string $raw): string
+    {
+        return preg_match('/^0[0-9]+$/', $raw) ? (ltrim($raw, '0') ?: '0') : $raw;
+    }
+
+    /**
      * primary := number | field | '(' sum ')'.
      *
      * @param  array<int, array{type: string, value: string}>  $tokens
@@ -731,7 +741,7 @@ class FieldSet
         if ($t['type'] === 'num') {
             $pos++;
 
-            return ['php' => $t['value'], 'type' => 'numeric'];
+            return ['php' => $this->numericLiteral($t['value']), 'type' => 'numeric'];
         }
         if ($t['type'] === 'id') {
             $pos++;
@@ -1404,7 +1414,7 @@ PHP;
         if ($tok['t'] === 'num') {
             $pos++;
 
-            return $tok['v'];
+            return $this->numericLiteral($tok['v']);
         }
         if ($tok['t'] === 'ref') {
             $pos++;
