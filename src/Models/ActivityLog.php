@@ -26,6 +26,9 @@ class ActivityLog extends Model
 
     public function causer(): MorphTo
     {
-        return $this->morphTo();
+        // withTrashed(): an audit trail must still name WHO acted after that user is soft-deleted (offboarded)
+        // — otherwise every log they caused silently reads as 'system'. MorphTo applies this only to concrete
+        // causer types that actually use SoftDeletes, so a non-soft-deletable causer is unaffected.
+        return $this->morphTo()->withTrashed();
     }
 }

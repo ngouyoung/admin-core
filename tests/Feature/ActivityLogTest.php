@@ -29,6 +29,38 @@ beforeEach(function () {
     });
 });
 
+it('still resolves the causer after that user is soft-deleted (audit attribution survives offboarding)', function () {
+    Schema::dropIfExists('causer_users');
+    Schema::create('causer_users', function (Blueprint $table) {
+        $table->id();
+        $table->string('name');
+        $table->softDeletes();
+    });
+
+    $causerModel = new class extends \Illuminate\Database\Eloquent\Model {
+        use \Illuminate\Database\Eloquent\SoftDeletes;
+
+        protected $table = 'causer_users';
+        protected $guarded = [];
+        public $timestamps = false;
+    };
+    $alice = $causerModel->create(['name' => 'Alice']);
+
+    $log = ActivityLog::create([
+        'description' => 'updated',
+        'causer_type' => $causerModel::class,
+        'causer_id' => $alice->id,
+    ]);
+
+    $alice->delete(); // Alice is offboarded (soft-deleted)
+
+    // The log must still name Alice — not lose attribution to 'system' the moment she's soft-deleted.
+    expect($log->fresh()->causer)->not->toBeNull()
+        ->and($log->fresh()->causer->name)->toBe('Alice');
+
+    Schema::dropIfExists('causer_users');
+});
+
 it('logs created, updated, deleted, restored and (distinctly) force-deleted activity', function () {
     $widget = AuditedWidget::create(['name' => 'Alpha']);
     expect(ActivityLog::where('description', 'created')->count())->toBe(1);

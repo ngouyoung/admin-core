@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.58
+
+**Fix: activity-log attribution silently became 'system' once the causing user was soft-deleted.** The
+`causer()` morphTo applied the default soft-delete scope, so every log a user caused dropped to `null`
+(rendered as 'system') the moment that user was soft-deleted — offboarding an admin erased their audit trail.
+`causer()` now uses `withTrashed()`, which Laravel applies only to concrete causer types that use SoftDeletes,
+so the audit still names who acted. Regression test soft-deletes a causer and asserts the log still resolves
+their name (mutation-verified). Found by a fifth full-package audit (notifications/activity dimension).
+
 ## v2.79.57
 
 **Fix: scaffolded logins shared one rate-limit bucket (`email|ip`), causing cross-surface lockout.** The admin
