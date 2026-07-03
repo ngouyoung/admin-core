@@ -426,6 +426,15 @@ class FieldSet
             if ($type === 'enum') {
                 $this->assertEnumCases($name, $enum);
             }
+            // A TEXT/JSON column can't take a plain unique index (MySQL 1170: key specification without a
+            // key length) — the scaffolded migration would fail at `migrate`, and the FormRequests carry no
+            // per-locale/JSON uniqueness rule either, so the ^ silently enforced nothing. Refuse up front.
+            if ($unique && in_array($type, ['text', 'richtext', 'json', 'translatable'], true)) {
+                throw new \InvalidArgumentException(
+                    "admin-core: '{$name}:{$type}^' isn't supported — a {$type} column can't take a plain "
+                    . 'unique index. Drop the ^ and enforce uniqueness with a custom rule if you need it.',
+                );
+            }
 
             $field = $this->field($name, $type, $nullable, $unique, $enum, $writeOnce, $system, $index, $foreignTable);
             if ($type === 'decimal') {

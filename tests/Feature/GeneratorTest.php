@@ -1615,6 +1615,26 @@ it('derives every seeded and gated permission name from permission.pattern', fun
     config()->set('admin-core.permission.pattern', '{action}-{resource}');
 });
 
+it('refuses a unique modifier on a TEXT/JSON column instead of emitting a migration MySQL rejects', function () {
+    // $table->json('name')->unique() fails `migrate` on MySQL (error 1170: key without a key length), and
+    // the FormRequests carry no per-locale unique rule — the ^ silently enforced nothing.
+    foreach (['name:translatable^', 'meta:json^', 'body:text^', 'body:richtext^'] as $spec) {
+        expect(fn () => new \Ngos\AdminCore\Console\FieldSet($spec))
+            ->toThrow(InvalidArgumentException::class, "isn't supported");
+    }
+
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:translatable^',
+        '--migration' => true,
+    ])->assertFailed();
+    expect(glob(database_path('migrations/*_create_gizmos_table.php')))->toBeEmpty();
+
+    // The plain (non-unique) forms are untouched.
+    expect((new \Ngos\AdminCore\Console\FieldSet('name:translatable'))->migrationColumns())
+        ->toContain("\$table->json('name')");
+});
+
 it('refuses a duplicate field name instead of emitting a broken migration', function () {
     // 'sku' twice would emit two $table->…('sku') lines in ONE Schema block (migrate fails) and
     // duplicate rules()/casts() keys (PHP silently keeps the last) — while reporting success.

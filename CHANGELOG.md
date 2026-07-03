@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.43
+
+**Fix: `name:translatable^` scaffolded a migration MySQL rejects while silently dropping the unique rule.**
+The generator emitted `$table->json('name')->unique()` — `php artisan migrate` fails with error 1170
+(BLOB/TEXT/JSON key without a key length) — and the FormRequests carried no per-locale uniqueness rule, so the
+`^` enforced nothing anyway. FieldSet now refuses the `^` modifier on all non-indexable types (`translatable`,
+`json`, `text`, `richtext`) with a clear message (mirrors the composite-`--unique` guard those types already
+had); plain non-unique forms are untouched. Regression test covers all four types + clean `make` failure
+(mutation-verified). Found by a fourth full-package audit (translation dimension).
+
 ## v2.79.42
 
 **Fix: `ac_localize()` returned '' when the current locale's value was blank instead of falling back.** A
