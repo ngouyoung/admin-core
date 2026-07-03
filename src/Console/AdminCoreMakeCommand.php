@@ -1111,9 +1111,11 @@ PHP);
             return [$portal, $portal];
         }
 
-        // A --guard resource lives under Web/Backend but pins the guard as Route::crud()'s third argument.
+        // A --guard resource lives under Web/Backend but pins the guard as the third argument of Route::crud()
+        // OR Route::crudSingleton() (a --guard --singleton resource) — match both, else a re-run of a guarded
+        // singleton silently de-scopes it back to the default guard.
         $module = base_path("routes/Web/Backend/Modules/{$snakePlural}.php");
-        if (File::exists($module) && preg_match("/Route::crud\('[^']+',\s*[^,)]+,\s*'([^']+)'/", File::get($module), $m)) {
+        if (File::exists($module) && preg_match("/Route::crud(?:Singleton)?\('[^']+',\s*[^,)]+,\s*'([^']+)'/", File::get($module), $m)) {
             return [null, $m[1]];
         }
 

@@ -1477,6 +1477,49 @@ it('re-uses the existing portal scope when re-running make without --portal', fu
     File::deleteDirectory(base_path('routes/Merchant'));
 });
 
+it('re-uses the existing --guard scope of a SINGLETON when re-running make without --guard', function () {
+    // existingScope() reads the guard from the route module — but a --guard --singleton emits
+    // Route::crudSingleton(...), not Route::crud(...); the inference must match both, else the re-run
+    // silently seeds a duplicate permission on the default guard and (with --force) drops the guard.
+    $this->artisan('admin-core:make', [
+        'name' => 'Setting',
+        '--fields' => 'name:string',
+        '--guard' => 'merchant',
+        '--singleton' => true,
+    ])->assertSuccessful();
+
+    // Re-run to add a field, omitting --guard — the scope must be inferred from the existing singleton module.
+    $this->artisan('admin-core:make', [
+        'name' => 'Setting',
+        '--fields' => 'name:string, note:string?',
+        '--singleton' => true,
+        '--force' => true,
+    ])->assertSuccessful();
+
+    // The guard argument survives the --force rewrite (not de-scoped to the default guard).
+    expect(File::get(base_path('routes/Web/Backend/Modules/settings.php')))
+        ->toContain("Route::crudSingleton('setting', SettingController::class, 'merchant')");
+
+    // Clean every generated Setting* artifact so it can't collide with other tests.
+    foreach ([
+        app_path('Models/Setting.php'),
+        app_path('Http/Controllers/Backend/SettingController.php'),
+        app_path('Policies/SettingPolicy.php'),
+        database_path('factories/SettingFactory.php'),
+        database_path('seeders/SettingSeeder.php'),
+        base_path('routes/Web/Backend/Modules/settings.php'),
+        base_path('tests/Feature/SettingTest.php'),
+    ] as $f) {
+        File::delete($f);
+    }
+    File::deleteDirectory(app_path('Http/Requests/Setting'));
+    File::deleteDirectory(app_path('Services/Settings'));
+    File::deleteDirectory(resource_path('views/backend/pages/settings'));
+    foreach (glob(database_path('migrations/*_settings_table.php')) ?: [] as $m) {
+        File::delete($m);
+    }
+});
+
 it('routes a resource into a portal with --portal (dir + route-names + controller prefix + guard)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.49
+
+**Fix (regression in v2.79.39): the scope-inference re-run missed guarded SINGLETON resources.** `existingScope()`
+matched the guard from `Route::crud('…', …, 'guard')` but a `--guard --singleton` resource emits
+`Route::crudSingleton(…)`, which the regex never matched — so re-running `admin-core:make` on a guarded singleton
+without restating `--guard` silently seeded a duplicate permission on the DEFAULT guard, and with `--force`
+rewrote the route dropping the guard argument entirely (de-scoping a deliberately guard-restricted resource).
+The regex now matches `Route::crud` and `Route::crudSingleton`. Regression test re-runs a `--guard --singleton`
+resource and asserts the guard survives (mutation-verified). Found by a fifth full-package audit
+(regression-review of v2.79.32–48).
+
 ## v2.79.48
 
 **Fix: `make`, `make-widget` and `portal` accepted names that scaffold broken PHP and brick the app.** The same
