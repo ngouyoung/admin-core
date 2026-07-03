@@ -99,15 +99,15 @@ class AdminCoreTranslateCommand extends Command
                     $out[$key] = ! $this->option('force') && is_string($current) && trim($current) !== ''
                         ? $current
                         : $value;
-                } elseif (! $this->option('force') && is_string($current) && trim($current) !== '' && $current !== $value) {
-                    $out[$key] = $current; // keep a REAL existing translation (not a frozen source==source passthrough)
+                } elseif (! $this->option('force') && is_string($current) && trim($current) !== '') {
+                    $out[$key] = $current; // keep an existing translation
                 } else {
                     $translated = $translator->translate($value, $from, $to);
-                    // The Translator fails SAFE at runtime by returning the source unchanged (outage / rate
-                    // limit / oversized). In this batch command that must NOT be persisted as a "translation":
-                    // omit the key so it's retried on the next run (and the runtime falls back to the source
-                    // locale meanwhile) instead of freezing the English into the target file forever.
-                    if ($translated === $value) {
+                    // Skip only a genuinely FAILED call (outage / quota / oversized) so it retries on the next
+                    // run — but PERSIST a real identity translation (e.g. 'OK'→'OK') so the command converges
+                    // instead of re-fetching it from the API forever. A blunt `$translated === $value` check
+                    // can't tell the two apart; HttpTranslator::failed() reports the real failure.
+                    if ($translator instanceof \Ngos\AdminCore\Translation\HttpTranslator && $translator->failed()) {
                         continue;
                     }
                     $out[$key] = $translated;

@@ -89,6 +89,28 @@ it('refreshes a placeholder string to the current source on --force (not frozen 
         ->toContain(':seconds'); // the current source (with its intact placeholder) was re-seeded
 });
 
+it('persists a genuine identity translation and does not re-fetch it every run (converges)', function () {
+    // A provider that legitimately returns some strings unchanged (identity, e.g. 'OK'/'URL' on a language
+    // pair where they're the same). This is a SUCCESS, not a failure — it must be persisted so the command
+    // converges, not dropped and re-fetched forever (the quota-burn bug from the blunt v2.79.59 check).
+    $calls = 0;
+    Http::fake(function (\Illuminate\Http\Client\Request $req) use (&$calls) {
+        $calls++;
+        parse_str(parse_url($req->url(), PHP_URL_QUERY) ?: '', $q);
+
+        return Http::response(['responseData' => ['translatedText' => $q['q'] ?? '']]); // echo the source back
+    });
+
+    $this->artisan('admin-core:translate', ['locale' => 'th'])->assertSuccessful();
+    $afterFirst = $calls;
+    expect($afterFirst)->toBeGreaterThan(0)
+        ->and(File::get($this->target))->toContain("'language' => 'Language'"); // the identity result IS written
+
+    // Second run (no --force): the persisted identity keys are KEPT, so NO new provider calls for them.
+    $this->artisan('admin-core:translate', ['locale' => 'th'])->assertSuccessful();
+    expect($calls)->toBe($afterFirst); // converged — zero re-fetches
+});
+
 it('fails clearly when the driver is null', function () {
     config()->set('admin-core.translation.driver', 'null');
 

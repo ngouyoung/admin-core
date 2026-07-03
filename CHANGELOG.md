@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.65
+
+**Fix (regression in v2.79.59): `admin-core:translate` dropped genuine identity translations and re-fetched them
+forever.** v2.79.59 skipped a result equal to its source to avoid persisting a failed call — but a provider
+that legitimately returns a string unchanged (`'OK'→'OK'`, `'URL'`, a proper noun on a matching language pair)
+is a SUCCESS, indistinguishable from a fail-safe passthrough by value alone. So those keys were never written
+and re-hit the API on every run — unbounded, non-converging quota burn. `HttpTranslator` now tracks whether the
+last call actually failed (outage / quota / oversized / empty), and the command skips only real failures while
+persisting identity translations. Regression test proves an identity result is written once and not re-fetched
+on the second run (mutation-verified). Found by a sixth full-package audit (regression-review of v2.79.49–63).
+
 ## v2.79.64
 
 **Fix (regression in v2.79.55): a per-record-currency money input 500'd on a non-string `old()` currency.**

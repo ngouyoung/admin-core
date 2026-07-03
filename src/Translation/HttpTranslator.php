@@ -12,25 +12,49 @@ use Throwable;
  */
 abstract class HttpTranslator implements Translator
 {
+    /** Whether the LAST translate() call fell back to the source because it COULDN'T translate. */
+    private bool $failed = false;
+
     public function translate(string $text, string $from, string $to): string
     {
+        $this->failed = false;
         $text = trim($text);
 
         if ($text === '' || $from === $to) {
-            return $text;
+            return $text; // nothing to translate — the source IS the correct value (not a failure)
         }
 
         if (mb_strlen($text) > (int) config('admin-core.translation.max_length', 5000)) {
-            return $text; // too long — don't ship oversized payloads to a free service
+            $this->failed = true; // too long — a retryable non-result, don't ship oversized payloads
+
+            return $text;
         }
 
         try {
             $translated = $this->fetch($text, $from, $to);
+            if (trim($translated) === '') {
+                $this->failed = true;
 
-            return trim($translated) !== '' ? $translated : $text;
+                return $text;
+            }
+
+            return $translated;
         } catch (Throwable) {
-            return $text; // fail safe: a translation outage must never break a save
+            $this->failed = true; // fail safe: a translation outage must never break a save
+
+            return $text;
         }
+    }
+
+    /**
+     * Did the LAST translate() call fall back to the source because it couldn't translate (outage / quota /
+     * oversized / empty result) — as opposed to a real result that happens to equal the source (an identity
+     * translation like 'OK'→'OK')? The batch command uses this to skip failures (retry) while still
+     * persisting genuine identity translations (converge).
+     */
+    public function failed(): bool
+    {
+        return $this->failed;
     }
 
     /** Seconds to wait on the provider before giving up. */
