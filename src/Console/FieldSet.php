@@ -1091,7 +1091,10 @@ BLADE;
                 'image', 'file' => "\$table->string('{$col}')",
                 // A self-referencing FK (e.g. parent_id -> same table) must be nullable: the root row has no
                 // parent, and the factory seeds null for it. Force nullable + nullOnDelete in that case.
-                'foreign' => "\$table->foreignId('{$col}')" . ($n || $f['relTable'] === $this->table ? '->nullable()' : '') . "->constrained('{$f['relTable']}')" . ($n || $f['relTable'] === $this->table ? '->nullOnDelete()' : '->cascadeOnDelete()'),
+                // A `foreign^` (one-to-one) adds ->unique() on the column — the general unique/index block
+                // below is skipped for foreign fields, so without this the DB constraint the validation rule
+                // (unique:table,col) promises would never exist and duplicates could slip past a bypassed form.
+                'foreign' => "\$table->foreignId('{$col}')" . ($n || $f['relTable'] === $this->table ? '->nullable()' : '') . ($f['unique'] ? '->unique()' : '') . "->constrained('{$f['relTable']}')" . ($n || $f['relTable'] === $this->table ? '->nullOnDelete()' : '->cascadeOnDelete()'),
                 'auth' => "\$table->foreignId('{$col}')->nullable()->constrained('users')->nullOnDelete()", // set from auth()->id()
                 default => "\$table->string('{$col}')", // also covers 'sku' (a string, made nullable below as a system field)
             };

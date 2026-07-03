@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.70
+
+**Fix: a one-to-one `foreign^` field validated uniqueness but never created the DB constraint.** The `foreign`
+migration arm builds its own column line and skips the general unique/index block, so `profile_id:foreign:profiles^`
+emitted `foreignId(...)->constrained(...)` with NO `->unique()` — while the generated FormRequest carried a
+`unique:accounts,profile_id` rule. The promised uniqueness existed only at the app layer, so a bypassed form (a
+race, a direct insert, an import) could create duplicates. The foreign arm now appends `->unique()` when the `^`
+modifier is set (a plain foreign key is unchanged). Regression test asserts the constraint is emitted and a
+non-unique FK isn't affected (mutation-verified). Found by a sixth full-package audit (migration-seed dimension).
+
 ## v2.79.69
 
 **Fix: `AccessSeeder` crashed with `GuardDoesNotMatch` once any non-default-guard permission existed.** The

@@ -201,6 +201,21 @@ it('localizes a foreign relation display so a translatable related name never br
     expect(ac_localize(null))->toBe('');
 });
 
+it('adds the DB unique constraint for a one-to-one foreign field (foreign^), matching the validation rule', function () {
+    $f = fs('profile_id:foreign:profiles^', 'accounts');
+
+    // The foreign match-arm builds its own line and skips the general unique block — so ^ must add ->unique()
+    // here, or the DB constraint the `unique:accounts,profile_id` rule promises would never exist.
+    expect($f->migrationColumns())
+        ->toContain("foreignId('profile_id')->unique()->constrained('profiles')");
+    expect($f->storeRules())->toContain("unique:accounts,profile_id");
+
+    // A plain (non-unique) foreign key does NOT get ->unique().
+    expect(fs('profile_id:foreign:profiles', 'accounts')->migrationColumns())
+        ->toContain("foreignId('profile_id')->constrained('profiles')")
+        ->not->toContain('->unique()');
+});
+
 it('points a foreign key at an explicit target table (self-reference / tree)', function () {
     // parent_id:foreign:categories on the categories table itself = a self-referencing tree.
     $f = fs('parent_id:foreign:categories', 'categories');
