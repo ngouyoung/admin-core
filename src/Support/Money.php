@@ -169,7 +169,9 @@ final class Money implements Arrayable, JsonSerializable, Stringable
      */
     public function multiply(int|float|string|null $factor): ?self
     {
-        return $factor === null ? null : new self((int) round($this->minor * (float) $factor), $this->currency);
+        return $factor === null
+            ? null
+            : new self(self::toMinorInt(round($this->minor * (float) $factor), 'multiply'), $this->currency);
     }
 
     /**
@@ -183,7 +185,21 @@ final class Money implements Arrayable, JsonSerializable, Stringable
             return null;
         }
 
-        return new self((int) round($this->minor / (float) $divisor), $this->currency);
+        return new self(self::toMinorInt(round($this->minor / (float) $divisor), 'divide'), $this->currency);
+    }
+
+    /**
+     * Cast an arithmetic result back to minor-unit int, refusing values a PHP int can't hold — the raw
+     * `(int)` cast of an overflowing float is undefined (observed: 0), so $15.00 × PHP_INT_MAX silently
+     * became $0.00 instead of an error.
+     */
+    private static function toMinorInt(float $value, string $op): int
+    {
+        if (! is_finite($value) || abs($value) >= (float) PHP_INT_MAX) {
+            throw new InvalidArgumentException("Money: the {$op} result exceeds the storable range.");
+        }
+
+        return (int) $value;
     }
 
     public function isZero(): bool

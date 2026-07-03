@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.41
+
+**Fix: `Money::multiply()`/`divide()` silently yielded $0.00 on int overflow.** The raw `(int)` cast of an
+overflowing float is undefined (observed: 0) — so $15.00 × PHP_INT_MAX (an extreme but validation-legal
+quantity) returned $0.00 instead of an error, and a computed money total built on it silently read as zero.
+Both operations now route through an overflow guard that throws `InvalidArgumentException` when the result
+can't fit a PHP int (completes v2.79.35's `fromMajor()` range guard — Money now never silently zeroes).
+Regression test covers multiply-overflow, divide-by-tiny-fraction overflow and ordinary exact arithmetic
+(mutation-verified). Found by a fourth full-package audit.
+
 ## v2.79.40
 
 **Fix: two concurrent FIRST saves of a singleton screen created two rows.** `SingletonController::update()`

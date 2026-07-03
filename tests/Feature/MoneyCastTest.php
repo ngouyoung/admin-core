@@ -141,3 +141,17 @@ it('throws on an out-of-range amount instead of silently storing $0.00', functio
         ->and(\Ngos\AdminCore\Support\Money::fromMajor('1.005', 'USD')->minor)->toBe(101)
         ->and(\Ngos\AdminCore\Support\Money::fromMajor('1e3', 'USD')->minor)->toBe(100000);
 });
+
+
+it('throws when multiply/divide overflows the minor-unit int instead of yielding $0.00', function () {
+    // (int) of an overflowing float is undefined (observed: 0) — $15.00 x PHP_INT_MAX silently became $0.00.
+    $m = \Ngos\AdminCore\Support\Money::fromMinor(1500, 'USD');
+
+    expect(fn () => $m->multiply(PHP_INT_MAX))->toThrow(InvalidArgumentException::class)
+        ->and(fn () => $m->divide('0.0000000000000001'))->toThrow(InvalidArgumentException::class);
+
+    // Ordinary arithmetic still exact.
+    expect($m->multiply('2.5')->minor)->toBe(3750)
+        ->and($m->divide(3)->minor)->toBe(500)
+        ->and($m->multiply(-1)->minor)->toBe(-1500);
+});
