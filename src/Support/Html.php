@@ -28,8 +28,22 @@ class Html
         // whitespace OR a slash (`<svg/onload=…>` is a valid, executable variant), so match both.
         $html = preg_replace('#[\s/]on[a-z]+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)#is', '', $html);
 
-        // javascript:/vbscript:/data: URLs in href/src/xlink:href
-        $html = preg_replace('#\s(href|src|xlink:href)\s*=\s*("|\')\s*(?:javascript|vbscript|data)\s*:[^"\']*\2#is', '', $html);
+        // javascript:/vbscript:/data: URLs in href/src/xlink:href — including the obfuscations a browser
+        // still decodes before dispatching the URL: HTML entities (`j&#97;vascript:`) and embedded ASCII
+        // whitespace/control chars (`java\tscript:`). Normalise each url attribute the way the browser would,
+        // then drop the whole attribute when the scheme is dangerous. (A plain regex for the literal word
+        // 'javascript' missed both variants.)
+        $html = preg_replace_callback(
+            '#\s(?:href|src|xlink:href)\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)#is',
+            function (array $m): string {
+                $value = trim($m[1], '"\'');
+                // Browser-equivalent normalisation: decode entities, then strip whitespace + control chars.
+                $normalised = strtolower((string) preg_replace('/[\x00-\x20\s]+/', '', html_entity_decode($value, ENT_QUOTES | ENT_HTML5)));
+
+                return preg_match('/^(?:javascript|vbscript|data):/', $normalised) ? '' : $m[0];
+            },
+            $html,
+        );
 
         return $html;
     }

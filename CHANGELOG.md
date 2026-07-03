@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.66
+
+**Security fix: `Html::clean()`'s dangerous-URL filter was bypassable, allowing stored XSS in richtext.** The
+`javascript:`/`vbscript:`/`data:` filter matched the literal scheme substring, but a browser decodes HTML
+entities and ignores embedded whitespace/control chars in a URL scheme before dispatching it — so
+`<a href="j&#97;vascript:…">` and `<a href="java⇥script:…">` survived `clean()` and, echoed raw on the richtext
+show page (`{!! $object->body !!}`), executed. `clean()` now normalises each `href`/`src`/`xlink:href` value
+the way a browser would (decode entities, strip whitespace/control chars) before checking the scheme, and drops
+the whole attribute when it's dangerous. Regression test covers entity-encoded and whitespace-obfuscated
+`javascript:`/`vbscript:`/`data:` while keeping ordinary links (mutation-verified). Found by a sixth full-package
+audit (render-xss dimension). This is defense-in-depth; for fully untrusted HTML still install a dedicated
+sanitizer as the docblock notes.
+
 ## v2.79.65
 
 **Fix (regression in v2.79.59): `admin-core:translate` dropped genuine identity translations and re-fetched them
