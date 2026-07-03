@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.36
+
+**Fix: AutoTranslate threw away translations it had already paid for when the budget ran out mid-field.**
+Hitting the `rate_limit` cap on a later locale executed `break 2` — skipping the `$request->merge()` for the
+in-progress field, so translations already fetched (quota already spent) were discarded and the record saved
+with blank locales. The middleware now merges what it fetched BEFORE bailing, then stops. Regression test:
+4 locales, budget 2 — the two fetched locales must land in the request, the third stays blank
+(mutation-verified). Found by a fourth full-package audit (translation dimension).
+
 ## v2.79.35
 
 **Fix: an out-of-range money amount was silently stored as $0.00.** `Money::fromMajor('1e400')` coerces via

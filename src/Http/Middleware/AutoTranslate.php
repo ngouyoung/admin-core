@@ -94,7 +94,7 @@ class AutoTranslate
 
             foreach ($locales as $locale) {
                 if ($budget <= 0) {
-                    break 2; // runaway guard tripped
+                    break; // runaway guard tripped — but KEEP what this field already fetched
                 }
 
                 if ($locale === $source || $this->filled($values[$locale] ?? null)) {
@@ -105,7 +105,13 @@ class AutoTranslate
                 $budget--;
             }
 
+            // Merge BEFORE bailing on an exhausted budget: the translations above were already fetched
+            // (quota spent) — discarding them would save nothing and lose real values.
             $request->merge([$field => $values]);
+
+            if ($budget <= 0) {
+                break;
+            }
         }
     }
 

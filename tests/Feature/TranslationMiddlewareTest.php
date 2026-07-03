@@ -187,3 +187,21 @@ it('caps outbound translate() calls per request at the rate_limit budget', funct
     $filled = collect(['km', 'fr', 'th'])->filter(fn ($l) => $request->input("name.{$l}") !== '')->count();
     expect($filled)->toBeLessThanOrEqual(2);
 });
+
+it('keeps the translations already fetched when the budget runs out mid-field', function () {
+    config()->set('admin-core.translation.locales', ['en' => 'EN', 'km' => 'KM', 'fr' => 'FR', 'th' => 'TH']);
+    config()->set('admin-core.translation.rate_limit', 2);
+    app()->setLocale('en');
+
+    // 3 blank locales but a budget of 2: km + fr are fetched (quota SPENT) before the guard trips on th.
+    // Discarding them on the way out would burn the quota for nothing — they must be merged.
+    $request = Request::create('/save', 'POST', [
+        '_translate' => ['name'],
+        'name' => ['en' => 'Hello', 'km' => '', 'fr' => '', 'th' => ''],
+    ]);
+    runAutoTranslate($request);
+
+    expect($request->input('name.km'))->toBe('[km] Hello')
+        ->and($request->input('name.fr'))->toBe('[fr] Hello')
+        ->and($request->input('name.th'))->toBe(''); // over budget — correctly left blank
+});
