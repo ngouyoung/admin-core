@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.88
+
+**Fix: a self-referencing foreign key was nullable in the migration but `required` in the FormRequest, blocking
+the root row.** For a self-ref FK (`parent_id:foreign:categories` on the categories table — the documented
+tree/self-reference pattern) the migration forces the column nullable (the root row has no parent) and the
+factory seeds null, but the generated store/update rule still emitted `required` — so submitting the create form
+for a top-level row (no parent) failed validation and no root could ever be created. The rule is now nullable
+for a self-referencing FK, matching the migration; an ordinary foreign key stays `required`. Regression test
+asserts the self-ref rule is nullable while a normal FK isn't (mutation-verified). Found by a seventh
+full-package audit (generator-matrix dimension).
+
 ## v2.79.87
 
 **Fix: a singleton screen ignored its own state machine.** `SingletonController::update()` overrides

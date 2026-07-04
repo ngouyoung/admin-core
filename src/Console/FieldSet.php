@@ -1971,7 +1971,11 @@ PHP;
                     $rules = [$update ? "'nullable'" : $required, "'file'", "'max:10240'", "'mimes:pdf,doc,docx,xls,xlsx,csv,txt,zip'"];
                     break;
                 case 'foreign':
-                    $rules = [$required, "'integer'", "'exists:{$f['relTable']},id'"];
+                    // A self-referencing FK (parent_id -> same table) is FORCED nullable in the migration (the
+                    // root row has no parent, and the factory seeds null) — so its rule must be nullable too,
+                    // or the generated FormRequest's 'required' blocks creating that first/root row.
+                    $fkRequired = ($f['relTable'] === $this->table) ? "'nullable'" : $required;
+                    $rules = [$fkRequired, "'integer'", "'exists:{$f['relTable']},id'"];
                     break;
                 case 'belongsToMany':
                     // nullable + array (like media/gallery/hasMany): an empty/absent selection is a valid

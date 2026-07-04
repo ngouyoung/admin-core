@@ -228,7 +228,10 @@ it('points a foreign key at an explicit target table (self-reference / tree)', f
         ->toContain('->nullOnDelete()');   // …and the factory seeds null, so the migration must allow it
     // Relation + validation resolve to Category, not a non-existent Parent model.
     expect($f->relations())->toContain('belongsTo(\App\Models\Category::class)');
-    expect($f->storeRules())->toContain("'exists:categories,id'");
+    // The self-ref FK is NULLABLE in the rule (matching the forced-nullable migration), so the root row —
+    // which has no parent — can be created; a plain 'required' would block it.
+    expect($f->storeRules())->toContain("'parent_id' => ['nullable', 'integer', 'exists:categories,id']")
+        ->not->toContain("'parent_id' => ['required'");
     // A self-referencing factory must NOT recurse — it leaves the FK null.
     expect($f->factoryDefinition())->toContain("'parent_id' => null,");
 });
