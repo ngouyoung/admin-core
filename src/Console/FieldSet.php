@@ -1152,6 +1152,7 @@ BLADE;
     public function extraSchema(): string
     {
         $blocks = [];
+        $seen = [];
         $self = Str::singular($this->table);
         foreach ($this->fields as $f) {
             if ($f['type'] !== 'belongsToMany') {
@@ -1161,6 +1162,10 @@ BLADE;
             $pair = [$self, $other];
             sort($pair);
             $pivot = implode('_', $pair);
+            if (isset($seen[$pivot])) {
+                continue; // two belongsToMany fields that resolve to the SAME pivot (e.g. category + categories)
+            }              // — emit the CREATE once, or migrate fails on "table already exists".
+            $seen[$pivot] = true;
             $blocks[] = <<<PHP
 
         Schema::create('{$pivot}', function (Blueprint \$table) {
@@ -1181,6 +1186,7 @@ PHP;
     public function extraSchemaDown(): string
     {
         $lines = [];
+        $seen = [];
         $self = Str::singular($this->table);
         foreach ($this->fields as $f) {
             if ($f['type'] !== 'belongsToMany') {
@@ -1188,7 +1194,12 @@ PHP;
             }
             $pair = [$self, Str::singular($f['relTable'])];
             sort($pair);
-            $lines[] = "        Schema::dropIfExists('" . implode('_', $pair) . "');";
+            $pivot = implode('_', $pair);
+            if (isset($seen[$pivot])) {
+                continue; // one drop per distinct pivot (mirrors extraSchema's dedup)
+            }
+            $seen[$pivot] = true;
+            $lines[] = "        Schema::dropIfExists('{$pivot}');";
         }
 
         return implode("\n", $lines);

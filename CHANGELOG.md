@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.90
+
+**Fix: two belongsToMany fields resolving to the same pivot emitted a duplicate `Schema::create`.** When two
+relations singularize to the same pivot name (e.g. `category:belongsToMany` + `categories:belongsToMany` → both
+`category_post`), the generated migration created that pivot table twice, failing `php artisan migrate` with
+"table already exists". `extraSchema()`/`extraSchemaDown()` now dedupe by pivot name (one CREATE / one drop);
+distinct pivots are unaffected. Regression test asserts a single CREATE for a colliding pair and two for a
+distinct pair (mutation-verified). Found by a seventh full-package audit (generator-matrix dimension).
+
 ## v2.79.89
 
 **Fix: `Money::multiply()`/`divide()` could be off by one minor unit from binary-float rounding.** The scale

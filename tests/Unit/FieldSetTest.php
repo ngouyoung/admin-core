@@ -414,6 +414,17 @@ it('handles media/gallery as HasMedia collections (trait, no column, syncMedia, 
     expect(fs('hero:media')->formFields())->toContain('<x-admin-core::media-collection name="hero"')->toContain(':multiple="false"');
 });
 
+it('emits a pivot table once when two belongsToMany fields resolve to the same pivot (no duplicate CREATE)', function () {
+    // 'category' and 'categories' both singularize to 'category' → the same pivot 'category_post'. Emitting
+    // two Schema::create('category_post', …) would fail `migrate` with "table already exists".
+    $f = fs('category:belongsToMany, categories:belongsToMany', 'posts');
+    expect(substr_count($f->extraSchema(), "Schema::create('category_post'"))->toBe(1)
+        ->and(substr_count($f->extraSchemaDown(), "dropIfExists('category_post')"))->toBe(1);
+
+    // Two DISTINCT pivots are still both created.
+    expect(substr_count(fs('tags:belongsToMany, groups:belongsToMany', 'posts')->extraSchema(), 'Schema::create('))->toBe(2);
+});
+
 it('handles belongsToMany with a pivot migration and sync', function () {
     $f = fs('tags:belongsToMany');
     expect($f->fillable())->not->toContain('tags');
