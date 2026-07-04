@@ -11,7 +11,9 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ __('Close') }}"></button>
             </div>
             <div class="modal-body">
-                <div data-ac-picker-dropzone class="border border-2 border-dashed rounded p-2 text-center text-muted small mb-3" style="cursor: pointer">
+                {{-- role+tabindex make the dropzone keyboard-reachable; media-picker.js opens the file
+                     dialog on Enter/Space (a div gets no native key activation). --}}
+                <div data-ac-picker-dropzone role="button" tabindex="0" class="border border-2 border-dashed rounded p-2 text-center text-muted small mb-3" style="cursor: pointer">
                     <i class="bi bi-cloud-arrow-up"></i> {{ __('Drop files here, or click to upload') }}
                     <input type="file" multiple class="d-none" data-ac-picker-input>
                 </div>

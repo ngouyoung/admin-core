@@ -32,3 +32,11 @@ it('marks a single (non-multiple) control so the JS replaces instead of appends'
 
     expect($html)->toContain('data-ac-multiple="0"')->toContain('Choose media');
 });
+
+it('renders the upload dropzone keyboard-reachable (role=button + tabindex)', function () {
+    // A plain div can't be tabbed to, so a keyboard user could never open the file dialog.
+    // role+tabindex make it focusable; media-picker.js activates it on Enter/Space.
+    $html = Blade::render('<x-admin-core::media-collection name="photos" :multiple="true" />');
+
+    expect($html)->toContain('data-ac-picker-dropzone role="button" tabindex="0"');
+});

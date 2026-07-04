@@ -66,6 +66,38 @@ describe('media picker XSS hardening', () => {
         expect(items.querySelector('img').getAttribute('onerror')).toBeNull();
     });
 
+    it('renders each grid tile as a real <button> with an accessible name (keyboard-pickable)', async () => {
+        // A click-wired <div> is unreachable without a mouse; a native button is tabbable and fires
+        // click on Enter/Space, so the existing click listener serves keyboard users too.
+        initMediaPicker();
+
+        const modal = document.getElementById('acMediaPicker');
+        const show = new Event('show.bs.modal');
+        show.relatedTarget = document.getElementById('open');
+        modal.dispatchEvent(show);
+        await tick();
+
+        const tile = modal.querySelector('.ac-pick');
+        expect(tile.tagName).toBe('BUTTON');
+        expect(tile.getAttribute('type')).toBe('button');          // never submits an enclosing form
+        expect(tile.getAttribute('aria-label')).toBe(EVIL.name);   // named for screen readers (escaped at render)
+    });
+
+    it('opens the file dialog from the dropzone on Enter and Space (div gets no native key activation)', () => {
+        initMediaPicker();
+
+        const modal = document.getElementById('acMediaPicker');
+        const dz = modal.querySelector('[data-ac-picker-dropzone]');
+        const input = modal.querySelector('[data-ac-picker-input]');
+        const click = vi.spyOn(input, 'click').mockImplementation(() => {});
+
+        dz.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+        dz.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+        dz.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true })); // other keys ignored
+
+        expect(click).toHaveBeenCalledTimes(2);
+    });
+
     it('ignores a stale (out-of-order) search response so it cannot overwrite the newer results', async () => {
         // Two searches in flight: the FIRST (slow) must not clobber the SECOND (fast) when it finally arrives.
         const resolvers = {}; // search term -> resolve fn for that fetch

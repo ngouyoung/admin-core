@@ -72,11 +72,14 @@ function initMediaPicker() {
                 d.data.forEach((m) => {
                     const col = document.createElement('div');
                     col.className = 'col-4 col-md-3 col-lg-2';
-                    col.innerHTML = `<div class="ratio ratio-1x1 rounded border overflow-hidden bg-light ac-pick" title="${esc(m.name)}">
+                    // A real <button>, not a click-wired <div>: buttons are tabbable and fire click on
+                    // Enter/Space natively, so a keyboard user can actually pick media (a div is
+                    // unreachable without a mouse). aria-label names the tile for screen readers.
+                    col.innerHTML = `<button type="button" class="ratio ratio-1x1 rounded border overflow-hidden bg-light ac-pick p-0 w-100" title="${esc(m.name)}" aria-label="${esc(m.name)}">
                         ${m.is_image
                             ? `<img src="${esc(m.url)}" class="w-100 h-100" style="object-fit:cover" alt="${esc(m.name)}">`
                             : `<span class="d-flex align-items-center justify-content-center h-100"><i class="bi bi-file-earmark fs-3 text-muted"></i></span>`}
-                    </div>`;
+                    </button>`;
                     col.querySelector('.ac-pick').addEventListener('click', () => addToField(m));
                     grid.appendChild(col);
                 });
@@ -104,6 +107,14 @@ function initMediaPicker() {
             .catch(() => { dz.classList.remove('opacity-50'); if (window.toastr) window.toastr.error('Upload failed'); });
     };
     dz.addEventListener('click', () => input.click());
+    // The dropzone is a div (role="button" tabindex="0" in the Blade) — divs don't fire click on
+    // Enter/Space, so without this a keyboard user can browse to it but never open the file dialog.
+    dz.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault(); // Space must not scroll the modal
+            input.click();
+        }
+    });
     input.addEventListener('change', () => upload(input.files));
     ['dragover', 'dragenter'].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add('border-primary'); }));
     ['dragleave', 'drop'].forEach((ev) => dz.addEventListener(ev, () => dz.classList.remove('border-primary')));

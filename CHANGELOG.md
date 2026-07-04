@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.96
+
+**Fix: the media picker was mouse-only — grid tiles and the upload dropzone now work by keyboard.** The
+library grid rendered each pickable tile as a click-wired `<div>` (unreachable by Tab, inert to Enter/Space),
+and the upload dropzone was a plain `<div>` too — so a keyboard or switch-device user could open the picker
+modal but never select media or open the file dialog. Tiles are now real `<button type="button">` elements
+(natively tabbable, Enter/Space fire the existing click handler) named for screen readers via `aria-label`
+(escaped filename); the dropzone gains `role="button" tabindex="0"` in the modal Blade and an Enter/Space
+keydown handler in `media-picker.js` (Space is prevented from scrolling the modal). Existing installs:
+republish the JS stub (or run `admin-core:doctor` to see the drift). Regression tests cover the button tile +
+accessible name, the dropzone key activation, and the rendered role/tabindex markup (all mutation-verified).
+Found by the seventh full-package audit (accessibility dimension).
+
 ## v2.79.95
 
 **Fix: CSV export paginated with OFFSET (superlinear + unstable), now a keyset cursor.** The export streamed
