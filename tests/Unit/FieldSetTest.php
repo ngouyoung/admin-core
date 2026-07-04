@@ -138,6 +138,27 @@ it('enhances every select with select2 — enum included, not just foreign/m2m',
     expect(fs('name:string')->formScripts())->toBe('');
 });
 
+it('rejects two fields deriving the same relation method (the model would declare it twice)', function () {
+    // category_id:foreign and category:belongsToMany both derive category() — one class body, two
+    // declarations, "Cannot redeclare" on first load while make reported success.
+    expect(fn () => fs('name:string, category_id:foreign, category:belongsToMany'))
+        ->toThrow(InvalidArgumentException::class, "both derive the relation method 'category()'");
+});
+
+it('rejects a relation named like a base Eloquent Model method (save, fresh, …)', function () {
+    // save:belongsToMany emits public function save(): BelongsToMany — a fatal, incompatible override
+    // of Model::save() the moment the generated class loads.
+    expect(fn () => fs('save:belongsToMany'))
+        ->toThrow(InvalidArgumentException::class, "already exists on Eloquent's base Model");
+    expect(fn () => fs('fresh_id:foreign:widgets')) // foreign derives fresh() = Model::fresh()
+        ->toThrow(InvalidArgumentException::class, "already exists on Eloquent's base Model");
+
+    // Ordinary relations still parse and emit.
+    expect(fs('category_id:foreign, tags:belongsToMany')->relations())
+        ->toContain('function category()')
+        ->toContain('function tags()');
+});
+
 it('generates a working self-referencing belongsToMany (distinct pivot columns + explicit keys)', function () {
     // A self-ref m2m (related categories, prerequisite courses) used to emit the pivot's TWO FK columns
     // both named category_id — a duplicate column that fails `php artisan migrate` outright — and a

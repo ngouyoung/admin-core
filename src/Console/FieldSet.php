@@ -487,6 +487,27 @@ class FieldSet
                     );
                 }
             }
+            // Reject a relation-METHOD collision: `category_id:foreign` + `category:belongsToMany` both
+            // derive category(), emitting one model with the method declared twice ("Cannot redeclare" —
+            // the generated file won't even lint); and a relation named like a base Eloquent method
+            // (save, delete, fresh, …) fatally clashes with the framework's own declaration at class
+            // load. Both used to ship silently while the command reported success.
+            if (isset($field['relation'])) {
+                foreach ($fields as $existing) {
+                    if (($existing['relation'] ?? null) === $field['relation']) {
+                        throw new \InvalidArgumentException(
+                            "admin-core: fields '{$existing['name']}' and '{$name}' both derive the relation "
+                            . "method '{$field['relation']}()' — the generated model would declare it twice. Rename one.",
+                        );
+                    }
+                }
+                if (method_exists(\Illuminate\Database\Eloquent\Model::class, $field['relation'])) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: field '{$name}' derives the relation method '{$field['relation']}()', which "
+                        . "already exists on Eloquent's base Model — the generated model would fatal on load. Rename the field.",
+                    );
+                }
+            }
             $fields[] = $field;
         }
 

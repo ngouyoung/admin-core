@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.100
+
+**Fix: colliding relation method names shipped a model that fatals on load.** Two field specs could silently
+derive the SAME relation method — `category_id:foreign` + `category:belongsToMany` both emit `category()`, one
+class body declaring it twice ("Cannot redeclare", the generated file doesn't even lint) — and a field named
+like a base Eloquent method (`save:belongsToMany` → `public function save(): BelongsToMany`) fatally overrides
+`Model::save()` the moment the class loads. Both shipped while `make` reported success. FieldSet now rejects
+both up front with a clear message naming the colliding fields/method (the base-Model check uses
+`method_exists()` against the installed framework, so it stays correct across Laravel versions). This follows
+the scaffold-guard pattern from v2.79.91 (reserved column names). Regression tests cover the duplicate-method
+pair, two base-method collisions (`save`, `fresh` via `fresh_id:foreign`), and that ordinary relations still
+parse (mutation-verified). Found by an eighth full-package audit (generator-matrix dimension).
+
 ## v2.79.99
 
 **Fix: a self-referencing belongsToMany generated an unmigratable pivot (duplicate column).** Modeling a
