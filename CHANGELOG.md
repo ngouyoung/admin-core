@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.83
+
+**Fix (regression in v2.79.73): the dashboard per-guard upgrade migration orphaned every pre-existing saved
+layout.** The upgrade added the nullable `guard` column but never backfilled existing rows, which were all
+created on the default guard before the split. They kept `guard = NULL`, so `Dashboard::layout()`'s
+`where('guard', 'web')` could never match them again — every user's saved dashboard arrangement silently
+vanished on upgrade (and a fresh save created a duplicate row). The migration now backfills `guard = NULL` rows
+to the default guard. Regression test seeds an old-shape (guard-less) row, runs the migration, and asserts the
+layout is still reachable (mutation-verified). Found by a seventh full-package audit (regression-review).
+
 ## v2.79.82
 
 **Fix (regression in v2.79.81): the add-avatar migration's `down()` could destroy a host's pre-existing avatar

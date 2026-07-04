@@ -22,6 +22,13 @@ return new class extends Migration
             $table->string('guard')->nullable()->after('user_id');
         });
 
+        // Backfill existing rows to the DEFAULT guard — they were saved before the per-guard split, all on the
+        // default guard. Without this they keep guard=NULL and Dashboard::layout()'s `where('guard', 'web')`
+        // can never match them again, silently orphaning every pre-existing user's saved arrangement.
+        \Illuminate\Support\Facades\DB::table('dashboard_layouts')
+            ->whereNull('guard')
+            ->update(['guard' => (string) config('auth.defaults.guard', 'web')]);
+
         // Swap the single-column unique for the composite one. dropUnique before adding (SQLite order).
         Schema::table('dashboard_layouts', function (Blueprint $table) {
             try {

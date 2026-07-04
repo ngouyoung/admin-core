@@ -109,6 +109,31 @@ it('saves + reads a portal (non-default-guard) user\'s layout, namespaced by gua
     expect(app(Dashboard::class)->layout())->toBe([]); // no merchant row leaks to the web guard
 });
 
+it('backfills a pre-existing (guard-less) layout to the default guard on upgrade, keeping it reachable', function () {
+    // Rebuild the table in the OLD pre-guard shape and seed a row the way an existing install had it.
+    Schema::dropIfExists('dashboard_layouts');
+    Schema::create('dashboard_layouts', function (Blueprint $t) {
+        $t->id();
+        $t->unsignedBigInteger('user_id')->unique();
+        $t->json('layout');
+        $t->timestamps();
+    });
+    $user = NotifiableUser::create(['name' => 'U']);
+    \Illuminate\Support\Facades\DB::table('dashboard_layouts')->insert([
+        'user_id' => $user->id,
+        'layout' => json_encode(['order' => ['b', 'a'], 'hidden' => ['c']]),
+        'created_at' => now(), 'updated_at' => now(),
+    ]);
+
+    // Run the shipped upgrade migration.
+    (require dirname(__DIR__, 2) . '/database/migrations/2025_01_01_000006_add_guard_to_dashboard_layouts_table.php')->up();
+
+    // The pre-existing row is backfilled to the default guard, so the user still sees their saved arrangement.
+    expect(DashboardLayout::where('user_id', $user->id)->value('guard'))->toBe('web');
+    $this->actingAs($user);
+    expect(app(Dashboard::class)->layout()['order'])->toBe(['b', 'a']);
+});
+
 it('shows the Customize button for an authenticated user', function () {
     $this->actingAs(NotifiableUser::create(['name' => 'U']));
 
