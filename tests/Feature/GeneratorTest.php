@@ -1748,6 +1748,18 @@ it('refuses a duplicate field name instead of emitting a broken migration', func
         ->and(File::exists(app_path('Models/Gizmo.php')))->toBeFalse(); // nothing scaffolded
 });
 
+it('refuses a field named like a reserved auto-generated column (id/timestamps/uuid/deleted_at)', function () {
+    // Each of these is a column the scaffold emits itself — a matching field would duplicate it and fail migrate.
+    foreach (['id:integer', 'uuid:string', 'created_at:string', 'updated_at:string', 'deleted_at:datetime'] as $bad) {
+        expect(fn () => new \Ngos\AdminCore\Console\FieldSet("name:string, {$bad}"))
+            ->toThrow(InvalidArgumentException::class, 'reserved column');
+    }
+
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string, id:integer', '--migration' => true])
+        ->assertFailed();
+    expect(glob(database_path('migrations/*_create_gizmos_table.php')))->toBeEmpty();
+});
+
 it('adds a trash screen and soft-delete routes with --soft-deletes', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',

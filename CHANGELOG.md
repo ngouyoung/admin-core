@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.91
+
+**Fix: a field named like an auto-generated column silently produced a broken migration.** A field called `id`,
+`uuid`, `created_at`, `updated_at`, or `deleted_at` was emitted as a column NEXT TO the one the scaffold already
+generates (`$table->id()`, `$table->timestamps()`, the soft-delete column, the `--uuid` public key) — two
+definitions of the same column in one Schema block, failing `php artisan migrate` with a duplicate-column error,
+while `make` reported success. FieldSet now rejects a reserved column name up front with a clear message, so the
+command fails cleanly and writes nothing. Regression test covers all five names (mutation-verified). Found by a
+seventh full-package audit (generator-matrix dimension).
+
 ## v2.79.90
 
 **Fix: two belongsToMany fields resolving to the same pivot emitted a duplicate `Schema::create`.** When two

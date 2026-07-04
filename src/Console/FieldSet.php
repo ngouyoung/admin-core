@@ -53,6 +53,12 @@ class FieldSet
     /** Column types a `computed:<expr>` arithmetic expression may reference (the value reads as a number). */
     private const NUMERIC_TYPES = ['integer', 'decimal'];
 
+    /**
+     * Column names the scaffold generates automatically — a field named any of these would produce a duplicate
+     * column in the migration (the primary key, timestamps, soft-delete, and the --uuid public key).
+     */
+    private const RESERVED_COLUMNS = ['id', 'uuid', 'created_at', 'updated_at', 'deleted_at'];
+
     /** @var array<int, array<string, mixed>> */
     private array $fields;
 
@@ -415,6 +421,15 @@ class FieldSet
                     "admin-core: invalid field name '{$name}' in \"{$token}\". Names must be identifiers "
                     . '(letters, numbers, underscores). Enum values are pipe-separated, not comma/parenthesised: '
                     . 'status:enum:draft|published|archived',
+                );
+            }
+            // Reject a name the scaffold already generates as a column — the migration would emit it twice
+            // (e.g. `id:integer` next to `$table->id();`, `created_at` next to `$table->timestamps();`, or
+            // `uuid` next to the --uuid public key) and fail `migrate` with a duplicate-column error.
+            if (in_array(strtolower($name), self::RESERVED_COLUMNS, true)) {
+                throw new \InvalidArgumentException(
+                    "admin-core: '{$name}' is a reserved column the scaffold generates automatically (primary key, "
+                    . 'timestamps, soft-delete, or the --uuid public key). Choose a different field name.',
                 );
             }
             if (! in_array($type, self::TYPES, true)) {
