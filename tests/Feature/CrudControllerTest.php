@@ -15,6 +15,23 @@ beforeEach(function () {
     });
 });
 
+/** A store request whose hashed `secret` column is REQUIRED — the generated password-field shape. */
+class StoreSecretRequiredRequest extends \Illuminate\Foundation\Http\FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'name' => ['required', 'string', 'max:255'],
+            'secret' => ['required', 'string', 'min:8'],
+        ];
+    }
+}
+
 it('stores a record and redirects to index with a success flash', function () {
     $this->post('/admin/widgets', ['name' => 'Alpha'])
         ->assertRedirect(route('admin.widgets.index'))
@@ -315,6 +332,64 @@ it('flashes an error (not success) when an import brings in nothing', function (
         ->assertSessionMissing('success')
         ->assertSessionHas('error', fn ($m) => str_contains($m, 'Imported 0'));
 
+    expect(Widget::count())->toBe(0);
+});
+
+it('imports the app\'s own template for a resource with a REQUIRED hashed (password) field', function () {
+    // export()/importTemplate() exclude hashed columns by design — but import() validated against the raw
+    // store rules, so `secret => required` rejected EVERY row of the app's own template ("Imported 0").
+    // Absent from the CSV → the rule softens to `sometimes` (not validated, not imported).
+    $controller = new class(app(\Ngos\AdminCore\Tests\Fixtures\WidgetService::class)) extends \Ngos\AdminCore\Tests\Fixtures\WidgetController {
+        public function __construct(\Ngos\AdminCore\Tests\Fixtures\WidgetService $service)
+        {
+            parent::__construct($service);
+            $this->storeRequest = StoreSecretRequiredRequest::class;
+        }
+    };
+    \Illuminate\Support\Facades\Route::middleware('web')
+        ->post('/admin/secret-widgets/import', [$controller::class, 'import']);
+
+    $csv = "name\nAlice\n"; // exactly the shape importTemplate() hands the user (no secret column)
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);
+
+    $this->post('/admin/secret-widgets/import', ['file' => $file])
+        ->assertRedirect()
+        ->assertSessionHas('success', fn ($m) => str_contains($m, 'Imported 1'));
+    expect(Widget::where('name', 'Alice')->exists())->toBeTrue();
+
+    // A CSV that DOES carry the column is still validated in full (min:8 fails → skipped, not stored).
+    $bad = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', "name,secret\nBob,short\n");
+    $this->post('/admin/secret-widgets/import', ['file' => $bad])
+        ->assertSessionHas('error', fn ($m) => str_contains($m, 'Imported 0'));
+    expect(Widget::where('name', 'Bob')->exists())->toBeFalse();
+
+    // And a valid supplied secret imports hashed (the model's cast), not as plaintext.
+    $ok = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', "name,secret\nCara,supersecret\n");
+    $this->post('/admin/secret-widgets/import', ['file' => $ok])->assertSessionHas('success');
+    $cara = Widget::where('name', 'Cara')->first();
+    expect($cara)->not->toBeNull()
+        ->and($cara->getRawOriginal('secret'))->not->toBe('supersecret') // stored hashed
+        ->and(\Illuminate\Support\Facades\Hash::check('supersecret', $cara->getRawOriginal('secret')))->toBeTrue();
+});
+
+it('reports a database-refused import row as skipped instead of aborting the import', function () {
+    // A NOT NULL column the CSV can't carry (or a unique race / FK violation) must skip THAT row and
+    // keep going — not 500 a half-finished import.
+    Schema::drop('widgets');
+    Schema::create('widgets', function (\Illuminate\Database\Schema\Blueprint $table) {
+        $table->id();
+        $table->string('name');
+        $table->string('secret'); // NOT NULL — and the CSV has no secret column
+        $table->integer('sort')->default(0);
+        $table->timestamps();
+    });
+
+    $csv = "name\nNoSecret\n";
+    $file = \Illuminate\Http\UploadedFile::fake()->createWithContent('widgets.csv', $csv);
+
+    $this->post('/admin/widgets/import', ['file' => $file])
+        ->assertRedirect()
+        ->assertSessionHas('error', fn ($m) => str_contains($m, 'Imported 0') && str_contains($m, 'Row 2'));
     expect(Widget::count())->toBe(0);
 });
 

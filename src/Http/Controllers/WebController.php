@@ -640,6 +640,21 @@ abstract class WebController extends BaseController
 
             return ! (in_array('image', $names, true) || in_array('file', $names, true));
         });
+        // Hashed/hidden columns (a password field) are excluded from the export AND the import template by
+        // design — so a `required` rule on one doomed EVERY row of the app's own template ("The password
+        // field is required", 0 imported). Prefix those rules with `sometimes`: absent from the CSV → not
+        // validated, not imported (the record's secret is set elsewhere); present (a hand-added plaintext
+        // column) → validated in full — required-if-present included — and hashed by the cast on create.
+        $secret = array_merge(
+            $model->getHidden(),
+            array_keys(array_filter($model->getCasts(), fn ($cast) => $cast === 'hashed')),
+        );
+        foreach ($secret as $col) {
+            if (isset($rules[$col])) {
+                $parts = is_string($rules[$col]) ? explode('|', $rules[$col]) : (array) $rules[$col];
+                $rules[$col] = array_merge(['sometimes'], array_values($parts));
+            }
+        }
         $fillable = $model->getFillable();
         // Columns the model casts to array/json — their cells are decoded back from the
         // JSON string the export wrote, so a round-tripped json field imports as an array.
@@ -689,7 +704,16 @@ abstract class WebController extends BaseController
             // Same write-time guards as store(): a CSV must not let a user set a field they can't write
             // (fieldPermissions) nor import a row directly into a state the transition machine owns.
             $data = $this->stripStateColumn($this->stripDeniedFields($validator->validated()));
-            DB::transaction(fn () => $this->service->create($data));
+            try {
+                DB::transaction(fn () => $this->service->create($data));
+            } catch (\Illuminate\Database\QueryException $e) {
+                // A DB-level refusal (NOT NULL on a column the CSV can't carry, a unique race, an FK
+                // violation) skips THIS row and reports it — it must not 500 a half-finished import.
+                $errors[] = "Row {$line}: " . (str_contains($e->getMessage(), 'NOT NULL')
+                    ? 'a required database column is missing from the CSV.'
+                    : 'the database rejected the row.');
+                continue;
+            }
             $imported++;
         }
         fclose($handle);

@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.101
+
+**Fix: CSV import was 100% broken for any resource with a required password field.** Export and the import
+template exclude hashed/hidden columns by design (a hash must never round-trip) — but `import()` validated
+each row against the raw Store rules, so the `required` rule on a password column rejected EVERY row of the
+app's own template ("The password field is required — Imported 0"). Those rules now soften to `sometimes`:
+absent from the CSV → not validated and not imported (the secret is set elsewhere); present (a hand-added
+plaintext column) → validated in full and stored hashed by the model's cast, never as plaintext. Also
+hardened: a row the DATABASE refuses (a NOT NULL column the CSV can't carry, a unique race, an FK violation)
+is now skipped and reported like a validation failure instead of 500'ing a half-finished import. Regression
+tests cover the template shape importing, a supplied-but-invalid secret skipping, a supplied secret storing
+hashed, and the DB-refused row reporting (mutation-verified). Found by an eighth full-package audit
+(import-export dimension).
+
 ## v2.79.100
 
 **Fix: colliding relation method names shipped a model that fatals on load.** Two field specs could silently
