@@ -39,7 +39,8 @@ function initMediaPicker() {
     const input = modal.querySelector('[data-ac-picker-input]');
     let active = null; // the field that opened the modal
 
-    const fieldTile = (m, name) =>
+    // removeLabel: the icon-only × needs an accessible name or screen readers announce "button".
+    const fieldTile = (m, name, removeLabel) =>
         `<div class="ac-media-tile position-relative" data-ac-media-tile draggable="true">
             <input type="hidden" name="${name}[]" value="${m.id}">
             <div class="ratio ratio-1x1 rounded border overflow-hidden bg-light">
@@ -47,7 +48,7 @@ function initMediaPicker() {
                     ? `<img src="${esc(m.url)}" class="w-100 h-100" style="object-fit:cover" alt="">`
                     : `<span class="d-flex align-items-center justify-content-center h-100"><i class="bi bi-file-earmark fs-3 text-muted"></i></span>`}
             </div>
-            <button type="button" class="btn-close position-absolute top-0 end-0 m-1 bg-white rounded-circle" data-ac-media-remove style="font-size:.55rem"></button>
+            <button type="button" class="btn-close position-absolute top-0 end-0 m-1 bg-white rounded-circle" data-ac-media-remove aria-label="${esc(removeLabel)}" style="font-size:.55rem"></button>
         </div>`;
 
     const addToField = (m) => {
@@ -56,7 +57,7 @@ function initMediaPicker() {
         const single = active.dataset.acMultiple !== '1';
         if (single) box.innerHTML = '';
         else if (box.querySelector(`input[value="${m.id}"]`)) return; // no duplicate in a gallery
-        box.insertAdjacentHTML('beforeend', fieldTile(m, active.dataset.acName));
+        box.insertAdjacentHTML('beforeend', fieldTile(m, active.dataset.acName, active.dataset.acRemoveLabel || 'Remove'));
         if (single) modal.querySelector('[data-bs-dismiss="modal"]')?.click();
     };
 

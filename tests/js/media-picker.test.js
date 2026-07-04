@@ -83,6 +83,21 @@ describe('media picker XSS hardening', () => {
         expect(tile.getAttribute('aria-label')).toBe(EVIL.name);   // named for screen readers (escaped at render)
     });
 
+    it('gives a picked tile\'s remove button an accessible name (from the field\'s translated label)', async () => {
+        document.querySelector('[data-ac-media-collection]').dataset.acRemoveLabel = 'Lub chenh'; // e.g. Khmer
+        initMediaPicker();
+
+        const modal = document.getElementById('acMediaPicker');
+        const show = new Event('show.bs.modal');
+        show.relatedTarget = document.getElementById('open');
+        modal.dispatchEvent(show);
+        await tick();
+        modal.querySelector('.ac-pick').click();
+
+        const rm = document.querySelector('[data-ac-media-items] [data-ac-media-remove]');
+        expect(rm.getAttribute('aria-label')).toBe('Lub chenh'); // named — not an anonymous × button
+    });
+
     it('opens the file dialog from the dropzone on Enter and Space (div gets no native key activation)', () => {
         initMediaPicker();
 

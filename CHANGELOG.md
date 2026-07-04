@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.97
+
+**Fix: the media tile's remove button had no accessible name.** The × that removes an attached/picked media
+tile is an icon-only `btn-close`, so screen readers announced it as just "button" with no hint of what it
+does. Both render sites now name it: the Blade tile gets `aria-label="{{ __('Remove') }}"`, and a JS-picked
+tile reads the translated label from a new `data-ac-remove-label` attribute on the field root (falling back to
+"Remove"), so the name follows the app locale. Regression tests cover both sites (mutation-verified). Found by
+the seventh full-package audit (accessibility dimension).
+
 ## v2.79.96
 
 **Fix: the media picker was mouse-only — grid tiles and the upload dropzone now work by keyboard.** The

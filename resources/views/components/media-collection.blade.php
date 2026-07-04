@@ -10,7 +10,9 @@
     $acReady = \Illuminate\Support\Facades\Route::has($acPrefix . 'media.list');
 @endphp
 <x-admin-core::form-row :name="$name" :label="$label">
-    <div class="ac-media-collection" data-ac-media-collection data-ac-name="{{ $name }}" data-ac-multiple="{{ $multiple ? '1' : '0' }}">
+    {{-- data-ac-remove-label: the translated name media-picker.js puts on the remove button of a
+         JS-added tile (the × is icon-only, so without it screen readers announce an unnamed button). --}}
+    <div class="ac-media-collection" data-ac-media-collection data-ac-name="{{ $name }}" data-ac-multiple="{{ $multiple ? '1' : '0' }}" data-ac-remove-label="{{ __('Remove') }}">
         <div class="d-flex flex-wrap gap-2 mb-2" data-ac-media-items>
             @foreach ($items as $acItem)
                 <div class="ac-media-tile position-relative" data-ac-media-tile draggable="true">
@@ -22,7 +24,7 @@
                             <span class="d-flex align-items-center justify-content-center h-100"><i class="bi bi-file-earmark fs-3 text-muted"></i></span>
                         @endif
                     </div>
-                    <button type="button" class="btn-close position-absolute top-0 end-0 m-1 bg-white rounded-circle" data-ac-media-remove style="font-size: .55rem"></button>
+                    <button type="button" class="btn-close position-absolute top-0 end-0 m-1 bg-white rounded-circle" data-ac-media-remove aria-label="{{ __('Remove') }}" style="font-size: .55rem"></button>
                 </div>
             @endforeach
         </div>

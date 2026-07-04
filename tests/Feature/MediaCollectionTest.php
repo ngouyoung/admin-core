@@ -33,6 +33,17 @@ it('marks a single (non-multiple) control so the JS replaces instead of appends'
     expect($html)->toContain('data-ac-multiple="0"')->toContain('Choose media');
 });
 
+it('names the remove button for screen readers (aria-label on the icon-only ×)', function () {
+    $html = Blade::render(
+        '<x-admin-core::media-collection name="photos" :items="$items" :multiple="true" />',
+        ['items' => [['id' => 5, 'url' => '/storage/x.png', 'is_image' => true]]],
+    );
+
+    // The attached tile's × and the label the JS uses for picked tiles — both announce "Remove".
+    expect($html)->toContain('data-ac-media-remove aria-label="Remove"')
+        ->toContain('data-ac-remove-label="Remove"');
+});
+
 it('renders the upload dropzone keyboard-reachable (role=button + tabindex)', function () {
     // A plain div can't be tabbed to, so a keyboard user could never open the file dialog.
     // role+tabindex make it focusable; media-picker.js activates it on Enter/Space.
