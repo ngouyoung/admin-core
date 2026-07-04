@@ -53,6 +53,13 @@ abstract class SingletonController extends WebController
     {
         $record = $this->record();
 
+        // Enforce the document state machine like WebController: a record in a locked state is read-only, and
+        // the state column moves only through a transition (stripStateColumn below), never a plain form write.
+        // No-ops unless the singleton declares transitions()/$lockedStates.
+        if ($record->exists && $this->isLockedState($record)) {
+            abort(403, __('admin-core::admin-core.states.locked'));
+        }
+
         // Force the stored value of any field the user may not edit back into the request BEFORE validation, so
         // a `required` rule on a locked field still passes (mirrors WebController::update()). stripDeniedFields
         // then drops it from the write, leaving the value untouched.
@@ -60,7 +67,7 @@ abstract class SingletonController extends WebController
             request()->merge(collect($denied)->mapWithKeys(fn ($f) => [$f => $record->getRawOriginal($f)])->all());
         }
 
-        $data = $this->stripDeniedFields(app($this->updateRequest)->validated());
+        $data = $this->stripStateColumn($this->stripDeniedFields(app($this->updateRequest)->validated()));
         $scope = $this->recordScope();
 
         // Re-resolve INSIDE the transaction (row-locked) so a row created since record() ran above is

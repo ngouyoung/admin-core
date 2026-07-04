@@ -80,3 +80,16 @@ it('re-asserts recordScope() after fill — a posted scope column cannot hijack 
         ->and(Widget::first()->name)->toBe('Y')
         ->and(Widget::first()->status)->toBe('locked');
 });
+
+it('enforces the state machine — refuses to edit a LOCKED singleton and strips a direct status write', function () {
+    // Strip the status column from a normal save: status moves only via a transition, never the form.
+    Widget::create(['name' => 'Doc', 'status' => 'open']);
+    $this->put('/admin/state-setting', ['name' => 'Edited', 'status' => 'locked'])->assertRedirect();
+    expect(Widget::first()->status)->toBe('open')      // status NOT changed by the form (stripped)
+        ->and(Widget::first()->name)->toBe('Edited');  // the rest of the edit applied
+
+    // A record already in a LOCKED state is read-only — the update is refused (403).
+    Widget::query()->update(['status' => 'locked']);
+    $this->put('/admin/state-setting', ['name' => 'Changed'])->assertForbidden();
+    expect(Widget::first()->name)->toBe('Edited');     // unchanged
+});

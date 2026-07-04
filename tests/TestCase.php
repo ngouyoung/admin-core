@@ -78,6 +78,10 @@ abstract class TestCase extends Orchestra
             Route::prefix('scoped-setting')->name('scopedSetting.')->group(function () {
                 Route::crudSingleton('scoped-setting', \Ngos\AdminCore\Tests\Fixtures\ScopedSingletonController::class);
             });
+            // A singleton with a state machine — proves update() enforces lockedStates + strips the state column.
+            Route::prefix('state-setting')->name('stateSetting.')->group(function () {
+                Route::crudSingleton('state-setting', \Ngos\AdminCore\Tests\Fixtures\StateSingletonController::class);
+            });
 
             // The approvals inbox (approve / reject the requests that ->requiresApproval() actions create).
             Route::adminCoreApprovals();

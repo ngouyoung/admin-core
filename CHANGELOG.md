@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.87
+
+**Fix: a singleton screen ignored its own state machine.** `SingletonController::update()` overrides
+`WebController::update()` but never called the state-machine guards — so a singleton declaring `transitions()`/
+`$lockedStates` could be edited while in a locked state, and its state column could be set directly through the
+form (bypassing the transition side effects). `update()` now refuses a write to a record in a locked state
+(403) and strips the state column from the form data, matching the CRUD controller. No-op for a singleton
+without a state machine. Regression test drives a state-machine singleton and asserts a direct status write is
+stripped and a locked record is read-only (mutation-verified). Found by a seventh full-package audit
+(security-authz dimension).
+
 ## v2.79.86
 
 **Fix: global search bypassed a resource's Service scope (potential cross-tenant leak).** `Search::query()` ran
