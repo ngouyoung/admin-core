@@ -155,3 +155,14 @@ it('throws when multiply/divide overflows the minor-unit int instead of yielding
         ->and($m->divide(3)->minor)->toBe(500)
         ->and($m->multiply(-1)->minor)->toBe(-1500);
 });
+
+it('multiplies/divides with EXACT decimal arithmetic (no binary-float off-by-one-minor-unit)', function () {
+    // $280.60 x 32.425 (a decimal(8,3) qty) is exactly 909845.5 minor units → 909846 half-up. The old float
+    // product rounded to 909845 — off by a cent on an ordinary line total.
+    expect(\Ngos\AdminCore\Support\Money::fromMinor(28060, 'USD')->multiply('32.425')->minor)->toBe(909846);
+
+    // A few more exact boundaries that binary float gets wrong.
+    expect(\Ngos\AdminCore\Support\Money::fromMinor(1005, 'USD')->multiply('1.005')->minor)->toBe(1010) // 1010.025 → 1010
+        ->and(\Ngos\AdminCore\Support\Money::fromMinor(2000, 'USD')->divide('3')->minor)->toBe(667)     // 666.67 → 667
+        ->and(\Ngos\AdminCore\Support\Money::fromMinor(-28060, 'USD')->multiply('32.425')->minor)->toBe(-909846); // sign preserved
+});

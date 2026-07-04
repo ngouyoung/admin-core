@@ -171,7 +171,7 @@ final class Money implements Arrayable, JsonSerializable, Stringable
     {
         return $factor === null
             ? null
-            : new self(self::toMinorInt(round($this->minor * (float) $factor), 'multiply'), $this->currency);
+            : new self(self::scaleMinor($this->minor, (string) $factor, 'multiply'), $this->currency);
     }
 
     /**
@@ -185,13 +185,42 @@ final class Money implements Arrayable, JsonSerializable, Stringable
             return null;
         }
 
-        return new self(self::toMinorInt(round($this->minor / (float) $divisor), 'divide'), $this->currency);
+        return new self(self::scaleMinor($this->minor, (string) $divisor, 'divide'), $this->currency);
+    }
+
+    /**
+     * Scale a minor-unit amount by a decimal operand (× or ÷), rounded HALF-UP to a whole minor unit and
+     * overflow-guarded. Uses bcmath for EXACT decimal arithmetic when available — binary float loses precision
+     * (e.g. 28060 × 32.425 is exactly 909845.5 → 909846, but the float product rounds to 909845, off by a
+     * minor unit on ordinary money totals). Falls back to float when bcmath isn't installed (best effort).
+     */
+    private static function scaleMinor(int $minor, string $operand, string $op): int
+    {
+        if (function_exists('bcmul') && function_exists('bcdiv') && is_numeric($operand)) {
+            $raw = $op === 'divide'
+                ? bcdiv((string) $minor, $operand, 12)
+                : bcmul((string) $minor, $operand, 12);
+
+            // Round half-away-from-zero to an integer string (bcadd '.5' then truncate to 0 decimals).
+            $neg = str_starts_with($raw, '-');
+            $rounded = ($neg ? '-' : '') . bcadd(ltrim($raw, '-'), '0.5', 0);
+
+            if (bccomp(ltrim($rounded, '-'), (string) PHP_INT_MAX, 0) >= 0) {
+                throw new InvalidArgumentException("Money: the {$op} result exceeds the storable range.");
+            }
+
+            return (int) $rounded;
+        }
+
+        $value = $op === 'divide' ? $minor / (float) $operand : $minor * (float) $operand;
+
+        return self::toMinorInt(round($value), $op);
     }
 
     /**
      * Cast an arithmetic result back to minor-unit int, refusing values a PHP int can't hold — the raw
      * `(int)` cast of an overflowing float is undefined (observed: 0), so $15.00 × PHP_INT_MAX silently
-     * became $0.00 instead of an error.
+     * became $0.00 instead of an error. (The float fallback path of scaleMinor().)
      */
     private static function toMinorInt(float $value, string $op): int
     {

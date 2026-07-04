@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.89
+
+**Fix: `Money::multiply()`/`divide()` could be off by one minor unit from binary-float rounding.** The scale
+operation cast to `(float)` before rounding, so an exact half-cent boundary landed wrong — e.g. `$280.60 ×
+32.425` is exactly 909845.5 minor units (→ $9,098.46 half-up), but the float product rounded to 909845
+($9,098.45), a cent short on an ordinary line total. `multiply()`/`divide()` now use bcmath for EXACT decimal
+arithmetic (half-up rounding, overflow-guarded), falling back to float only when bcmath isn't installed.
+Regression test covers the exact boundary, a divide, and sign preservation (mutation-verified against the float
+path). Found by a seventh full-package audit (data-integrity-scale dimension).
+
 ## v2.79.88
 
 **Fix: a self-referencing foreign key was nullable in the migration but `required` in the FormRequest, blocking
