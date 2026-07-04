@@ -25,6 +25,19 @@ it('parses decimal precision/scale (decimal:p|s) and casts to that scale, defaul
     expect(fs('amount:decimal:12|4?')->migrationColumns())->toContain("\$table->decimal('amount', 12, 4)->nullable()");
 });
 
+it('derives the decimal form step from the column scale (not a hardcoded 0.01)', function () {
+    // A number input with step="0.01" rejects any value finer than 2 decimals in the browser — so a
+    // decimal:12|3 field (scale 3) couldn't submit a legitimate 1.234. The step must match the scale.
+    expect(fs('rate:decimal:12|3')->formFields())
+        ->toContain('type="number" step="0.001"')
+        ->not->toContain('step="0.01"');
+
+    // A scale-0 decimal steps by whole units; the default (scale 2) still steps by 0.01.
+    expect(fs('qty:decimal:8|0')->formFields())->toContain('type="number" step="1"');
+    expect(fs('price:decimal')->formFields())->toContain('type="number" step="0.01"');
+    expect(fs('amount:decimal:14|6')->formFields())->toContain('type="number" step="0.000001"');
+});
+
 it('rejects a colon-separated decimal precision instead of silently falling back to (10,2)', function () {
     // `decimal:12:3` (colon, not pipe) used to slip through and quietly become decimal(10,2), corrupting the
     // schema + the DecimalPrecision rule. It must now fail loudly, pointing at the pipe syntax.

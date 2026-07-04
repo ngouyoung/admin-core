@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.93
+
+**Fix: a decimal form field always stepped by `0.01`, blocking legitimate values on any other scale.** The
+generated `<input type="number">` for a `decimal` field hardcoded `step="0.01"` regardless of the column's
+scale, so a `decimal:12|3` field (scale 3) rejected a perfectly valid `1.234` in the browser's number
+validation, and a scale-0 column got a fractional step it should never accept. The step is now derived from the
+column scale — scale 0 → `1`, scale 2 → `0.01`, scale 3 → `0.001`, scale 6 → `0.000001` — matching how the
+money input already derives its step from the currency's decimals. Regression test covers scale 0/2/3/6
+(mutation-verified). Found by a seventh full-package audit (generator-matrix dimension).
+
 ## v2.79.92
 
 **Fix: a write-once (`~`) foreign/enum field stayed editable on the edit form.** Every write-once *scalar*

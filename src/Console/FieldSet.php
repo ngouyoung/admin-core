@@ -2323,7 +2323,13 @@ PHP;
             case 'integer':
                 return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" :value=\"{$old}\"{$ro} />";
             case 'decimal':
-                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" step=\"0.01\" :value=\"{$old}\"{$ro} />";
+                // Step must match the column's SCALE — a hardcoded 0.01 makes the number input reject any value
+                // finer than 2 decimals (decimal:12|3 → 1.234 fails browser validation) and coarser than needed
+                // for a scale-0 column. Derive it: scale 0 → "1", scale 2 → "0.01", scale 3 → "0.001".
+                $scale = (int) ($f['scale'] ?? 2);
+                $step = $scale > 0 ? '0.' . str_repeat('0', $scale - 1) . '1' : '1';
+
+                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" step=\"{$step}\" :value=\"{$old}\"{$ro} />";
             case 'money':
                 // Edit the major amount (price->major() === "15.00"); the symbol + step come from the currency.
                 // Per-record currency: pass this row's currency column (an enum is normalised by the component)
