@@ -41,3 +41,11 @@ it('expands scientific notation before counting digits', function () {
     expect(decimalFails('1.5e3', 12, 4))->toBeFalse() // 1500 → fits
         ->and(decimalFails('1e13', 12, 4))->toBeTrue(); // 14 integer digits → too big
 });
+
+it('rejects an out-of-range value that overflows to INF (1e400) instead of accepting "inf"', function () {
+    // (float) '1e400' is INF; sprintf('%.20F', INF) is "inf", whose 3-char digit count wrongly passed the
+    // magnitude check. is_numeric(INF) is true so 'numeric' accepts it — this rule must reject it.
+    expect(decimalFails('1e400', 12, 4))->toBeTrue()
+        ->and(decimalFails('-1e400', 12, 4))->toBeTrue()
+        ->and(decimalFails('9e999', 12, 4))->toBeTrue();
+});

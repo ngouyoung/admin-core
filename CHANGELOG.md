@@ -2,6 +2,15 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.85
+
+**Fix: `DecimalPrecision` accepted an overflowing value like `1e400`, letting it reach the column.** `(float)
+'1e400'` is INF, `is_numeric(INF)` is true (so Laravel's `numeric` rule accepts it), and the rule's scientific-
+notation expansion rendered INF as the string "inf" — whose 3-character digit count passed the magnitude check.
+The rule now rejects a non-finite value up front (the column can't store it anyway). Regression test asserts
+`1e400`/`-1e400`/`9e999` fail (mutation-verified). Completes the overflow-guard class alongside v2.79.35's
+`Money::fromMajor`. Found by a seventh full-package audit (error-edge-handling dimension).
+
 ## v2.79.84
 
 **Fix (regression in v2.79.78): `Dashboard::register()` leaked registrations across app reboots.** The runtime

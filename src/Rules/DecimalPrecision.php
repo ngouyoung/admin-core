@@ -24,6 +24,15 @@ class DecimalPrecision implements ValidationRule
             return; // 'nullable' / 'numeric' own these cases
         }
 
+        // An out-of-range value (e.g. "1e400" → INF, which `numeric` accepts since is_numeric(INF) is true)
+        // has no finite decimal form: plain() would render "inf", whose 3-char digit count wrongly passes the
+        // magnitude check. Reject it — the column can't store it either.
+        if (! is_finite((float) $value)) {
+            $fail('The :attribute is out of range.');
+
+            return;
+        }
+
         $str = ltrim($this->plain((string) $value), '+-');
         [$int, $frac] = array_pad(explode('.', $str, 2), 2, '');
         $intDigits = strlen(ltrim($int, '0'));   // "007" → 1 digit; "0"/"" → 0 (value < 1)
