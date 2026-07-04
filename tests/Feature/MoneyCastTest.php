@@ -156,6 +156,20 @@ it('throws when multiply/divide overflows the minor-unit int instead of yielding
         ->and($m->multiply(-1)->minor)->toBe(-1500);
 });
 
+it('multiplies/divides by a scientific-notation-stringified float without crashing (bcmath rejects E-form)', function () {
+    // (string) 0.00005 is '5.0E-5' — is_numeric() accepts it but bcmul()/bcdiv() throw ValueError, so an
+    // ordinary small rate (a per-mille commission, a conversion rate under 0.0001) crashed every multiply.
+    $m = \Ngos\AdminCore\Support\Money::fromMinor(100000, 'USD'); // $1,000.00
+
+    expect($m->multiply(0.00005)->minor)->toBe(5)              // 100000 × 0.00005 = 5 minor units, exactly
+        ->and($m->multiply(-0.00005)->minor)->toBe(-5)          // sign preserved through the E-form
+        ->and($m->divide(0.0001)->minor)->toBe(1000000000)      // ÷ 1.0E-4 (E-form divisor)
+        ->and(\Ngos\AdminCore\Support\Money::fromMinor(3, 'USD')->multiply(0.0000625)->minor)->toBe(0); // rounds, no crash
+
+    // Large-exponent E-form still overflow-guarded, not wrapped.
+    expect(fn () => $m->multiply(1.5e18))->toThrow(InvalidArgumentException::class);
+});
+
 it('multiplies/divides with EXACT decimal arithmetic (no binary-float off-by-one-minor-unit)', function () {
     // $280.60 x 32.425 (a decimal(8,3) qty) is exactly 909845.5 minor units → 909846 half-up. The old float
     // product rounded to 909845 — off by a cent on an ordinary line total.

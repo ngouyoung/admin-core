@@ -196,6 +196,10 @@ final class Money implements Arrayable, JsonSerializable, Stringable
      */
     private static function scaleMinor(int $minor, string $operand, string $op): int
     {
+        // PHP stringifies small/large floats in scientific notation ((string) 0.00005 === '5.0E-5'),
+        // which is_numeric() accepts but bcmul()/bcdiv() reject with a ValueError — so an ordinary
+        // per-unit rate below 0.0001 crashed every multiply. Normalise to a plain decimal first.
+        $operand = self::toPlainDecimal($operand);
         if (function_exists('bcmul') && function_exists('bcdiv') && is_numeric($operand)) {
             $raw = $op === 'divide'
                 ? bcdiv((string) $minor, $operand, 12)
@@ -215,6 +219,32 @@ final class Money implements Arrayable, JsonSerializable, Stringable
         $value = $op === 'divide' ? $minor / (float) $operand : $minor * (float) $operand;
 
         return self::toMinorInt(round($value), $op);
+    }
+
+    /**
+     * Rewrite a scientific-notation numeric string ('5.0E-5', '1.2E+14') as the exact plain decimal
+     * ('0.000050', '120000000000000') by shifting the digits — no float round-trip, no precision loss —
+     * so bcmath (which rejects the E-form) can consume it. Anything not in E-form passes through as-is.
+     */
+    private static function toPlainDecimal(string $n): string
+    {
+        if (! preg_match('/^([+-]?)(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/', trim($n), $m)) {
+            return $n;
+        }
+        [, $sign, $int, $frac] = $m;
+        $exp = (int) $m[4];
+        $digits = $int . $frac;
+        $point = strlen($int) + $exp; // where the decimal point lands within $digits
+
+        if ($point <= 0) {
+            $plain = '0.' . str_repeat('0', -$point) . $digits;
+        } elseif ($point >= strlen($digits)) {
+            $plain = $digits . str_repeat('0', $point - strlen($digits));
+        } else {
+            $plain = substr($digits, 0, $point) . '.' . substr($digits, $point);
+        }
+
+        return $sign . $plain;
     }
 
     /**

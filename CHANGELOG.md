@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.98
+
+**Fix: `Money::multiply()`/`divide()` crashed on a small (or huge) float operand.** PHP stringifies floats
+below 0.0001 (and at/above ~1e15) in scientific notation — `(string) 0.00005` is `'5.0E-5'` — which
+`is_numeric()` accepts but `bcmul()`/`bcdiv()` reject with an uncaught `ValueError: not well-formed`. So an
+ordinary small rate (a per-mille commission, a conversion rate, a tax fraction under 0.0001) 500'd every
+computed money expression; this regressed in v2.79.89 when the scale path moved to bcmath (the old float path
+didn't care about the E-form). `scaleMinor()` now normalises the operand with an exact digit-shifting
+scientific→plain-decimal rewrite (no float round-trip, no precision loss) before the bcmath guard, matching the
+normalisation `fromMajor()` already does. Regression test covers small multiply/divide, sign, rounding and the
+overflow guard on a large-exponent operand (mutation-verified). Found by an eighth full-package audit
+(regression-review dimension).
+
 ## v2.79.97
 
 **Fix: the media tile's remove button had no accessible name.** The × that removes an attached/picked media
