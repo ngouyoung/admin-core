@@ -47,6 +47,17 @@ function acInjectBulkActions(tableEl, cfg) {
     });
 }
 
+// Sync the selection UI (count badge + bulk buttons) to the rows actually checked right now.
+// Shared by the change handlers AND the draw.dt reset — a DataTables redraw (page change, sort,
+// search, reload) replaces the tbody, wiping the checked boxes, so the UI must re-derive from
+// the live DOM or it advertises a selection that no longer exists.
+function acRefreshBulk() {
+    const $ = window.jQuery;
+    const n = $('.row-check:checked').length;
+    $('#bulk-count').text(n);
+    $('#bulk-delete, .ac-bulk-action').toggleClass('d-none', n === 0);
+}
+
 // Run an action (bulk or row): confirm if asked, POST the ids, then reload + toast.
 function acRunAction(url, ids, confirmText, i18n) {
     const $ = window.jQuery;
@@ -60,8 +71,7 @@ function acRunAction(url, ids, confirmText, i18n) {
                 acReload();
                 $('#check-all').prop('checked', false);
                 $('.row-check').prop('checked', false);
-                $('#bulk-count').text(0);
-                $('#bulk-delete, .ac-bulk-action').addClass('d-none');
+                acRefreshBulk();
                 window.toastr.success((res && res.message) || i18n.actionDone || 'Done');
             },
             error: (xhr) => {
@@ -164,6 +174,13 @@ function acInitTables(scope) {
         acBuildFooter(this, cfg);             // footer row (+ bind) before init so the first AJAX fills it
         acBindAggregates(this);
         this._acTable = $(this).DataTable(opts);
+        // Every redraw (page change, sort, search, reload) replaces the tbody, silently unchecking
+        // every row — without this reset the select-all box stays ticked and the count/bulk buttons
+        // keep advertising the old selection, so "Delete (10)" sits over zero actually-selected rows.
+        $(this).on('draw.dt', () => {
+            $('#check-all').prop('checked', false);
+            acRefreshBulk();
+        });
         acInjectBulkActions(this, cfg);
         acBindFilters(this);
         acBindSavedViews(this);
@@ -287,20 +304,14 @@ function acBindHandlers() {
     }
     acBound = true;
 
-    const refreshBulk = () => {
-        const n = $('.row-check:checked').length;
-        $('#bulk-count').text(n);
-        $('#bulk-delete, .ac-bulk-action').toggleClass('d-none', n === 0);
-    };
-
     $(document).on('change', '#check-all', function () {
         if (!acPageTable()) return;
         $('.row-check').prop('checked', this.checked);
-        refreshBulk();
+        acRefreshBulk();
     });
 
     $(document).on('change', '.row-check', function () {
-        if (acPageTable()) refreshBulk();
+        if (acPageTable()) acRefreshBulk();
     });
 
     $(document).on('click', '#bulk-delete', function () {
@@ -320,7 +331,8 @@ function acBindHandlers() {
                 success: () => {
                     acReload();
                     $('#check-all').prop('checked', false);
-                    refreshBulk();
+                    $('.row-check').prop('checked', false); // the reload is async — clear now, not at draw
+                    acRefreshBulk();
                     window.toastr.success((i18n.deletedMany || 'Deleted').replace(':count', ids.length));
                 },
             });

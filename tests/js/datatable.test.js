@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DATATABLE_STUB, loadStub } from './helpers.js';
 
 // The real shipped datatable.js (escaping + custom-action dispatch + bulk-button injection + filters/views).
-const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates, acBuildColumns } = loadStub(
+const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates, acBuildColumns, acInitTables, acRefreshBulk } = loadStub(
     DATATABLE_STUB,
-    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates, acBuildColumns }',
+    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates, acBuildColumns, acInitTables, acRefreshBulk }',
 );
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -251,5 +251,54 @@ describe('acBindAggregates', () => {
 
         expect(() => jQuery(table).trigger('xhr.dt', [{}, {}])).not.toThrow();
         expect(table.querySelector('[data-ac-foot="price"]').textContent).toBe('Total'); // first cell label, untouched
+    });
+});
+
+describe('bulk-selection reset on redraw', () => {
+    const setupTable = () => {
+        document.body.innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <button id="bulk-delete" class="d-none">Delete (<span id="bulk-count">0</span>)</button>
+                </div>
+                <input type="checkbox" id="check-all">
+                <table id="t1" data-ac-datatable='{"ajax":"/admin/x/getData","columns":[{"type":"check","data":"uuid"},{"data":"name"}]}'>
+                    <thead><tr><th></th><th>Name</th></tr></thead>
+                </table>
+            </div>`;
+        // Minimal DataTables fake: enough for acInitTables to init and bind its draw.dt reset.
+        jQuery.fn.dataTable = { isDataTable: () => false };
+        jQuery.fn.DataTable = vi.fn(function () { return { ajax: { reload: vi.fn() } }; });
+        acInitTables(document);
+    };
+
+    it('resets select-all + count + bulk buttons when the table redraws (the redraw wiped the checked rows)', () => {
+        setupTable();
+
+        // Page 1: user selected rows — UI advertises 3 selected. Then a page-change redraw
+        // replaced the tbody, so no .row-check is checked any more.
+        document.getElementById('check-all').checked = true;
+        document.getElementById('bulk-count').textContent = '3';
+        document.getElementById('bulk-delete').classList.remove('d-none');
+
+        jQuery('#t1').trigger('draw.dt');
+
+        expect(document.getElementById('check-all').checked).toBe(false);
+        expect(document.getElementById('bulk-count').textContent).toBe('0');
+        expect(document.getElementById('bulk-delete').classList.contains('d-none')).toBe(true);
+    });
+
+    it('keeps the bulk UI in sync with rows still checked after a draw (defensive: count re-derives from the DOM)', () => {
+        setupTable();
+
+        // A row checked AFTER the draw settles (e.g. re-checked by the user) is counted, not zeroed.
+        document.querySelector('table').insertAdjacentHTML(
+            'beforeend',
+            '<tbody><tr><td><input type="checkbox" class="row-check" value="a" checked></td><td>A</td></tr></tbody>',
+        );
+        acRefreshBulk();
+
+        expect(document.getElementById('bulk-count').textContent).toBe('1');
+        expect(document.getElementById('bulk-delete').classList.contains('d-none')).toBe(false);
     });
 });

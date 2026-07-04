@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.94
+
+**Fix: the datatable bulk-selection UI survived a redraw the selection didn't.** Every DataTables redraw (page
+change, sort, search, ajax reload) replaces the tbody, silently unchecking every row — but the select-all box
+stayed ticked and `#bulk-count` / the bulk-delete + custom bulk-action buttons kept advertising the old
+selection, so "Delete (10)" sat over zero actually-selected rows (clicking it no-opped, and re-ticking
+select-all needed two clicks because it was already "checked"). `datatable.js` now binds a `draw.dt` reset at
+init: select-all unchecks and the count/buttons re-derive from the live DOM (`acRefreshBulk()`, also shared by
+the change handlers instead of a duplicated closure). Existing installs: republish the JS stub (or run
+`admin-core:doctor` to see the drift). Regression tests trigger a real `draw.dt` and assert the reset + the
+re-derive path (mutation-verified). Found by the seventh full-package audit (js-frontend dimension).
+
 ## v2.79.93
 
 **Fix: a decimal form field always stepped by `0.01`, blocking legitimate values on any other scale.** The
