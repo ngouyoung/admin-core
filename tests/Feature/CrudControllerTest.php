@@ -245,6 +245,30 @@ it('exports a csv', function () {
     expect($response->streamedContent())->toStartWith("\xEF\xBB\xBF");
 });
 
+it('streams the export with a keyset cursor (lazyById), never OFFSET pagination', function () {
+    // lazy()'s OFFSET pagination re-scans every skipped row per chunk — superlinear on a big table —
+    // and skips/duplicates rows when another request inserts/deletes mid-export. The export must
+    // cursor by id (WHERE id > last ORDER BY id), which stays linear and stable.
+    Widget::create(['name' => 'Row A']);
+    Widget::create(['name' => 'Row B']);
+
+    $queries = [];
+    \Illuminate\Support\Facades\DB::listen(function ($q) use (&$queries) {
+        if (str_contains($q->sql, 'widgets')) {
+            $queries[] = $q->sql;
+        }
+    });
+
+    $content = $this->get('/admin/widgets/export')->streamedContent();
+
+    // Both rows exported, and the row-select is id-cursor-ordered, never OFFSET-paginated.
+    expect($content)->toContain('Row A')->toContain('Row B');
+    $rowQueries = array_values(array_filter($queries, fn ($sql) => str_starts_with($sql, 'select * from "widgets"')));
+    expect($rowQueries)->not->toBeEmpty()
+        ->and(implode(' ', $rowQueries))->not->toContain('offset')
+        ->and($rowQueries[0])->toContain('order by "id" asc');
+});
+
 it('downloads a blank import template of the importable columns (no hashed/secret)', function () {
     $response = $this->get(route('admin.widgets.importTemplate'));
 

@@ -537,8 +537,12 @@ abstract class WebController extends BaseController
             // silences PHP 8.4's "the $escape parameter must be provided" deprecation.
             fputcsv($out, array_merge($columns, $relations), escape: '');
             // Stream lazily (eager-loading the chosen relations per 1k chunk) so a large table
-            // exports with flat memory instead of loading every row up front.
-            $this->service->query($relations ?: null)->lazy()->each(function ($row) use ($out, $columns, $relations) {
+            // exports with flat memory instead of loading every row up front. lazyById (a keyset
+            // cursor: WHERE id > last ORDER BY id) — not lazy(), whose OFFSET pagination re-scans
+            // every skipped row per chunk (superlinear on a big table) and skips/duplicates rows
+            // when another request inserts/deletes mid-export. reorder() first: the cursor needs
+            // the id ordering, so a query() override's own orderBy must not take precedence.
+            $this->service->query($relations ?: null)->reorder()->lazyById()->each(function ($row) use ($out, $columns, $relations) {
                 $cells = array_map(fn ($c) => $this->csvCell($row->getAttribute($c)), $columns);
                 foreach ($relations as $relation) {
                     // getRelationValue() (not $row->{$relation}) so a scalar column that happens to share the

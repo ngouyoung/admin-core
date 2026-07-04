@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.95
+
+**Fix: CSV export paginated with OFFSET (superlinear + unstable), now a keyset cursor.** The export streamed
+rows with `lazy()`, whose OFFSET pagination makes the database re-scan every skipped row for each successive
+chunk — on a big table the total work grows superlinearly (chunk N costs N×1000 row visits), so a 500k-row
+export crawls. Worse, OFFSET is unstable under concurrent writes: a row inserted or deleted mid-export shifts
+every later offset, silently skipping or duplicating rows in the file. The export now uses
+`reorder()->lazyById()` — a keyset cursor (`WHERE id > last ORDER BY id`) that stays linear and yields each row
+exactly once regardless of concurrent writes (`reorder()` guards against a `query()` override's own orderBy
+breaking the cursor). Regression test captures the export's SQL and asserts id-cursor ordering with no OFFSET
+(mutation-verified). Found by the seventh full-package audit (efficiency dimension).
+
 ## v2.79.94
 
 **Fix: the datatable bulk-selection UI survived a redraw the selection didn't.** Every DataTables redraw (page
