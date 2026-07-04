@@ -14,37 +14,39 @@ use Ngos\AdminCore\Models\DashboardLayout;
 class Dashboard
 {
     /**
-     * Widgets registered at RUNTIME (a service provider's boot()), appended to the config ones. This is the
-     * cache-safe home for a widget that needs a CLOSURE (an inline `'value' => fn ($c) => …`): a closure in
-     * config/admin-core.php makes `php artisan config:cache` fatal (var_export can't serialise a Closure),
-     * whereas boot() runs on every request even when the config is cached.
-     *
-     * @var array<int, mixed>
+     * The container key under which runtime-registered widgets are stored. Bound to the CONTAINER (not a
+     * static property) so the registry is scoped to the current app instance — a static array would persist
+     * across app reboots in one PHP process (a long-running worker, or a consumer's test suite that boots the
+     * app per test), accumulating duplicate registrations from every prior boot.
      */
-    protected static array $registered = [];
+    private const REGISTERED_KEY = 'admin-core.dashboard.registered';
 
     /**
      * Register dashboard widget(s) at runtime (class-string, Widget instance, or inline config array). Call
      * from a service provider's boot() so closure-based widgets don't have to live in the (cacheable) config.
+     * This is the cache-safe home for a widget that needs a CLOSURE (an inline `'value' => fn ($c) => …`): a
+     * closure in config/admin-core.php makes `php artisan config:cache` fatal (var_export can't serialise a
+     * Closure), whereas boot() runs on every request even when the config is cached.
      */
     public static function register(mixed ...$widgets): void
     {
-        foreach ($widgets as $widget) {
-            static::$registered[] = $widget;
-        }
+        $existing = app()->bound(self::REGISTERED_KEY) ? (array) app(self::REGISTERED_KEY) : [];
+        app()->instance(self::REGISTERED_KEY, array_merge($existing, $widgets));
     }
 
     /** Forget all runtime-registered widgets (test helper / re-registration). */
     public static function flushRegistered(): void
     {
-        static::$registered = [];
+        app()->forgetInstance(self::REGISTERED_KEY);
     }
 
     /** @return Collection<int,Widget> the widgets the current user may see, in declared order */
     public function widgets(): Collection
     {
+        $registered = app()->bound(self::REGISTERED_KEY) ? (array) app(self::REGISTERED_KEY) : [];
+
         return collect(config('admin-core.dashboard.widgets', []))
-            ->merge(static::$registered)
+            ->merge($registered)
             ->map(fn ($widget) => $this->make($widget))
             ->filter()
             ->filter(fn (Widget $widget) => $this->visible($widget))

@@ -34,6 +34,22 @@ it('resolves a runtime-registered (closure) widget, appended to the config ones 
     Dashboard::flushRegistered(); // don't leak into other tests
 });
 
+it('does not leak runtime registrations across an app reboot (registry is container-scoped, not static)', function () {
+    config(['admin-core.dashboard.widgets' => []]);
+    Dashboard::register(['type' => 'stat', 'key' => 'boot1', 'title' => 'FromBoot1', 'value' => 1]);
+    expect(app(Dashboard::class)->widgets()->map(fn ($w) => $w->key())->all())->toBe(['boot1']);
+
+    // A new app boot in the SAME PHP process (a worker, or the consumer's next test) — a static registry
+    // would keep 'boot1'; a container-scoped one starts empty.
+    $this->refreshApplication();
+    config(['admin-core.dashboard.widgets' => []]);
+
+    expect(app(Dashboard::class)->widgets()->map(fn ($w) => $w->key())->all())->toBe([]); // 'boot1' did NOT carry over
+
+    Dashboard::register(['type' => 'stat', 'key' => 'boot2', 'title' => 'FromBoot2', 'value' => 2]);
+    expect(app(Dashboard::class)->widgets()->map(fn ($w) => $w->key())->all())->toBe(['boot2']); // only this boot's
+});
+
 it('resolves a class-string widget through the container', function () {
     config(['admin-core.dashboard.widgets' => [DashboardTestStat::class]]);
 

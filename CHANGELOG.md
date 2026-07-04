@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.84
+
+**Fix (regression in v2.79.78): `Dashboard::register()` leaked registrations across app reboots.** The runtime
+widget registry was a static array, so in one PHP process that boots the app more than once — a long-running
+queue/octane worker, or a consumer's test suite that reboots per test with `Dashboard::register()` in their
+`AppServiceProvider::boot()` — every prior boot's widgets accumulated, showing duplicates. The registry is now
+bound to the CONTAINER (scoped to the current app instance), so each boot starts clean. Regression test
+registers a widget, refreshes the application, and asserts the registration did not carry over
+(mutation-verified). Found by a seventh full-package audit (regression-review).
+
 ## v2.79.83
 
 **Fix (regression in v2.79.73): the dashboard per-guard upgrade migration orphaned every pre-existing saved
