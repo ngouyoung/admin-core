@@ -42,6 +42,32 @@ it('returns nothing for a blank term or when no resources are configured', funct
     expect(Search::query('alpha'))->toBe([]);
 });
 
+it('runs through the configured Service query() so its scope constrains search (no cross-tenant leak)', function () {
+    Widget::create(['name' => 'Alpha Other Tenant']); // a row another tenant owns
+
+    // A Service whose query() is scoped (as a multi-tenant base Service would be) — here: only 'Coffee' rows.
+    $service = new class(new Widget) extends \Ngos\AdminCore\Services\BaseService {
+        public function __construct(Widget $model)
+        {
+            $this->model = $model;
+        }
+
+        public function query(array|string|null $relation = null): \Illuminate\Database\Eloquent\Builder
+        {
+            return Widget::query()->where('name', 'like', '%Coffee%'); // the tenant/authz scope
+        }
+    };
+    app()->instance('ac-search-svc', $service);
+
+    config(['admin-core.search' => [
+        ['model' => Widget::class, 'service' => 'ac-search-svc', 'columns' => ['name'], 'label' => 'Widgets'],
+    ]]);
+
+    // 'Alpha' matches BOTH 'Alpha Coffee' and 'Alpha Other Tenant', but the Service scope excludes the latter.
+    $results = Search::query('Alpha');
+    expect(collect($results)->pluck('label')->all())->toBe(['Alpha Coffee']); // scoped: the other-tenant row is not leaked
+});
+
 // -- Permission gate: guard-aware + fail-safe -------------------------------------------------------
 
 it('fails safe — with permission enabled but no resolvable user, returns nothing (no leak)', function () {

@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.86
+
+**Fix: global search bypassed a resource's Service scope (potential cross-tenant leak).** `Search::query()` ran
+against the raw `$model::query()`, so a multi-tenant app that scoped data only through its Service's `query()`
+override (`->where('company_id', …)`) — not a model global scope — had its global search return rows from every
+tenant. Search config entries now accept an optional `service` (the resource's Service class); when set, search
+runs through that Service's scoped `query()`, applying the same tenant/authorization constraint as the rest of
+admin-core. A class-string keeps `config:cache` working. Without it the behaviour is unchanged (raw model), and
+the docblock now warns that Service-only-scoped apps must set it. Regression test scopes a Service and asserts
+the out-of-scope row isn't leaked (mutation-verified). Found by a seventh full-package audit (security-authz).
+
 ## v2.79.85
 
 **Fix: `DecimalPrecision` accepted an overflowing value like `1e400`, letting it reach the column.** `(float)

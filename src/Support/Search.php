@@ -7,9 +7,14 @@ class Search
     /**
      * Global search across the resources declared in config('admin-core.search'). Each entry:
      *   ['model' => Product::class, 'columns' => ['name', 'slug'], 'label' => 'Products',
-     *    'route' => 'admin.products.edit', 'key' => 'uuid', 'icon' => 'bi bi-box-seam']
+     *    'route' => 'admin.products.edit', 'key' => 'uuid', 'icon' => 'bi bi-box-seam',
+     *    'service' => ProductService::class]
      * - columns: LIKE-matched (no external search engine / dependency; works offline).
      * - route + key: builds the result link (key column = the route param; defaults to the model key).
+     * - service (optional): the resource's Service class. When set, search runs through its scoped query()
+     *   (the SAME base query the rest of admin-core uses), so a tenant/authorization scope the Service applies
+     *   also constrains search. Without it, search queries the raw model — a multi-tenant app that scopes ONLY
+     *   via the Service (not a model global scope) MUST set this, or search would return cross-tenant rows.
      *
      * Returns a flat, grouped list: [['group' => , 'label' => , 'url' => , 'icon' => ], …], capped per group.
      *
@@ -53,7 +58,15 @@ class Search
 
             $casts = (new $model)->getCasts();
             $locale = app()->getLocale();
-            $rows = $model::query()
+
+            // Run through the resource's Service query() when declared, so its tenant/authorization scope also
+            // constrains search — a raw $model::query() would bypass a scope applied only in the Service.
+            $service = $cfg['service'] ?? null;
+            $base = (is_string($service) && $service !== '' && (class_exists($service) || app()->bound($service)))
+                ? app($service)->query()
+                : $model::query();
+
+            $rows = $base
                 ->where(function ($q) use ($columns, $term, $casts, $locale) {
                     foreach ($columns as $col) {
                         if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $col)) {
