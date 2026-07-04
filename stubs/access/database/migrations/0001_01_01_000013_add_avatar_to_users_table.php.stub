@@ -23,19 +23,11 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Drop uuid's unique index before the column (SQLite errors on "index … after drop column").
-        if (Schema::hasColumn('users', 'uuid')) {
-            Schema::table('users', function (Blueprint $table) {
-                try {
-                    $table->dropUnique('users_uuid_unique');
-                } catch (\Throwable) {
-                    // some drivers/older installs may not have the named index — ignore
-                }
-                $table->dropColumn('uuid');
-            });
-        }
-        if (Schema::hasColumn('users', 'avatar')) {
-            Schema::table('users', fn (Blueprint $table) => $table->dropColumn('avatar'));
-        }
+        // Intentionally does NOT drop `avatar`/`uuid`. up() is guarded (adds a column only if missing), so on
+        // a host whose users table ALREADY had `avatar` (or `uuid`) before admin-core, up() never created it —
+        // and this migration has no way to tell a column IT added from one the host owns. Dropping here would
+        // destroy the host's real data on `migrate:rollback`. Leaving the columns is safe: up() is idempotent,
+        // so re-migrating is a clean no-op. To remove admin-core's footprint entirely, use
+        // `php artisan admin-core:uninstall --purge`, which owns that teardown.
     }
 };

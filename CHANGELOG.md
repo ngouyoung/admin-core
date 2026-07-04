@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.82
+
+**Fix (regression in v2.79.81): the add-avatar migration's `down()` could destroy a host's pre-existing avatar
+data on rollback.** v2.79.81 guarded `up()` to skip adding `avatar`/`uuid` when the host already has them — but
+`down()` still dropped both unconditionally. On a host whose users table carried an `avatar` column BEFORE
+admin-core (the exact population the guard was written for), `up()` never created it yet `migrate:rollback`
+dropped it, losing the host's data. A guarded additive migration can't tell a column it added from one the host
+owns, so `down()` now drops nothing (the columns are harmless — `up()` is idempotent; real teardown is
+`admin-core:uninstall --purge`). Regression test seeds a pre-existing avatar, runs up()+down(), and asserts the
+column and its data survive (mutation-verified). Found by a seventh full-package audit (regression-review).
+
 ## v2.79.81
 
 **Fix: the `--access` add-avatar migration crashed on a host that already had an `avatar` (or `uuid`) column.**

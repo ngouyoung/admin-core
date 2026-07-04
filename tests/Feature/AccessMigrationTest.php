@@ -46,17 +46,19 @@ it('does not crash when the users table already has an avatar column (guarded re
     expect(Schema::hasColumn('users', 'uuid'))->toBeTrue();
 });
 
-it('rolls back cleanly (drops uuid unique before the column) on SQLite', function () {
+it('down() never drops a PRE-EXISTING avatar/uuid column or its data (no rollback data loss)', function () {
     Schema::dropIfExists('users');
     Schema::create('users', function (Blueprint $t) {
         $t->id();
         $t->string('email');
+        $t->string('avatar')->nullable(); // a host that already stores an avatar path under that name
     });
+    \Illuminate\Support\Facades\DB::table('users')->insert(['email' => 'a@b.c', 'avatar' => 'avatars/real-photo.png']);
+
     $m = avatarMigration();
-    $m->up();
+    $m->up();   // guarded: does NOT touch the pre-existing avatar, adds uuid
+    $m->down(); // must NOT drop the host's avatar column (up() never created it) — the crash the old code caused
 
-    $m->down(); // the crash path — a plain dropColumn on the indexed uuid errors on SQLite
-
-    expect(Schema::hasColumn('users', 'avatar'))->toBeFalse()
-        ->and(Schema::hasColumn('users', 'uuid'))->toBeFalse();
+    expect(Schema::hasColumn('users', 'avatar'))->toBeTrue()                                          // column survives
+        ->and(\Illuminate\Support\Facades\DB::table('users')->value('avatar'))->toBe('avatars/real-photo.png'); // data survives
 });
