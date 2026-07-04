@@ -1181,6 +1181,22 @@ BLADE;
                 continue; // two belongsToMany fields that resolve to the SAME pivot (e.g. category + categories)
             }              // — emit the CREATE once, or migrate fails on "table already exists".
             $seen[$pivot] = true;
+            if ($other === $self) {
+                // Self-referencing m2m (related categories, prerequisite courses…): both FKs would be
+                // named "{$self}_id" — a duplicate column the DB refuses. Name the far side related_*,
+                // constrained back to the SAME table explicitly (constrained() would otherwise infer a
+                // nonexistent "related_…" table from the column name). relations() emits the matching
+                // explicit pivot keys.
+                $blocks[] = <<<PHP
+
+        Schema::create('{$pivot}', function (Blueprint \$table) {
+            \$table->foreignId('{$self}_id')->constrained()->cascadeOnDelete();
+            \$table->foreignId('related_{$self}_id')->constrained('{$this->table}')->cascadeOnDelete();
+        });
+PHP;
+
+                continue;
+            }
             $blocks[] = <<<PHP
 
         Schema::create('{$pivot}', function (Blueprint \$table) {
@@ -1759,13 +1775,27 @@ PHP;
 PHP;
             }
             if ($f['type'] === 'belongsToMany') {
-                $methods[] = <<<PHP
+                if ($f['relTable'] === $this->table) {
+                    // Self-referencing m2m: Laravel's conventions would derive the SAME FK name for both
+                    // pivot sides, so the pivot table + both keys must be explicit (matching extraSchema's
+                    // "{self}_id" / "related_{self}_id" columns).
+                    $selfKey = Str::singular($this->table);
+                    $methods[] = <<<PHP
+
+    public function {$f['relation']}(): BelongsToMany
+    {
+        return \$this->belongsToMany(\\App\\Models\\{$f['relModel']}::class, '{$selfKey}_{$selfKey}', '{$selfKey}_id', 'related_{$selfKey}_id');
+    }
+PHP;
+                } else {
+                    $methods[] = <<<PHP
 
     public function {$f['relation']}(): BelongsToMany
     {
         return \$this->belongsToMany(\\App\\Models\\{$f['relModel']}::class);
     }
 PHP;
+                }
             }
             if ($f['type'] === 'hasMany') {
                 $methods[] = <<<PHP

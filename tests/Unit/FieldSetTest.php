@@ -138,6 +138,29 @@ it('enhances every select with select2 — enum included, not just foreign/m2m',
     expect(fs('name:string')->formScripts())->toBe('');
 });
 
+it('generates a working self-referencing belongsToMany (distinct pivot columns + explicit keys)', function () {
+    // A self-ref m2m (related categories, prerequisite courses) used to emit the pivot's TWO FK columns
+    // both named category_id — a duplicate column that fails `php artisan migrate` outright — and a
+    // conventions-only belongsToMany() whose both sides derive that same key.
+    $f = fs('name:string, categories:belongsToMany', 'categories')->setClass('Category');
+
+    $schema = $f->extraSchema();
+    expect($schema)->toContain("Schema::create('category_category'")
+        ->toContain("\$table->foreignId('category_id')->constrained()->cascadeOnDelete();")
+        // The far side is related_*, constrained explicitly back to the same table (constrained()
+        // would infer a nonexistent related_categories table from the column name).
+        ->toContain("\$table->foreignId('related_category_id')->constrained('categories')->cascadeOnDelete();");
+    expect(substr_count($schema, "foreignId('category_id')"))->toBe(1); // never the duplicate column
+
+    // The relation names the pivot + both keys explicitly, matching the schema.
+    expect($f->relations())
+        ->toContain("belongsToMany(\\App\\Models\\Category::class, 'category_category', 'category_id', 'related_category_id')");
+
+    // A normal (non-self) m2m keeps the plain convention call.
+    expect(fs('tags:belongsToMany', 'products')->relations())
+        ->toContain('belongsToMany(\App\Models\Tag::class);');
+});
+
 it('locks a write-once foreign/enum select on edit (disabled), like every other write-once scalar', function () {
     // A write-once (~) scalar renders :readonly on edit; a <select> can't be readonly in HTML, so a
     // write-once foreign/enum must instead render :disabled="(bool) $object" — otherwise the dropdown

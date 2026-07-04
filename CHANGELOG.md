@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.99
+
+**Fix: a self-referencing belongsToMany generated an unmigratable pivot (duplicate column).** Modeling a
+resource that relates to itself — related categories, related products, prerequisite courses — with e.g.
+`admin-core:make Category --fields="name:string, categories:belongsToMany"` emitted the pivot's two FK columns
+BOTH named `category_id` (one `Schema::create` declaring the same column twice), so `php artisan migrate`
+failed outright (MySQL ERROR 1060 / equivalent elsewhere) while `make` reported success. And even with a
+hand-fixed table, the conventions-only `belongsToMany()` derives that same key for both sides, so the relation
+could never work. The generator now detects the self-reference and emits `{self}_id` +
+`related_{self}_id->constrained('{table}')` in the pivot, with the matching explicit pivot/key arguments on the
+relation — proven live: the generated schema + relation migrate, `sync()` and read back correctly on a real
+database. Non-self m2m is unchanged. Regression test covers the distinct columns, the explicit-keys relation
+and the untouched plain convention (mutation-verified). Found by an eighth full-package audit
+(generator-matrix dimension).
+
 ## v2.79.98
 
 **Fix: `Money::multiply()`/`divide()` crashed on a small (or huge) float operand.** PHP stringifies floats
