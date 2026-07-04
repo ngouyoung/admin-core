@@ -2251,7 +2251,12 @@ PHP;
         $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $col);
         $old = "old('{$col}', \$object?->{$col})";
         // Write-once fields lock on edit (UX only — the real guard is the missing UpdateRequest rule).
+        // A text-like control uses readonly; a <select> (foreign/enum) can't be readonly in HTML, so it uses
+        // disabled — a disabled control also isn't posted, which suits a write-once field (there's no
+        // UpdateRequest rule for it, so the stored value is preserved either way). NOT applied to a
+        // belongsToMany multi-select: a disabled one posts nothing, which would DETACH every pivot on save.
         $ro = ! empty($f['writeOnce']) ? ' :readonly="(bool) $object"' : '';
+        $roSelect = ! empty($f['writeOnce']) ? ' :disabled="(bool) $object"' : '';
 
         // Most controls are reusable components that render their own labelled row (label + control + error),
         // so styling lives in one place. Only the bespoke controls (boolean/image/file) wrap a raw control.
@@ -2268,7 +2273,7 @@ PHP;
                 $enumClass = '\\App\\Enums\\' . $this->enumClass($f);
                 $opts = "collect({$enumClass}::cases())->mapWithKeys(fn (\$case) => [\$case->value => \\Illuminate\\Support\\Str::headline(\$case->value)])";
 
-                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"{$opts}\" :value=\"old('{$col}', \$object?->{$col}?->value)\" />";
+                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"{$opts}\" :value=\"old('{$col}', \$object?->{$col}?->value)\"{$roSelect} />";
             case 'foreign':
                 // Searchable + paginated remote select. `source` resolves the related resource's `select` route
                 // dynamically (falls back to a plain select if it has none). Only the current value is rendered —
@@ -2284,7 +2289,7 @@ PHP;
                     $dependsAttr = " :depends-on=\"[{$pairs}]\"";
                 }
 
-                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" source=\"{$f['relTable']}\"{$dependsAttr} :options=\"{$sel}\" :value=\"{$old}\" placeholder=\"— search —\" />";
+                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" source=\"{$f['relTable']}\"{$dependsAttr} :options=\"{$sel}\" :value=\"{$old}\"{$roSelect} placeholder=\"— search —\" />";
             case 'belongsToMany':
                 // Searchable + paginated remote multi-select (mirrors `foreign`). Only the already-attached rows
                 // are pre-rendered as options; the rest load on search, so the form never eager-loads the table.

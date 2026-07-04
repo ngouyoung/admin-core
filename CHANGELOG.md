@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.92
+
+**Fix: a write-once (`~`) foreign/enum field stayed editable on the edit form.** Every write-once *scalar*
+(text, money, etc.) renders `:readonly="(bool) $object"` so it locks once a record exists — but a write-once
+foreign or enum field renders a `<select>`, which was emitted with no lock at all. The dropdown stayed fully
+interactive on edit even though its value can never be saved (a write-once field has no `UpdateRequest` rule), so
+the user could pick a new option, save, and see the change silently discarded. A `<select>` can't be `readonly`
+in HTML, so the generator now emits `:disabled="(bool) $object"` on write-once foreign/enum selects (disabled +
+not posted, which matches the write-once contract). A write-once `belongsToMany` is deliberately left editable —
+a disabled multi-select posts nothing, which would detach every pivot on save. Regression test covers the
+foreign/enum lock, a plain select staying editable, and the belongsToMany exemption (mutation-verified). Found by
+a seventh full-package audit (generator-matrix dimension).
+
 ## v2.79.91
 
 **Fix: a field named like an auto-generated column silently produced a broken migration.** A field called `id`,

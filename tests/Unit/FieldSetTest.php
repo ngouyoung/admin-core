@@ -125,6 +125,27 @@ it('enhances every select with select2 — enum included, not just foreign/m2m',
     expect(fs('name:string')->formScripts())->toBe('');
 });
 
+it('locks a write-once foreign/enum select on edit (disabled), like every other write-once scalar', function () {
+    // A write-once (~) scalar renders :readonly on edit; a <select> can't be readonly in HTML, so a
+    // write-once foreign/enum must instead render :disabled="(bool) $object" — otherwise the dropdown
+    // stays fully editable on the edit form even though the value can never be saved (no UpdateRequest rule).
+    $form = fs('category_id:foreign~, status:enum:draft|published~')->setClass('Product')->formFields();
+
+    // Both selects carry the edit-time lock.
+    expect(substr_count($form, ':disabled="(bool) $object"'))->toBe(2)
+        ->and($form)->toContain('name="category_id"')
+        ->and($form)->toContain('name="status"');
+
+    // A plain (not write-once) foreign/enum select stays editable — no disabled attribute leaks in.
+    expect(fs('category_id:foreign, status:enum:draft|published')->setClass('Product')->formFields())
+        ->not->toContain(':disabled=');
+
+    // A write-once belongsToMany must NOT be disabled: a disabled multi-select posts nothing, which would
+    // DETACH every pivot on save. Only the single-value foreign/enum selects get the lock.
+    expect(fs('tags:belongsToMany~')->setClass('Product')->formFields())
+        ->not->toContain(':disabled=');
+});
+
 it('renders a boolean as a checkbox with a hidden 0 fallback (so it can be unchecked on edit)', function () {
     $form = fs('active:boolean')->formFields();
 
