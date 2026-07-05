@@ -1762,6 +1762,30 @@ it('refuses a unique modifier on a TEXT/JSON column instead of emitting a migrat
         ->toContain("\$table->json('name')");
 });
 
+it('refuses a plain # index on a TEXT/JSON column instead of emitting a migration MySQL rejects', function () {
+    // $table->text('body')->index() fails `migrate` on MySQL (1170: a TEXT/BLOB key needs a length; JSON is
+    // 3152). The unique guard above only covered ^ — a bare # slipped through and emitted ->index() on a text
+    // column, a break SQLite (the test DB) hides because it permits indexing TEXT.
+    foreach (['body:text#', 'meta:json#', 'title:translatable#', 'body:richtext#'] as $spec) {
+        expect(fn () => new \Ngos\AdminCore\Console\FieldSet($spec))
+            ->toThrow(InvalidArgumentException::class, "isn't supported");
+    }
+
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'body:text#',
+        '--migration' => true,
+    ])->assertFailed();
+    expect(glob(database_path('migrations/*_create_gizmos_table.php')))->toBeEmpty();
+
+    // The plain (non-indexed) forms are untouched, and a # on an indexable scalar still works.
+    expect((new \Ngos\AdminCore\Console\FieldSet('body:text'))->migrationColumns())
+        ->toContain("\$table->text('body')")
+        ->not->toContain('->index()');
+    expect((new \Ngos\AdminCore\Console\FieldSet('ref:string#'))->migrationColumns())
+        ->toContain("\$table->string('ref')->index();");
+});
+
 it('refuses a resource name that would scaffold broken PHP, writing nothing', function () {
     // Str::studly() keeps ' and leading digits — the name lands in class names, route modules and config,
     // so a bad name scaffolds files that fail php -l and brick the app (same class as the page-command fix).

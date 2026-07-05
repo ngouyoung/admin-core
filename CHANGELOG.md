@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.157
+
+**Fix: a `#` (plain index) modifier on a TEXT/JSON column generated an un-migratable migration on MySQL.**
+`admin-core:make Note --fields="body:text#"` (or `json#` / `richtext#` / `translatable#`) emitted
+`$table->text('body')->index();`, which MySQL rejects at `migrate` time — error 1170 (a TEXT/BLOB column can't be
+indexed without a key length) or 3152 (JSON) — while the scaffold reported success. The break was silent because
+SQLite (the test DB) permits indexing TEXT. The parse-time guard that already rejected the `^` (unique) modifier on
+those same types now also rejects the `#` (index) modifier, failing fast with a clear message (drop the `#`, or add
+a prefix / generated-column index by hand) instead of shipping a migration the production DB won't run. A `#` on an
+indexable scalar (`ref:string#` → `->index()`) and the plain non-indexed forms are unaffected. Regression test
+covers the four rejected types, the aborted scaffold, and the still-valid cases (mutation-verified). Found by a
+twelfth full-package audit (generator model/migration dimension).
+
 ## v2.79.156
 
 **Fix (data integrity): a generated `:auth` ownership stamp on a portal/guarded resource silently stored a NULL

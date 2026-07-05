@@ -473,6 +473,16 @@ class FieldSet
                     . 'unique index. Drop the ^ and enforce uniqueness with a custom rule if you need it.',
                 );
             }
+            // Same story for a plain (non-unique) index: those TEXT/JSON columns can't be B-tree indexed either,
+            // so the # modifier would emit `->index()` and fail `migrate` on MySQL (1170 for a TEXT/BLOB key
+            // without a length; 3152 for JSON) while the scaffold reports success — and SQLite (the test DB)
+            // permits it, so the break stays silent. Refuse up front, mirroring the unique guard above.
+            if ($index && in_array($type, ['text', 'richtext', 'json', 'translatable'], true)) {
+                throw new \InvalidArgumentException(
+                    "admin-core: '{$name}:{$type}#' isn't supported — a {$type} column can't take a plain index "
+                    . '(MySQL 1170/3152). Drop the # (or add a prefix / generated-column index by hand).',
+                );
+            }
 
             $field = $this->field($name, $type, $nullable, $unique, $enum, $writeOnce, $system, $index, $foreignTable);
             if ($type === 'decimal') {
