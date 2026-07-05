@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.116
+
+**Fix: `--access` retrofit left pre-existing users with `uuid=NULL`, 500-ing the whole Users list.**
+`admin-core:install --access` adds `HasPublicUuid` to the app's `User` (so `getRouteKeyName()` becomes `uuid`)
+and a nullable `uuid` column — but `HasPublicUuid` filled the uuid only on the `creating` event, so every user
+row that existed before the migration kept `uuid=NULL` forever. The generated Users list renders row-action
+links eagerly in the DataTables `getData()` response, and `route('…users.edit', null)` throws
+`UrlGenerationException` — so the entire list 500'd the moment any legacy user appeared, for every admin, with
+no way to heal the rows. The install migration now backfills a distinct uuid onto every NULL-uuid row (chunked
+by id), and the trait fills on `saving` (not just `creating`) so any legacy row is also healed on its next
+save. Regression tests cover the migration backfill (legacy rows get distinct uuids) and the saving-heal on an
+update (both mutation-verified). **Existing `--access` installs: run `php artisan migrate`.** Found by a ninth
+full-package audit (public-uuid-idor dimension).
+
 ## v2.79.115
 
 **Security fix: saved list views were cross-portal — a merchant could read/overwrite/delete an admin's view of

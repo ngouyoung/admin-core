@@ -19,6 +19,22 @@ return new class extends Migration
                 $table->uuid('uuid')->nullable()->unique()->after('id'); // public key (hybrid)
             }
         });
+
+        // Backfill a public uuid onto every PRE-EXISTING row. HasPublicUuid fills the uuid only on `creating`,
+        // so rows that existed before this migration keep uuid = NULL — and since User::getRouteKeyName() is
+        // now 'uuid', the generated Users list 500s the moment a legacy user renders (route('…edit', null)
+        // throws UrlGenerationException). Each row needs a UNIQUE value, so assign one per row, chunked by id
+        // (stable even as we fill the column we filter on).
+        \Illuminate\Support\Facades\DB::table('users')->whereNull('uuid')->orderBy('id')
+            ->chunkById(500, function ($rows): void {
+                foreach ($rows as $row) {
+                    \Illuminate\Support\Facades\DB::table('users')->where('id', $row->id)->update([
+                        'uuid' => (string) (method_exists(\Illuminate\Support\Str::class, 'uuid7')
+                            ? \Illuminate\Support\Str::uuid7()
+                            : \Illuminate\Support\Str::orderedUuid()),
+                    ]);
+                }
+            });
     }
 
     public function down(): void

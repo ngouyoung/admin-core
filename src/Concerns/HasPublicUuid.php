@@ -18,7 +18,11 @@ trait HasPublicUuid
 {
     public static function bootHasPublicUuid(): void
     {
-        static::creating(function ($model): void {
+        // `saving` (not just `creating`) so a legacy row that predates the uuid column — retrofitted onto an
+        // existing users table by `admin-core:install --access` — is healed on its next save too, not only
+        // fresh inserts. The empty() guard makes it a no-op once the row has a uuid. (The install migration
+        // also backfills existing rows up front; this is the belt-and-suspenders for any that slip through.)
+        static::saving(function ($model): void {
             $key = $model->getPublicKeyName();
             if (empty($model->{$key})) {
                 // UUID v7: time-ordered (index-friendly) + RFC 9562 standard for interop.

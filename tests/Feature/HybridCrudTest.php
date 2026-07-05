@@ -26,6 +26,37 @@ it('fills a uuid on create and exposes it as the route key', function () {
     expect($w->getRouteKey())->toBe($w->uuid);
 });
 
+it('heals a legacy null-uuid row on its next save (fills on `saving`, not just `creating`)', function () {
+    // A row that predates the retrofitted uuid column has uuid=NULL; the old creating-only hook never
+    // filled it on an update, so it stayed NULL forever (and 500'd route('…edit', null)). `saving` heals it.
+    Schema::dropIfExists('legacy_uuids');
+    Schema::create('legacy_uuids', function (Blueprint $t) {
+        $t->id();
+        $t->uuid('uuid')->nullable()->unique();
+        $t->string('name');
+    });
+    \Illuminate\Support\Facades\DB::table('legacy_uuids')->insert(['name' => 'Legacy']); // raw, no Eloquent event
+
+    $model = new class extends \Illuminate\Database\Eloquent\Model
+    {
+        use \Ngos\AdminCore\Concerns\HasPublicUuid;
+
+        protected $table = 'legacy_uuids';
+
+        public $timestamps = false;
+
+        protected $guarded = [];
+    };
+    $row = $model->newQuery()->first();
+    expect($row->uuid)->toBeNull();
+
+    $row->name = 'Updated';
+    $row->save(); // an UPDATE — `creating` would not fire here, but `saving` does
+
+    expect($row->fresh()->uuid)->not->toBeNull();
+    Schema::dropIfExists('legacy_uuids');
+});
+
 it('updates a hybrid record addressed by its uuid (not the bigint id)', function () {
     $w = HybridWidget::create(['name' => 'Old']);
 

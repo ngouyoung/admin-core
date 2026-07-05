@@ -28,6 +28,27 @@ it('adds avatar + uuid on a plain users table', function () {
         ->and(Schema::hasColumn('users', 'uuid'))->toBeTrue();
 });
 
+it('backfills a uuid onto pre-existing rows (a legacy user is not left uuid=NULL → no broken Users list)', function () {
+    // HasPublicUuid fills uuid only on `creating`, so rows that existed before this migration would keep
+    // uuid=NULL — and since getRouteKeyName() is now 'uuid', route('…edit', null) 500s the whole list.
+    Schema::dropIfExists('users');
+    Schema::create('users', function (Blueprint $t) {
+        $t->id();
+        $t->string('email');
+    });
+    \Illuminate\Support\Facades\DB::table('users')->insert([
+        ['email' => 'legacy1@x.co'],
+        ['email' => 'legacy2@x.co'],
+    ]);
+
+    avatarMigration()->up();
+
+    $rows = \Illuminate\Support\Facades\DB::table('users')->get();
+    expect($rows)->toHaveCount(2)
+        ->and($rows->whereNull('uuid')->count())->toBe(0)               // every legacy row got a uuid
+        ->and($rows->pluck('uuid')->unique()->count())->toBe(2);        // and they're distinct (unique index safe)
+});
+
 it('does not crash when the users table already has an avatar column (guarded re-run)', function () {
     Schema::dropIfExists('users');
     Schema::create('users', function (Blueprint $t) {
