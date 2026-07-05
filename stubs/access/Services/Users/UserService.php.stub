@@ -49,6 +49,9 @@ class UserService extends BaseService
         }
 
         $user = $this->find($id);
+        // Refuse editing a user who OUTRANKS the actor — otherwise `edit-user` alone overwrites a super-admin's
+        // email/password (a full account takeover). Checked BEFORE any write and before the role grant check.
+        $this->assertCanEditTarget($user);
         // Only newly ADDED roles are checked, so editing the name/email (resubmitting current roles) is fine.
         $assigned = $this->roleService->query()->whereIn('id', $roles)->get();
         $this->assertCanGrantRoles($assigned, $user->roles->pluck('id'));
@@ -57,5 +60,13 @@ class UserService extends BaseService
         $user->syncRoles($assigned);
 
         return $user;
+    }
+
+    public function delete(int|string $id): void
+    {
+        $user = $this->find($id);
+        // A non-super actor must not delete a user who outranks them (locking out a super-admin).
+        $this->assertCanEditTarget($user);
+        $user->delete();
     }
 }

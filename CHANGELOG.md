@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.134
+
+**Security fix (HIGH — privilege escalation in the access kit): `edit-user` alone allowed taking over a
+super-admin's account.** The least-privilege guard `GrantsWithinOwnAuthority` only inspected the roles/permissions
+being *granted*, never the *target* user. So a non-super holder of `edit-user` could PUT an update on a
+super-admin — resubmitting the target's already-assigned super role (which sails through the "already assigned"
+skip, so no grant is refused) while setting a new `email` + `password` — and then log in as the super-admin: a
+full account takeover from one narrow "account management" grant. A new `assertCanEditTarget()` closes it: a
+non-super actor may not edit (nor delete) a user who holds the super role, nor one holding any permission the
+actor does not hold themselves — the mirror of the existing role-grant guard, applied to the target. Wired into
+`UserService::update()` and `delete()`. A super-role actor and the console (seeders/commands) stay unrestricted.
+Regression tests prove the super-admin and any higher-privileged target are refused while a peer/lower target is
+allowed (mutation-verified). Found by a tenth full-package audit (access-module dimension).
+
 ## v2.79.133
 
 **Security fix (completeness follow-up to v2.79.115): the list-bar "Views" dropdown leaked saved views across

@@ -38,6 +38,11 @@ class GrantHarness
     {
         $this->assertCanGrantRoles(collect($roles), $currentIds);
     }
+
+    public function editTarget($target): void
+    {
+        $this->assertCanEditTarget($target);
+    }
 }
 
 beforeEach(function () {
@@ -168,6 +173,75 @@ it('exempts the super role holder and the console (no actor) context', function 
     expect(true)->toBeTrue(); // none threw
 });
 
+it('refuses editing a user who holds the super role (the edit-user takeover)', function () {
+    // The finder's HIGH: a non-super `edit-user` holder editing a super-admin. assertCanGrantRoles never looks
+    // at the target, so without a target-rank guard the actor overwrites the super's email/password and logs in
+    // as them. The super role carries no explicit permissions, so it must be refused by role, not by subset.
+    $admin = Role::create(['name' => 'admin', 'guard_name' => 'web']); // super, NO explicit permissions
+    $editUser = Permission::create(['name' => 'edit-user', 'guard_name' => 'web']);
+    $support = Role::create(['name' => 'support', 'guard_name' => 'web']);
+    $support->syncPermissions([$editUser]);
+
+    $actor = GrantTestUser::create(['name' => 'Support']);
+    $actor->assignRole($support);
+    $this->actingAs($actor);
+
+    $boss = GrantTestUser::create(['name' => 'Boss']);
+    $boss->assignRole($admin); // the super-admin target
+
+    expect(fn () => (new GrantHarness)->editTarget($boss))
+        ->toThrow(AuthorizationException::class, 'admin');
+});
+
+it('refuses editing a target holding a permission the actor does not hold', function () {
+    $editUser = Permission::create(['name' => 'edit-user', 'guard_name' => 'web']);
+    $deleteUser = Permission::create(['name' => 'delete-user', 'guard_name' => 'web']);
+    $support = Role::create(['name' => 'support', 'guard_name' => 'web']);
+    $support->syncPermissions([$editUser]);
+    $ops = Role::create(['name' => 'ops', 'guard_name' => 'web']);
+    $ops->syncPermissions([$deleteUser]);
+
+    $actor = GrantTestUser::create(['name' => 'Support']);
+    $actor->assignRole($support); // holds only edit-user
+    $this->actingAs($actor);
+
+    $target = GrantTestUser::create(['name' => 'Ops']);
+    $target->assignRole($ops); // holds delete-user — beyond the actor's authority
+
+    expect(fn () => (new GrantHarness)->editTarget($target))
+        ->toThrow(AuthorizationException::class, 'delete-user');
+});
+
+it('allows editing a peer / lower-privileged target, the console, and any target for a super actor', function () {
+    $editUser = Permission::create(['name' => 'edit-user', 'guard_name' => 'web']);
+    $admin = Role::create(['name' => 'admin', 'guard_name' => 'web']);
+    $support = Role::create(['name' => 'support', 'guard_name' => 'web']);
+    $support->syncPermissions([$editUser]);
+
+    // Console context (no actor): provisioning is not blocked.
+    (new GrantHarness)->editTarget(GrantTestUser::create(['name' => 'Nobody']));
+
+    $actor = GrantTestUser::create(['name' => 'Support']);
+    $actor->assignRole($support);
+    $this->actingAs($actor);
+
+    $peer = GrantTestUser::create(['name' => 'Peer']);
+    $peer->assignRole($support);            // same authority
+    $plain = GrantTestUser::create(['name' => 'Plain']); // no roles/permissions at all
+    (new GrantHarness)->editTarget($peer);  // peer — all their permissions are held by the actor
+    (new GrantHarness)->editTarget($plain); // strictly lower
+
+    // A super-role actor may edit anyone, including another super-admin.
+    $boss = GrantTestUser::create(['name' => 'Boss']);
+    $boss->assignRole($admin);
+    $this->actingAs($boss);
+    $otherBoss = GrantTestUser::create(['name' => 'OtherBoss']);
+    $otherBoss->assignRole($admin);
+    (new GrantHarness)->editTarget($otherBoss);
+
+    expect(true)->toBeTrue(); // none threw
+});
+
 it('ships the guard wired into both access stubs', function () {
     $role = file_get_contents(__DIR__ . '/../../stubs/access/Services/Roles/RoleService.php.stub');
     $user = file_get_contents(__DIR__ . '/../../stubs/access/Services/Users/UserService.php.stub');
@@ -177,5 +251,6 @@ it('ships the guard wired into both access stubs', function () {
         ->toContain('$this->assertCanGrantPermissions($granted, $role->permissions->pluck(\'id\'));'); // update: added only
     expect($user)->toContain('use GrantsWithinOwnAuthority;')
         ->toContain('$this->assertCanGrantRoles($assigned, []);')
-        ->toContain('$this->assertCanGrantRoles($assigned, $user->roles->pluck(\'id\'));');
+        ->toContain('$this->assertCanGrantRoles($assigned, $user->roles->pluck(\'id\'));')
+        ->toContain('$this->assertCanEditTarget($user);'); // target-rank guard wired into update() AND delete()
 });

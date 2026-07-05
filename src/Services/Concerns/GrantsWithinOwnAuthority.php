@@ -87,6 +87,49 @@ trait GrantsWithinOwnAuthority
         }
     }
 
+    /**
+     * Refuse EDITING a target user who outranks the acting user — the counterpart to assertCanGrantRoles for the
+     * edit/delete path. The grant guards only inspect the roles/permissions being handed out, never the target's
+     * own standing, which left `edit-user` alone able to overwrite a super-admin's email + password (resubmitting
+     * the target's already-assigned super role sails through the "already assigned" skip, so nothing is refused)
+     * and then log in as them — a full account takeover / privilege escalation. This guards the target itself: a
+     * non-super actor may not edit (or delete) a user who holds the super role, nor one holding any permission the
+     * actor does not hold themselves.
+     *
+     * A super-role actor is unrestricted, and a console context (no actor) is exempt — matching the grant guards.
+     *
+     * @throws AuthorizationException
+     */
+    protected function assertCanEditTarget(object $target): void
+    {
+        $actor = auth()->user();
+        if ($actor === null || $this->grantActorIsSuper($actor)) {
+            return;
+        }
+
+        $super = $this->grantSuperRoleName();
+        if ($super !== '' && method_exists($target, 'hasRole') && $target->hasRole($super)) {
+            // The super role usually carries NO explicit permissions (a Gate::before bypass), so the
+            // permission-subset check below can't see it — refuse editing a super holder outright.
+            throw new AuthorizationException(
+                __('You cannot edit a user who holds the :role role.', ['role' => $super]),
+            );
+        }
+
+        // A target holding a permission the actor lacks OUTRANKS them — refuse, or `edit-user` becomes takeover
+        // of any higher-privileged account via its email/password. getAllPermissions() = direct + via-role grants.
+        if (method_exists($target, 'getAllPermissions') && method_exists($actor, 'hasPermissionTo')) {
+            $beyond = $target->getAllPermissions()
+                ->reject(fn ($p) => $actor->hasPermissionTo($p))
+                ->pluck('name');
+            if ($beyond->isNotEmpty()) {
+                throw new AuthorizationException(
+                    __('You cannot edit a user whose permissions exceed your own. Beyond your authority: :names', ['names' => $beyond->implode(', ')]),
+                );
+            }
+        }
+    }
+
     /** Whether the actor holds the (guard-aware) super role — unrestricted grants. */
     private function grantActorIsSuper(object $actor): bool
     {
