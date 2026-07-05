@@ -38,6 +38,9 @@ function initMediaPicker() {
     const dz = modal.querySelector('[data-ac-picker-dropzone]');
     const input = modal.querySelector('[data-ac-picker-input]');
     let active = null; // the field that opened the modal
+    // The HasMedia collection of the field that opened the picker, so browse + upload scope to its folder
+    // (each field passes its own data-ac-collection). Empty → the server's 'default' bucket.
+    const activeCollection = () => (active && active.dataset.acCollection) || '';
 
     // removeLabel: the icon-only × needs an accessible name or screen readers announce "button".
     const fieldTile = (m, name, removeLabel) =>
@@ -65,7 +68,7 @@ function initMediaPicker() {
     const loadGrid = () => {
         const seq = ++gridSeq;
         grid.innerHTML = '<div class="text-muted small p-3">Loading…</div>';
-        fetch(modal.dataset.acListUrl + '?search=' + encodeURIComponent(search.value || ''), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        fetch(modal.dataset.acListUrl + '?search=' + encodeURIComponent(search.value || '') + '&collection=' + encodeURIComponent(activeCollection()), { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then((r) => r.json())
             .then((d) => {
                 if (seq !== gridSeq) return; // a newer search fired after this one — drop the stale result
@@ -101,6 +104,7 @@ function initMediaPicker() {
         if (!files?.length) return;
         const data = new FormData();
         [...files].forEach((f) => data.append('files[]', f));
+        data.append('collection', activeCollection()); // file under the opening field's collection, not 'default'
         dz.classList.add('opacity-50');
         fetch(modal.dataset.acUploadUrl, { method: 'POST', headers: { 'X-CSRF-TOKEN': token, 'X-Requested-With': 'XMLHttpRequest' }, body: data })
             .then((r) => (r.ok ? r.json() : Promise.reject(r)))

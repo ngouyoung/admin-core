@@ -33,6 +33,14 @@ it('marks a single (non-multiple) control so the JS replaces instead of appends'
     expect($html)->toContain('data-ac-multiple="0"')->toContain('Choose media');
 });
 
+it('renders the field HasMedia collection so the shared picker can scope browse + upload to it', function () {
+    // Without data-ac-collection the picker sends no collection, so every field's uploads land in the
+    // server's 'default' bucket and its browse shows the whole unfiltered library.
+    $html = Blade::render('<x-admin-core::media-collection name="certs" collection="certificates" :multiple="true" />');
+
+    expect($html)->toContain('data-ac-collection="certificates"');
+});
+
 it('names the remove button for screen readers (aria-label on the icon-only ×)', function () {
     $html = Blade::render(
         '<x-admin-core::media-collection name="photos" :items="$items" :multiple="true" />',

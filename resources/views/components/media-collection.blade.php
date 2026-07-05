@@ -11,8 +11,10 @@
 @endphp
 <x-admin-core::form-row :name="$name" :label="$label">
     {{-- data-ac-remove-label: the translated name media-picker.js puts on the remove button of a
-         JS-added tile (the × is icon-only, so without it screen readers announce an unnamed button). --}}
-    <div class="ac-media-collection" data-ac-media-collection data-ac-name="{{ $name }}" data-ac-multiple="{{ $multiple ? '1' : '0' }}" data-ac-remove-label="{{ __('Remove') }}">
+         JS-added tile (the × is icon-only, so without it screen readers announce an unnamed button).
+         data-ac-collection: the field's HasMedia collection, so the shared picker scopes its browse +
+         upload to this folder (without it every field's picker used the 'default' bucket). --}}
+    <div class="ac-media-collection" data-ac-media-collection data-ac-name="{{ $name }}" data-ac-collection="{{ $collection }}" data-ac-multiple="{{ $multiple ? '1' : '0' }}" data-ac-remove-label="{{ __('Remove') }}">
         <div class="d-flex flex-wrap gap-2 mb-2" data-ac-media-items>
             @foreach ($items as $acItem)
                 <div class="ac-media-tile position-relative" data-ac-media-tile draggable="true">

@@ -12,7 +12,7 @@ const EVIL = { id: 7, name: '"><img onerror=alert(1)>', url: 'x" onerror="alert(
 
 function scaffold() {
     document.body.innerHTML = `
-        <div data-ac-media-collection data-ac-name="photos" data-ac-multiple="1">
+        <div data-ac-media-collection data-ac-name="photos" data-ac-collection="certificates" data-ac-multiple="1">
             <div data-ac-media-items></div>
             <button id="open">Add</button>
         </div>
@@ -152,5 +152,40 @@ describe('media picker XSS hardening', () => {
         await tick();
         expect(grid.querySelector('[title="item-a"]')).toBeNull();  // did NOT overwrite
         expect(grid.querySelector('[title="item-ab"]')).not.toBeNull(); // "ab" still shown
+    });
+});
+
+describe('collection scoping (the field the picker opens for)', () => {
+    const openModal = async () => {
+        initMediaPicker();
+        const modal = document.getElementById('acMediaPicker');
+        const show = new Event('show.bs.modal');
+        show.relatedTarget = document.getElementById('open');
+        modal.dispatchEvent(show);
+        await tick();
+        return modal;
+    };
+
+    it('scopes the browse fetch to the opening field\'s collection', async () => {
+        await openModal();
+
+        // The list request carries collection=certificates (the field's data-ac-collection), so the picker
+        // shows that folder — not the whole unfiltered library.
+        const url = global.fetch.mock.calls[0][0];
+        expect(url).toContain('collection=certificates');
+    });
+
+    it('uploads under the opening field\'s collection, not the default bucket', async () => {
+        const modal = await openModal();
+        global.fetch.mockClear();
+
+        const input = modal.querySelector('[data-ac-picker-input]');
+        Object.defineProperty(input, 'files', { value: [new File(['x'], 'a.pdf')], configurable: true });
+        input.dispatchEvent(new Event('change'));
+        await tick();
+
+        // The upload POST body carries collection=certificates so the file is filed in the right folder.
+        const body = global.fetch.mock.calls.find((c) => (c[1] || {}).method === 'POST')[1].body;
+        expect(body.get('collection')).toBe('certificates');
     });
 });

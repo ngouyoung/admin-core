@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.109
+
+**Fix: an inline media field's picker ignored the field's collection (uploads/browse hit the wrong bucket).**
+The generator wires each media/gallery field's HasMedia collection into `<x-admin-core::media-collection
+collection="…">`, and the server scopes both browse and upload by a `collection` param — but the component
+never rendered the collection into the DOM and `media-picker.js` never sent it. So the shared picker (emitted
+once, reused by every field) always fell back to the server's `default` bucket: uploading through a
+`certificates` field filed the file under `default` (invisible when the main Media Library is filtered by
+`certificates`), and browsing a `gallery` field showed the *entire* unfiltered library, letting an admin
+attach an out-of-scope file. The field root now emits `data-ac-collection`, and the picker sends it on both the
+browse fetch and the upload POST (empty → the server default, unchanged). The pivot association was always
+correct (syncMedia pins the collection server-side); this fixes the library-level folder scoping. Regression
+tests cover the rendered attribute (Pest) and the browse + upload sends (vitest, mutation-verified). Found by
+an eighth full-package audit (media-library dimension).
+
 ## v2.79.108
 
 **Fix: a composite `--unique` with a boolean member missed the duplicate when the flag was omitted.** A
