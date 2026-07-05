@@ -71,7 +71,9 @@ abstract class ApiController extends BaseController
 
         $query->where(function (Builder $q) use ($term) {
             foreach ($this->searchable as $column) {
-                $q->orWhere($column, 'like', '%' . $term . '%');
+                // Route through the shared escaped LIKE so `_`/`%` in the term match literally (no over-match),
+                // consistently with the global search + list filters (one place to keep this correct).
+                \Ngos\AdminCore\Support\Search::whereLike($q, $column, $term, 'or');
             }
         });
     }

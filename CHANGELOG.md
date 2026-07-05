@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.140
+
+**Fix: LIKE wildcards in a search term over-matched on several paths (the fix only lived in global search).**
+v2.79.132 escaped the LIKE metacharacters (`%`, `_`, `\`) for the global search, but the same unescaped
+`'%' . $term . '%'` remained in the JSON API list search (`ApiController::applySearch`), the list-filter `text`
+type, the Select2 remote source (`WebController::select`) and the media-library filename search — so an
+underscore still acted as a single-char wildcard (searching `a_c` matched `aXc`) and a `%` matched anything.
+Parameter binding already prevented SQL injection; this fixes the wildcard semantics. All of these now route
+through one shared helper — `Search::whereLike()` (plus `Search::likePattern()`) — which escapes the term and
+applies a portable `ESCAPE '\'` LIKE on a validated, backtick-quoted column, so the escaping can never drift out
+of a single path again; the global search was refactored onto the same helper. Regression tests cover the API
+underscore case and the helper itself (literal `%`/`_`, and a non-identifier column skipped), all
+mutation-verified. Found by a tenth full-package audit (the recurring unescaped-LIKE bug class). Note: the LIKE
+in a *generated* resource's `getData()` column filters is emitted by the generator and is tracked separately.
+
 ## v2.79.139
 
 **Fix: an approved action that affected 0 records still reported a green "approved".** When an approver approves,

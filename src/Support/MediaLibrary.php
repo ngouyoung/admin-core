@@ -84,7 +84,8 @@ class MediaLibrary
     public function query(?string $search = null, ?string $collection = null): Builder
     {
         return $this->scoped(MediaItem::query())
-            ->when($search, fn (Builder $q) => $q->where('name', 'like', '%' . $search . '%'))
+            // Escaped LIKE (shared helper) so a `_`/`%` in the filename search matches literally, not as a wildcard.
+            ->when($search, fn (Builder $q) => \Ngos\AdminCore\Support\Search::whereLike($q, 'name', (string) $search))
             ->when($collection, fn (Builder $q) => $q->where('collection', $collection))
             ->latest();
     }

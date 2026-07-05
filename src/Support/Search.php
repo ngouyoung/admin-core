@@ -70,7 +70,7 @@ class Search
             // underscore in the query used to act as a single-char wildcard (searching 'a_c' matched 'aXc'),
             // returning rows the user never searched for. The pattern carries an explicit ESCAPE '\' (portable
             // across MySQL + SQLite; MySQL's default is already '\', SQLite has none unless stated).
-            $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
+            $like = self::likePattern($term);
 
             $rows = $base
                 ->where(function ($q) use ($columns, $like, $casts, $locale) {
@@ -112,6 +112,37 @@ class Search
         }
 
         return $results;
+    }
+
+    /**
+     * Escape a user term's LIKE metacharacters (`%`, `_`, `\`) so they match LITERALLY, returning the ready
+     * `%term%` pattern. Without this an underscore is a single-char wildcard and a `%` matches anything, so a
+     * search over-matches rows the user never asked for. Pair with an explicit `ESCAPE '\'` clause (see
+     * {@see whereLike}) — MySQL's default LIKE escape is already `\`, but SQLite has none unless stated, so the
+     * clause is needed for portable behaviour.
+     */
+    public static function likePattern(string $term): string
+    {
+        return '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
+    }
+
+    /**
+     * Apply an escaped, portable LIKE on a plain column to a query builder — the one place every admin-core
+     * search path (API list search, list-filter text, the select remote source, the media library) should route
+     * through, so the LIKE-metacharacter escaping can never drift out of one of them again. The column is
+     * validated as a bare identifier and backtick-quoted (never user input); a non-identifier is skipped. The
+     * `%_\` in the term are escaped and the LIKE carries `ESCAPE '\'` (works on MySQL + SQLite).
+     *
+     * @param  \Illuminate\Contracts\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
+     * @param  'and'|'or'  $boolean
+     */
+    public static function whereLike($query, string $column, string $term, string $boolean = 'and'): void
+    {
+        if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $column)) {
+            return; // only plain column identifiers are searchable — never splice arbitrary text into SQL
+        }
+
+        $query->whereRaw("`{$column}` LIKE ? ESCAPE '\\'", [self::likePattern($term)], $boolean);
     }
 
     /** First non-empty searched column as the display label (handles translatable JSON columns). */

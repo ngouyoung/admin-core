@@ -111,6 +111,32 @@ it('resolves the user on the given PORTAL guard, not the default guard (multi-po
     expect(Search::query('alpha', guard: 'merchant'))->toHaveCount(1);
 });
 
+it('exposes a shared escaped-LIKE helper every search path routes through', function () {
+    // The systemic fix: one helper so LIKE-metacharacter escaping can't drift out of a single search path again.
+    expect(Search::likePattern('a_c%'))->toBe('%a\_c\%%'); // _ and % escaped, wrapped in %…%
+
+    Schema::create('wl_items', fn (Blueprint $t) => tap($t)->id()->string('name'));
+    $m = new class extends \Illuminate\Database\Eloquent\Model
+    {
+        protected $table = 'wl_items';
+        public $timestamps = false;
+        protected $guarded = [];
+    };
+    $m::create(['name' => 'a_c']); // the literal
+    $m::create(['name' => 'aXc']); // a '_' wildcard would wrongly match this
+
+    $q = $m::query();
+    Search::whereLike($q, 'name', 'a_c');
+    expect($q->pluck('name')->all())->toBe(['a_c']); // underscore matched literally, not as a wildcard
+
+    // A non-identifier "column" is skipped (never spliced into SQL) — the query is left unfiltered.
+    $q2 = $m::query();
+    Search::whereLike($q2, 'name`; DROP TABLE wl_items; --', 'x');
+    expect($q2->count())->toBe(2);
+
+    Schema::dropIfExists('wl_items');
+});
+
 it('matches a translatable (JSON) column in the active locale, not the raw JSON blob', function () {
     Schema::create('trans_widgets', function (Blueprint $t) {
         $t->id();

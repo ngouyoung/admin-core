@@ -440,7 +440,8 @@ abstract class WebController extends BaseController
                 }
             } elseif ($type === 'text') {
                 if (is_scalar($value) && $value !== '') {
-                    $query->where($column, 'like', '%' . $value . '%');
+                    // Escaped LIKE (shared helper) so a `_`/`%` in the filter value matches literally.
+                    \Ngos\AdminCore\Support\Search::whereLike($query, $column, (string) $value);
                 }
             } elseif (is_scalar($value) && $value !== '') {
                 $query->where($column, $value); // select: exact match (enum / boolean / foreign id)
@@ -490,7 +491,8 @@ abstract class WebController extends BaseController
         if ($term !== '') {
             $query->where(function ($q) use ($columns, $term) {
                 foreach ($columns as $column) {
-                    $q->orWhere($column, 'like', '%' . $term . '%');
+                    // Escaped LIKE (shared helper) — a `_`/`%` typed into the Select2 search matches literally.
+                    \Ngos\AdminCore\Support\Search::whereLike($q, (string) $column, $term, 'or');
                 }
             });
             $narrowed = true;

@@ -30,6 +30,16 @@ it('searches by a searchable column (LIKE)', function () {
     expect($data[0]['name'])->toBe('Alpha');
 });
 
+it('escapes LIKE metacharacters in the search term (an underscore matches literally, not as a wildcard)', function () {
+    Widget::create(['name' => 'a_c']); // the literal the user searches for
+    Widget::create(['name' => 'aXc']); // a wildcard '_' would wrongly match this
+
+    $data = $this->getJson('/api/widgets?search=a_c')->assertOk()->json('data');
+
+    expect($data)->toHaveCount(1)                 // only the literal 'a_c', not the wildcard collision
+        ->and($data[0]['name'])->toBe('a_c');
+});
+
 it('filters by a whitelisted column (exact match)', function () {
     Widget::create(['name' => 'A', 'status' => 'active']);
     Widget::create(['name' => 'B', 'status' => 'archived']);
