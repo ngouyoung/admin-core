@@ -2171,11 +2171,15 @@ PHP;
             }
 
             if ($f['unique']) {
-                // Ignore self by the route-key column (uuid under hybrid, else id),
-                // since the {id} route param is whatever the URL exposes. On a soft-deletes
-                // resource, exclude trashed rows so a deleted value can be reused.
+                // Ignore self by the route-key column (uuid under hybrid, else id), since the {id} route param
+                // is whatever the URL exposes. The rule does NOT exclude trashed rows even on a soft-deletes
+                // resource: the generated DB unique index is a plain, portable one — a partial
+                // "WHERE deleted_at IS NULL" index can't be expressed on MySQL (nor in a static generated
+                // migration), so it still covers soft-deleted rows. A ->withoutTrashed() rule would PASS
+                // validation for a reused trashed value and then throw a 23000 integrity violation at the INSERT
+                // (an unhandled HTTP 500) — strictly worse than the clean 422 a plain rule gives. To reuse a
+                // soft-deleted unique value, restore or force-delete the old row (its value is still reserved).
                 $ignoreColumn = $this->uuid ? 'uuid' : 'id';
-                $trashed = $this->softDeletes ? '->withoutTrashed()' : '';
                 if ($f['type'] === 'money') {
                     // A money column stores minor units but the form posts the major amount, so a plain unique
                     // rule compares the wrong scale — use UniqueMoney, which converts first. A per-record
@@ -2187,18 +2191,16 @@ PHP;
                         );
                     }
                     $curArg = $f['currency'] !== null ? "'{$f['currency']}'" : 'null';
-                    $wt = $this->softDeletes ? 'true' : 'false';
+                    // withoutTrashed = false so the check matches the plain DB index (see the note above).
                     $rules[] = $update
-                        ? "new \\Ngos\\AdminCore\\Rules\\UniqueMoney('{$this->table}', '{$f['name']}', {$curArg}, \$this->route('id'), '{$ignoreColumn}', {$wt})"
-                        : "new \\Ngos\\AdminCore\\Rules\\UniqueMoney('{$this->table}', '{$f['name']}', {$curArg}, null, 'id', {$wt})";
+                        ? "new \\Ngos\\AdminCore\\Rules\\UniqueMoney('{$this->table}', '{$f['name']}', {$curArg}, \$this->route('id'), '{$ignoreColumn}', false)"
+                        : "new \\Ngos\\AdminCore\\Rules\\UniqueMoney('{$this->table}', '{$f['name']}', {$curArg}, null, 'id', false)";
                 } else {
                     // Update uses the imported short `Rule` (see updateUses()); store has no import slot, so it
-                    // uses the fully-qualified name — same as the enum rule already does.
+                    // uses the string form — same as the enum rule already does.
                     $rules[] = $update
-                        ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'), '{$ignoreColumn}'){$trashed}"
-                        : ($this->softDeletes
-                            ? "\\Illuminate\\Validation\\Rule::unique('{$this->table}', '{$f['name']}')->withoutTrashed()"
-                            : "'unique:{$this->table},{$f['name']}'");
+                        ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'), '{$ignoreColumn}')"
+                        : "'unique:{$this->table},{$f['name']}'";
                 }
             }
 
@@ -2212,7 +2214,9 @@ PHP;
                     continue;
                 }
                 $ignoreColumn = $this->uuid ? 'uuid' : 'id';
-                $trashed = $this->softDeletes ? '->withoutTrashed()' : '';
+                // No ->withoutTrashed(): the composite DB index ($table->unique([...])) is plain and covers
+                // trashed rows, so the rule must too (see the single-unique note above) — else a reused trashed
+                // combination passes validation then 500s at the INSERT.
                 $wheres = implode('', array_map(
                     function ($c) {
                         // A NOT-NULL boolean member stores false (0) when omitted from the request — but
@@ -2231,8 +2235,8 @@ PHP;
                     array_slice($group, 1),
                 ));
                 $rules[] = $update
-                    ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'), '{$ignoreColumn}'){$wheres}{$trashed}"
-                    : "\\Illuminate\\Validation\\Rule::unique('{$this->table}', '{$f['name']}'){$wheres}{$trashed}";
+                    ? "Rule::unique('{$this->table}', '{$f['name']}')->ignore(\$this->route('id'), '{$ignoreColumn}'){$wheres}"
+                    : "\\Illuminate\\Validation\\Rule::unique('{$this->table}', '{$f['name']}'){$wheres}";
             }
 
             $lines[] = "            '{$f['name']}' => [" . implode(', ', $rules) . '],';

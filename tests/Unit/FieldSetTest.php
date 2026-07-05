@@ -487,17 +487,22 @@ it('handles a unique field with the Rule import on update', function () {
     expect($f->updateUses())->toContain('use Illuminate\Validation\Rule;');
 });
 
-it('excludes trashed rows from the unique rule on a soft-deletes resource (a deleted value can be reused)', function () {
+it('keeps the unique rule consistent with the plain DB index on a soft-deletes resource (no withoutTrashed)', function () {
+    // The generated migration emits a PLAIN unique index (a partial "WHERE deleted_at IS NULL" index isn't
+    // portable — MySQL can't express it), so it covers soft-deleted rows too. The validation rule must match:
+    // a ->withoutTrashed() rule would pass a reused trashed value then 500 at the INSERT (audit-14 MED). So the
+    // rule stays plain and a reused trashed value gets a clean 422; restore/force-delete to actually reuse it.
     $f = fs('slug:string^')->setSoftDeletes(true);
-    // Store has no Rule import slot, so it uses the fully-qualified name + withoutTrashed.
+    // The index the rule must agree with — plain, soft-delete-unaware.
+    expect($f->migrationColumns())->toContain('->unique();');
+    // Store: the same plain string rule as a non-soft-deletes resource; never withoutTrashed.
     expect($f->storeRules())
-        ->toContain('\Illuminate\Validation\Rule::unique')
-        ->toContain('->withoutTrashed()')
-        ->not->toContain("'unique:products,slug'");
-    // Update keeps the imported short Rule, ignores self, and excludes trashed.
+        ->toContain("'unique:products,slug'")
+        ->not->toContain('->withoutTrashed()');
+    // Update: imported short Rule, ignores self, still no withoutTrashed.
     expect($f->updateRules())
         ->toContain("Rule::unique('products', 'slug')->ignore")
-        ->toContain('->withoutTrashed()');
+        ->not->toContain('->withoutTrashed()');
 });
 
 it('uses the hybrid key strategy (bigint id + public uuid, bigint FKs)', function () {
@@ -871,10 +876,15 @@ it('chains a ->where for every other column of a 3-column group', function () {
         ->toContain("Rule::unique('things', 'a')->where('b', \$this->input('b'))->where('c', \$this->input('c'))");
 });
 
-it('honours soft-deletes (withoutTrashed) on a composite unique', function () {
+it('keeps a composite unique rule consistent with its plain DB index on a soft-deletes resource (no withoutTrashed)', function () {
     $f = fs('a:integer, b:integer', 'things')->setSoftDeletes(true)->setUniqueGroups([['a', 'b']]);
 
-    expect($f->storeRules())->toContain("->where('b', \$this->input('b'))->withoutTrashed()");
+    // The composite index ($table->unique([...])) is plain and covers trashed rows, so the rule must not
+    // exclude them — else a reused trashed combination passes validation then 500s at the INSERT (audit-14 MED).
+    expect($f->uniqueConstraints())->toContain("\$table->unique(['a', 'b']);");
+    expect($f->storeRules())
+        ->toContain("->where('b', \$this->input('b'))")
+        ->not->toContain('->withoutTrashed()');
 });
 
 it('compares a NOT-NULL boolean composite member as a coerced bool, not raw input (omitted = stored 0)', function () {

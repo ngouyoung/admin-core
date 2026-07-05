@@ -2,6 +2,25 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.160
+
+**Fix: on a `--soft-deletes` resource, a generated unique rule excluded trashed rows while the DB index did not —
+reusing a soft-deleted unique value passed validation then 500'd at the INSERT.** The generated FormRequest added
+`->withoutTrashed()` to the unique rule for a soft-deletes resource ("a deleted value can be reused"), but the
+generated migration emitted a plain `->unique()` index (single) / `$table->unique([...])` (composite) that is
+*not* soft-delete-aware and still covers trashed rows. So `create(sku='ABC')` → soft-delete → `create(sku='ABC')`
+passed validation (the rule ignored the trashed row) and then hit a 23000 integrity violation at the plain index —
+an unhandled `QueryException` surfaced as HTTP 500 (`BaseService::create` is a bare `create()`), i.e. `withoutTrashed`
+was strictly worse than a plain rule, turning a clean 422 into a 500 for the exact operation it advertised. A
+correct partial `WHERE deleted_at IS NULL` index can't be expressed portably (MySQL has no partial index; the
+generator emits a static migration), so the rule now MATCHES the plain index: `->withoutTrashed()` is dropped from
+the single, composite, and money (`UniqueMoney`) unique rules, so a reused trashed value gets a clean 422 ("already
+taken"). To actually reuse a soft-deleted unique value, restore or force-delete the old row — its value stays
+reserved while soft-deleted, which is the correct soft-delete model. Regression tests now assert the rule↔index
+consistency (single + composite: plain index, no `withoutTrashed`) — mutation-verified. Behaviour note: the earlier
+"reuse a deleted value" path never actually worked (it always 500'd on every DB), so this is corrective. Found by a
+fourteenth full-package (attack-class) audit — the 7th instance of the soft-delete systemic class.
+
 ## v2.79.159
 
 **Fix (data integrity, completes v2.79.156): a portal `:auth` ownership FK still targeted `users` while the stamp
