@@ -328,19 +328,24 @@ class AdminCoreServiceProvider extends ServiceProvider
      * Route::adminCoreApprovals() — the approvals inbox (admin.approvals.index/approve/reject). Reaching the
      * inbox needs `list-approval`; each decision additionally needs the action's `approve-{action}-{resource}`
      * (checked in the controller). Call it inside your admin route group.
+     *
+     * $guard: a portal passes its auth guard (Route::adminCoreApprovals('merchant')) so the approver, the
+     * `approve-*` gate and the maker-checker self-approval block all resolve THAT portal's user — else they
+     * check the default guard, which (mounted in a non-default-guard group) is the wrong or a null user. Stashed
+     * as a route default the controller reads (mirrors adminCoreSearch). Null = the default guard, unchanged.
      */
     protected function registerApprovalsMacro(): void
     {
-        Route::macro('adminCoreApprovals', function () {
+        Route::macro('adminCoreApprovals', function (?string $guard = null) {
             $middleware = config('admin-core.permission.enabled') ? ['permission:list-approval'] : [];
             Route::controller(ApprovalController::class)
                 ->prefix('approvals')
                 ->name('approvals.')
                 ->middleware($middleware)
-                ->group(function () {
-                    Route::get('/', 'index')->name('index');
-                    Route::post('{id}/approve', 'approve')->name('approve');
-                    Route::post('{id}/reject', 'reject')->name('reject');
+                ->group(function () use ($guard) {
+                    Route::get('/', 'index')->name('index')->defaults('acApprovalGuard', $guard);
+                    Route::post('{id}/approve', 'approve')->name('approve')->defaults('acApprovalGuard', $guard);
+                    Route::post('{id}/reject', 'reject')->name('reject')->defaults('acApprovalGuard', $guard);
                 });
         });
     }

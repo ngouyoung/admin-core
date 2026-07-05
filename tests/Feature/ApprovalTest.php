@@ -181,6 +181,44 @@ it('forbids the requester from approving their OWN request (maker != checker), e
     Schema::dropIfExists('mc_users');
 });
 
+it('resolves the approver on the route\'s portal guard for maker-checker, not the default guard', function () {
+    // Multi-portal: the inbox mounted with Route::adminCoreApprovals('merchant') must evaluate the maker-checker
+    // block (and the approve gate) against the MERCHANT user, not the default 'web' guard. With the old
+    // auth()->user() (default guard = null here), the requester would NOT be recognised as the maker and could
+    // self-approve. permission.enabled=false isolates the isRequester() path (checked before the perm gate).
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+
+    \Illuminate\Support\Facades\Route::middleware('web')->prefix('merchant')->name('merchant.')
+        ->group(fn () => \Illuminate\Support\Facades\Route::adminCoreApprovals('merchant'));
+    \Illuminate\Support\Facades\Route::getRoutes()->refreshNameLookups();
+
+    Schema::dropIfExists('mc_users');
+    Schema::create('mc_users', fn (Blueprint $t) => tap($t)->id()->string('name'));
+    $userModel = new class extends \Illuminate\Foundation\Auth\User
+    {
+        protected $table = 'mc_users';
+
+        public $timestamps = false;
+
+        protected $guarded = [];
+    };
+    $alice = $userModel::create(['name' => 'Alice']); // the MAKER, a merchant-guard user
+
+    $w = Widget::create(['name' => 'a']);
+    $approval = pendingRefund($w);
+    $approval->requester()->associate($alice)->save();
+
+    // Authenticate Alice ONLY on the merchant guard (default 'web' stays null — the real portal shape).
+    auth()->guard('merchant')->setUser($alice);
+
+    // The route resolves the merchant guard → Alice IS the requester → her own request is refused.
+    $this->post('/merchant/approvals/' . $approval->uuid . '/approve')->assertForbidden();
+    expect($approval->fresh()->status)->toBe('pending')      // not self-approved
+        ->and($w->fresh()->status)->not->toBe('refunded');   // the action did not run
+
+    Schema::dropIfExists('mc_users');
+});
+
 it('rolls the approval back to pending when the action handler throws (retryable, not stuck approved)', function () {
     Notification::fake();
     config()->set('admin-core.permission.enabled', true);

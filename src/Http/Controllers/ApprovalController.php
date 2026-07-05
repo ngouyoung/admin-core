@@ -18,13 +18,14 @@ use Ngos\AdminCore\Notifications\AdminNotification;
  */
 class ApprovalController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $actor = $this->actor($request);
         $approvals = Approval::pending()->with('requester')->latest()
             ->paginate((int) config('admin-core.pagination', 20));
 
         // Flag which rows this user may actually decide, so the inbox shows the buttons only where allowed.
-        $approvals->getCollection()->each(fn (Approval $a) => $a->setAttribute('can_decide', $this->canDecide($a)));
+        $approvals->getCollection()->each(fn (Approval $a) => $a->setAttribute('can_decide', $this->canDecide($a, $actor)));
 
         return view('admin-core::approvals.index', ['approvals' => $approvals]);
     }
@@ -32,7 +33,8 @@ class ApprovalController extends Controller
     public function approve(Request $request, string $id): RedirectResponse
     {
         $approval = $this->pendingOrFail($id);
-        abort_unless($this->canDecide($approval), 403);
+        $actor = $this->actor($request);
+        abort_unless($this->canDecide($approval, $actor), 403);
         // Re-run the original action through the requester's controller (the only place its handler lives).
         abort_unless(is_subclass_of($approval->handler, WebController::class), 422);
 
@@ -40,8 +42,8 @@ class ApprovalController extends Controller
         // double-submitted approve loses it → 404), but wrapping it WITH the action means a throwing handler
         // rolls the claim back too — so the request returns to 'pending' and is retryable, instead of being
         // stuck 'approved' with its effect rolled back and no way to re-run it.
-        DB::transaction(function () use ($approval, $request) {
-            abort_unless($this->claim($approval, 'approved', $this->note($request)), 404);
+        DB::transaction(function () use ($approval, $request, $actor) {
+            abort_unless($this->claim($approval, 'approved', $this->note($request), $actor), 404);
             app($approval->handler)->applyApprovedAction($approval->action, $approval->ids());
         });
 
@@ -53,12 +55,26 @@ class ApprovalController extends Controller
     public function reject(Request $request, string $id): RedirectResponse
     {
         $approval = $this->pendingOrFail($id);
-        abort_unless($this->canDecide($approval), 403);
-        abort_unless($this->claim($approval, 'rejected', $this->note($request)), 404);
+        $actor = $this->actor($request);
+        abort_unless($this->canDecide($approval, $actor), 403);
+        abort_unless($this->claim($approval, 'rejected', $this->note($request), $actor), 404);
 
         $this->notifyRequester($approval, false);
 
         return back()->with('success', __('admin-core::admin-core.approvals.rejected'));
+    }
+
+    /**
+     * The deciding user, resolved on the route's approval guard — the portal guard when the inbox was mounted
+     * with Route::adminCoreApprovals('merchant'), else the default guard. Resolving the DEFAULT guard's user
+     * (auth()->user()) is wrong when the inbox lives in a non-default-guard group: it evaluates the approver,
+     * the approve-* gate and the maker-checker block against the wrong (or a null) user.
+     */
+    private function actor(Request $request)
+    {
+        $guard = $request->route()?->defaults['acApprovalGuard'] ?? null;
+
+        return auth()->guard($guard)->user();
     }
 
     /** The decision note as a string or null — `note[]=x` (an array) must not TypeError into a 500. */
@@ -81,16 +97,16 @@ class ApprovalController extends Controller
      * Atomically move this request from pending → $status (recording the decision + approver). Returns false
      * if it was no longer pending (someone else won the race), so the caller can stop before executing.
      */
-    private function claim(Approval $approval, string $status, ?string $note): bool
+    private function claim(Approval $approval, string $status, ?string $note, $actor): bool
     {
         $update = [
             'status' => $status,
             'decision_note' => is_string($note) && $note !== '' ? $note : null,
             'decided_at' => now(),
         ];
-        if ($user = auth()->user()) {
-            $update['approver_type'] = $user->getMorphClass();
-            $update['approver_id'] = $user->getKey();
+        if ($actor) {
+            $update['approver_type'] = $actor->getMorphClass();
+            $update['approver_id'] = $actor->getKey();
         }
 
         $claimed = Approval::where('uuid', $approval->uuid)->where('status', 'pending')->update($update) === 1;
@@ -101,14 +117,14 @@ class ApprovalController extends Controller
         return $claimed;
     }
 
-    /** May the current user decide this request? Needs the action's `approve-{action}-{resource}` permission. */
-    private function canDecide(Approval $approval): bool
+    /** May this user decide this request? Needs the action's `approve-{action}-{resource}` permission. */
+    private function canDecide(Approval $approval, $actor): bool
     {
         // Segregation of duties (the "maker-checker" this subsystem is named for): the requester can never
         // decide their OWN request, regardless of permissions — otherwise a staff member who later gains the
         // approve permission (an ordinary role change) could self-approve their pending request. Opt out via
         // config for workflows that intentionally allow it.
-        if (! config('admin-core.approval.allow_self_approval', false) && $this->isRequester($approval)) {
+        if (! config('admin-core.approval.allow_self_approval', false) && $this->isRequester($approval, $actor)) {
             return false;
         }
 
@@ -124,19 +140,18 @@ class ApprovalController extends Controller
             )
             : $approval->action;
 
-        return (bool) auth()->user()?->can('approve-' . $base);
+        return (bool) $actor?->can('approve-' . $base);
     }
 
-    /** Whether the currently-authenticated user is the one who filed this request (maker == checker). */
-    private function isRequester(Approval $approval): bool
+    /** Whether this user is the one who filed this request (maker == checker). */
+    private function isRequester(Approval $approval, $actor): bool
     {
-        $user = auth()->user();
-        if ($user === null || $approval->requester_id === null) {
+        if ($actor === null || $approval->requester_id === null) {
             return false;
         }
 
-        return (string) $approval->requester_id === (string) $user->getKey()
-            && $approval->requester_type === $user->getMorphClass();
+        return (string) $approval->requester_id === (string) $actor->getKey()
+            && $approval->requester_type === $actor->getMorphClass();
     }
 
     private function notifyRequester(Approval $approval, bool $approved): void

@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.138
+
+**Fix: the approvals inbox resolved the approver on the default guard, so a portal-mounted inbox judged the wrong
+(or a null) user.** `ApprovalController`'s approver, `approve-*` gate and maker-checker self-approval block all
+read `auth()->user()` — the default guard — even when the inbox is mounted in a non-default-guard group. In a
+multi-portal install that mis-evaluates the segregation-of-duties check and the permission gate against the wrong
+identity (or none). `Route::adminCoreApprovals()` now takes an optional guard —
+`Route::adminCoreApprovals('merchant')` — stashed as a route default the controller resolves the deciding user
+against (mirroring `adminCoreSearch`); with no argument it uses the default guard exactly as before. Regression
+test proves a merchant-guard requester can't self-approve when the inbox is mounted for the merchant guard, even
+though the default guard is null (mutation-verified). Found by a tenth full-package audit (completeness critic —
+the recurring guard-scoping bug class).
+
 ## v2.79.137
 
 **Fix (opt-in): the media library was a single global pool with no per-user scoping — a cross-user / cross-portal
