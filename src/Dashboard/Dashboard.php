@@ -161,12 +161,7 @@ class Dashboard
      */
     protected function currentUser(): array
     {
-        $guards = array_unique(array_merge(
-            [config('auth.defaults.guard', 'web')],
-            array_keys((array) config('admin-core.permission.guards', [])),
-        ));
-
-        foreach ($guards as $guard) {
+        foreach ($this->guards() as $guard) {
             try {
                 if (auth()->guard($guard)->check()) {
                     return [auth()->guard($guard)->id(), (string) $guard];
@@ -177,6 +172,31 @@ class Dashboard
         }
 
         return [null, null];
+    }
+
+    /** The default guard first, then every configured portal guard. */
+    private function guards(): array
+    {
+        return array_unique(array_merge(
+            [config('auth.defaults.guard', 'web')],
+            array_keys((array) config('admin-core.permission.guards', [])),
+        ));
+    }
+
+    /** The signed-in user on the first guard that has one (portal-aware) — for the widget permission gate. */
+    private function actingUser()
+    {
+        foreach ($this->guards() as $guard) {
+            try {
+                if (auth()->guard($guard)->check()) {
+                    return auth()->guard($guard)->user();
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+        }
+
+        return null;
     }
 
     private function make($widget): ?Widget
@@ -200,7 +220,10 @@ class Dashboard
         if (! $permission) {
             return true;
         }
-        $user = auth()->user();
+        // Resolve the user on the SAME portal-aware guard as currentUser() — auth()->user() reads only the
+        // default guard, so on a portal dashboard it is null and every permissioned widget silently vanishes
+        // (or, with a stray default-guard session in the same browser, is judged against the wrong identity).
+        $user = $this->actingUser();
 
         return $user !== null && $user->can($permission);
     }

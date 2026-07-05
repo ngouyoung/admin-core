@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.150
+
+**Fix: the dashboard widget permission gate resolved the default guard, hiding permissioned widgets on a portal.**
+`Dashboard::currentUser()` (cache key + saved layout) was made guard-aware, but `Dashboard::visible()` — the gate
+that decides which widgets a viewer may see and lazy-load — still ran `auth()->user()->can()` on the default
+guard. On a portal dashboard (the user authenticated on e.g. `merchant`, the default `web` guard null) that meant
+every widget with a `can` silently vanished; and with a stray default-guard session in the same browser it would
+be judged against the wrong identity. `visible()` now resolves the user on the same portal-aware guard as
+`currentUser()`. Regression test proves a merchant-guard user sees a widget they're permissioned for even with the
+default guard null (mutation-verified). Found by an eleventh full-package audit (completeness critic — the
+recurring guard-scoping bug class).
+
 ## v2.79.149
 
 **Fix (MED — unwanted overwrite / data loss): `admin-core:reinstall` silently upgraded a MINIMAL install to the

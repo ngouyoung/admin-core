@@ -78,6 +78,25 @@ it('hides a widget the viewer lacks permission for', function () {
     expect($titles)->toBe(['Public']);
 });
 
+it('resolves the widget permission gate on the portal guard, not the default guard (audit-11)', function () {
+    // visible() used auth()->user() (DEFAULT guard only) while currentUser() is guard-aware — so on a portal
+    // dashboard (authed on 'merchant', default 'web' null) every permissioned widget silently vanished. Resolve
+    // the gate on the same portal-aware guard.
+    config()->set('admin-core.permission.guards', ['merchant' => []]);
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+    \Illuminate\Support\Facades\Gate::define('view-wallet', fn ($user) => true);
+    config(['admin-core.dashboard.widgets' => [
+        ['type' => 'stat', 'title' => 'Public', 'value' => fn () => 1],
+        ['type' => 'stat', 'title' => 'Wallet', 'value' => fn () => 2, 'can' => 'view-wallet'],
+    ]]);
+
+    // Authenticated ONLY on the merchant guard (default 'web' guard has no user — the real portal shape).
+    auth()->guard('merchant')->setUser(new \Ngos\AdminCore\Tests\Fixtures\NotifiableUser(['name' => 'M']));
+
+    $titles = app(Dashboard::class)->widgets()->map(fn ($w) => $w->title())->all();
+    expect($titles)->toBe(['Public', 'Wallet']); // the permissioned widget IS visible to the portal user
+});
+
 it('does not share a cached widget payload between two portal (non-default-guard) users', function () {
     // payload() used auth()->id() (DEFAULT guard only), so every merchant-guard user collapsed to one
     // 'guest' cache bucket — user #10's per-user widget value was served to user #20. Key by [id, guard].
