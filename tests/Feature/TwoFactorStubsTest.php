@@ -30,7 +30,7 @@ it('LoginController namespaces the rate-limit key by the login surface (no cross
 it('TwoFactorChallengeController verifies, burns recovery codes single-use, throttles, and clears the pending session', function () {
     expect(tfStub('access/Auth/TwoFactorChallengeController.php.stub'))
         ->toContain('verifyTwoFactorCode(')
-        ->toContain('replaceRecoveryCode(')                 // single-use burn
+        ->toContain('redeemRecoveryCode(')                  // atomic single-use check + burn (lock-guarded)
         ->toContain('RateLimiter::tooManyAttempts')         // dedicated challenge throttle
         ->toContain('RateLimiter::hit')
         ->toContain("forget(['login.id', 'login.remember'])")

@@ -116,6 +116,31 @@ trait TwoFactorAuthenticatable
         ])->save();
     }
 
+    /**
+     * Atomically check + burn a recovery code in one locked transaction, returning whether it was valid.
+     * The check-then-burn in the challenge controller (recoveryCodes()->first() then replaceRecoveryCode())
+     * is a read-then-write with no lock, so two concurrent requests with the SAME code both read it as
+     * unused and both authenticate — the single-use guarantee isn't atomic. Locking the row and re-reading
+     * the stored codes inside the transaction makes the second request block, then see the burned set and fail.
+     */
+    public function redeemRecoveryCode(string $code): bool
+    {
+        return (bool) \Illuminate\Support\Facades\DB::transaction(function () use ($code): bool {
+            $fresh = static::query()->whereKey($this->getKey())->lockForUpdate()->first() ?? $this;
+
+            $matched = collect($fresh->recoveryCodes())
+                ->first(static fn (string $c): bool => hash_equals($c, $code)) !== null;
+
+            if (! $matched) {
+                return false; // already burned by a concurrent request, or never valid
+            }
+
+            $fresh->replaceRecoveryCode($code);
+
+            return true;
+        });
+    }
+
     /** Replace the whole recovery-code set (the "regenerate" action). */
     public function regenerateRecoveryCodes(): void
     {
@@ -150,20 +175,25 @@ trait TwoFactorAuthenticatable
         }
 
         $window = (int) config('admin-core.two_factor.window', 1);
-        $lastUsed = (int) $this->getAttribute('two_factor_last_used_timestamp');
 
-        // verifyKeyNewer rejects a code whose time-step is at/below the last one we accepted, so a still-
-        // valid code can't be replayed within its window. Pass an int (not null) oldTimestamp so it returns
-        // the matched time-step we persist (with null it returns a bare bool and replay can't be tracked).
-        $timestamp = $this->google2fa()->verifyKeyNewer($secret, $code, $lastUsed, $window);
+        // Atomic single-use: lock the row and re-read the last-used step from the DB (not the possibly-stale
+        // in-memory attribute) inside the transaction, so two concurrent requests with the SAME code can't
+        // both pass — the second blocks on the lock, then sees the already-advanced timestamp and is rejected.
+        // verifyKeyNewer rejects a code whose time-step is at/below the last accepted one; passing an int (not
+        // null) oldTimestamp makes it return the matched step to persist (with null it can't track replay).
+        return (bool) \Illuminate\Support\Facades\DB::transaction(function () use ($secret, $code, $window): bool {
+            $fresh = static::query()->whereKey($this->getKey())->lockForUpdate()->first() ?? $this;
+            $lastUsed = (int) $fresh->getAttribute('two_factor_last_used_timestamp');
 
-        if ($timestamp === false) {
-            return false;
-        }
+            $timestamp = $this->google2fa()->verifyKeyNewer($secret, $code, $lastUsed, $window);
+            if ($timestamp === false) {
+                return false;
+            }
 
-        $this->forceFill(['two_factor_last_used_timestamp' => $timestamp])->save();
+            $this->forceFill(['two_factor_last_used_timestamp' => $timestamp])->save();
 
-        return true;
+            return true;
+        });
     }
 
     public function hasEnabledTwoFactorAuthentication(): bool

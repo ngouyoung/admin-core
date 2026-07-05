@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.124
+
+**Fix: a TOTP / recovery code could be redeemed twice under a concurrent-request race.** Both the TOTP check
+(`verifyTwoFactorCode`) and the recovery-code check-then-burn were read-then-write with no lock — two
+near-simultaneous requests carrying the same still-valid code both read it as unused before either persisted
+the invalidation, so both passed and the attacker got two authenticated sessions from a single single-use code.
+`verifyTwoFactorCode()` now runs inside a transaction that locks the row and re-reads the last-used step (so a
+stale in-memory value can't bypass it), and a new atomic `redeemRecoveryCode()` locks + re-reads the stored
+codes + burns in one transaction; the generated 2FA-challenge controller uses it instead of the separate
+check + `replaceRecoveryCode()`. Existing installs: republish the challenge controller (or run
+`admin-core:doctor`) to pick up the atomic recovery path — the TOTP fix reaches everyone via the trait.
+Regression tests prove the locked re-read rejects a replay against an already-advanced DB step, and that a
+recovery code redeems exactly once (mutation-verified). Found by a ninth full-package audit (two-factor-auth
+dimension).
+
 ## v2.79.123
 
 **Fix: per-user UI language ignored portal (non-default-guard) users.** `SetLocale` resolved and persisted the

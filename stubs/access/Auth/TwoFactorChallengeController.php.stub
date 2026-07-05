@@ -59,11 +59,9 @@ class TwoFactorChallengeController extends Controller
         $passed = false;
 
         if ($recovery !== '') {
-            // Constant-time compare each stored code (hash_equals) so a timing side-channel can't leak it.
-            if (collect($user->recoveryCodes())->first(fn ($c) => hash_equals((string) $c, $recovery)) !== null) {
-                $user->replaceRecoveryCode($recovery); // single-use: burn it
-                $passed = true;
-            }
+            // Atomically check + burn the recovery code (single-use) under a row lock, so two concurrent
+            // requests with the same code can't both authenticate. Uses hash_equals internally (no timing leak).
+            $passed = $user->redeemRecoveryCode($recovery);
         } elseif ($code !== '') {
             $passed = $user->verifyTwoFactorCode($code);
         }

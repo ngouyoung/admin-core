@@ -105,6 +105,37 @@ it('burns a used recovery code (single-use) and keeps the set size constant', fu
     expect($after)->not->toContain($used);
 });
 
+it('re-reads the last-used step from the DB under lock (a stale in-memory model cannot bypass single-use)', function () {
+    // The single-use check must read the CURRENT stored step, not a possibly-stale in-memory attribute —
+    // otherwise two concurrent requests (each with its own model instance) could both accept the same code.
+    $u = tfUser();
+    $u->enableTwoFactorAuthentication();
+    $secret = Crypt::decryptString($u->getAttribute('two_factor_secret'));
+    $g = new Google2FA();
+    $code = $g->getCurrentOtp($secret);
+
+    // Simulate a concurrent request having already burned the current step: the DB row's last_used advances,
+    // but THIS instance never refreshed (still null in memory).
+    \Illuminate\Support\Facades\DB::table('users')->where('id', $u->id)
+        ->update(['two_factor_last_used_timestamp' => $g->getTimestamp()]);
+    expect($u->getAttribute('two_factor_last_used_timestamp'))->toBeNull(); // in-memory is stale
+
+    // The atomic re-read sees the already-burned step and rejects the replay (a stale read would have passed).
+    expect($u->verifyTwoFactorCode($code))->toBeFalse();
+});
+
+it('redeems a recovery code atomically — valid once, then rejected (single-use, lock-guarded)', function () {
+    $u = tfUser();
+    $u->enableTwoFactorAuthentication();
+    $code = $u->recoveryCodes()[0];
+
+    expect($u->redeemRecoveryCode($code))->toBeTrue()    // first redemption accepted…
+        ->and($u->redeemRecoveryCode($code))->toBeFalse() // …and the same code is now burned
+        ->and($u->fresh()->recoveryCodes())->not->toContain($code);
+    // An unknown code is rejected without burning anything.
+    expect($u->redeemRecoveryCode('NOPE-NOPE'))->toBeFalse();
+});
+
 it('regenerates the whole recovery-code set', function () {
     $u = tfUser();
     $u->enableTwoFactorAuthentication();
