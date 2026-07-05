@@ -83,6 +83,12 @@ abstract class TestCase extends Orchestra
                 Route::crudSingleton('state-setting', \Ngos\AdminCore\Tests\Fixtures\StateSingletonController::class);
             });
 
+            // Opens the locked-state TOCTOU window (flips the row to locked mid-request) so the inner,
+            // row-locked re-check in SingletonController::update() can be proven.
+            Route::prefix('racy-setting')->name('racySetting.')->group(function () {
+                Route::crudSingleton('racy-setting', \Ngos\AdminCore\Tests\Fixtures\RacySingletonController::class);
+            });
+
             // The approvals inbox (approve / reject the requests that ->requiresApproval() actions create).
             Route::adminCoreApprovals();
 

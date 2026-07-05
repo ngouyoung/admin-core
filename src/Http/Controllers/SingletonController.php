@@ -74,10 +74,19 @@ abstract class SingletonController extends WebController
         // UPDATED, not duplicated. forceFill($scope) AFTER fill($data) re-asserts the owner keys — a
         // tampered/omitted scope column can't repoint the row to another owner, and the scope is set even
         // when the column isn't fillable.
-        $write = fn () => DB::transaction(
-            fn () => $this->service->query()->lockForUpdate()->firstOrNew($scope)
-                ->fill($data)->forceFill($scope)->save(),
-        );
+        $write = fn () => DB::transaction(function () use ($data, $scope) {
+            $locked = $this->service->query()->lockForUpdate()->firstOrNew($scope);
+
+            // Re-check the locked state on the ROW-LOCKED instance: the pre-transaction guard above is a
+            // point-in-time read, so a concurrent transition could move the record into a locked state
+            // between it and this write (e.g. while the FormRequest validated). Mirrors WebController's
+            // guardedWrite(). No-op unless the singleton declares $lockedStates.
+            if ($locked->exists && $this->isLockedState($locked)) {
+                abort(403, __('admin-core::admin-core.states.locked'));
+            }
+
+            return $locked->fill($data)->forceFill($scope)->save();
+        });
 
         if ($record->exists) {
             $write();

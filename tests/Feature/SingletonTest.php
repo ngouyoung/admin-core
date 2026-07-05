@@ -93,3 +93,17 @@ it('enforces the state machine — refuses to edit a LOCKED singleton and strips
     $this->put('/admin/state-setting', ['name' => 'Changed'])->assertForbidden();
     expect(Widget::first()->name)->toBe('Edited');     // unchanged
 });
+
+it('re-checks the locked state under the row lock (TOCTOU: a transition landing mid-request)', function () {
+    // The row is 'open' when update()'s pre-transaction guard runs, so that guard passes — then the racy
+    // controller flips it to 'locked' inside the request window (standing in for a concurrent transition)
+    // BEFORE the row-locked write. Only the re-check on the locked instance inside the transaction can
+    // catch it; without it the write lands on a now-locked record.
+    Widget::create(['name' => 'Doc', 'status' => 'open']);
+
+    $this->put('/admin/racy-setting', ['name' => 'SNEAKED'])->assertForbidden();
+
+    // The write was refused: the name never changed despite passing the point-in-time pre-check.
+    expect(Widget::first()->name)->toBe('Doc')
+        ->and(Widget::first()->status)->toBe('locked');
+});

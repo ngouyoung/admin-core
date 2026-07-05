@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.103
+
+**Fix: a singleton write could land on a now-locked record (TOCTOU).** `SingletonController::update()` checked
+the locked state on a record fetched BEFORE the transaction, then re-resolved the row under `lockForUpdate()`
+inside the transaction to write — but never re-checked the lock there. A concurrent transition moving the
+record into a locked state in that window (e.g. while the FormRequest validated) slipped past the point-in-time
+guard and the write committed onto the locked record. The re-check now runs on the row-locked instance inside
+the transaction, exactly as `WebController::guardedWrite()` already does for the CRUD paths — closing the same
+race for the singleton path it claimed to mirror. Regression test opens the window deterministically (flips the
+row to locked mid-request, after the pre-check, before the write) and asserts the write is refused
+(mutation-verified). Found by an eighth full-package audit (state-guards + regression-review dimensions).
+
 ## v2.79.102
 
 **Security fix: the access kit let a narrow grant escalate to super-admin.** The generated `RoleService` and
