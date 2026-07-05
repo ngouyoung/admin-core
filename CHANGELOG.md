@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.132
+
+**Fix: a search term's LIKE wildcards (`%`, `_`) matched over-broadly.** Global search built its pattern as
+`'%' . $term . '%'` without escaping the LIKE metacharacters in the term, so an underscore acted as a
+single-character wildcard — searching `a_c` matched `aXc` (or any single char in that slot), returning rows the
+user never searched for (a surprise disclosure of unrelated records that use `_`/`%` as literal separators).
+Parameter binding already prevented SQL injection here; this fixes the wildcard semantics. The term's `\`, `%`
+and `_` are now escaped and the LIKE carries an explicit `ESCAPE '\'` (portable across MySQL + SQLite), so
+those characters match literally. Regression test proves an underscore matches only a literal underscore, not
+a wildcard collision (mutation-verified). Found by a ninth full-package audit (global-search dimension).
+
 ## v2.79.131
 
 **Fix: the notification bell loaded EVERY unread row on every page render.** The topbar bell read

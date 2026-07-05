@@ -66,8 +66,14 @@ class Search
                 ? app($service)->query()
                 : $model::query();
 
+            // Escape the LIKE metacharacters (%, _, \) in the user's term so they match LITERALLY — an
+            // underscore in the query used to act as a single-char wildcard (searching 'a_c' matched 'aXc'),
+            // returning rows the user never searched for. The pattern carries an explicit ESCAPE '\' (portable
+            // across MySQL + SQLite; MySQL's default is already '\', SQLite has none unless stated).
+            $like = '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
+
             $rows = $base
-                ->where(function ($q) use ($columns, $term, $casts, $locale) {
+                ->where(function ($q) use ($columns, $like, $casts, $locale) {
                     foreach ($columns as $col) {
                         if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $col)) {
                             continue; // only plain column identifiers are searchable
@@ -83,9 +89,9 @@ class Search
                             // latent injection. Binding it makes a hostile locale a harmless wrong-path lookup;
                             // sanitising to locale-safe chars keeps the path well-formed too.
                             $safeLocale = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $locale);
-                            $q->orWhereRaw("json_extract(`{$col}`, ?) LIKE ?", ['$."' . $safeLocale . '"', '%' . $term . '%']);
+                            $q->orWhereRaw("json_extract(`{$col}`, ?) LIKE ? ESCAPE '\\'", ['$."' . $safeLocale . '"', $like]);
                         } else {
-                            $q->orWhere($col, 'like', '%' . $term . '%');
+                            $q->orWhereRaw("`{$col}` LIKE ? ESCAPE '\\'", [$like]);
                         }
                     }
                 })

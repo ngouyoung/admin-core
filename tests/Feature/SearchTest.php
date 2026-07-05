@@ -35,6 +35,19 @@ it('matches case-insensitively across rows and caps per group', function () {
     expect(Search::query('alpha', perGroup: 0))->toHaveCount(0); // cap respected
 });
 
+it('treats a LIKE metacharacter in the term LITERALLY (underscore is not a single-char wildcard)', function () {
+    Widget::create(['name' => 'aXc gadget']);  // would match the pattern %a_c% if _ were a wildcard
+    Widget::create(['name' => 'a_c literal']); // the literal underscore the user typed
+
+    // Underscore must match ONLY a literal underscore — not any single char.
+    $results = collect(Search::query('a_c'))->pluck('label');
+    expect($results)->toContain('a_c literal')   // the literal match
+        ->not->toContain('aXc gadget');           // NOT the wildcard collision
+
+    // A percent is literal too — searching '%' matches nothing (no name contains a literal %).
+    expect(Search::query('%'))->toHaveCount(0);
+});
+
 it('returns nothing for a blank term or when no resources are configured', function () {
     expect(Search::query(''))->toBe([]);
 
