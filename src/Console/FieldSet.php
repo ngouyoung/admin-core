@@ -1993,7 +1993,10 @@ PHP;
                     $rules = [$required, "'string'"];
                     break;
                 case 'integer':
-                    $rules = [$required, "'integer'"];
+                    // Bound to the signed 32-bit range of the `->integer()` column: a larger value passes the
+                    // bare `integer` rule but overflows the column, which MySQL's default strict mode rejects
+                    // with an uncaught QueryException (a 500) instead of a clean 422. Mirrors decimal/money.
+                    $rules = [$required, "'integer'", "'between:-2147483648,2147483647'"];
                     break;
                 case 'decimal':
                     // Cap the magnitude/scale to the column's decimal(p,s) so an over-long value can't be

@@ -124,6 +124,16 @@ it('builds a money field with a currency-aware MoneyAmount rule (not a fixed dec
         ->toContain("new \\Ngos\\AdminCore\\Rules\\MoneyAmount('@currency')");
 });
 
+it('bounds an integer rule to the 32-bit column range (a larger value 422s, not 500s on overflow)', function () {
+    // A plain `integer` column is a signed 32-bit INT; without a bound, 5000000000 passes `integer`
+    // validation then overflows the column (uncaught QueryException / 500 in MySQL strict mode).
+    expect(fs('qty:integer')->storeRules())
+        ->toContain("'qty' => ['required', 'integer', 'between:-2147483648,2147483647']");
+    // A nullable integer keeps the same bound.
+    expect(fs('qty:integer?')->storeRules())
+        ->toContain("'qty' => ['nullable', 'integer', 'between:-2147483648,2147483647']");
+});
+
 it('builds an enum select backed by a generated enum class', function () {
     $f = fs('status:enum:draft|published')->setClass('Product');
     // Validation + form both reference the backed enum — the single source of truth.

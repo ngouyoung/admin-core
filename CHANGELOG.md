@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.107
+
+**Fix: an `integer` field had no magnitude cap, so an over-range value 500'd on insert.** A generated
+`integer` column is a signed 32-bit `INT` (±2,147,483,647), but its FormRequest rule was just
+`['required', 'integer']` — so a larger value (e.g. 5000000000 from a bad client-side conversion) passed
+validation, then overflowed the column, which MySQL's default strict mode rejects with an uncaught
+`QueryException` surfacing as a 500 instead of a clean 422. The rule now bounds the value to the column's
+32-bit range (`between:-2147483648,2147483647`), mirroring the magnitude caps decimal and money fields already
+carry. Regression test covers a required and nullable integer field (mutation-verified). Found by an eighth
+full-package audit (validation dimension).
+
 ## v2.79.106
 
 **Fix: money validation used a fixed bound that ignored the currency's decimals, 500'ing a >4-decimal
