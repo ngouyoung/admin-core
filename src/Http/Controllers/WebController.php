@@ -1317,13 +1317,13 @@ abstract class WebController extends BaseController
         // throws ValidationException and redirects back with errors, exactly like any form. [] when no form.
         $input = $resolved->hasForm() ? $request->validate($resolved->formRules()) : [];
 
-        // A pure action (no state move) has no state to claim — dedupe a double-submit via the form's one-time
-        // submit token, claimed up front (atomic put-if-absent). A repeat 409s; a failed run releases it below,
-        // so a genuine retry (same token) still goes through. A state-moving transition uses its state-claim.
-        $isPure = ! $resolved->movesState();
-        if ($isPure) {
-            abort_unless($this->claimSubmitToken(), 409);
-        }
+        // Dedupe a double-submit (double-click / retry) via the form's one-time submit token, claimed up front
+        // (atomic put-if-absent). This is the ONLY dedup for an operation that does NOT change the state — a pure
+        // action (no ->to()) AND a self-loop transition (target == the record's current state) — because the
+        // conditional state-claim below is then a no-op that can't tell a first submit from a repeat. A genuine
+        // state move is additionally deduped by that claim. No token in the form (an older form) → a harmless
+        // no-op (returns true). A repeat 409s; a failed run releases it below so a genuine retry still goes through.
+        abort_unless($this->claimSubmitToken(), 409);
 
         $key = $this->service->query()->getModel()->getRouteKeyName();
         try {
@@ -1335,19 +1335,29 @@ abstract class WebController extends BaseController
                 abort_unless($resolved->passesGuard($record), 422);
 
                 if ($resolved->movesState()) {
-                    // Atomic claim: advance the state with a conditional update keyed on the state we just read,
-                    // so a concurrent or double-submitted transition can't also win (correct even where
-                    // lockForUpdate is a no-op, e.g. SQLite). 0 rows affected = lost the race.
-                    // Match the stored value by its null-ness: a NULL column needs whereNull, since
-                    // `where(col, '')` never matches NULL — which made a fromAny transition on a NULL-status
-                    // record always lose the claim (a spurious 409 though the button showed).
-                    $claim = $this->service->query()->where($key, $id);
-                    $claim = $record->{$this->stateColumn} === null
-                        ? $claim->whereNull($this->stateColumn)
-                        : $claim->where($this->stateColumn, $current);
-                    $claimed = $claim->update([$this->stateColumn => $resolved->toState()]) === 1;
-                    abort_unless($claimed, 409);
-                    $record->{$this->stateColumn} = $resolved->toState();
+                    if ($current === (string) $resolved->toState()) {
+                        // Self-loop: the record is ALREADY in the target state (a fromAny/from-list transition
+                        // whose target equals the current state), so there is nothing to advance. Skip the
+                        // conditional update — `SET status=X WHERE status=X` is a no-op that matches EVERY submit
+                        // on SQLite/Postgres (so the side-effect would run again on a double-submit) and reports 0
+                        // rows changed on MySQL (a spurious 409 that breaks even the first submit). The submit
+                        // token above already dedupes the double-submit; the side-effect below runs exactly once.
+                        $record->{$this->stateColumn} = $resolved->toState();
+                    } else {
+                        // Atomic claim: advance the state with a conditional update keyed on the state we just
+                        // read, so a concurrent or double-submitted transition can't also win (correct even where
+                        // lockForUpdate is a no-op, e.g. SQLite). 0 rows affected = lost the race.
+                        // Match the stored value by its null-ness: a NULL column needs whereNull, since
+                        // `where(col, '')` never matches NULL — which made a fromAny transition on a NULL-status
+                        // record always lose the claim (a spurious 409 though the button showed).
+                        $claim = $this->service->query()->where($key, $id);
+                        $claim = $record->{$this->stateColumn} === null
+                            ? $claim->whereNull($this->stateColumn)
+                            : $claim->where($this->stateColumn, $current);
+                        $claimed = $claim->update([$this->stateColumn => $resolved->toState()]) === 1;
+                        abort_unless($claimed, 409);
+                        $record->{$this->stateColumn} = $resolved->toState();
+                    }
                 }
 
                 // Run the side-effect with the validated input; a throw rolls the whole transaction back (the
@@ -1356,9 +1366,9 @@ abstract class WebController extends BaseController
                 $record->save(); // persist any mutations the handler made on the record
             });
         } catch (\Throwable $e) {
-            if ($isPure) {
-                $this->releaseSubmitToken(); // the action didn't complete — don't burn its token
-            }
+            // The action didn't complete — release the one-time token so a genuine retry goes through.
+            // A no-op when the form carried no token (submitToken() null), so it is safe to call unconditionally.
+            $this->releaseSubmitToken();
 
             throw $e;
         }

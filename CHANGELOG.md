@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.145
+
+**Fix (HIGH — idempotency / data corruption): a self-loop state transition re-ran its side-effect on a
+double-submit, and 409'd its first submit on MySQL.** A transition whose target equals the record's current
+state (a `fromAny()->to('x')` on a record already in `x`, or a `from([...])->to()` self-loop) took the state-claim
+path — `UPDATE SET status=x WHERE status=x`. That no-op update matches a row on every submit on SQLite/Postgres,
+so a double-click ran the side-effect (post-to-stock, a notification, a counter) TWICE; and on MySQL it reports 0
+rows *changed*, so even the first legitimate submit got a spurious 409 and the transition was unusable. The
+guarantee "a double-click can't run the side-effect twice" now holds for self-loops too: `runTransition()` claims
+the form's one-time submit token for EVERY transition (not just pure no-move actions) — the real dedup for any
+operation that doesn't change state — and skips the no-op self-loop update entirely (so MySQL no longer 409s the
+first submit). A genuine A→B move is unchanged (still additionally deduped by its state-claim). Regression test
+proves a self-loop side-effect runs once and the reposted token 409s the duplicate (mutation-verified). Found by
+an eleventh full-package audit (state-machine dimension — the self-loop gap flagged after audit-10).
+
 ## v2.79.144
 
 **Security fix (HIGH — stored XSS): the rich-text sanitizer was a blocklist regex with real bypasses.**

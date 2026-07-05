@@ -64,6 +64,12 @@ class ActionWidgetController extends WebController
                 ->form(['counted' => ['required', 'numeric', 'min:0'], 'note' => ['nullable', 'string']])
                 ->handle(fn ($record, array $input) => $record->photo = 'counted:' . $input['counted'] . '|note:' . ($input['note'] ?? '')),
 
+            // A SELF-LOOP transition (fromAny -> a state the record can already be in) WITH an observable
+            // side-effect. Its dedup can't come from the state-claim (SET X WHERE X is a no-op), only the
+            // submit token — the audit-11 double-run / MySQL-409 regression case.
+            Transition::make('recount')->fromAny()->to('cancelled')->withoutPermission()
+                ->handle(fn ($record) => $record->sort = (int) $record->sort + 1),
+
             // A PURE action (no ->to()) — runs a side-effect without moving state, idempotent via the submit token.
             Transition::make('pay-in')->fromAny()->withoutPermission()
                 ->guard(fn ($record) => $record->name !== 'no-payin') // a vetoing guard, for the release test

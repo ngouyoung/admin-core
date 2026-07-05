@@ -87,6 +87,23 @@ it('runs a fromAny transition on a record whose state is NULL (the claim matches
     expect($w->fresh()->status)->toBe('cancelled');
 });
 
+it('runs a self-loop transition once and dedupes the double-submit (side-effect not doubled)', function () {
+    // 'recount' is fromAny->to('cancelled') with a +1 side-effect. On a record ALREADY 'cancelled' it is a
+    // self-loop: the state doesn't change, so `SET status=cancelled WHERE status=cancelled` is a no-op that would
+    // (a) match every submit on SQLite/PG → the +1 runs twice on a double-click, and (b) report 0 rows changed on
+    // MySQL → a spurious 409 on the FIRST submit. The fix skips that no-op and dedupes via the submit token.
+    $w = Widget::create(['name' => 'Doc', 'status' => 'cancelled', 'sort' => 0]);
+    $token = (string) \Illuminate\Support\Str::uuid();
+
+    // First submit succeeds (NOT a spurious 409) and runs the side-effect once.
+    $this->post(transition($w, 'recount'), ['_idempotency_key' => $token])->assertRedirect();
+    expect($w->fresh()->sort)->toBe(1)->and($w->fresh()->status)->toBe('cancelled');
+
+    // A double-click reposts the SAME one-time token → deduped (409); the side-effect does NOT run again.
+    $this->post(transition($w, 'recount'), ['_idempotency_key' => $token])->assertStatus(409);
+    expect($w->fresh()->sort)->toBe(1); // still 1 — not doubled to 2
+});
+
 // -- Form-input actions (validated input → handler) --------------------------------------------------
 
 it('validates posted input and passes it to the handler of a state transition', function () {
