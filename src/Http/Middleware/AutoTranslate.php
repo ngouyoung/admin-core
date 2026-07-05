@@ -80,7 +80,12 @@ class AutoTranslate
         }
 
         foreach ($fields as $field) {
-            $values = $request->input($field);
+            // The _translate[] marker carries the field's raw name, which for a repeater-nested translatable
+            // field is bracketed (items[0][title]). Request::input()/merge() speak dot notation, not brackets,
+            // so without normalising, input('items[0][title]') returns null and the field is silently skipped
+            // (no auto-fill, contradicting the documented behaviour). items[0][title] -> items.0.title.
+            $dotField = str_replace(['[', ']'], ['.', ''], $field);
+            $values = $request->input($dotField);
 
             if (! is_array($values)) {
                 continue; // not a per-locale field group — leave it alone
@@ -106,8 +111,12 @@ class AutoTranslate
             }
 
             // Merge BEFORE bailing on an exhausted budget: the translations above were already fetched
-            // (quota spent) — discarding them would save nothing and lose real values.
-            $request->merge([$field => $values]);
+            // (quota spent) — discarding them would save nothing and lose real values. data_set writes back
+            // into the NESTED structure (items.0.title => …), which merge([$field => …]) can't do for a
+            // bracketed name (it would create a literal "items[0][title]" key the form/save never reads).
+            $input = $request->all();
+            data_set($input, $dotField, $values);
+            $request->replace($input);
 
             if ($budget <= 0) {
                 break;

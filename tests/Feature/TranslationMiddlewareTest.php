@@ -65,6 +65,23 @@ it('fills empty locales from the one the user filled, and strips the marker', fu
         ->and($request->has('_translate'))->toBeFalse();        // marker removed
 });
 
+it('fills a REPEATER-NESTED translatable field (bracketed name → dot notation)', function () {
+    // A translatable field inside a repeater posts items[0][title][en]/[km] with the marker value
+    // "items[0][title]". input()/merge() speak dot notation, so without normalising, the field was silently
+    // skipped (no auto-fill) — the exact break this fixes.
+    app()->setLocale('en');
+    $request = Request::create('/save', 'POST', [
+        '_translate' => ['items[0][title]'],
+        'items' => [0 => ['title' => ['en' => '', 'km' => 'សួស្ដី']]],
+    ]);
+
+    runAutoTranslate($request);
+
+    expect($request->input('items.0.title.km'))->toBe('សួស្ដី')          // source untouched
+        ->and($request->input('items.0.title.en'))->toBe('[en] សួស្ដី')  // empty locale filled (was skipped before)
+        ->and($request->input('items.0.title'))->toBe(['en' => '[en] សួស្ដី', 'km' => 'សួស្ដី']); // nested, not a flat key
+});
+
 it('never overwrites a locale the user already typed', function () {
     app()->setLocale('en');
     $request = Request::create('/save', 'POST', [

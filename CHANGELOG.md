@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.119
+
+**Fix: auto-translate silently skipped a repeater-nested translatable field.** The `_translate[]` marker
+carries a field's raw name, which for a translatable field inside a repeater row is bracketed
+(`items[0][title]`) — but `AutoTranslate::fill()` read it with `$request->input('items[0][title]')`, and
+`input()` speaks dot notation, not PHP brackets, so it returned `null`, the field was treated as "not a
+per-locale group", and skipped with no error. So a repeater-nested translated field never got its blank
+locales filled, contradicting the documented "fill one language, the rest fill on save" behaviour; the
+write-back had the same bug (`merge(['items[0][title]' => …])` set a literal flat key the save never reads).
+Both now normalise the bracketed name to dot notation (`items.0.title`) for the read and use `data_set()` for
+the nested write-back. Regression test fills a repeater-nested field and asserts the nested structure (a flat
+field still works — no regression; mutation-verified). Found by a ninth full-package audit
+(translation-locale-middleware dimension).
+
 ## v2.79.118
 
 **Two lifecycle-command fixes that silently destroyed a user's install/customisations.**
