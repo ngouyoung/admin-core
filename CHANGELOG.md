@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.112
+
+**Security fix: an APP_KEY rotation permanently locked out every confirmed-2FA user.**
+`hasConfirmedTwoFactorAuthentication()` checked only the `two_factor_confirmed_at` timestamp — but after an
+APP_KEY rotation (a normal ops action) the encrypted secret + recovery codes no longer decrypt, so
+`verifyTwoFactorCode()`/`recoveryCodes()` reject every code and every recovery code forever. The login flow
+still challenged the user (confirmed = true) but they could never pass, and since login had already logged them
+out to challenge them, they could never reach the disable page either — a permanent lockout of the entire
+install the day APP_KEY changes, fixable only by an operator nulling the DB columns. The docblock even *claimed*
+graceful degradation. It now genuinely degrades: `hasConfirmedTwoFactorAuthentication()` also requires the
+secret to still decrypt, so a rotated key reads as "not configured" — the user signs in with the password alone
+and re-sets-up 2FA (the enforce middleware redirects them to setup; no lockout). Regression test seeds a
+confirmed user, simulates the rotation, and asserts the degrade (mutation-verified). Found by a ninth
+full-package audit (two-factor-auth dimension — a subsystem no prior audit had covered).
+
 ## v2.79.111
 
 **Fix: a repeater-nested translatable field never lit `is-invalid` or showed its error.** Every other field

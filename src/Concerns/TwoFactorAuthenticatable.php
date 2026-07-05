@@ -171,10 +171,19 @@ trait TwoFactorAuthenticatable
         return ! is_null($this->getAttribute('two_factor_secret'));
     }
 
-    /** The login flow gates on this — never on hasEnabled — so an unconfirmed setup can't lock anyone out. */
+    /**
+     * The login flow gates on this — never on hasEnabled — so an unconfirmed setup can't lock anyone out.
+     *
+     * Also requires the secret to still DECRYPT: after an APP_KEY rotation the stored secret + recovery
+     * codes are unreadable, so verifyTwoFactorCode()/recoveryCodes() would reject every code forever — and
+     * since the login flow already logged the user out to challenge them, they could never reach the disable
+     * page: a permanent lockout of every confirmed-2FA user. Degrading to "not configured" here (the
+     * documented graceful-degrade) lets them sign in with the password alone and re-set-up 2FA instead.
+     */
     public function hasConfirmedTwoFactorAuthentication(): bool
     {
-        return ! is_null($this->getAttribute('two_factor_confirmed_at'));
+        return ! is_null($this->getAttribute('two_factor_confirmed_at'))
+            && $this->decryptedSecret() !== '';
     }
 
     protected function decryptedSecret(): string

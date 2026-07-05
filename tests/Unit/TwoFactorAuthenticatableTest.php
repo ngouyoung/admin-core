@@ -123,6 +123,23 @@ it('degrades to not-configured when the stored secret cannot be decrypted', func
     expect($u->recoveryCodes())->toBe([]);
 });
 
+it('does not report a CONFIRMED user as confirmed when the secret is undecryptable (APP_KEY rotation lockout)', function () {
+    // A confirmed user whose secret was encrypted under an OLD APP_KEY: after rotation the secret can't
+    // decrypt, so verifyTwoFactorCode()/recoveryCodes() reject every code forever. The login flow already
+    // logs the user out to challenge them, so if hasConfirmed stayed true they'd be locked out PERMANENTLY
+    // (never able to reach the disable page). It must degrade to false → password-only login → re-setup.
+    $u = tfUser();
+    $u->enableTwoFactorAuthentication();
+    $secret = Crypt::decryptString($u->getAttribute('two_factor_secret'));
+    $u->confirmTwoFactor((new Google2FA())->getCurrentOtp($secret));
+    expect($u->fresh()->hasConfirmedTwoFactorAuthentication())->toBeTrue(); // confirmed, secret decrypts
+
+    // Simulate APP_KEY rotation: the stored ciphertext no longer decrypts under the current key.
+    $u->forceFill(['two_factor_secret' => 'ciphertext-from-a-rotated-key'])->save();
+
+    expect($u->fresh()->hasConfirmedTwoFactorAuthentication())->toBeFalse(); // degrades → not a lockout
+});
+
 it('rejects replay of a code already used within its window', function () {
     config(['admin-core.two_factor.window' => 1]);
     $u = tfUser();
