@@ -13,20 +13,23 @@
 @if ($acUser
     && \Illuminate\Support\Facades\Route::has($acNs . 'notifications.index')
     && method_exists($acUser, 'unreadNotifications'))
-    @php($acUnread = $acUser->unreadNotifications)
+    {{-- A bounded COUNT + a 6-row preview — NOT $acUser->unreadNotifications (which loads EVERY unread row,
+         data payload included, on every page render, scaling with the user's backlog). --}}
+    @php($acUnreadCount = $acUser->unreadNotifications()->count())
+    @php($acPreview = $acUnreadCount ? $acUser->unreadNotifications()->latest()->take(6)->get() : collect())
     <div class="dropdown" data-ac-bell>
         <a href="#" class="ac-icon-btn position-relative" data-bs-toggle="dropdown" role="button" title="{{ __('admin-core::admin-core.notifications.title') }}">
             <i class="bi bi-bell"></i>
-            @if ($acUnread->count())
+            @if ($acUnreadCount)
                 <span class="badge rounded-pill text-bg-danger position-absolute top-0 start-100 translate-middle"
-                      style="font-size:.6rem" data-ac-bell-count data-count="{{ $acUnread->count() }}">{{ $acUnread->count() > 9 ? '9+' : $acUnread->count() }}</span>
+                      style="font-size:.6rem" data-ac-bell-count data-count="{{ $acUnreadCount }}">{{ $acUnreadCount > 9 ? '9+' : $acUnreadCount }}</span>
             @endif
         </a>
         <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-0"
              style="border-radius:1rem; min-width:320px; max-width:360px">
             <div class="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
                 <h6 class="mb-0">{{ __('admin-core::admin-core.notifications.title') }}</h6>
-                @if ($acUnread->count())
+                @if ($acUnreadCount)
                     <form action="{{ route($acNs . 'notifications.readAll') }}" method="POST" class="m-0">
                         @csrf
                         <button class="btn btn-link btn-sm p-0 text-decoration-none">{{ __('admin-core::admin-core.notifications.mark_all_read') }}</button>
@@ -34,7 +37,7 @@
                 @endif
             </div>
             <div style="max-height:360px; overflow-y:auto">
-                @forelse ($acUnread->take(6) as $n)
+                @forelse ($acPreview as $n)
                     <form action="{{ route($acNs . 'notifications.read', $n->id) }}" method="POST" class="m-0">
                         @csrf
                         <button type="submit" class="dropdown-item d-flex gap-2 py-2 text-wrap border-bottom">

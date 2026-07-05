@@ -158,6 +158,34 @@ it('the bell honours the configurable route name_prefix (not a hardcoded admin.)
     expect($html)->toContain('/panel/notifications')->not->toContain('/admin/notifications');
 });
 
+it('renders the bell with a bounded count + 6-item preview, never loading every unread row', function () {
+    // The bell reads unreadNotifications() as a COUNT + a LIMIT-6 fetch — NOT the full relation, which would
+    // hydrate every unread row (data payload included) on every page render, scaling with the user's backlog.
+    Route::middleware('web')->prefix('admin')->name('admin.')->group(fn () => Route::adminCoreNotifications());
+    Route::getRoutes()->refreshNameLookups();
+
+    $user = NotifiableUser::create(['name' => 'A']);
+    for ($i = 0; $i < 20; $i++) {
+        seedNotification($user); // 20 unread
+    }
+    $this->actingAs($user);
+
+    \Illuminate\Support\Facades\DB::enableQueryLog();
+    $html = \Illuminate\Support\Facades\Blade::render('<x-admin-core::notifications-bell />');
+    $queries = collect(\Illuminate\Support\Facades\DB::getQueryLog())->pluck('query');
+
+    // No unbounded SELECT of the notifications rows — the row fetch is LIMIT-ed, and the badge is a COUNT.
+    $selects = $queries->filter(fn ($q) => str_contains($q, 'from "notifications"') && str_contains($q, 'read_at'));
+    expect($selects->filter(fn ($q) => str_contains($q, 'select *')))
+        ->each(fn ($q) => $q->toContain('limit 6'))            // any full-row select is bounded to 6
+        ->and($selects->contains(fn ($q) => str_contains($q, 'count(')))->toBeTrue(); // the badge is a COUNT
+    // Badge shows the capped label, and only 6 preview items are rendered.
+    expect($html)->toContain('data-count="20"')->toContain('9+')
+        ->and(substr_count($html, 'notifications/read/'))->toBeLessThanOrEqual(6);
+
+    \Illuminate\Support\Facades\DB::disableQueryLog();
+});
+
 it('follows a notification url only when relative/same-host (no open redirect)', function () {
     $user = NotifiableUser::create(['name' => 'A']);
 

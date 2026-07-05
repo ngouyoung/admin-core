@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.131
+
+**Fix: the notification bell loaded EVERY unread row on every page render.** The topbar bell read
+`$user->unreadNotifications` (the full MorphMany relation) just to show a badge count and a 6-item preview — so
+it ran an unbounded `select * from notifications … where read_at is null`, hydrating every unread row (the
+`longText` `data` payload included) into memory, on every authenticated admin page. A user with a large unread
+backlog paid a full-table fetch per navigation. The bell now uses a `count()` query for the badge and a
+`latest()->take(6)->get()` for the preview — O(1) + O(6) regardless of backlog (mirroring
+`NotificationController::index()`). Existing installs: republish the component (it's a package view, so most
+installs get it automatically). Regression test renders the bell over 20 unread rows with the query log on and
+asserts every full-row select is `limit 6` and the badge is a `count()` (mutation-verified). Found by a ninth
+full-package audit (notification-broadcast-authz dimension).
+
 ## v2.79.130
 
 **Fix: an activity-log "updated" row was written even when only hidden columns changed.** When an audited
