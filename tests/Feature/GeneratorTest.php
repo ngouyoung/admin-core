@@ -109,6 +109,23 @@ it('injects the legacy Blade sidebar link with the CONFIGURED route prefix, not 
     }
 });
 
+it('refuses reusing an admin controller for a different portal/guard (would misauthorize on the wrong guard)', function () {
+    // The portal collision: Http/Controllers/Backend/{Class}Controller.php is portal-agnostic, so scaffolding
+    // the same resource name for a second portal/guard finds the admin controller already present and — because
+    // files are skipped-if-exist — keeps it. That controller has no guard pin, so the new channel's @can checks
+    // resolve on the wrong guard and its redirects target admin.* routes. The generator must REFUSE, not skip.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+    $adminController = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    expect($adminController)->not->toContain('$this->guard = '); // admin resource pins no guard
+
+    // Same name, a merchant guard — must FAIL and leave the admin controller byte-for-byte untouched.
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--guard' => 'merchant'])->assertFailed();
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))->toBe($adminController);
+
+    // A plain SAME-guard re-run still skips cleanly (no false conflict on the matching guard).
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+});
+
 it('seeds a generated menu label into the host locale JSON so it can be translated', function () {
     config([
         'admin-core.translation.locales' => ['en' => 'English', 'km' => 'ខ្មែរ'],

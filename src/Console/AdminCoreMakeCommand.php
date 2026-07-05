@@ -423,11 +423,34 @@ class AdminCoreMakeCommand extends Command
         // CRUD index view referencing a getData route the singleton doesn't register. Refuse unless --force.
         $controllerPath = app_path("Http/Controllers/Backend/{$class}Controller.php");
         if ($web && File::exists($controllerPath) && ! $this->option('force')) {
-            $existingIsSingleton = str_contains(File::get($controllerPath), 'extends SingletonController');
+            $existingController = File::get($controllerPath);
+            $existingIsSingleton = str_contains($existingController, 'extends SingletonController');
             if ($existingIsSingleton !== $singleton) {
                 $this->error("{$class} already exists as a " . ($existingIsSingleton ? 'singleton' : 'full/read-only')
                     . ' resource — a ' . ($singleton ? 'singleton' : 'full/read-only')
                     . ' re-run would leave a broken mix. Use --force to convert it (overwrites), or match the existing mode.');
+
+                return self::FAILURE;
+            }
+
+            // Guard against a PORTAL collision: the controller path is portal-agnostic
+            // (Http/Controllers/Backend/{$class}Controller.php), so scaffolding the same resource name for a
+            // second portal/guard would find this file already present and — because files are skipped-if-exist —
+            // KEEP the original one. That original carries the FIRST channel's guard/routePrefix (or none, for an
+            // admin resource), so the new portal's permission @can checks resolve on the wrong guard and its
+            // redirects target the wrong route prefix. Detect the mismatch by the controller's pinned guard and
+            // refuse rather than silently misauthorize. --force overwrites (which then breaks the other channel —
+            // use a distinct resource name per portal instead).
+            preg_match("/\\\$this->guard = '([^']*)';/", $existingController, $guardMatch);
+            $existingGuard = $guardMatch[1] ?? '';
+            $intendedGuard = (string) ($guardOpt ?? '');
+            if ($existingGuard !== $intendedGuard) {
+                $describe = fn (string $g) => $g === '' ? 'the default (admin) guard' : "the '{$g}' guard";
+                $this->error("{$class} already exists as a controller for {$describe($existingGuard)}, but this "
+                    . "run targets {$describe($intendedGuard)}. They share app/Http/Controllers/Backend/{$class}Controller.php, "
+                    . 'so the existing controller would be kept and the new channel would authorize on the wrong guard '
+                    . 'and redirect to the wrong route prefix. Use a distinct resource name per portal, or --force to '
+                    . 'overwrite (which breaks the other channel).');
 
                 return self::FAILURE;
             }

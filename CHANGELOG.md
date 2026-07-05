@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.135
+
+**Fix: scaffolding the same resource name for a second portal/guard silently reused the first controller,
+authorizing on the wrong guard.** The controller lives at a portal-agnostic path
+(`app/Http/Controllers/Backend/{Class}Controller.php`), so `admin-core:make Product` (admin) followed by
+`admin-core:make Product --portal=merchant` found the controller already present and — files being
+skipped-if-exist — kept the admin one. That controller pins no `routePrefix`/`guard`, so the merchant resource's
+`@can` buttons resolved against the default web guard and its redirects targeted `admin.products.*` (a merchant
+user bounced out of their portal). The generator now detects the mismatch — the existing controller's pinned
+guard vs the guard this run targets — and refuses with a clear message (use a distinct resource name per portal,
+or `--force` to overwrite) instead of silently misauthorizing. A same-guard re-run still skips cleanly (no false
+conflict). Regression test proves the merchant re-run fails and leaves the admin controller byte-for-byte intact
+(mutation-verified). Found by a tenth full-package audit (generator-orchestration dimension).
+
 ## v2.79.134
 
 **Security fix (HIGH — privilege escalation in the access kit): `edit-user` alone allowed taking over a
