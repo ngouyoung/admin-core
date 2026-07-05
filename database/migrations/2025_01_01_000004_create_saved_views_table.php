@@ -20,12 +20,13 @@ return new class extends Migration
         Schema::create('saved_views', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id');
-            $table->string('resource');           // the controller's $resource slug, e.g. "product"
+            $table->string('guard')->nullable();  // the auth guard the user_id belongs to (multi-portal): so
+            $table->string('resource');           // id 5 on 'web' never collides with id 5 on 'merchant'
             $table->string('name');
             $table->json('filters');              // { "col": "value", "dateCol": { "from": …, "to": … } }
             $table->timestamps();
-            $table->index(['user_id', 'resource']);
-            $table->unique(['user_id', 'resource', 'name']); // saving an existing name overwrites
+            $table->index(['user_id', 'guard', 'resource']);
+            $table->unique(['user_id', 'guard', 'resource', 'name']); // saving an existing name overwrites
         });
     }
 

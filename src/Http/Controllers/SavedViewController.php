@@ -32,8 +32,9 @@ class SavedViewController extends Controller
             'filters' => ['nullable', 'array'],
         ]);
 
+        [$userId, $guard] = $this->actor();
         $view = SavedView::query()->updateOrCreate(
-            ['user_id' => $this->userId(), 'resource' => $data['resource'], 'name' => $data['name']],
+            ['user_id' => $userId, 'guard' => $guard, 'resource' => $data['resource'], 'name' => $data['name']],
             ['filters' => $data['filters'] ?? []],
         );
 
@@ -48,22 +49,40 @@ class SavedViewController extends Controller
         return response()->json(['deleted' => true]);
     }
 
-    /** Saved views belonging to the current user only. */
+    /** Saved views belonging to the current user only — scoped by BOTH id and guard (see actor()). */
     private function scoped(): \Illuminate\Database\Eloquent\Builder
     {
-        return SavedView::query()->where('user_id', $this->userId());
+        [$userId, $guard] = $this->actor();
+
+        return SavedView::query()->where('user_id', $userId)->where('guard', $guard);
     }
 
     /**
-     * The current user's id — saved views are personal state, so an unauthenticated request is refused rather
-     * than reading/writing user_id=null rows (which would be shared across guests). The endpoints normally
-     * sit inside an auth-gated admin group; this is defence-in-depth.
+     * The current user's [id, guard]. Scoping by id ALONE is a cross-portal IDOR: a multi-portal install has
+     * independent user tables per guard (App\Models\User id 5 on 'web', App\Models\Merchant id 5 on
+     * 'merchant'), so a bare `where('user_id', auth()->id())` lets a merchant read/overwrite/delete an admin's
+     * saved view of the same numeric id. Resolve the guard the user is actually authenticated on (default +
+     * any configured portal guard) and scope by both. Unauthenticated → 403 (personal state, never guest-shared).
+     *
+     * @return array{0: int|string, 1: string}
      */
-    private function userId(): int|string
+    private function actor(): array
     {
-        $id = auth()->id();
-        abort_if($id === null, 403);
+        $guards = array_unique(array_merge(
+            [(string) config('auth.defaults.guard', 'web')],
+            array_keys((array) config('admin-core.permission.guards', [])),
+        ));
 
-        return $id;
+        foreach ($guards as $guard) {
+            try {
+                if (auth()->guard($guard)->check()) {
+                    return [auth()->guard($guard)->id(), (string) $guard];
+                }
+            } catch (\Throwable) {
+                continue; // a guard named in admin-core config but not defined in auth.php — skip
+            }
+        }
+
+        abort(403);
     }
 }

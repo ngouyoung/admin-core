@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.115
+
+**Security fix: saved list views were cross-portal — a merchant could read/overwrite/delete an admin's view of
+the same id.** `SavedViewController` scoped every operation by `where('user_id', auth()->id())` with no guard
+discriminator, and `saved_views` had no guard column. In a multi-portal install the guards have independent
+user tables (id 5 on `web` ≠ id 5 on `merchant`), so a merchant-guard user whose id collided with an admin's
+could list the admin's saved view (name + filters leak), delete it, or — via the `(user_id, resource, name)`
+unique index — overwrite it in place by saving the same name. `saved_views` now carries a `guard` column
+(added to the create migration + an upgrade migration that backfills existing rows to the default guard and
+widens the index/unique to include guard, mirroring v2.79.83's dashboard_layouts fix), and the controller
+resolves the guard the user is actually authenticated on (default + any configured portal guard) and scopes by
+`(user_id, guard)`. Regression test proves the merchant guard can't read/overwrite/delete a web user's view of
+the same id (mutation-verified). **Existing installs: run `php artisan migrate`.** Found by a ninth
+full-package audit (saved-views dimension).
+
 ## v2.79.114
 
 **Security fix: a cached dashboard widget leaked one portal user's data to another.** `Dashboard::payload()`

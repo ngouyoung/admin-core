@@ -9,13 +9,14 @@ use Illuminate\Database\Eloquent\Model;
  * {status: overdue, due_to: today}). One row per (user, resource, name) — saving the same name overwrites.
  *
  * @property int $user_id
+ * @property string|null $guard
  * @property string $resource
  * @property string $name
  * @property array|null $filters
  */
 class SavedView extends Model
 {
-    protected $fillable = ['user_id', 'resource', 'name', 'filters'];
+    protected $fillable = ['user_id', 'guard', 'resource', 'name', 'filters'];
 
     protected $casts = ['filters' => 'array'];
 }
