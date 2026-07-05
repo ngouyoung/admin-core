@@ -123,12 +123,19 @@ abstract class WebController extends BaseController
      */
     protected function savedViews(): array
     {
-        if ($this->resource === '' || $this->listFilters() === [] || auth()->id() === null || ! Schema::hasTable('saved_views')) {
+        // Resolve the user on THIS resource's guard ($this->guard, portal-aware) — not auth()->id(), which
+        // reads only the default guard (so it was null for a portal user, hiding their views) AND is
+        // guard-agnostic, which would leak/collide a merchant's views with a web user of the same id. Scope by
+        // (user_id, guard) to match SavedViewController's storage (the cross-portal IDOR fixed in v2.79.115 —
+        // this list-bar read path was the other half of it).
+        $userId = $this->actingUser()?->getAuthIdentifier();
+        if ($this->resource === '' || $this->listFilters() === [] || $userId === null || ! Schema::hasTable('saved_views')) {
             return [];
         }
 
         return \Ngos\AdminCore\Models\SavedView::query()
-            ->where('user_id', auth()->id())
+            ->where('user_id', $userId)
+            ->where('guard', $this->guard ?? (string) config('auth.defaults.guard', 'web'))
             ->where('resource', $this->resource)
             ->orderBy('name')
             ->get(['id', 'name', 'filters'])

@@ -116,6 +116,38 @@ it('scopes by guard so a portal user cannot read/overwrite/delete another guard 
     expect(SavedView::find($aliceRow->id))->not->toBeNull();
 });
 
+it('scopes the list-bar Views dropdown (WebController::savedViews) by guard too, not just user_id', function () {
+    // The v2.79.115 IDOR fix scoped the SavedView ENDPOINTS by guard — this is the other read path (the list
+    // filter bar's "Views" dropdown). It must scope by (user_id, guard) as well, or a merchant sees a web
+    // user's saved views of the same id.
+    config()->set('admin-core.permission.guards', ['merchant' => []]);
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+
+    $alice = NotifiableUser::create(['name' => 'Alice']); // id 1, on 'web'
+    SavedView::create(['user_id' => $alice->id, 'guard' => 'web', 'resource' => 'widgets', 'name' => 'Mine', 'filters' => []]);
+    SavedView::create(['user_id' => $alice->id, 'guard' => 'merchant', 'resource' => 'widgets', 'name' => 'Theirs', 'filters' => []]);
+
+    $controller = new class extends \Ngos\AdminCore\Http\Controllers\WebController
+    {
+        protected string $resource = 'widgets';
+
+        protected function listFilters(): array
+        {
+            return [['column' => 'name', 'type' => 'text', 'label' => 'Name']];
+        }
+
+        public function exposeSavedViews(): array
+        {
+            return $this->savedViews();
+        }
+    };
+
+    $this->actingAs($alice, 'web'); // a WEB-guard user
+    $names = collect($controller->exposeSavedViews())->pluck('name');
+    expect($names)->toContain('Mine')          // the web-guard view…
+        ->not->toContain('Theirs');            // …NOT the merchant-guard view of the same id
+});
+
 it('requires a resource and name', function () {
     $this->actingAs(NotifiableUser::create(['name' => 'U']));
 

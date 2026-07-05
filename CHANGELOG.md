@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.133
+
+**Security fix (completeness follow-up to v2.79.115): the list-bar "Views" dropdown leaked saved views across
+portals.** v2.79.115 guard-scoped the SavedView *endpoints*, but the OTHER read path —
+`WebController::savedViews()`, which populates the list filter bar's "Views" dropdown — still queried
+`where('user_id', auth()->id())` with no guard, so a merchant could see a web user's saved views of the same
+numeric id. It now resolves the user on the resource's own guard (`$this->guard`) and scopes by
+`(user_id, guard)`, matching the endpoints' storage. This also fixes a latent bug where the dropdown was always
+empty for a portal user (`auth()->id()` reads only the default guard, which is null on a portal request).
+Regression test proves a web user's dropdown excludes a merchant-guard view of the same id (mutation-verified).
+Found by the post-audit completeness re-scan (the recurring guard-scoping bug class — see v2.79.83/114/115/123).
+
 ## v2.79.132
 
 **Fix: a search term's LIKE wildcards (`%`, `_`) matched over-broadly.** Global search built its pattern as
