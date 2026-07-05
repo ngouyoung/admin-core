@@ -21,6 +21,24 @@ it('drops items whose route does not exist and prunes the now-empty header', fun
         ->and(collect($items)->pluck('header')->filter()->all())->toBe([]); // "Ghosts" header pruned
 });
 
+it('hides a menu item whose route needs a required parameter (would 500 every page)', function () {
+    // A parameterized route (things/{thing}) can't be built as a plain sidebar link — route($name) throws
+    // UrlGenerationException, which, since the sidebar renders on EVERY page, 500s the whole panel (incl. the
+    // Menu manager, so the bad item couldn't even be removed via the UI). It must be hidden. An OPTIONAL
+    // parameter ({thing?}) builds fine, so it stays.
+    \Illuminate\Support\Facades\Route::get('things/{thing}', fn () => '')->name('admin.things.show');
+    \Illuminate\Support\Facades\Route::get('opt/{thing?}', fn () => '')->name('admin.things.optional');
+    \Illuminate\Support\Facades\Route::getRoutes()->refreshNameLookups();
+
+    $items = Sidebar::items([
+        ['label' => 'Widgets', 'route' => 'admin.widgets.index'],    // parameterless → shown
+        ['label' => 'Thing', 'route' => 'admin.things.show'],        // required {thing} → hidden (no 500)
+        ['label' => 'Optional', 'route' => 'admin.things.optional'], // optional {thing?} → shown
+    ]);
+
+    expect(collect($items)->pluck('label')->all())->toBe(['Widgets', 'Optional']);
+});
+
 it('keeps a header that still has a visible item', function () {
     $items = Sidebar::items([
         ['header' => 'Main'],

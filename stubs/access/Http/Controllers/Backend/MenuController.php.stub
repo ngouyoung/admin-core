@@ -53,8 +53,24 @@ class MenuController extends WebController
         $prefix = config('admin-core.route.name_prefix', 'admin.');
 
         return collect(RouteFacade::getRoutes()->getRoutesByName())
-            ->filter(fn ($route, $name) => str_starts_with((string) $name, $prefix) && in_array('GET', $route->methods(), true))
+            ->filter(fn ($route, $name) => str_starts_with((string) $name, $prefix)
+                && in_array('GET', $route->methods(), true)
+                // Skip routes with a REQUIRED parameter — a plain menu link can't supply it, and route($name)
+                // would then throw UrlGenerationException and 500 every page the sidebar renders on.
+                && $this->routeIsBuildable($route))
             ->keys()->sort()->values()->all();
+    }
+
+    /** Whether a route can be linked with no arguments (no required parameter; an optional {x?} is fine). */
+    protected function routeIsBuildable($route): bool
+    {
+        foreach ($route->parameterNames() as $param) {
+            if (! str_contains($route->uri(), '{' . $param . '?}')) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** @return array<int, string> */

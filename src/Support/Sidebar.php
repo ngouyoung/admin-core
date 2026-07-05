@@ -90,15 +90,40 @@ class Sidebar
         return $out;
     }
 
-    /** A single (leaf) item is visible when its route exists and its permission passes (for the given guard). */
+    /** A single (leaf) item is visible when its route exists, is buildable, and its permission passes. */
     private static function visible(array $item, ?string $guard): bool
     {
-        if (isset($item['route']) && ! Route::has($item['route'])) {
-            return false;
+        if (isset($item['route'])) {
+            if (! Route::has($item['route'])) {
+                return false; // a route for an un-installed feature — hide it
+            }
+            // A route needing REQUIRED parameters can't be built as a plain sidebar link (there's no model to
+            // bind): route($name) throws UrlGenerationException. The sidebar renders on EVERY page, so that would
+            // 500 the whole panel — including the Menu manager itself, so a mistakenly-added item (the route
+            // dropdown used to offer parameterized routes) couldn't even be removed via the UI. Hide it instead.
+            if (! self::routeIsBuildable($item['route'])) {
+                return false;
+            }
         }
 
         if (! empty($item['can']) && config('admin-core.permission.enabled')) {
             return (bool) auth()->guard($guard)->user()?->can($item['can']);
+        }
+
+        return true;
+    }
+
+    /** Whether a named route can be built with no arguments — i.e. it has no REQUIRED parameter (optional ok). */
+    private static function routeIsBuildable(string $name): bool
+    {
+        $route = Route::getRoutes()->getByName($name);
+        if ($route === null) {
+            return false;
+        }
+        foreach ($route->parameterNames() as $param) {
+            if (! str_contains($route->uri(), '{' . $param . '?}')) {
+                return false; // a required (non-optional) parameter → route($name) would throw
+            }
         }
 
         return true;

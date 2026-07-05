@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.147
+
+**Fix (MED — panel-wide DoS + self-lockout): a menu item pointing at a parameterized route 500'd every page.**
+The database Menu manager's route dropdown offered every GET route under the name prefix — including
+parameterized ones like `admin.products.show` (`/products/{product}`) — and the sidebar only checked
+`Route::has()`, never that the route was *buildable*. Saving such an item made the sidebar-menu component call
+`route($item['route'])` with no argument, throwing `UrlGenerationException`; because the sidebar renders on every
+authenticated page, the whole panel returned HTTP 500 — including the Menu manager itself, so the offending row
+couldn't be removed via the UI (recovery needed direct DB surgery). `Sidebar::visible()` now hides any item whose
+route has a REQUIRED parameter (an optional `{x?}` still builds and stays), so a bad item degrades to hidden
+instead of 500-ing the panel; and the Menu manager's route dropdown no longer offers parameterized routes at the
+source. Regression test proves a required-parameter route item is hidden while parameterless/optional ones stay
+(mutation-verified). Found by an eleventh full-package audit (nestable-tree dimension).
+
 ## v2.79.146
 
 **Fix (follow-up to v2.79.137): the opt-in `media_scope='own'` was not guard-aware, so it broke — and leaked —
