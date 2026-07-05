@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.102
+
+**Security fix: the access kit let a narrow grant escalate to super-admin.** The generated `RoleService` and
+`UserService` synced whatever `permissions`/`roles` ids the request carried with NO check that the acting user
+held that authority — so an account granted only `edit-role` could sync EVERY permission onto its own role,
+and one granted only `edit-user` could assign itself the super role: a self-service privilege escalation from
+two plausible "account management" grants, behind only the coarse `permission:edit-role`/`edit-user` gates. A
+new `GrantsWithinOwnAuthority` service trait enforces least privilege — an actor may only hand out permissions
+it holds and roles whose permissions it holds; the super role is assignable only by a super holder (it carries
+no explicit permissions, so a subset check can't protect it). Only newly ADDED grants are checked (the new set
+minus the record's current), so renaming a role/user — which resubmits current grants — never breaks; a
+super-role holder is unrestricted and a console/seeder context (no actor) is exempt; the super role resolves
+per active guard (portals name their own). Both service stubs now `use` the trait. Regression tests cover the
+edit-role and edit-user escalations, the resubmit-current exemption, the super/console exemptions and the stub
+wiring (mutation-verified). Found by an eighth full-package audit (access-permissions dimension).
+
 ## v2.79.101
 
 **Fix: CSV import was 100% broken for any resource with a required password field.** Export and the import

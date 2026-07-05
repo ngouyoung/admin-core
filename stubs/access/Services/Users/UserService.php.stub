@@ -7,9 +7,12 @@ use App\Services\Roles\RoleService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Hash;
 use Ngos\AdminCore\Services\BaseService;
+use Ngos\AdminCore\Services\Concerns\GrantsWithinOwnAuthority;
 
 class UserService extends BaseService
 {
+    use GrantsWithinOwnAuthority;
+
     private RoleService $roleService;
 
     public function __construct(User $user, RoleService $roleService)
@@ -24,8 +27,13 @@ class UserService extends BaseService
         unset($data['roles']);
         $data['password'] = Hash::make($data['password']);
 
+        // Least-privilege: the editor may only assign roles within their own authority — otherwise
+        // `edit-user` alone lets an account hand itself the super role (self-service escalation).
+        $assigned = $this->roleService->query()->whereIn('id', $roles)->get();
+        $this->assertCanGrantRoles($assigned, []);
+
         $user = $this->model->create($data);
-        $user->syncRoles($this->roleService->query()->whereIn('id', $roles)->get());
+        $user->syncRoles($assigned);
 
         return $user;
     }
@@ -41,8 +49,12 @@ class UserService extends BaseService
         }
 
         $user = $this->find($id);
+        // Only newly ADDED roles are checked, so editing the name/email (resubmitting current roles) is fine.
+        $assigned = $this->roleService->query()->whereIn('id', $roles)->get();
+        $this->assertCanGrantRoles($assigned, $user->roles->pluck('id'));
+
         $user->update($data);
-        $user->syncRoles($this->roleService->query()->whereIn('id', $roles)->get());
+        $user->syncRoles($assigned);
 
         return $user;
     }

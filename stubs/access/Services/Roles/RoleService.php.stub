@@ -6,9 +6,12 @@ use App\Models\Role;
 use App\Services\Permissions\PermissionService;
 use Illuminate\Database\Eloquent\Model;
 use Ngos\AdminCore\Services\BaseService;
+use Ngos\AdminCore\Services\Concerns\GrantsWithinOwnAuthority;
 
 class RoleService extends BaseService
 {
+    use GrantsWithinOwnAuthority;
+
     private PermissionService $permissionService;
 
     public function __construct(Role $role, PermissionService $permissionService)
@@ -23,8 +26,13 @@ class RoleService extends BaseService
         unset($data['permissions']);
         $data['guard_name'] = $data['guard_name'] ?? 'web';
 
+        // Least-privilege: the editor may only grant permissions they hold themselves — otherwise
+        // `edit-role` alone is a self-service escalation (sync every permission onto your own role).
+        $granted = $this->permissionService->query()->whereIn('id', $permissions)->get();
+        $this->assertCanGrantPermissions($granted, []);
+
         $role = $this->model->create($data);
-        $role->syncPermissions($this->permissionService->query()->whereIn('id', $permissions)->get());
+        $role->syncPermissions($granted);
 
         return $role;
     }
@@ -35,8 +43,12 @@ class RoleService extends BaseService
         unset($data['permissions']);
 
         $role = $this->find($id);
+        // Only newly ADDED permissions are checked, so editing the name (resubmitting current grants) is fine.
+        $granted = $this->permissionService->query()->whereIn('id', $permissions)->get();
+        $this->assertCanGrantPermissions($granted, $role->permissions->pluck('id'));
+
         $role->update($data);
-        $role->syncPermissions($this->permissionService->query()->whereIn('id', $permissions)->get());
+        $role->syncPermissions($granted);
 
         return $role;
     }
