@@ -405,6 +405,32 @@ it('ignores a UTF-8 BOM and non-fillable columns on import (round-trips export)'
     expect($w->id)->not->toBe(7); // the id column was ignored, not forced
 });
 
+it('retries a create on a transient deadlock (outermost transaction, so the attempts loop fires)', function () {
+    // A sequence-number contention raises a deadlock inside the create; the retry belongs at the OUTERMOST
+    // transaction (store's DB::transaction(..., 3)) — nested it's dead code. One transient deadlock must be
+    // retried transparently, not surfaced as a failed submission.
+    $fired = 0;
+    Widget::creating(function () use (&$fired) {
+        $fired++;
+        if ($fired === 1) {
+            // A concurrency error Laravel's DB::transaction attempts-loop recognises + retries.
+            throw new \Illuminate\Database\QueryException(
+                'testing', 'insert into "widgets"', [],
+                new \RuntimeException('Deadlock found when trying to get lock; try restarting transaction'),
+            );
+        }
+    });
+
+    try {
+        $this->post('/admin/widgets', ['name' => 'Retried'])->assertRedirect(route('admin.widgets.index'));
+
+        expect($fired)->toBe(2)                                       // deadlocked once, retried, succeeded
+            ->and(Widget::where('name', 'Retried')->exists())->toBeTrue();
+    } finally {
+        Widget::flushEventListeners(); // don't leak the one-shot listener into other tests
+    }
+});
+
 it('scopes find() through an overridden query() — the BaseService tenant hook', function () {
     $visible = Widget::create(['name' => 'Visible']);
     $hidden = Widget::create(['name' => 'Hidden']);

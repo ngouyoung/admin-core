@@ -102,7 +102,9 @@ abstract class ApiController extends BaseController
         // Same write-time guards as the web store(): drop fields the user may not write, and refuse a direct
         // set of the state column (it moves only through a transition). No-ops unless the resource declares a policy.
         $data = $this->stripStateColumn($this->stripDeniedFields(app($this->storeRequest)->validated()));
-        $object = DB::transaction(fn () => $this->service->create($data));
+        // Retry the whole create on a deadlock/lock-wait (the 3): the outermost transaction is where Laravel's
+        // attempts loop actually fires, so a sequence-number contention re-runs instead of failing the request.
+        $object = DB::transaction(fn () => $this->service->create($data), 3);
 
         return (new ($this->resource)($object))->response()->setStatusCode(201);
     }

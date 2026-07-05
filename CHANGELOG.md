@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.127
+
+**Fix: the sequence-counter's deadlock retry was dead code, so a contended create failed instead of retrying.**
+`Sequence::increment()` wrapped its lock+increment in `DB::transaction(…, 3)` claiming a 3-attempt
+deadlock retry — but it runs NESTED inside the calling create's transaction, and Laravel disables the attempts
+loop once nested (a deadlock throws straight out). So under real concurrency (two users creating the same
+sequenced document), a deadlock on the counter row 500'd the submission rather than retrying as documented. The
+retry now lives where it actually fires — the OUTERMOST transaction: `WebController`/`ApiController::store()`
+wrap `create()` in `DB::transaction(…, 3)`, so a rollback releases the number and the whole create re-runs
+transparently (the gap-free guarantee is preserved — the released number is reused). The misleading `, 3` and
+comment on the nested transaction are removed/corrected. Regression test forces one transient deadlock during a
+create and asserts the submission still succeeds after a retry (mutation-verified). Found by a ninth
+full-package audit (sequence-concurrency dimension).
+
 ## v2.79.126
 
 **Security fix: the maker could approve their own request (no segregation of duties).** The Approvals inbox

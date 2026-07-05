@@ -38,8 +38,13 @@ final class Sequence
     /** Atomically bump and return the counter for (key, period). */
     private static function increment(string $key, string $period): int
     {
-        // The 3 = retry the transaction on a deadlock (DB::transaction's built-in concurrency-error retry). The
-        // first-create unique(key, period) race is recovered inside firstOrCreate()/createOrFirst() itself.
+        // NO retry argument here: this runs inside the CALLING create's transaction (see the class docblock),
+        // so it's nested — and Laravel disables DB::transaction()'s attempts loop once nested, throwing a
+        // deadlock straight out instead of retrying (a `, 3` here was dead code in the real call path). Retry
+        // on contention belongs at the OUTERMOST transaction — WebController/ApiController::store() wrap
+        // create() in `DB::transaction(..., N)`, where a rollback releases this number and the whole create
+        // re-runs, keeping the gap-free guarantee. The inner transaction remains so lockForUpdate holds a lock
+        // when Sequence::next() is instead called standalone (outside any surrounding transaction).
         return DB::transaction(function () use ($key, $period) {
             // lockForUpdate serialises concurrent transactions on the existing row (a no-op on SQLite, which is
             // single-writer anyway), so the increment is never lost.
@@ -50,6 +55,6 @@ final class Sequence
             $row->increment('value');
 
             return (int) $row->value;
-        }, 3);
+        });
     }
 }

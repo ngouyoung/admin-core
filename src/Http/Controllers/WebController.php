@@ -157,7 +157,10 @@ abstract class WebController extends BaseController
         }
 
         try {
-            DB::transaction(fn () => $this->service->create($data));
+            // Retry the WHOLE create on a deadlock/lock-wait (the 3): this is the OUTERMOST transaction, so
+            // Laravel's attempts loop actually fires here (it's disabled once nested) — a sequence-number
+            // contention rolls back and the create transparently re-runs instead of 500-ing the submission.
+            DB::transaction(fn () => $this->service->create($data), 3);
         } catch (\Throwable $e) {
             $this->releaseSubmitToken(); // a real failure — let the user retry the same token
             throw $e;
