@@ -77,7 +77,12 @@ function initCustomize() {
     if (!grid || !toggle) return;
 
     const actions = document.querySelector('[data-ac-customize-actions]');
-    const hidden = new Set();
+    // Seed from the widgets the user has ALREADY hidden (the server excludes them from the DOM), so a
+    // reorder-only save resubmits the full hidden list instead of an empty one — which used to silently
+    // un-hide every previously-hidden widget on the next save.
+    let seededHidden = [];
+    try { seededHidden = JSON.parse(grid.getAttribute('data-ac-hidden') || '[]'); } catch (e) { seededHidden = []; }
+    const hidden = new Set(Array.isArray(seededHidden) ? seededHidden : []);
     let dragEl = null;
 
     const setTools = (show) => grid.querySelectorAll('.ac-widget-tools').forEach((t) => t.classList.toggle('d-none', !show));

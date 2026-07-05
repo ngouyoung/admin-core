@@ -9,6 +9,10 @@
     $acWidgets = $acDashboard->arranged();
     $acPresets = \Ngos\AdminCore\Dashboard\DashboardContext::presets();
 
+    // The keys the user has already hidden — the JS seeds its `hidden` set from this so a REORDER-only save
+    // resubmits the full hidden list (empty per-session, it used to wipe previously-hidden widgets on save).
+    $acHidden = $acDashboard->layout()['hidden'] ?? [];
+
     $acPrefix = config('admin-core.route.name_prefix');
     $acHasEndpoint = \Illuminate\Support\Facades\Route::has($acPrefix . 'dashboard.widget');
     // The lazy/refresh endpoint rebuilds the context from ITS request, so the widget URL must carry the
@@ -58,7 +62,7 @@
     @endif
 @endonce
 
-<div class="row g-3" data-ac-dashboard @if ($acLayoutUrl) data-ac-layout-url="{{ $acLayoutUrl }}" @endif>
+<div class="row g-3" data-ac-dashboard data-ac-hidden="{{ json_encode(array_values((array) $acHidden)) }}" @if ($acLayoutUrl) data-ac-layout-url="{{ $acLayoutUrl }}" @endif>
     @forelse ($acWidgets as $acWidget)
         @php
             $acSpan = max(1, min(12, $acWidget->colSpan()));

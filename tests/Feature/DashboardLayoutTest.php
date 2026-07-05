@@ -46,6 +46,17 @@ it('arranges widgets by the user saved order and hides the hidden ones', functio
     expect(app(Dashboard::class)->arranged()->map(fn ($w) => $w->key())->all())->toBe(['c', 'a']);
 });
 
+it('emits the hidden widget keys on the grid so the JS can preserve them across a reorder-only save', function () {
+    $user = NotifiableUser::create(['name' => 'U']);
+    DashboardLayout::create(['user_id' => $user->id, 'guard' => 'web', 'layout' => ['order' => ['c', 'a'], 'hidden' => ['b']]]);
+    $this->actingAs($user);
+
+    // The component must publish the already-hidden keys — without them the JS seeds an empty set and the
+    // next reorder-save wipes the stored hidden list, resurrecting widget b.
+    $html = \Illuminate\Support\Facades\Blade::render('<x-admin-core::dashboard />');
+    expect($html)->toContain('data-ac-hidden="[&quot;b&quot;]"'); // json_encode(['b']), HTML-escaped
+});
+
 it('falls back to the declared order when the user has no saved layout', function () {
     $this->actingAs(NotifiableUser::create(['name' => 'U']));
 

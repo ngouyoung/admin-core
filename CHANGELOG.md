@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.125
+
+**Fix: a reorder-only "Save layout" silently un-hid previously-hidden dashboard widgets.** The customize JS
+built the `hidden` list from a `Set` populated only by clicks made in the CURRENT session — but the server
+excludes already-hidden widgets from the DOM, so they could never be re-added, and `saveLayout()` fully
+REPLACES the stored layout. So hiding widget B, then later re-entering customize just to reorder A/C and
+saving, wrote `hidden: []` and resurrected B. The dashboard component now emits the user's current hidden keys
+as `data-ac-hidden`, and the JS seeds its `hidden` set from them — so a reorder-only save resubmits the full
+hidden list (a freshly-hidden widget is added to it, not replacing it). Existing installs: republish the JS
+stub. Regression tests: the component emits the hidden keys (Pest); a reorder-only save preserves them and a
+new hide adds to them (vitest, mutation-verified). Found by a ninth full-package audit (dashboard-widgets
+dimension).
+
 ## v2.79.124
 
 **Fix: a TOTP / recovery code could be redeemed twice under a concurrent-request race.** Both the TOTP check

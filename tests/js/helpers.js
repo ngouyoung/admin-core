@@ -22,3 +22,4 @@ export const DATATABLE_STUB = 'stubs/frontend/resources/js/datatable.js.stub';
 export const MEDIA_PICKER_STUB = 'stubs/frontend/resources/js/media-picker.js.stub';
 export const COMPUTE_STUB = 'stubs/frontend/resources/js/compute.js.stub';
 export const NOTIFY_STUB = 'stubs/frontend/resources/js/notify.js.stub';
+export const DASHBOARD_STUB = 'stubs/frontend/resources/js/dashboard.js.stub';
