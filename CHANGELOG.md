@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.142
+
+**Fix: a plain-number rollup summed with binary float, leaking drift into JSON/API output.** `Rollup::sum()`
+accumulated non-money children with `+= (float) $value`, so a `decimal:2` child rollup (`total:rollup:lines.hours`)
+serialised `0.1 + 0.2` as `0.30000000000000004` in a `--api` response / `toArray()`, and an integer child past
+2^53 lost whole units (two rows of 9007199254740993 summed to …984, not …986). Money rollups were already exact
+(via `Money`); this fixes the plain-number branch. Integer-valued operands now accumulate as exact 64-bit ints,
+and fractional operands sum with bcmath (exact decimal) when available, falling back to float only without the
+ext — the final value is derived from the exact sum, so it serialises as the clean `0.3`. Regression tests cover
+the decimal-drift serialisation and the past-2^53 integer sum (mutation-verified). Found by a tenth full-package
+audit (money/rollup dimension).
+
 ## v2.79.141
 
 **Fix: a multi-word belongsToMany column rendered its list badges as literal `<span>` markup.** A generated

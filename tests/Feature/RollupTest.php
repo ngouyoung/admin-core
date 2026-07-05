@@ -54,6 +54,23 @@ it('sums plain numbers numerically and an empty set to 0', function () {
         ->and(Rollup::sum(collect([]), 'n'))->toBe(0);
 });
 
+it('sums plain decimals without binary-float drift in the serialized output', function () {
+    // A non-money numeric rollup over a decimal:2 child: (float)0.10 + (float)0.20 = 0.30000000000000004, which
+    // JSON-serialises verbatim in an --api response. The exact (bcmath) sum serialises as the clean 0.3.
+    $items = collect([(object) ['n' => '0.10'], (object) ['n' => '0.20']]);
+
+    expect(json_encode(['t' => Rollup::sum($items, 'n')]))->toBe('{"t":0.3}'); // not 0.30000000000000004
+})->skip(! function_exists('bcadd'), 'bcmath not available — exact decimal sum needs it');
+
+it('sums integer children exactly past 2^53 (no float precision loss)', function () {
+    // A plain int rollup: two rows of 2^53+1. Summed as float this loses whole units (…984); as int it is exact.
+    $big = 9007199254740993; // 2^53 + 1
+    $items = collect([(object) ['n' => $big], (object) ['n' => $big]]);
+
+    expect(Rollup::sum($items, 'n'))->toBe(18014398509481986)                 // exact, not 18014398509481984
+        ->and(json_encode(Rollup::sum($items, 'n')))->toBe('18014398509481986');
+});
+
 it('returns a formatted currency ZERO for an EMPTY money-column rollup (not a bare int 0)', function () {
     // An empty set has no Money to infer the type from — but the child model's cast reveals it's money, so
     // an order with no lines shows "$0.00" like every populated sibling, not "0".

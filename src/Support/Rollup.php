@@ -49,7 +49,7 @@ final class Rollup
                 }
             } else {
                 $sawNumeric = true;
-                $numeric += (float) $value;
+                $numeric = self::addNumeric($numeric, $value);
             }
         }
 
@@ -63,14 +63,93 @@ final class Rollup
             return $money;
         }
         if ($sawNumeric) {
-            return $numeric;
+            return self::finalizeNumeric($numeric);
         }
 
         // Empty / all-null: return a money ZERO (formatted, in the column's currency) when the child attribute
         // is money-cast — so a document with no lines shows "$0.00" like every populated sibling, not "0".
         $currency = $related !== null ? self::moneyZeroCurrency($related, $attribute) : false;
 
-        return $currency !== false ? Money::fromMinor(0, $currency === '' ? null : $currency) : $numeric;
+        return $currency !== false ? Money::fromMinor(0, $currency === '' ? null : $currency) : 0;
+    }
+
+    /**
+     * Add a child numeric value to the running total WITHOUT binary-float drift where possible. Integer-valued
+     * operands accumulate as exact 64-bit PHP ints — so an int column past 2^53 keeps every unit (a plain
+     * `+= (float)` lost them). A fractional operand sums with bcmath (exact decimal: 0.1 + 0.2 = 0.3, not
+     * 0.30000000000000004) when the ext is present, falling back to float only without it. Returns an int
+     * mid-accumulation while every operand stays integral, else a bcmath decimal string.
+     *
+     * @param  int|float|string  $value  the child attribute (a `decimal:n` cast hands back a numeric STRING)
+     */
+    private static function addNumeric(int|float|string $carry, int|float|string $value): int|float|string
+    {
+        if (self::isIntegral($carry) && self::isIntegral($value)) {
+            return (int) $carry + (int) $value;
+        }
+        if (function_exists('bcadd')) {
+            $a = self::decimalString($carry);
+            $b = self::decimalString($value);
+
+            return bcadd($a, $b, max(self::scaleOf($a), self::scaleOf($b)));
+        }
+
+        return (float) $carry + (float) $value;
+    }
+
+    /** Whether a numeric operand has no fractional part (so it can accumulate as an exact int). */
+    private static function isIntegral(int|float|string $n): bool
+    {
+        if (is_int($n)) {
+            return true;
+        }
+        if (is_float($n)) {
+            return is_finite($n) && floor($n) === $n;
+        }
+
+        return (bool) preg_match('/^[+-]?\d+$/', trim($n));
+    }
+
+    /** A numeric value as a plain decimal string (no scientific notation), for bcmath. */
+    private static function decimalString(int|float|string $n): string
+    {
+        if (is_int($n)) {
+            return (string) $n;
+        }
+        if (is_string($n)) {
+            $t = trim($n);
+
+            return is_numeric($t) ? $t : '0';
+        }
+        // Float → fixed-point string (12 places is ample for money/decimal casts), trailing zeros trimmed.
+        $s = rtrim(rtrim(sprintf('%.12F', $n), '0'), '.');
+
+        return $s === '' || $s === '-' ? '0' : $s;
+    }
+
+    /** Decimal places in a plain decimal string. */
+    private static function scaleOf(string $n): int
+    {
+        $dot = strpos($n, '.');
+
+        return $dot === false ? 0 : strlen($n) - $dot - 1;
+    }
+
+    /**
+     * Collapse the running total to sum()'s declared int|float return. An integral total stays an exact int;
+     * a decimal (bcmath) string becomes the nearest float — but computed from the EXACT decimal sum, so it
+     * JSON-encodes as the clean value (0.3), not the accumulation drift a running float sum would show.
+     */
+    private static function finalizeNumeric(int|float|string $n): int|float
+    {
+        if (is_int($n) || is_float($n)) {
+            return $n;
+        }
+        if (preg_match('/^[+-]?\d+$/', $n)) {
+            return $n === (string) (int) $n ? (int) $n : (float) $n; // exact int when it round-trips, else float
+        }
+
+        return (float) $n;
     }
 
     /**
