@@ -383,7 +383,9 @@ it('builds a translatable field (JSON + array cast + translatable-input + per-lo
     // which would match the JSON KEYS too (searching "en" would match every row's {"en":…}).
     expect($f->getDataColumns())
         ->toContain("->filterColumn('name', function (\$q, \$keyword) {")
-        ->toContain("\$sub->orWhere('name->' . \$acLocale, 'like', '%' . \$keyword . '%');");
+        // Routes through the shared escaped helper (LIKE metacharacters escaped + ESCAPE clause), not a raw LIKE.
+        ->toContain("\\Ngos\\AdminCore\\Support\\Search::whereJsonLike(\$sub, 'name', \$acLocale, \$keyword, 'or');")
+        ->not->toContain("'like', '%' . \$keyword . '%'");
 });
 
 it('the generated translatable filterColumn searches the locale VALUE, not the JSON key', function () {
@@ -397,11 +399,11 @@ it('the generated translatable filterColumn searches the locale VALUE, not the J
         ['name' => json_encode(['en' => 'Bicycles', 'km' => 'កង់'])],
     ]);
 
-    // The exact body the generator emits: search each locale's JSON value.
+    // The exact body the generator emits: search each locale's JSON value via the shared escaped helper.
     $search = function ($q, $keyword) {
         $q->where(function ($sub) use ($keyword) {
             foreach (array_keys((array) config('admin-core.translation.locales', ['en' => 'English'])) as $acLocale) {
-                $sub->orWhere('name->' . $acLocale, 'like', '%' . $keyword . '%');
+                \Ngos\AdminCore\Support\Search::whereJsonLike($sub, 'name', $acLocale, $keyword, 'or');
             }
         });
     };
@@ -415,6 +417,11 @@ it('the generated translatable filterColumn searches the locale VALUE, not the J
     $q2 = Illuminate\Support\Facades\DB::table('tl_prods');
     $search($q2, 'Phone');
     expect($q2->count())->toBe(1);
+
+    // A LIKE metacharacter is escaped: 'Phon_s' matches the LITERAL, so NOT 'Phones' via a `_` wildcard.
+    $q3 = Illuminate\Support\Facades\DB::table('tl_prods');
+    $search($q3, 'Phon_s');
+    expect($q3->count())->toBe(0);
 
     Schema::dropIfExists('tl_prods');
 });
@@ -444,10 +451,11 @@ it('makes a belongsTo list column searchable and sortable by the related name', 
     // JS column carries a name and is no longer searchable:false (so the global search + sort reach it).
     expect($f->columnsJs())->toContain("{data: 'category', name: 'category'}");
 
-    // getData wires the search (whereHas on the related name) and sort (correlated subquery).
+    // getData wires the search (whereHas on the related name, via the escaped LIKE helper) and sort.
     expect($f->getDataColumns())
         ->toContain("->filterColumn('category', fn (\$q, \$keyword) => \$q->whereHas('category'")
-        ->toContain("->where('name', 'like', \"%{\$keyword}%\")")
+        ->toContain("\\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, 'name', \$keyword)")
+        ->not->toContain("->where('name', 'like', \"%{\$keyword}%\")") // no raw unescaped LIKE
         ->toContain("->orderColumn('category'")
         ->toContain("\\App\\Models\\Category::select('name')->whereColumn('categories.id', 'products.category_id')");
 });

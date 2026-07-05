@@ -145,6 +145,25 @@ class Search
         $query->whereRaw("`{$column}` LIKE ? ESCAPE '\\'", [self::likePattern($term)], $boolean);
     }
 
+    /**
+     * Apply an escaped, portable LIKE against ONE locale's value inside a translatable JSON column — the
+     * generated getData() filterColumn for a `translatable` field routes through this so its per-locale search
+     * escapes the LIKE metacharacters too (the same fix {@see whereLike} gives plain columns). The column is a
+     * validated bare identifier (backtick-quoted); the locale is sanitised to path-safe chars and BOUND, never
+     * interpolated (a hostile app locale can't inject SQL).
+     *
+     * @param  \Illuminate\Contracts\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
+     * @param  'and'|'or'  $boolean
+     */
+    public static function whereJsonLike($query, string $column, string $locale, string $term, string $boolean = 'and'): void
+    {
+        if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $column)) {
+            return;
+        }
+        $safeLocale = preg_replace('/[^A-Za-z0-9_-]/', '', $locale);
+        $query->whereRaw("json_extract(`{$column}`, ?) LIKE ? ESCAPE '\\'", ['$."' . $safeLocale . '"', self::likePattern($term)], $boolean);
+    }
+
     /** First non-empty searched column as the display label (handles translatable JSON columns). */
     private static function label(object $row, array $columns): string
     {

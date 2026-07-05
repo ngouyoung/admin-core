@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.152
+
+**Fix: a generated resource's `getData()` column filters LIKE-matched the datatables keyword unescaped.** The
+runtime search paths were centralised on `Search::whereLike` in v2.79.140, but the generator still EMITTED raw
+`->where('name', 'like', "%{$keyword}%")` into the host controller's `getData()` for a foreign / belongsToMany
+`filterColumn` (the related-name search) and a raw per-locale `orWhere('name->'.$locale, 'like', …)` for a
+translatable column — so a per-column datatables search for `user_1` over-matched `userX1` (and `%` matched every
+related row). The generator now emits `Search::whereLike($rq, 'name', $keyword)` for the relation searches and a
+new `Search::whereJsonLike($sub, 'name', $locale, $keyword)` for the translatable JSON-path search (both escape
+`% _ \` and carry `ESCAPE '\'`; the JSON locale stays bound, not interpolated). Value was already parameter-bound
+(no SQLi) — this fixes the wildcard over-match. Regression tests assert the generated code routes through the
+helpers and that an underscore matches literally (mutation-verified). Note: already-generated host controllers
+keep their old code until regenerated; `admin-core:doctor` surfaces stub drift. Found by an eleventh full-package
+audit (generated-getdata-like dimension — the audit-11 candidate).
+
 ## v2.79.151
 
 **Fix: the personal notification inbox resolved the default guard, breaking it on a portal.**

@@ -2883,7 +2883,7 @@ PHP;
         return match ($f['type']) {
             'foreign' => $this->foreignDataColumn($f),
             'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(ac_localize(\$i->name) ?: \$i->id) . '</span>')->implode(' '))\n"
-                . "            ->filterColumn('{$f['relation']}', fn (\$q, \$keyword) => \$q->whereHas('{$f['relation']}', fn (\$rq) => \$rq->where('name', 'like', \"%{\$keyword}%\")))",
+                . "            ->filterColumn('{$f['relation']}', fn (\$q, \$keyword) => \$q->whereHas('{$f['relation']}', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, 'name', \$keyword)))",
             // Match the show view's status badge / Yes-No / formatted date rather than leaking a raw value.
             'enum' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\\Illuminate\\Support\\Str::headline(\$row->{$f['name']}->value)) . '</span>' : '')",
             'boolean' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')",
@@ -2908,7 +2908,7 @@ PHP;
                 . "            ->filterColumn('{$f['name']}', function (\$q, \$keyword) {\n"
                 . "                \$q->where(function (\$sub) use (\$keyword) {\n"
                 . "                    foreach (array_keys((array) config('admin-core.translation.locales', ['en' => 'English'])) as \$acLocale) {\n"
-                . "                        \$sub->orWhere('{$f['name']}->' . \$acLocale, 'like', '%' . \$keyword . '%');\n"
+                . "                        \\Ngos\\AdminCore\\Support\\Search::whereJsonLike(\$sub, '{$f['name']}', \$acLocale, \$keyword, 'or');\n"
                 . "                    }\n"
                 . "                });\n"
                 . "            })",
@@ -2933,7 +2933,7 @@ PHP;
         $relTable = $f['relTable'];
 
         return "            ->addColumn('{$rel}', fn (\$row) => ac_localize(\$row->{$rel}?->name))\n"
-            . "            ->filterColumn('{$rel}', fn (\$q, \$keyword) => \$q->whereHas('{$rel}', fn (\$rq) => \$rq->where('name', 'like', \"%{\$keyword}%\")))\n"
+            . "            ->filterColumn('{$rel}', fn (\$q, \$keyword) => \$q->whereHas('{$rel}', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, 'name', \$keyword)))\n"
             . "            ->orderColumn('{$rel}', fn (\$q, \$dir) => \$q->orderBy({$relModel}::select('name')->whereColumn('{$relTable}.id', '{$this->table}.{$f['name']}'), \$dir))";
     }
 
