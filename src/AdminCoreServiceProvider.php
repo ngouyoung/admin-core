@@ -258,18 +258,22 @@ class AdminCoreServiceProvider extends ServiceProvider
     /**
      * Route::adminCoreNotifications() — the current user's in-app notification routes
      * (admin.notifications.index/read/readAll/destroy). Call it inside your admin route group.
+     *
+     * $guard: a portal passes its auth guard (Route::adminCoreNotifications('merchant')) so the inbox scopes to
+     * THAT portal's user — else it reads the default guard, which (mounted in a non-default-guard group) is the
+     * wrong or a null user (a 403, or a cross-identity read). Stashed as a route default (mirrors adminCoreSearch).
      */
     protected function registerNotificationsMacro(): void
     {
-        Route::macro('adminCoreNotifications', function () {
+        Route::macro('adminCoreNotifications', function (?string $guard = null) {
             Route::controller(NotificationController::class)
                 ->prefix('notifications')
                 ->name('notifications.')
-                ->group(function () {
-                    Route::get('/', 'index')->name('index');
-                    Route::post('{id}/read', 'read')->name('read');
-                    Route::post('read-all', 'readAll')->name('readAll');
-                    Route::delete('{id}', 'destroy')->name('destroy');
+                ->group(function () use ($guard) {
+                    Route::get('/', 'index')->name('index')->defaults('acNotificationGuard', $guard);
+                    Route::post('{id}/read', 'read')->name('read')->defaults('acNotificationGuard', $guard);
+                    Route::post('read-all', 'readAll')->name('readAll')->defaults('acNotificationGuard', $guard);
+                    Route::delete('{id}', 'destroy')->name('destroy')->defaults('acNotificationGuard', $guard);
                 });
         });
     }

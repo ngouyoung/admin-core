@@ -63,7 +63,11 @@ class NotificationController extends Controller
      */
     private function forUser(Request $request): Builder
     {
-        $user = $request->user();
+        // Resolve on the route's portal guard when set (Route::adminCoreNotifications('merchant')), else the
+        // default guard — auth()->guard(null)->user() equals $request->user(), so the default case is unchanged,
+        // but a portal inbox now scopes to its own guard's user instead of a null/wrong default-guard identity.
+        $guard = $request->route()?->defaults['acNotificationGuard'] ?? null;
+        $user = auth()->guard($guard)->user();
         if (! $user instanceof Model) {
             abort(403);
         }

@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.151
+
+**Fix: the personal notification inbox resolved the default guard, breaking it on a portal.**
+`NotificationController` scoped the inbox with `$request->user()` (the default guard), so mounting
+`Route::adminCoreNotifications()` in a non-default-guard portal group meant every action (index/read/read-all/
+destroy) resolved the wrong or a null user — a 403, or, with a stray default-guard session in the same browser, a
+cross-identity read/mark. `Route::adminCoreNotifications()` now takes an optional guard —
+`Route::adminCoreNotifications('merchant')` — stashed as a route default the controller scopes against (mirroring
+`adminCoreSearch`/`adminCoreApprovals`); no argument uses the default guard exactly as before. Regression test
+proves a merchant-guard user's inbox action succeeds when mounted for the merchant guard even with the default
+guard null (mutation-verified). Found by an eleventh full-package audit (completeness critic — the recurring
+guard-scoping bug class).
+
 ## v2.79.150
 
 **Fix: the dashboard widget permission gate resolved the default guard, hiding permissioned widgets on a portal.**

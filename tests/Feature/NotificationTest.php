@@ -73,6 +73,25 @@ it('marks a single notification read and only touches the current user', functio
         ->and(DB::table('notifications')->where('id', $theirs)->value('read_at'))->toBeNull(); // untouched
 });
 
+it('scopes the inbox to the route\'s portal guard, not the default guard (audit-11)', function () {
+    // Mounted with Route::adminCoreNotifications('merchant'), the inbox must resolve the MERCHANT user — the old
+    // $request->user() reads the default 'web' guard, which is null on a portal request, so every action 403'd
+    // (or, with a stray default-guard session, touched the wrong account's notifications).
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+    Route::middleware('web')->prefix('merchant')->name('merchant.')
+        ->group(fn () => Route::adminCoreNotifications('merchant'));
+    Route::getRoutes()->refreshNameLookups();
+
+    $user = NotifiableUser::create(['name' => 'M']);
+    $mine = seedNotification($user);
+
+    // Authenticated ONLY on the merchant guard (default 'web' guard has no user — the real portal shape).
+    auth()->guard('merchant')->setUser($user);
+
+    $this->post(route('merchant.notifications.read', $mine))->assertRedirect();   // resolved on the merchant guard
+    expect(DB::table('notifications')->where('id', $mine)->value('read_at'))->not->toBeNull();
+});
+
 it('marks all the user\'s notifications read', function () {
     $user = NotifiableUser::create(['name' => 'A']);
     seedNotification($user);
