@@ -78,6 +78,14 @@ class FieldSet
      */
     private ?string $guard = null;
 
+    /**
+     * The table the `:auth` ownership FK points at — the resource guard's provider table (e.g. 'merchants' for a
+     * merchant portal), NOT a literal 'users'. Resolved from the guard in setGuard(): the stamp writes THAT
+     * provider's primary key, so the FK constraint must target the same table or every portal create hits a
+     * foreign-key violation (or, if a users row shares the id, silently points at the wrong table's row).
+     */
+    private string $authTable = 'users';
+
     /** @var array<int, array<int, string>> Composite unique constraints — each an ordered list of column names. */
     private array $uniqueGroups = [];
 
@@ -241,13 +249,42 @@ class FieldSet
 
     /**
      * The auth guard the resource runs under (null = default). A portal/guarded resource passes its guard so
-     * the generated `:auth` stamp resolves the acting user on THAT guard — mirroring WebController::actingUser().
+     * the generated `:auth` stamp resolves the acting user on THAT guard — mirroring WebController::actingUser()
+     * — AND the `:auth` FK targets that guard's provider table (not the default 'users'), so the stamped PK and
+     * the FK constraint agree.
      */
     public function setGuard(?string $guard): self
     {
         $this->guard = $guard;
+        $this->authTable = $this->resolveAuthTable($guard);
 
         return $this;
+    }
+
+    /**
+     * The table backing a guard's provider — the source of the id `auth()->guard($guard)->id()` returns, so the
+     * `:auth` FK must point here. Reads config/auth.php (which admin-core:portal populated); falls back to 'users'
+     * for the default guard or a provider/model that can't be resolved.
+     */
+    private function resolveAuthTable(?string $guard): string
+    {
+        if ($guard === null) {
+            return 'users';
+        }
+        $provider = config("auth.guards.{$guard}.provider");
+        $model = is_string($provider) ? config("auth.providers.{$provider}.model") : null;
+        if (is_string($model) && class_exists($model)) {
+            try {
+                $instance = new $model;
+                if ($instance instanceof \Illuminate\Database\Eloquent\Model) {
+                    return $instance->getTable();
+                }
+            } catch (\Throwable) {
+                // Unresolvable model → fall back to the default users table.
+            }
+        }
+
+        return 'users';
     }
 
     /**
@@ -1164,7 +1201,7 @@ BLADE;
                 // below is skipped for foreign fields, so without this the DB constraint the validation rule
                 // (unique:table,col) promises would never exist and duplicates could slip past a bypassed form.
                 'foreign' => "\$table->foreignId('{$col}')" . ($n || $f['relTable'] === $this->table ? '->nullable()' : '') . ($f['unique'] ? '->unique()' : '') . "->constrained('{$f['relTable']}')" . ($n || $f['relTable'] === $this->table ? '->nullOnDelete()' : '->cascadeOnDelete()'),
-                'auth' => "\$table->foreignId('{$col}')->nullable()->constrained('users')->nullOnDelete()", // set from auth()->id()
+                'auth' => "\$table->foreignId('{$col}')->nullable()->constrained('{$this->authTable}')->nullOnDelete()", // FK to the guard's provider table; set from auth($guard)->id()
                 default => "\$table->string('{$col}')", // also covers 'sku' (a string, made nullable below as a system field)
             };
             if (! in_array($f['type'], ['foreign', 'auth'], true)) {

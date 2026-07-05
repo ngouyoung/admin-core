@@ -7,6 +7,12 @@ function fs(string $dsl, string $table = 'products'): FieldSet
     return (new FieldSet($dsl))->setTable($table);
 }
 
+/** A portal guard's provider model — its table (merchants) is what a merchant :auth FK must target, not users. */
+class FieldSetMerchantModel extends \Illuminate\Database\Eloquent\Model
+{
+    protected $table = 'merchants';
+}
+
 it('defaults to a single name string field', function () {
     $f = fs('');
     expect($f->fillable())->toBe("'name'");
@@ -968,6 +974,28 @@ it('stamps an :auth field on the resource guard so a portal user is never resolv
     // system → not mass-assignable, never validated.
     expect($portal->fillable())->toBe("'title'");
     expect($portal->storeRules())->not->toContain("'owner_id'");
+});
+
+it('points the :auth FK at the resource guard\'s provider table, not a literal users table', function () {
+    // The stamp writes auth('merchant')->id() — a `merchants` primary key — so the FK MUST target `merchants`.
+    // Hardcoding constrained('users') (the audit-12 fix's untouched sibling) meant every merchant create hit a
+    // foreign-key violation, or silently pointed owner_id at a users row with the same id (audit-13 HIGH).
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'merchants']);
+    config()->set('auth.providers.merchants', ['driver' => 'eloquent', 'model' => FieldSetMerchantModel::class]);
+
+    $portal = fs('title:string, owner_id:auth', 'listings')->setGuard('merchant');
+    expect($portal->migrationColumns())
+        ->toContain("\$table->foreignId('owner_id')->nullable()->constrained('merchants')->nullOnDelete();")
+        ->not->toContain("constrained('users')");
+
+    // A plain admin resource (no guard) still targets the default users table.
+    $admin = fs('title:string, owner_id:auth', 'listings');
+    expect($admin->migrationColumns())
+        ->toContain("\$table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();");
+
+    // An unresolvable guard (provider/model not configured) degrades to the safe default, never a broken FK.
+    $unknown = fs('title:string, owner_id:auth', 'listings')->setGuard('ghost');
+    expect($unknown->migrationColumns())->toContain("constrained('users')");
 });
 
 // -- Relation-driven derived columns (--derived) -----------------------------------------------------

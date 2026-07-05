@@ -2,6 +2,23 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.159
+
+**Fix (data integrity, completes v2.79.156): a portal `:auth` ownership FK still targeted `users` while the stamp
+targeted the portal guard.** v2.79.156 made the `:auth` stamp guard-aware (`auth('merchant')->id()` — a
+`merchants` primary key) but left its sibling, the migration foreign key, hardcoded
+`constrained('users')`. The two then contradicted: the model stamps a `merchants` PK into a column FK-constrained
+to `users(id)`, so on MySQL/Postgres every portal create either hit a foreign-key violation (23000, when no `users`
+row shares that id) or — if one did — silently pointed `owner_id` at the wrong table's row (cross-portal ownership
+corruption). `FieldSet::setGuard()` now resolves the FK target from the resource guard's provider table (new
+`resolveAuthTable()` reads `auth.guards.{guard}.provider` → the provider model's `getTable()`, e.g. `merchants`),
+and the migration emits `constrained('merchants')`; a plain admin resource (no guard) or an unresolvable
+guard/provider still targets `users`. The other `:auth` sites were swept and are correct — no `belongsTo` relation
+is generated for it, and the JSON resource excludes it. Regression test asserts a merchant-guard `:auth` field
+emits `constrained('merchants')`, an admin one `constrained('users')`, and an unknown guard degrades to `users`
+(mutation-verified). Found by a thirteenth full-package audit (generator core-depth dimension); the audit-12
+completeness re-scan had checked the guard-scoping class but not the FK target coupled to it.
+
 ## v2.79.158
 
 **Fix (guard-scoping): approval notifications for a resource mounted under a non-default portal resolved the
