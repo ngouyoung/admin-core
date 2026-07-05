@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.136
+
+**Fix: the generated REST API (`--api`) had no rate limiting.** The `admin-core.api.middleware` default was
+just `['auth:sanctum']` — no `throttle:` — so every generated `index/show/store/update/destroy` endpoint was
+unthrottled. Combined with the list `?search=` (a leading-wildcard `LIKE '%term%'` across every searchable
+column), a single authenticated token could scrape or hammer the whole API with no cap. The default now includes
+`throttle:60,1` (60 requests/minute per authenticated user, or per IP when unauthenticated), and the
+`api-routes.stub` fallback matches. It's an inline limiter (not a named one) so it works without the host
+registering an `api` RateLimiter; raise it, swap in a named limiter, or drop it in the published config. Existing
+installs that published `config/admin-core.php` keep their value — add the throttle there to opt in. Regression
+test asserts both the config default and the generated route file carry the limit (mutation-verified). Found by a
+tenth full-package audit (API rate-limiting dimension / completeness critic).
+
 ## v2.79.135
 
 **Fix: scaffolding the same resource name for a second portal/guard silently reused the first controller,

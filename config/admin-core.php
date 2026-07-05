@@ -395,12 +395,16 @@ return [
     | Resources generated with --api expose a JSON API (JsonResource + apiResource
     | routes) for a decoupled front-end (Nuxt, mobile, …). The public identifier is
     | always the uuid route key, never the bigint id. `middleware` guards every API
-    | route — Sanctum by default; add a tenant-scoping middleware here for a
-    | multi-tenant setup. `per_page` is the default index page size (override with
-    | ?per_page=).
+    | route — Sanctum + a 60/min rate limit by default; add a tenant-scoping
+    | middleware here for a multi-tenant setup, or tune `throttle:` for your load
+    | (raise it, swap in a named limiter, or drop it). `per_page` is the default
+    | index page size (override with ?per_page=).
     */
     'api' => [
-        'middleware' => ['auth:sanctum'],
+        // throttle:60,1 = 60 requests/minute per authenticated user (or IP when unauthenticated) — a baseline
+        // cap so a leaked token can't scrape or hammer the whole API unthrottled. Inline (not a named limiter)
+        // so it works without the host registering an `api` RateLimiter.
+        'middleware' => ['auth:sanctum', 'throttle:60,1'],
         'per_page' => 25,
         // Hard cap on ?per_page= so a client can't request an unbounded page.
         'max_per_page' => 100,

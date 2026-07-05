@@ -1381,8 +1381,12 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
     // Sanctum-gated apiResource routes under api.gizmos.*, each action gated by the same permission as
     // the web admin (delete → delete-gizmo, etc.) — via AuthorizeApiPermission, which resolves it on the
     // web permission guard (not the API auth guard) so a web admin's token is authorized.
+    // The API middleware default carries a rate limit (throttle:60,1) so a generated REST resource isn't an
+    // unthrottled scrape/DoS surface — both the config default and the generated file's inline fallback.
+    expect(config('admin-core.api.middleware'))->toContain('throttle:60,1');
     expect(File::get(base_path('routes/Api/Modules/gizmos.php')))
         ->toContain("config('admin-core.api.middleware'")
+        ->toContain('throttle:60,1') // the fallback used when the host removes the config key
         ->toContain("->name('api.gizmos.')")
         ->toContain("[GizmoApiController::class, 'index']")
         ->toContain('use Ngos\AdminCore\Http\Middleware\AuthorizeApiPermission;')
