@@ -765,7 +765,7 @@ it('compiles a rollup into a money-aware child-sum accessor', function () {
 
     expect($f->accessors())
         ->toContain('protected function total(): Attribute')
-        ->toContain("Attribute::get(fn () => \\Ngos\\AdminCore\\Support\\Rollup::sum(\$this->lines, 'line_total'))");
+        ->toContain("Attribute::get(fn () => \\Ngos\\AdminCore\\Support\\Rollup::sum(\$this->lines, 'line_total', \$this->lines()->getRelated()))");
     expect($f->modelUses())->toContain('use Illuminate\Database\Eloquent\Casts\Attribute;');
     expect($f->appends())->toBe("\n\n    protected \$appends = ['total'];");
 });

@@ -2,6 +2,9 @@
 
 namespace Ngos\AdminCore\Support;
 
+use Illuminate\Database\Eloquent\Model;
+use Ngos\AdminCore\Casts\MoneyCast;
+
 /**
  * Aggregates a child relation for a `rollup` field — a document-level total = the sum of its line items
  * (e.g. an invoice total = sum of each line's `line_total`). It's money-aware: {@see Money} values sum
@@ -19,8 +22,11 @@ final class Rollup
      * (a silently-wrong money total is the worst outcome), rather than dropping rows.
      *
      * @param  iterable<int, object>  $items
+     * @param  Model|null  $related  the child model (the relation's ->getRelated()) — lets an EMPTY money
+     *                               rollup return a formatted currency zero instead of a bare int 0, since a
+     *                               set with no rows has no Money value to infer the type from.
      */
-    public static function sum(iterable $items, string $attribute): Money|int|float
+    public static function sum(iterable $items, string $attribute, ?Model $related = null): Money|int|float
     {
         $money = null;
         $numeric = 0;
@@ -53,6 +59,35 @@ final class Rollup
             );
         }
 
-        return $money ?? $numeric;
+        if ($money !== null) {
+            return $money;
+        }
+        if ($sawNumeric) {
+            return $numeric;
+        }
+
+        // Empty / all-null: return a money ZERO (formatted, in the column's currency) when the child attribute
+        // is money-cast — so a document with no lines shows "$0.00" like every populated sibling, not "0".
+        $currency = $related !== null ? self::moneyZeroCurrency($related, $attribute) : false;
+
+        return $currency !== false ? Money::fromMinor(0, $currency === '' ? null : $currency) : $numeric;
+    }
+
+    /**
+     * When the child model casts $attribute to money, the pinned currency code ('' = config default / a
+     * per-record @column, which an empty set can't resolve) — or false when it isn't a money attribute.
+     */
+    private static function moneyZeroCurrency(Model $related, string $attribute): string|false
+    {
+        $cast = $related->getCasts()[$attribute] ?? '';
+        if (! is_string($cast)) {
+            return false;
+        }
+        [$class, $arg] = array_pad(explode(':', $cast, 2), 2, '');
+        if ($class !== MoneyCast::class) {
+            return false;
+        }
+
+        return str_starts_with($arg, '@') ? '' : $arg; // @currency (per-record) → default; pinned code otherwise
     }
 }

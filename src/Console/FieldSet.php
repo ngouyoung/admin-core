@@ -1883,8 +1883,10 @@ PHP;
     private function accessorBody(array $f): string
     {
         if ($f['type'] === 'rollup') {
-            // Money-aware sum of a child relation's attribute (a document total = sum of line items).
-            return "\\Ngos\\AdminCore\\Support\\Rollup::sum(\$this->{$f['rollupRelation']}, '{$f['rollupAttribute']}')";
+            // Money-aware sum of a child relation's attribute (a document total = sum of line items). Pass the
+            // relation's related model (->getRelated()) so an EMPTY set still formats as a currency zero when
+            // the child attribute is money-cast, instead of a bare int 0.
+            return "\\Ngos\\AdminCore\\Support\\Rollup::sum(\$this->{$f['rollupRelation']}, '{$f['rollupAttribute']}', \$this->{$f['rollupRelation']}()->getRelated())";
         }
 
         // A compiled expression body (typed: numbers via operators, money via Money's ?-> methods) or, for a

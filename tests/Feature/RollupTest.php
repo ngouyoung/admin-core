@@ -54,6 +54,43 @@ it('sums plain numbers numerically and an empty set to 0', function () {
         ->and(Rollup::sum(collect([]), 'n'))->toBe(0);
 });
 
+it('returns a formatted currency ZERO for an EMPTY money-column rollup (not a bare int 0)', function () {
+    // An empty set has no Money to infer the type from — but the child model's cast reveals it's money, so
+    // an order with no lines shows "$0.00" like every populated sibling, not "0".
+    $line = new class extends Model
+    {
+        protected $table = 'x';
+
+        protected function casts(): array
+        {
+            return ['amount' => MoneyCast::class]; // a real money COLUMN (default currency)
+        }
+    };
+
+    // Empty set + the related model → a formatted money zero.
+    $zero = Rollup::sum(collect([]), 'amount', $line);
+    expect($zero)->toBeInstanceOf(Money::class)
+        ->and($zero->minor)->toBe(0)
+        ->and((string) $zero)->toBe('$0.00');
+
+    // A pinned currency on the child column carries into the zero.
+    config()->set('admin-core.money.currencies.KHR', ['symbol' => '៛', 'decimals' => 0, 'position' => 'before', 'thousands' => ',', 'decimal' => '.']);
+    $khrLine = new class extends Model
+    {
+        protected $table = 'x';
+
+        protected function casts(): array
+        {
+            return ['amount' => MoneyCast::class . ':KHR'];
+        }
+    };
+    expect((string) Rollup::sum(collect([]), 'amount', $khrLine))->toBe('៛0');
+
+    // A NON-money child attribute (or no related model) still sums to a plain 0 — no false Money.
+    expect(Rollup::sum(collect([]), 'qty', $line))->toBe(0)
+        ->and(Rollup::sum(collect([]), 'amount'))->toBe(0);
+});
+
 it('fails loudly on a mix of money and plain numbers (never silently drops rows)', function () {
     $items = collect([
         (object) ['x' => Money::fromMinor(500, 'USD')],

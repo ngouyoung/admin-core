@@ -1065,7 +1065,7 @@ it('wires a rollup document total over a hasMany (accessor + eager-load + append
     expect($model)
         ->toContain('use Illuminate\Database\Eloquent\Casts\Attribute;')
         ->toContain("protected \$appends = ['total'];")
-        ->toContain("Rollup::sum(\$this->lines, 'line_total')")
+        ->toContain("Rollup::sum(\$this->lines, 'line_total', \$this->lines()->getRelated())")
         ->not->toContain('__AC_');
 
     // The list eager-loads the rolled-up relation (no N+1) and shows the total read-only via (string).

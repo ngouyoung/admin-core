@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.128
+
+**Fix: a money rollup with no lines rendered a bare "0" instead of "$0.00".** `Rollup::sum()` returns a `Money`
+when it has money children to add, but a plain int `0` for an empty (or all-null) set — so a document with no
+lines showed "0" in the same money column as its populated siblings, since an empty set has no `Money` value to
+infer the type from. The generated rollup accessor now passes the child relation's related model, and
+`Rollup::sum()` returns a formatted currency zero (in the child column's pinned or default currency) when that
+attribute is money-cast. Regression tests cover an empty money-column rollup (default + pinned currency) and
+that a non-money attribute still sums to a plain 0 (mutation-verified). Note: this detects money-ness from the
+child's cast, so it covers rollups over a real money COLUMN; a rollup over a computed money *accessor* still
+can't be typed for an empty set (no row to read) and renders 0 — declare the underlying money column to get the
+formatted zero. Existing installs regenerate affected models (or add the 3rd `getRelated()` arg by hand). Found
+by a ninth full-package audit (rollup-recalc dimension).
+
 ## v2.79.127
 
 **Fix: the sequence-counter's deadlock retry was dead code, so a contended create failed instead of retrying.**
