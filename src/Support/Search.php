@@ -76,7 +76,14 @@ class Search
                             // Translatable / JSON column: match the active locale's value, not the raw JSON
                             // blob (which would match across locales and JSON syntax). Backtick-quoted
                             // identifier works on MySQL + SQLite; the column name is validated above.
-                            $q->orWhereRaw("json_extract(`{$col}`, '$.\"{$locale}\"') LIKE ?", ['%' . $term . '%']);
+                            //
+                            // The JSON PATH is a BOUND parameter, never string-interpolated: app()->getLocale()
+                            // is a global mutable value (any middleware/host code can set it, and Search doesn't
+                            // depend on admin-core's allowlisting SetLocale), so splicing it into the SQL was a
+                            // latent injection. Binding it makes a hostile locale a harmless wrong-path lookup;
+                            // sanitising to locale-safe chars keeps the path well-formed too.
+                            $safeLocale = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $locale);
+                            $q->orWhereRaw("json_extract(`{$col}`, ?) LIKE ?", ['$."' . $safeLocale . '"', '%' . $term . '%']);
                         } else {
                             $q->orWhere($col, 'like', '%' . $term . '%');
                         }

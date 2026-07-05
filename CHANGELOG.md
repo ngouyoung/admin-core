@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.121
+
+**Security hardening: the active locale was string-interpolated into a raw SQL JSON path in global search.**
+Searching a translatable/JSON column built `json_extract(\`col\`, '$."{locale}"') LIKE ?` by splicing
+`app()->getLocale()` directly into the SQL. Admin-core's own `SetLocale` allowlists the locale, so the default
+path is safe — but `app()->getLocale()` is a globally mutable value (any host middleware/code can set it, and
+`Support\Search` doesn't depend on `SetLocale`), making this a latent SQL injection wherever the locale can be
+attacker-influenced. The JSON path is now a BOUND parameter (a hostile locale becomes a harmless wrong-path
+lookup, never SQL) and the locale is sanitised to locale-safe characters so the path stays well-formed.
+Regression test proves a hostile `app()->setLocale()` can neither error nor `OR 1=1`-bypass the search
+(mutation-verified); normal translatable matching is unchanged. Found by a ninth full-package audit
+(global-search dimension).
+
 ## v2.79.120
 
 **Fix: `admin-core:portal` skipped a portal's route group when a longer-named portal already existed.**

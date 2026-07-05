@@ -120,3 +120,31 @@ it('matches a translatable (JSON) column in the active locale, not the raw JSON 
 
     Schema::dropIfExists('trans_widgets');
 });
+
+it('does not let a hostile app locale inject SQL into a JSON-column search', function () {
+    Schema::create('trans_widgets', function (Blueprint $t) {
+        $t->id();
+        $t->json('name');
+    });
+    $model = new class extends \Illuminate\Database\Eloquent\Model
+    {
+        protected $table = 'trans_widgets';
+
+        public $timestamps = false;
+
+        protected $guarded = [];
+
+        protected $casts = ['name' => 'array'];
+    };
+    $model::create(['name' => ['en' => 'Phones']]);
+    config(['admin-core.search' => [['model' => get_class($model), 'columns' => ['name'], 'label' => 'TW']]]);
+
+    // app()->getLocale() is globally mutable — a raw-spliced locale like this would break out of the
+    // json_extract path and OR-1=1 every row. Bound + sanitised, it can't error or bypass.
+    app()->setLocale('en"\')) OR 1=1 -- ');
+
+    expect(fn () => Search::query('zzz-no-match'))->not->toThrow(Throwable::class); // no SQL error / injection
+    expect(Search::query('zzz-no-match'))->toHaveCount(0);                          // OR 1=1 did NOT run → no bypass
+
+    Schema::dropIfExists('trans_widgets');
+});
