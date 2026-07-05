@@ -32,6 +32,9 @@ class AdminCoreDoctorCommand extends Command
 
     protected $description = 'Report (or --fix) admin-core frontend assets that have drifted from the current package version — frozen copies that never auto-update.';
 
+    /** managed dest path => its top-level managed AREA root (for the deleted-whole-subtree missing check). */
+    private array $areaRoots = [];
+
     public function handle(): int
     {
         // Only the --access frontend kit publishes these files. On a minimal install the target paths hold the
@@ -49,11 +52,14 @@ class AdminCoreDoctorCommand extends Command
         foreach ($managed as $dest => $src) {
             if (File::exists($dest)) {
                 File::get($dest) === File::get($src) ? $ok[] = $dest : $drift[] = $dest;
-            } elseif (File::isDirectory(dirname($dest))) {
-                // The folder exists but this file doesn't — it was deleted or partially installed.
+            } elseif (File::isDirectory($this->areaRoots[$dest] ?? dirname($dest))) {
+                // Absent + its managed AREA ROOT still present → deleted, so MISSING. Gating on the AREA root
+                // (e.g. views/backend), NOT the immediate parent: a wiped WHOLE subtree (views/backend/partials/,
+                // @include'd by the layout) removes the parent dir too, which used to drop the file UNREPORTED
+                // and give a false "everything in sync" while every admin page 500s on the missing partial.
                 $missing[] = $dest;
             }
-            // else: this area wasn't installed here at all → not this command's concern.
+            // else: this managed area wasn't installed here at all → not this command's concern.
         }
 
         $this->line(sprintf(
@@ -134,6 +140,7 @@ class AdminCoreDoctorCommand extends Command
                 $relative = ltrim(str_replace($src, '', $file->getPathname()), DIRECTORY_SEPARATOR);
                 $target = $dest . DIRECTORY_SEPARATOR . preg_replace('/\.stub$/', '', $relative);
                 $managed[$target] = $file->getPathname();
+                $this->areaRoots[$target] = $dest; // the managed area this file belongs to (deleted-subtree check)
             }
         }
         foreach ([
@@ -142,6 +149,7 @@ class AdminCoreDoctorCommand extends Command
         ] as [$src, $dest]) {
             if (File::exists($src)) {
                 $managed[$dest] = $src;
+                $this->areaRoots[$dest] = dirname($dest); // views/auth
             }
         }
 

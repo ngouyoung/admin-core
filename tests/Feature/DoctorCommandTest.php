@@ -79,3 +79,26 @@ it('restores a drifted file to the current package version with --fix', function
 
     expect(File::get(doctorDest()))->toBe(File::get(doctorStub())); // now matches the package
 });
+
+it('reports a WIPED subtree as missing (not a false "in sync") and exits non-zero', function () {
+    // Install the views/backend area (its root survives), then delete the whole partials/ subtree — the
+    // parent dir is gone too, which used to make those files fall through unreported → a false clean bill.
+    $backendSrc = dirname(__DIR__, 2) . '/stubs/frontend/views/backend';
+    $backendDest = resource_path('views/backend');
+    File::copyDirectory($backendSrc, $backendDest);
+    // The .stub suffix isn't stripped by copyDirectory, so mirror what doctor expects for the partial it flags.
+    $sidebar = $backendDest . '/partials/sidebar.blade.php';
+    File::ensureDirectoryExists(dirname($sidebar));
+    File::copy($backendSrc . '/partials/sidebar.blade.php.stub', $sidebar);
+
+    // Wipe the whole partials/ subtree (bad merge / git clean) — the directory itself is gone.
+    File::deleteDirectory($backendDest . '/partials');
+    expect(File::isDirectory($backendDest))->toBeTrue()                       // the AREA root survives…
+        ->and(File::isDirectory($backendDest . '/partials'))->toBeFalse();    // …but the subtree is gone
+
+    $this->artisan('admin-core:doctor')
+        ->expectsOutputToContain('sidebar.blade.php') // the wiped partial is reported MISSING…
+        ->assertFailed();                             // …and the exit code is non-zero (CI-catchable)
+
+    File::deleteDirectory($backendDest);
+});

@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.129
+
+**Fix: `admin-core:doctor` reported "everything in sync" after a whole managed subtree was deleted.** The
+missing-file check was gated on the file's IMMEDIATE parent directory existing — so if an entire managed subtree
+was wiped (e.g. `resources/views/backend/partials/`, which the layout `@include`s), each absent file failed both
+the exists check AND the parent-dir check and was silently dropped from the report. Doctor then printed "0
+missing / Everything is in sync ✔" and exited 0 — a clean bill of health for a theme where every admin page
+500s on `View [backend.partials.sidebar] not found`. The check now gates on the file's managed AREA root (e.g.
+`views/backend`), which survives a subtree deletion, so a wiped subtree is correctly reported missing and the
+command exits non-zero (CI-catchable) — while a managed area that was never installed here is still skipped.
+Regression test wipes the partials subtree and asserts it's reported missing with a non-zero exit
+(mutation-verified). Found by a ninth full-package audit (lifecycle-commands dimension).
+
 ## v2.79.128
 
 **Fix: a money rollup with no lines rendered a bare "0" instead of "$0.00".** `Rollup::sum()` returns a `Money`
