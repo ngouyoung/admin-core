@@ -1093,10 +1093,40 @@ abstract class WebController extends BaseController
         return $approval;
     }
 
+    /**
+     * The user model whose Spatie permission scope names the approver pool — resolved from THIS resource's
+     * guard provider, not the hardcoded default `users` one. A portal resource (a non-default guard, often a
+     * distinct provider/model) must notify ITS approvers and query ITS guard's permission rows, else the pool
+     * comes back empty or wrong. Falls back to the default users model when the guard/provider isn't resolvable.
+     */
+    protected function approverModel(): ?string
+    {
+        $guard = $this->guard ?? (string) config('auth.defaults.guard', 'web');
+        $provider = config("auth.guards.{$guard}.provider");
+        $model = is_string($provider) ? config("auth.providers.{$provider}.model") : null;
+        if (! is_string($model)) {
+            $model = config('auth.providers.users.model');
+        }
+
+        return is_string($model) ? $model : null;
+    }
+
+    /**
+     * The approvals-inbox link for THIS resource's route group — portal-aware, not always the admin one. A
+     * merchant approver handed an `admin.approvals.index` link would 403 (or get no link in a portal-only app
+     * where that route doesn't exist). Mirrors routeName()'s prefix resolution; null when the inbox isn't routed.
+     */
+    protected function approvalsInboxUrl(): ?string
+    {
+        $inboxRoute = ($this->routePrefix ?? config('admin-core.route.name_prefix', 'admin.')) . 'approvals.index';
+
+        return Route::has($inboxRoute) ? route($inboxRoute) : null;
+    }
+
     /** Notify every user who can approve this action (best-effort: needs a Spatie HasRoles user model). */
     protected function notifyApprovers(Action $action, Approval $approval): void
     {
-        $model = config('auth.providers.users.model');
+        $model = $this->approverModel();
         if (! is_string($model) || ! method_exists($model, 'scopePermission')) {
             return; // host user model isn't Spatie-permissioned — the inbox still surfaces the request
         }
@@ -1107,8 +1137,7 @@ abstract class WebController extends BaseController
             return;
         }
 
-        $inboxRoute = config('admin-core.route.name_prefix', 'admin.') . 'approvals.index';
-        $url = Route::has($inboxRoute) ? route($inboxRoute) : null;
+        $url = $this->approvalsInboxUrl();
 
         foreach ($approvers as $approver) {
             if (method_exists($approver, 'notify')) {

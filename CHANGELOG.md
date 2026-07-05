@@ -2,6 +2,23 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.158
+
+**Fix (guard-scoping): approval notifications for a resource mounted under a non-default portal resolved the
+approver pool and inbox link on the DEFAULT admin guard/prefix.** When a `->requiresApproval()` action filed a
+pending request, `WebController::notifyApprovers()` (a) built the inbox URL as
+`config('admin-core.route.name_prefix').'approvals.index'` (always `admin.approvals.index`), ignoring the
+controller's own `$routePrefix` — so a merchant approver got a link into the ADMIN inbox (a 403 for a
+merchant-guard user), or no link at all in a portal-only app where that route doesn't exist; and (b) resolved the
+approver model from the hardcoded `auth.providers.users.model` (the default provider), ignoring the controller's
+`$guard` — so a portal with a distinct provider/model queried the wrong user set and its real approvers were never
+notified. The inbox URL now resolves through `$this->routePrefix` (mirroring `routeName()`, extracted to
+`approvalsInboxUrl()`), and the approver model resolves from the resource guard's provider (new `approverModel()`),
+both falling back to the admin default for a plain admin resource. Regression test proves a merchant-guarded
+controller resolves its own provider model + `/merchant/approvals` link while an admin one keeps the default
+provider + `/admin/approvals` (each defect mutation-verified independently). Found by a twelfth full-package audit
+(completeness critic over the approval-notification runtime path).
+
 ## v2.79.157
 
 **Fix: a `#` (plain index) modifier on a TEXT/JSON column generated an un-migratable migration on MySQL.**

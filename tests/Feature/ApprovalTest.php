@@ -93,6 +93,63 @@ it('files a pending approval instead of executing, for a requester who cannot ap
         ->and($approval->note)->toBe('please');
 });
 
+it('resolves the approver pool and inbox link on THIS resource\'s guard/prefix, not the default admin one', function () {
+    // A portal resource (merchant guard + prefix). notifyApprovers() must (1) resolve the approver model from the
+    // MERCHANT guard's provider — not the hardcoded default `users` provider — so a distinct-provider portal
+    // notifies ITS approvers, and (2) build the inbox link inside the merchant route group, since a merchant
+    // approver handed `admin.approvals.index` would 403 (or get no link in a portal-only app). Audit-12 MED,
+    // guard-scoping class. Tested on the two resolution helpers directly (protected → exposed via a subclass).
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'merchants']);
+    config()->set('auth.providers.merchants', ['driver' => 'eloquent', 'model' => 'App\\Models\\MerchantSentinel']);
+
+    // Register the portal's OWN inbox route (as admin-core:portal / Route::adminCoreApprovals('merchant') would).
+    Route::middleware('web')->prefix('merchant')->name('merchant.')
+        ->group(fn () => Route::adminCoreApprovals('merchant'));
+    Route::getRoutes()->refreshNameLookups();
+
+    $portal = new class extends \Ngos\AdminCore\Http\Controllers\WebController
+    {
+        protected ?string $guard = 'merchant';
+
+        protected ?string $routePrefix = 'merchant.';
+
+        public function pubApproverModel(): ?string
+        {
+            return $this->approverModel();
+        }
+
+        public function pubInboxUrl(): ?string
+        {
+            return $this->approvalsInboxUrl();
+        }
+    };
+
+    // (1) approver pool: the merchant provider's model, NOT the default users one.
+    expect($portal->pubApproverModel())->toBe('App\\Models\\MerchantSentinel')
+        ->not->toBe(config('auth.providers.users.model'));
+
+    // (2) inbox link: the merchant route group, never the admin one.
+    expect($portal->pubInboxUrl())
+        ->toContain('/merchant/approvals')
+        ->not->toContain('/admin/approvals');
+
+    // A plain admin resource (no guard/prefix) still resolves the default users provider + the admin inbox.
+    $admin = new class extends \Ngos\AdminCore\Http\Controllers\WebController
+    {
+        public function pubApproverModel(): ?string
+        {
+            return $this->approverModel();
+        }
+
+        public function pubInboxUrl(): ?string
+        {
+            return $this->approvalsInboxUrl();
+        }
+    };
+    expect($admin->pubApproverModel())->toBe(config('auth.providers.users.model'));
+    expect($admin->pubInboxUrl())->toContain('/admin/approvals');
+});
+
 it('executes immediately for a user who can approve (no request filed)', function () {
     config()->set('admin-core.permission.enabled', true);
     Gate::define('refund-action-widget', fn () => true);
