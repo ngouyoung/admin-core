@@ -112,6 +112,18 @@ it('builds a nullable decimal with a precision-capping rule', function () {
     expect(fs('price:decimal:12|4')->storeRules())->toContain('new \\Ngos\\AdminCore\\Rules\\DecimalPrecision(12, 4)');
 });
 
+it('builds a money field with a currency-aware MoneyAmount rule (not a fixed decimals-blind bound)', function () {
+    // A fixed between:-99999999999999,… assumed 4 decimals — a >4-decimal currency then 500'd in the cast.
+    // The rule now carries the field's currency (matching the cast arg) so the bound tracks its decimals.
+    expect(fs('price:money')->storeRules())
+        ->toContain("'price' => ['required', 'numeric', new \\Ngos\\AdminCore\\Rules\\MoneyAmount()]")
+        ->not->toContain('between:-99999999999999');
+    expect(fs('price:money:KHR')->storeRules())
+        ->toContain("new \\Ngos\\AdminCore\\Rules\\MoneyAmount('KHR')");
+    expect(fs('amount:money:@currency, currency:string')->storeRules())
+        ->toContain("new \\Ngos\\AdminCore\\Rules\\MoneyAmount('@currency')");
+});
+
 it('builds an enum select backed by a generated enum class', function () {
     $f = fs('status:enum:draft|published')->setClass('Product');
     // Validation + form both reference the backed enum — the single source of truth.

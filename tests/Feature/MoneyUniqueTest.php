@@ -92,6 +92,9 @@ it('UniqueMoney fails validation (not a 500) on an out-of-range amount', functio
 
 
 it('bounds generated money rules so an INF-range amount fails validation up front', function () {
+    // The bound is now a currency-aware MoneyAmount rule (tracks the currency's decimals), not a fixed
+    // between that assumed 4 decimals and 500'd a >4-decimal currency inside the cast.
     expect((new \Ngos\AdminCore\Console\FieldSet('price:money'))->storeRules())
-        ->toContain("'between:-99999999999999,99999999999999'");
+        ->toContain('new \\Ngos\\AdminCore\\Rules\\MoneyAmount()')
+        ->not->toContain('between:-99999999999999');
 });

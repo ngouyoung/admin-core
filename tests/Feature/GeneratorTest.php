@@ -707,9 +707,11 @@ it('wires a money field end-to-end (bigInteger column, MoneyCast, money-input, f
         ->toContain("'price' => \\Ngos\\AdminCore\\Casts\\MoneyCast::class,")
         ->toContain("'balance' => \\Ngos\\AdminCore\\Casts\\MoneyCast::class.':KHR',");
 
-    // Validation: the form posts a major amount, validated as numeric.
+    // Validation: the form posts a major amount, validated as numeric + a currency-aware MoneyAmount rule
+    // (default currency for `price`, pinned KHR for `balance`) — the bound tracks the currency's decimals.
     expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
-        ->toContain("'price' => ['required', 'numeric', 'between:-99999999999999,99999999999999']");
+        ->toContain("'price' => ['required', 'numeric', new \\Ngos\\AdminCore\\Rules\\MoneyAmount()]")
+        ->toContain("'balance' => ['required', 'numeric', new \\Ngos\\AdminCore\\Rules\\MoneyAmount('KHR')]");
 
     // Form renders the money-input (with the currency override for the pinned column).
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))

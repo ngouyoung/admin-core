@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.106
+
+**Fix: money validation used a fixed bound that ignored the currency's decimals, 500'ing a >4-decimal
+currency.** A generated money field validated with `between:-99999999999999,99999999999999` — a bound that
+only holds for a ≤4-decimal currency (14 int digits + 4 = the 18-digit minor-unit range). A currency
+configured with more decimals (a 6-decimal points/crypto unit) accepted an in-range-looking amount at
+validation, then threw inside `Money::fromMajor()` at save as an uncaught 500. Money fields now validate with
+a new `MoneyAmount` rule that resolves the SAME currency the cast will (pinned code, per-record `@column` from
+the request, or the config default) and accepts the value iff `Money::fromMajor()` can store it — so the bound
+is always exactly right for the actual currency, decimals and all, and still rejects a non-finite `1e400`.
+Regression tests cover the rule (2- vs 6- vs 0-decimal bounds, per-record resolution, INF) and the generator
+emitting the currency-matched rule arg (mutation-verified). Found by an eighth full-package audit
+(money-currency dimension).
+
 ## v2.79.105
 
 **Fix: a money list-footer total lost a minor unit above 2^53.** The footer aggregate for a money column ran

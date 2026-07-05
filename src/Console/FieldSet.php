@@ -2002,9 +2002,11 @@ PHP;
                     break;
                 case 'money':
                     // The form posts a major amount ("15.00"); the MoneyCast parses it to minor units.
-                    // 'numeric' alone accepts 1e400 (INF) — Money::fromMajor() would throw on it, so bound
-                    // the amount to what the minor-unit bigint can store (±1e14 survives ×10^4 decimals).
-                    $rules = [$required, "'numeric'", "'between:-99999999999999,99999999999999'"];
+                    // MoneyAmount resolves the SAME currency the cast will (pinned / per-record / default)
+                    // and bounds the amount to what that currency's minor-unit bigint can store — a fixed
+                    // `between` assumed 4 decimals, so a >4-decimal currency 500'd inside Money::fromMajor().
+                    $moneyArg = ! empty($f['currencyColumn']) ? '@' . $f['currencyColumn'] : ($f['currency'] ?? null);
+                    $rules = [$required, "'numeric'", 'new \\Ngos\\AdminCore\\Rules\\MoneyAmount(' . ($moneyArg ? "'{$moneyArg}'" : '') . ')'];
                     break;
                 case 'computed':
                 case 'rollup':
