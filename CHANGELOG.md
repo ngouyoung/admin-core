@@ -2,6 +2,17 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.105
+
+**Fix: a money list-footer total lost a minor unit above 2^53.** The footer aggregate for a money column ran
+`(int) round((float) $value)` — the `(float)` cast can't exactly represent an integer past 2^53, so a
+`SUM`/`MAX` over a bigint minor-unit column (a large single value, or a total crossing 2^53) collapsed, e.g.
+9007199254740993 → 9007199254740992, a unit short in the displayed total. The plain-column aggregate path
+already sidesteps this; the money path now matches it — an integer or all-digit string is used exactly (it
+fits int64, well inside the 18-digit money range), and only a genuinely fractional value (an `AVG`) takes the
+float round. Regression test sums a past-2^53 value and asserts the exact formatted total (mutation-verified).
+Found by an eighth full-package audit (money-currency dimension).
+
 ## v2.79.104
 
 **Fix: the legacy Blade-sidebar injector hardcoded the `admin.` route prefix.** When `admin-core:make` added a

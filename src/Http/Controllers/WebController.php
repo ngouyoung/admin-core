@@ -334,9 +334,19 @@ abstract class WebController extends BaseController
                 continue;
             }
 
-            $out[$col] = ! empty($def['money'])
-                ? \Ngos\AdminCore\Support\Money::fromMinor((int) round((float) $value), $def['currency'] ?? null)->format()
-                : $this->numericAggregate($value);
+            if (! empty($def['money'])) {
+                // Minor units are integers, and a SUM/MAX over a bigint column can exceed 2^53 — where the
+                // old `(int) round((float) $value)` lost precision (9007199254740993 → …992, a unit short).
+                // Keep an integer or all-digit string EXACT (fits int64 well within the 18-digit money range);
+                // only a genuinely fractional value (AVG) needs the float round.
+                $minor = is_int($value) || (is_string($value) && preg_match('/^-?\d+$/', $value))
+                    ? (int) $value
+                    : (int) round((float) $value);
+                $out[$col] = \Ngos\AdminCore\Support\Money::fromMinor($minor, $def['currency'] ?? null)->format();
+
+                continue;
+            }
+            $out[$col] = $this->numericAggregate($value);
         }
 
         return $out;

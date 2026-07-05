@@ -64,6 +64,14 @@ it('totals an empty/zero result as the currency zero, not null', function () {
     expect(widgetAggregates('?filter[status]=nope')['price'])->toBe('៛0');
 });
 
+it('totals a money column past 2^53 exactly (no float-cast precision loss)', function () {
+    // A bigint minor-unit total can exceed 2^53, where the old `(int) round((float) $value)` collapsed
+    // 9007199254740993 → …992 (a unit short). The exact integer must survive to the formatted footer.
+    makeWidget('Whale', 'active', 9007199254740993, 0);
+
+    expect(widgetAggregates()['price'])->toBe('៛9,007,199,254,740,993'); // exact, not …992
+});
+
 it('ignores a non-whitelisted aggregate function (never runs it as SQL)', function () {
     makeWidget('A', 'active', 1000);
 
