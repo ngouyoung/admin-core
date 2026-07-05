@@ -65,8 +65,12 @@ class ErrorLog extends Model
                 'type' => $e::class,
                 'message' => Str::limit($e->getMessage(), 2000, ''),
                 'file' => $e->getFile() . ':' . $e->getLine(),
-                'trace' => Str::limit($e->getTraceAsString(), 20000, ''),
-                'url' => self::safe(fn () => request()->fullUrl()),
+                // Store an ARGUMENT-FREE trace: PHP's getTraceAsString() inlines scalar call args, so a
+                // password/token/OTP passed as a string anywhere up the stack would be persisted verbatim.
+                'trace' => Str::limit(self::argFreeTrace($e), 20000, ''),
+                // Mask secret query params (a reset ?token=/?email=, an ?api_token=) so a leaked URL of a
+                // failing request isn't readable in the admin error-log screen.
+                'url' => self::safe(fn () => self::redactUrl(request()->fullUrl())),
                 'method' => self::safe(fn () => request()->method()),
                 'user_id' => self::safe(fn () => Auth::id() !== null ? (string) Auth::id() : null),
             ]);
@@ -96,5 +100,43 @@ class ErrorLog extends Model
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /**
+     * A stack-trace string built from the structured frames WITHOUT argument values — file(line): Class->fn().
+     * PHP's native getTraceAsString() inlines scalar string arguments (a password/OTP/token passed up the
+     * call chain lands in the persisted, admin-viewable trace); this keeps the call chain, drops the values.
+     */
+    private static function argFreeTrace(Throwable $e): string
+    {
+        $lines = [];
+        foreach ($e->getTrace() as $i => $frame) {
+            $where = isset($frame['file'])
+                ? $frame['file'] . '(' . ($frame['line'] ?? '?') . ')'
+                : '[internal function]';
+            $call = ($frame['class'] ?? '') . ($frame['type'] ?? '') . $frame['function'];
+            $lines[] = "#{$i} {$where}: {$call}()";
+        }
+        $lines[] = '#' . count($lines) . ' {main}';
+
+        return implode("\n", $lines);
+    }
+
+    /** Mask the VALUE of any configured sensitive query parameter in a URL (case-insensitive). */
+    private static function redactUrl(string $url): string
+    {
+        $keys = (array) config('admin-core.error_log.redact', []);
+        foreach ($keys as $key) {
+            if (! is_string($key) || $key === '') {
+                continue; // config is host-provided — tolerate a non-string entry
+            }
+            $url = (string) preg_replace(
+                '/([?&]' . preg_quote($key, '/') . '=)[^&#]*/i',
+                '${1}[redacted]',
+                $url,
+            );
+        }
+
+        return $url;
     }
 }

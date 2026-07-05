@@ -351,6 +351,15 @@ return [
     */
     'error_log' => [
         'retention_days' => 30,
+
+        // Query-string parameters whose VALUE is masked to [redacted] before an error's URL is stored, so a
+        // secret in the URL of a failing request (a password-reset ?token=/?email=, an ?api_token=) doesn't
+        // sit in the admin-viewable error_logs table. Matched case-insensitively. The stack trace is stored
+        // WITHOUT call arguments regardless (PHP inlines string args, which can be passwords/tokens).
+        'redact' => [
+            'token', '_token', 'api_token', 'access_token', 'refresh_token', 'secret', 'api_key', 'key',
+            'password', 'password_confirmation', 'otp', 'code', 'email',
+        ],
     ],
 
     /*

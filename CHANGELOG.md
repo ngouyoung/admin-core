@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.113
+
+**Security fix: the error log stored secrets — request URLs and stack-trace arguments — unredacted.**
+`ErrorLog::capture()` fires on every 5xx anywhere in the host app and stored `request()->fullUrl()` and
+`$e->getTraceAsString()` verbatim into an admin-viewable table (retained 30 days by default). So a 500 while
+rendering a URL that carries a secret (a password-reset `?token=`/`?email=`, an `?api_token=`) persisted that
+secret, and PHP's `getTraceAsString()` inlines scalar call arguments — a password/OTP/token passed as a string
+anywhere up the stack was written into the trace (truncated to 15 chars, NOT redacted). Now: sensitive query
+parameters are masked to `[redacted]` (a configurable `admin-core.error_log.redact` list — token, password,
+secret, api_token, email, …), and the trace is rebuilt from the structured frames WITHOUT argument values
+(keeping the file/line/class/function call chain). Regression tests cover the URL masking (secret gone,
+non-sensitive param kept) and the arg-free trace, both with a sanity assertion that the raw path really would
+have leaked (mutation-verified). Note: a secret embedded in a URL PATH segment (vs the query string) is not
+auto-detected — keep secrets out of paths. Found by a ninth full-package audit (log-pii-redaction dimension).
+
 ## v2.79.112
 
 **Security fix: an APP_KEY rotation permanently locked out every confirmed-2FA user.**
