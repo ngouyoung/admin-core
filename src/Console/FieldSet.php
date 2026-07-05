@@ -2137,7 +2137,20 @@ PHP;
                 $ignoreColumn = $this->uuid ? 'uuid' : 'id';
                 $trashed = $this->softDeletes ? '->withoutTrashed()' : '';
                 $wheres = implode('', array_map(
-                    fn ($c) => "->where('{$c}', \$this->input('{$c}'))",
+                    function ($c) {
+                        // A NOT-NULL boolean member stores false (0) when omitted from the request — but
+                        // $this->input('flag') is then null, and Laravel turns ->where($col, null) into
+                        // whereNull, which never matches the stored 0. The uniqueness check silently passes
+                        // and the DB constraint 500s instead of a clean 422. Compare against the coerced
+                        // boolean (false when absent) so an omitted flag still matches its stored default.
+                        // A NULLABLE boolean stores NULL when omitted, so whereNull (via input()) is correct.
+                        $member = collect($this->fields)->firstWhere('name', $c);
+                        $value = ($member !== null && $member['type'] === 'boolean' && empty($member['nullable']))
+                            ? "\$this->boolean('{$c}')"
+                            : "\$this->input('{$c}')";
+
+                        return "->where('{$c}', {$value})";
+                    },
                     array_slice($group, 1),
                 ));
                 $rules[] = $update

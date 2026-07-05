@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.108
+
+**Fix: a composite `--unique` with a boolean member missed the duplicate when the flag was omitted.** A
+`--unique="owner_id,is_primary"` group (with `is_primary:boolean`, a NOT-NULL `DEFAULT false` column) rode its
+uniqueness check on `->where('is_primary', $this->input('is_primary'))`. When the flag was omitted from the
+request — common on a JSON API POST for a falsy/default field — `$this->input()` is `null`, and Laravel turns
+`->where($col, null)` into `whereNull`, which never matches the real stored `0`. So the check passed, then the
+INSERT hit the DB's composite unique index and threw an uncaught `QueryException` (500) instead of the clean
+422 the validation was supposed to give. The generator now compares a NOT-NULL boolean member against
+`$this->boolean()` (which resolves an omitted flag to `false`/0, matching what gets stored); a NULLABLE boolean
+still uses `input()` (it genuinely stores NULL when omitted, so `whereNull` is right). Regression test covers
+the NOT-NULL coercion, the nullable exemption, and mutation (mutation-verified). Found by an eighth
+full-package audit (validation dimension).
+
 ## v2.79.107
 
 **Fix: an `integer` field had no magnitude cap, so an over-range value 500'd on insert.** A generated

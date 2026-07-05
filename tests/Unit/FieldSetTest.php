@@ -837,6 +837,27 @@ it('honours soft-deletes (withoutTrashed) on a composite unique', function () {
     expect($f->storeRules())->toContain("->where('b', \$this->input('b'))->withoutTrashed()");
 });
 
+it('compares a NOT-NULL boolean composite member as a coerced bool, not raw input (omitted = stored 0)', function () {
+    // owner_id + is_primary: when is_primary is omitted (common on an API POST), $this->input() is null →
+    // Laravel's ->where(col, null) becomes whereNull, which misses the real stored 0 → the check passes and
+    // the DB unique index 500s. $this->boolean() resolves an omitted flag to false (0), matching the store.
+    $f = fs('owner_id:foreign:users, is_primary:boolean, product_id:foreign:products', 'memberships')
+        ->setUniqueGroups([['owner_id', 'is_primary']]);
+
+    expect($f->storeRules())
+        ->toContain("Rule::unique('memberships', 'owner_id')->where('is_primary', \$this->boolean('is_primary'))")
+        ->not->toContain("->where('is_primary', \$this->input('is_primary'))");
+
+    // A NULLABLE boolean member DOES store NULL when omitted, so whereNull (via input()) stays correct.
+    $nullable = fs('owner_id:foreign:users, is_primary:boolean?, product_id:foreign:products', 'memberships')
+        ->setUniqueGroups([['owner_id', 'is_primary']]);
+    expect($nullable->storeRules())
+        ->toContain("->where('is_primary', \$this->input('is_primary'))");
+
+    // A non-boolean member is unaffected — still raw input().
+    expect($f->storeRules())->not->toContain("->where('product_id'"); // product_id isn't in this group
+});
+
 it('rejects a composite unique that is one column or references an unknown column', function () {
     expect(fn () => fs('a:integer')->setUniqueGroups([['a']]))
         ->toThrow(InvalidArgumentException::class, 'needs at least two columns');
