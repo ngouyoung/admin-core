@@ -74,7 +74,13 @@ class Dashboard
             return $widget->data($context);
         }
 
-        $key = 'admin-core:dashboard:' . $widget->key() . ':' . $context->cacheSignature() . ':' . (auth()->id() ?? 'guest');
+        // Key by the guard-aware [id, guard] — NOT auth()->id(), which reads only the default guard and so
+        // collapses EVERY portal (non-default-guard) user to the same 'guest' bucket: a per-user cached
+        // widget (a wallet balance, etc.) would then serve one merchant's data to the next. The guard part
+        // also stops id 5 on 'web' colliding with id 5 on 'merchant'. Mirrors currentUser() (layout/save).
+        [$uid, $guard] = $this->currentUser();
+        $who = $uid === null ? 'guest' : $guard . '#' . $uid;
+        $key = 'admin-core:dashboard:' . $widget->key() . ':' . $context->cacheSignature() . ':' . $who;
 
         return cache()->remember($key, $ttl, fn () => $widget->data($context));
     }

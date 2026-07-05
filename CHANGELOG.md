@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.114
+
+**Security fix: a cached dashboard widget leaked one portal user's data to another.** `Dashboard::payload()`
+built its per-user cache key with `auth()->id()` — the DEFAULT guard's id — so every user authenticated on a
+NON-default (portal) guard resolved to `null` and shared a single `…:guest` cache bucket. A cache-enabled,
+per-user widget (a "My Wallet Balance" stat) then served the first merchant's cached value to the next
+merchant within the TTL: a cross-tenant data leak. The key now uses the same guard-aware `currentUser()`
+resolution the layout save/read already used — `{guard}#{id}` — so each portal user gets their own bucket and
+id 5 on `web` never collides with id 5 on `merchant`. Regression test registers a per-user widget, sets two
+different merchant-guard users, and asserts the second sees their own value, not the first's cached one
+(mutation-verified). Found by a ninth full-package audit (dashboard-widgets dimension).
+
 ## v2.79.113
 
 **Security fix: the error log stored secrets — request URLs and stack-trace arguments — unredacted.**

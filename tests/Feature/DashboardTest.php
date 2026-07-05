@@ -78,6 +78,32 @@ it('hides a widget the viewer lacks permission for', function () {
     expect($titles)->toBe(['Public']);
 });
 
+it('does not share a cached widget payload between two portal (non-default-guard) users', function () {
+    // payload() used auth()->id() (DEFAULT guard only), so every merchant-guard user collapsed to one
+    // 'guest' cache bucket — user #10's per-user widget value was served to user #20. Key by [id, guard].
+    cache()->flush();
+    config()->set('admin-core.permission.guards', ['merchant' => []]);
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+    config(['admin-core.dashboard.widgets' => [
+        ['type' => 'stat', 'title' => 'Wallet', 'cache' => 60, 'value' => fn () => (int) (auth()->guard('merchant')->user()->name)],
+    ]]);
+
+    // In-memory users with distinct ids — the cache key reads only the guard id, no DB row needed.
+    $m10 = (new \Ngos\AdminCore\Tests\Fixtures\NotifiableUser(['name' => '500']))->forceFill(['id' => 10]);
+    $m20 = (new \Ngos\AdminCore\Tests\Fixtures\NotifiableUser(['name' => '900']))->forceFill(['id' => 20]);
+
+    $dashboard = app(Dashboard::class);
+    $widget = $dashboard->widgets()->first();
+    $context = DashboardContext::fromPreset('30d');
+
+    auth()->guard('merchant')->setUser($m10);
+    expect($dashboard->payload($widget, $context)['value'])->toEqual(500);
+
+    // A DIFFERENT merchant-guard user within the TTL must NOT get #10's cached 500.
+    auth()->guard('merchant')->setUser($m20);
+    expect($dashboard->payload($widget, $context)['value'])->toEqual(900); // own data, not the shared bucket
+});
+
 it('caches a widget payload for its TTL so the data closure runs once', function () {
     cache()->flush();
     $calls = 0;
