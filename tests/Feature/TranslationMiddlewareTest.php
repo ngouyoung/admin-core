@@ -174,6 +174,35 @@ it('persists the chosen locale to the signed-in user (durable across devices) an
     Schema::dropIfExists('loc_users');
 });
 
+it('persists + reads the locale for a PORTAL (non-default-guard) user, not just the default guard', function () {
+    config()->set('admin-core.permission.guards', ['merchant' => []]);
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+    Schema::create('loc_users', function ($t) {
+        $t->id();
+        $t->string('locale')->nullable();
+    });
+    $userModel = new class extends \Illuminate\Foundation\Auth\User
+    {
+        protected $table = 'loc_users';
+
+        public $timestamps = false;
+
+        protected $guarded = [];
+    };
+    $merchant = $userModel::create(['locale' => null]);
+
+    // A merchant-guard user (default 'web' guard has nobody). ?setlang=km must write to the MERCHANT account.
+    auth()->guard('merchant')->setUser($merchant);
+    $req = Request::create('/merchant?setlang=km', 'GET');
+    $req->setLaravelSession(app('session.store'));
+    (new SetLocale)->handle($req, fn ($r) => response('ok'));
+
+    expect(app()->getLocale())->toBe('km')
+        ->and($merchant->fresh()->locale)->toBe('km'); // persisted to the portal user, not lost
+
+    Schema::dropIfExists('loc_users');
+});
+
 it('caps outbound translate() calls per request at the rate_limit budget', function () {
     config()->set('admin-core.translation.locales', ['en' => 'EN', 'km' => 'KM', 'fr' => 'FR', 'th' => 'TH']);
     config()->set('admin-core.translation.rate_limit', 2);

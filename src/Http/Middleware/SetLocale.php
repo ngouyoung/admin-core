@@ -45,7 +45,7 @@ class SetLocale
      */
     protected function resolve(Request $request, array $available): string
     {
-        $user = $request->user();
+        $user = $this->authenticatedUser($request);
 
         if ($user instanceof Model && $this->modelHasLocaleColumn($user)) {
             $locale = $user->getAttribute('locale');
@@ -72,11 +72,39 @@ class SetLocale
             $request->session()->put('admin-core.locale', $locale);
         }
 
-        $user = $request->user();
+        $user = $this->authenticatedUser($request);
 
         if ($user instanceof Model && $this->modelHasLocaleColumn($user)) {
             $user->forceFill(['locale' => $locale])->save();
         }
+    }
+
+    /**
+     * The signed-in user across the default guard AND any configured portal guard — so a portal user (on a
+     * NON-default guard) has their stored locale read AND persisted to the RIGHT account. $request->user()
+     * reads only the default guard, so in a multi-guard app it would miss a portal user's stored locale and
+     * (on ?setlang) write the switch to nobody. Mirrors AutoTranslate's guard-aware resolution.
+     */
+    protected function authenticatedUser(Request $request): ?\Illuminate\Contracts\Auth\Authenticatable
+    {
+        // The default guard first, via the request resolver (respects Laravel's + any host/test override).
+        if ($request->user() !== null) {
+            return $request->user();
+        }
+
+        // Otherwise a portal user on a configured NON-default guard — else a portal user's stored locale is
+        // never read and a ?setlang switch is written to nobody (only the default guard was ever consulted).
+        foreach (array_keys((array) config('admin-core.permission.guards', [])) as $guard) {
+            try {
+                if (auth()->guard($guard)->check()) {
+                    return auth()->guard($guard)->user();
+                }
+            } catch (\Throwable) {
+                continue; // a guard named in admin-core config but not defined in auth.php — skip
+            }
+        }
+
+        return null;
     }
 
     /**

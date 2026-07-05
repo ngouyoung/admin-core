@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.123
+
+**Fix: per-user UI language ignored portal (non-default-guard) users.** `SetLocale` resolved and persisted the
+locale via `$request->user()` — the DEFAULT guard only. In a multi-portal app a user authenticated on a portal
+guard had their stored `locale` never read, and a `?setlang=` switch written to nobody (or, worse, the wrong
+account). It now resolves the user across the default guard AND any configured portal guard (mirroring
+AutoTranslate/Dashboard), so a portal user's language preference is read and saved to the right account.
+Regression test persists + reads the locale for a merchant-guard user (mutation-verified); the default-guard
+behaviour is unchanged. Found by a ninth full-package audit (translation-locale-middleware dimension).
+
 ## v2.79.122
 
 **Fix: a sidebar menu group's own `can` permission was never enforced.** `Sidebar::filter()` permission-checked
