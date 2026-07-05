@@ -78,3 +78,31 @@ it('filters the library by name search and by collection', function () {
         ->and($lib->query(collection: 'fruit')->count())->toBe(2)
         ->and($lib->collections())->toContain('fruit', 'vehicle');
 });
+
+it('scopes the library to the current user when uploads.media_scope=own (browse, collections, delete-guard)', function () {
+    // The audit-10 media IDOR: with no scoping, any manage-media holder browses + deletes every user's / every
+    // portal's uploads. Opt-in 'own' scope walls each user off to their own items.
+    config()->set('admin-core.uploads.media_scope', 'own');
+    $lib = app(MediaLibrary::class);
+
+    MediaItem::create(['name' => 'mine.png', 'path' => 'm/mine.png', 'collection' => 'a', 'user_id' => 1]);
+    MediaItem::create(['name' => 'theirs.png', 'path' => 'm/theirs.png', 'collection' => 'b', 'user_id' => 2]);
+
+    $this->actingAs(new \Illuminate\Auth\GenericUser(['id' => 1]));
+
+    expect($lib->query()->pluck('name')->all())->toBe(['mine.png'])                 // only my upload is listed
+        ->and($lib->collections())->toBe(['a'])                                      // only my collection
+        ->and($lib->owns(MediaItem::where('user_id', 1)->first()))->toBeTrue()       // can delete my own
+        ->and($lib->owns(MediaItem::where('user_id', 2)->first()))->toBeFalse();     // NOT another user's (404)
+});
+
+it('keeps one shared pool by default (uploads.media_scope=shared) — no behaviour change', function () {
+    $lib = app(MediaLibrary::class);
+    MediaItem::create(['name' => 'a.png', 'path' => 'm/a.png', 'user_id' => 1]);
+    MediaItem::create(['name' => 'b.png', 'path' => 'm/b.png', 'user_id' => 2]);
+
+    $this->actingAs(new \Illuminate\Auth\GenericUser(['id' => 1]));
+
+    expect($lib->query()->count())->toBe(2)                                          // everyone sees the whole pool
+        ->and($lib->owns(MediaItem::where('user_id', 2)->first()))->toBeTrue();      // and may manage any of it
+});

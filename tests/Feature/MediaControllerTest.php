@@ -102,3 +102,20 @@ it('deletes a media item (and its file) via the endpoint', function () {
     expect(MediaItem::count())->toBe(0);
     Storage::disk('public')->assertMissing($path);
 });
+
+it('404s deleting another user\'s item under uploads.media_scope=own (closes the cross-user/portal IDOR)', function () {
+    config()->set('admin-core.uploads.media_scope', 'own');
+
+    $theirs = MediaItem::create(['name' => 'theirs.png', 'path' => 'm/theirs.png', 'user_id' => 2]);
+    $mine = MediaItem::create(['name' => 'mine.png', 'path' => 'm/mine.png', 'user_id' => 1]);
+
+    $this->actingAs(new \Illuminate\Auth\GenericUser(['id' => 1]));
+
+    // Another user's uuid is refused as if it did not exist — no delete, no existence disclosure.
+    $this->delete('/admin/media/' . $theirs->uuid)->assertNotFound();
+    expect(MediaItem::find($theirs->id))->not->toBeNull();
+
+    // My own still deletes fine.
+    $this->delete('/admin/media/' . $mine->uuid)->assertOk()->assertJson(['ok' => true]);
+    expect(MediaItem::find($mine->id))->toBeNull();
+});

@@ -65,22 +65,51 @@ class MediaLibrary
     }
 
     /**
-     * A query over the library, newest first, optionally narrowed by a name search + a collection.
+     * May the current user act on (delete) this item under the configured library scope? Always true for the
+     * default 'shared' pool; for 'own' the item must belong to the current user — so a crafted uuid can't reach
+     * (delete) another user's / another portal's upload. The controller 404s an out-of-scope item.
+     */
+    public function owns(MediaItem $item): bool
+    {
+        return config('admin-core.uploads.media_scope', 'shared') !== 'own'
+            || ((string) $item->user_id !== '' && (string) $item->user_id === (string) auth()->id());
+    }
+
+    /**
+     * A query over the library, newest first, optionally narrowed by a name search + a collection, and scoped to
+     * the current user when `uploads.media_scope` is 'own' (so browse/list can't enumerate other users' uploads).
      *
      * @return Builder<MediaItem>
      */
     public function query(?string $search = null, ?string $collection = null): Builder
     {
-        return MediaItem::query()
+        return $this->scoped(MediaItem::query())
             ->when($search, fn (Builder $q) => $q->where('name', 'like', '%' . $search . '%'))
             ->when($collection, fn (Builder $q) => $q->where('collection', $collection))
             ->latest();
     }
 
-    /** The distinct collections (folders) present in the library. */
+    /** The distinct collections (folders) present in the library — scoped to the current user under 'own'. */
     public function collections(): array
     {
-        return MediaItem::query()->distinct()->orderBy('collection')->pluck('collection')->all();
+        return $this->scoped(MediaItem::query())->distinct()->orderBy('collection')->pluck('collection')->all();
+    }
+
+    /**
+     * Apply the configured library scope. 'own' limits to the current user's uploads (matching how store()
+     * records user_id); 'shared' (the default) leaves the query untouched — one global pool, the prior behaviour.
+     *
+     * @param  Builder<MediaItem>  $query
+     * @return Builder<MediaItem>
+     */
+    protected function scoped(Builder $query): Builder
+    {
+        if (config('admin-core.uploads.media_scope', 'shared') === 'own') {
+            // Fail closed: an unresolved user (null id) scopes to nothing rather than the whole pool.
+            $query->where('user_id', auth()->id());
+        }
+
+        return $query;
     }
 
     /**

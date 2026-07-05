@@ -13,11 +13,14 @@ use Ngos\AdminCore\Support\Media;
  * @property string $uuid
  * @property string $name
  * @property string $path
+ * @property string $disk
  * @property string|null $mime
  * @property int $size
  * @property int|null $width
  * @property int|null $height
  * @property string $collection
+ * @property string|null $alt
+ * @property int|null $user_id
  * @property string|null $url
  * @property bool $is_image
  */

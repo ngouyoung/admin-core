@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.137
+
+**Fix (opt-in): the media library was a single global pool with no per-user scoping — a cross-user / cross-portal
+IDOR.** `MediaLibrary::query()`, `collections()` and the delete endpoint operated on every `media_items` row
+regardless of who uploaded it, so any holder of `manage-media` (on any portal that mounts `Route::adminCoreMedia()`)
+could browse AND delete every other user's / tenant's uploads. Uploads already record `user_id`; a new
+`uploads.media_scope` config now uses it: `'shared'` (default — the classic one-pool library, unchanged) or
+`'own'` (each user sees, and can delete, only their own items, which also walls one portal's uploads off from
+another's). Under `'own'`, browse/list/collections are scoped and the delete endpoint 404s an item the current
+user doesn't own (no existence disclosure). No migration and no behaviour change unless you opt in. Regression
+tests cover the scoped browse/collections/`owns` guard and a 404 on a cross-user delete (mutation-verified). Found
+by a tenth full-package audit (media-IDOR dimension / completeness critic).
+
 ## v2.79.136
 
 **Fix: the generated REST API (`--api`) had no rate limiting.** The `admin-core.api.middleware` default was

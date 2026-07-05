@@ -304,6 +304,13 @@ return [
         // The media library upload allowlist. NEVER includes executable/markup types (php, phtml, svg, html…)
         // — they would be served from the public disk (stored XSS / RCE). Widen per project if you need more.
         'allowed_mimes' => 'jpg,jpeg,png,webp,gif,pdf,doc,docx,xls,xlsx,csv,txt,zip',
+        // Media library visibility (the browse/list/delete screen behind Route::adminCoreMedia()):
+        //   'shared' (default) — one global pool every `manage-media` holder browses and can delete from
+        //                        (the classic WordPress-style shared library; correct for a single admin team).
+        //   'own'              — each user sees, and can delete, only the items THEY uploaded (scoped by
+        //                        user_id). Also walls off one portal's / tenant's uploads from another's —
+        //                        opt in for a multi-portal or multi-tenant install to close the cross-user IDOR.
+        'media_scope' => 'shared',
     ],
 
     /*

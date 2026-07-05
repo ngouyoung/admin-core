@@ -88,6 +88,10 @@ class MediaController extends Controller
 
     public function destroy(MediaItem $media): JsonResponse
     {
+        // Under the 'own' library scope a crafted uuid must not reach another user's / portal's upload — 404 it
+        // (no existence disclosure), exactly as the browse/list query hides it. A no-op for the default 'shared'.
+        abort_unless($this->library->owns($media), 404);
+
         if (! $this->library->delete($media)) {
             return response()->json(['ok' => false, 'message' => __('That file is still in use and can\'t be deleted.')], 409);
         }
