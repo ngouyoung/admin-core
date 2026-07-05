@@ -2,6 +2,28 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.118
+
+**Two lifecycle-command fixes that silently destroyed a user's install/customisations.**
+
+**`admin-core:reinstall` permanently dropped the `--api-auth` feature.** Reinstall runs `uninstall --purge`
+(which removes AuthController, ApiAuthServiceProvider, the api-auth routes + provider registration) then
+`install`, but it only forwarded `--access` — never `--api-auth`. So `reinstall --access` on an
+`--access --api-auth` install deleted the entire API-auth feature for good (`/api/login` → 404), with no way
+to prevent it. Reinstall now **auto-detects** what's installed (the api-auth controller/provider, the
+`views/backend` theme) before purging and re-applies it, and exposes an explicit `--api-auth` option too.
+
+**`admin-core:install --access` overwrote customised theme files without `--force`.** `installFrontend()`
+hardcoded `force: true` on the `resources/` + `views/backend` copies (and the login/2FA blades), bypassing the
+`--force` contract entirely — so any re-run (to add `--api-auth`, or the documented 2FA-upgrade re-run)
+silently clobbered a user's edited `sidebar.blade.php`, `app.scss`, brand colours, etc. It now passes through
+the real `--force` flag; without it, existing files are kept and reported as `exists (use --force to
+overwrite)`.
+
+Regression tests: reinstall preserves an auto-detected api-auth install; a customised sidebar survives a
+re-run without `--force` and is overwritten with it (both mutation-verified). Found by a ninth full-package
+audit (lifecycle-commands dimension).
+
 ## v2.79.117
 
 **Fix: `admin-core:field` falsely reported "patched" when it couldn't add a field's validation/factory —

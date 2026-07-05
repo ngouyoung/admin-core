@@ -301,15 +301,20 @@ PHP;
         // the host's own vite.config builds it (and keeps Laravel's app.css/Tailwind
         // welcome page working), so we deliberately do NOT replace vite.config.js —
         // we only inject the SCSS quietDeps so the Bootstrap build stays warning-free.
-        $this->copyTree("$fe/resources", resource_path(), force: true);
+        //
+        // NOTE: do NOT hardcode force here. These are edit-me theme files (sidebar/footer/app.scss/*.js/login).
+        // Passing force:true overwrote a user's customisations on ANY re-run of `install --access` (e.g. to
+        // add --api-auth, or the documented 2FA-upgrade re-run), regardless of the actual --force flag.
+        // copy() already honours --force from the CLI and prints "exists (use --force to overwrite)" otherwise.
+        $this->copyTree("$fe/resources", resource_path());
         $this->ensureViteQuietDeps();
 
         $this->mergePackageJson("$fe/package.json.stub");
 
         // Layout + nav/sidebar/footer + login.
-        $this->copyTree("$fe/views/backend", resource_path('views/backend'), force: true);
-        $this->copy("$fe/views/auth/login.blade.php.stub", resource_path('views/auth/login.blade.php'), force: true);
-        $this->copy("$fe/views/auth/two-factor-challenge.blade.php.stub", resource_path('views/auth/two-factor-challenge.blade.php'), force: true);
+        $this->copyTree("$fe/views/backend", resource_path('views/backend'));
+        $this->copy("$fe/views/auth/login.blade.php.stub", resource_path('views/auth/login.blade.php'));
+        $this->copy("$fe/views/auth/two-factor-challenge.blade.php.stub", resource_path('views/auth/two-factor-challenge.blade.php'));
     }
 
     private function mergePackageJson(string $stub): void

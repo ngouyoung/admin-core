@@ -276,6 +276,40 @@ it('scaffolds Passport API auth with --api-auth', function () {
     expect(File::get(config_path('admin-core.php')))->toContain("'auth:api'");
 });
 
+it('does not overwrite a customised theme file on a re-run without --force (respects the flag)', function () {
+    $this->artisan('admin-core:install', ['--access' => true, '--no-interaction' => true])->assertSuccessful();
+    $sidebar = resource_path('views/backend/partials/sidebar.blade.php');
+    File::put($sidebar, File::get($sidebar) . "\n{{-- MY-CUSTOM-NAV --}}\n");
+
+    // Re-running --access (e.g. to add a feature, or the documented 2FA-upgrade re-run) WITHOUT --force must
+    // NOT clobber the edit — installFrontend used to hardcode force:true, silently discarding customisations.
+    $this->artisan('admin-core:install', ['--access' => true, '--no-interaction' => true])->assertSuccessful();
+    expect(File::get($sidebar))->toContain('MY-CUSTOM-NAV'); // survived
+
+    // WITH --force it IS overwritten — the documented, explicit escape hatch.
+    $this->artisan('admin-core:install', ['--access' => true, '--force' => true, '--no-interaction' => true])->assertSuccessful();
+    expect(File::get($sidebar))->not->toContain('MY-CUSTOM-NAV');
+
+    // Full teardown of the --access footprint (theme + access module) so no residue leaks to later test files.
+    $this->artisan('admin-core:uninstall', ['--purge' => true, '--force' => true, '--no-interaction' => true]);
+});
+
+it('preserves the --api-auth feature on reinstall even when not re-passed (auto-detected)', function () {
+    $this->artisan('admin-core:install', ['--api-auth' => true, '--force' => true, '--no-interaction' => true])->assertSuccessful();
+    expect(File::exists(app_path('Http/Controllers/Api/AuthController.php')))->toBeTrue();
+
+    // reinstall --access (no --api-auth) used to PURGE the api-auth feature for good. It must now detect the
+    // existing install and re-apply it.
+    $this->artisan('admin-core:reinstall', ['--force' => true, '--no-interaction' => true])->assertSuccessful();
+
+    expect(File::exists(app_path('Http/Controllers/Api/AuthController.php')))->toBeTrue()
+        ->and(File::exists(app_path('Providers/ApiAuthServiceProvider.php')))->toBeTrue()
+        ->and(File::get(base_path('routes/api.php')))->toContain('admin-core:api-auth')
+        ->and(File::get(base_path('bootstrap/providers.php')))->toContain('ApiAuthServiceProvider');
+
+    $this->artisan('admin-core:uninstall', ['--purge' => true, '--force' => true, '--no-interaction' => true]);
+});
+
 it('is idempotent for --api-auth too', function () {
     $this->artisan('admin-core:install', ['--api-auth' => true])->assertSuccessful();
     $this->artisan('admin-core:install', ['--api-auth' => true])->assertSuccessful();
