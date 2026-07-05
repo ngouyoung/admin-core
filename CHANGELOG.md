@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.117
+
+**Fix: `admin-core:field` falsely reported "patched" when it couldn't add a field's validation/factory —
+shipping an unvalidated column.** `patchRequest()` and `patchFactory()` checked only that `preg_replace`
+didn't error (`!== null`), never that it actually changed anything. If the target `rules()` / `definition()`
+body wasn't the exact `{ return [ … ]; }` shape (e.g. an author added a conditional before the final return),
+the regex matched nothing and returned the file UNCHANGED — but the command wrote the identical bytes back and
+printed "patched" anyway. So a new field became a real, mass-assignable, form-visible column with NO validation
+(a bad/duplicate value 500s at the DB instead of a clean 422), and its factory silently omitted the column.
+Both now compare against the original and only report success on a real change — otherwise they WARN and print
+the exact rule/factory line to add by hand (matching every sibling patcher's equality check). Regression test
+reshapes `rules()`, runs the command, and asserts it warns + leaves the request untouched while the column is
+still added (so the warning is the only safeguard) — mutation-verified. Found by a ninth full-package audit
+(field-command-mutation dimension).
+
 ## v2.79.116
 
 **Fix: `--access` retrofit left pre-existing users with `uuid=NULL`, 500-ing the whole Users list.**

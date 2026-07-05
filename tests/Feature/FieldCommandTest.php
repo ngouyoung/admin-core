@@ -40,6 +40,50 @@ it('refuses when the table has no migration and does not exist (no orphan migrat
     expect(File::get(app_path('Models/Gizmo.php')))->not->toContain("'sku'");
 });
 
+it('warns (does not falsely report "patched") when the request rules() cannot be patched', function () {
+    // If rules() has been reshaped (a conditional before the final return), the regex matches nothing and
+    // returns the file UNCHANGED. The old code wrote it back and reported "patched" anyway → the new field
+    // shipped with NO validation. It must now WARN and leave the request untouched, not claim success.
+    makeGizmo();
+
+    $store = app_path('Http/Requests/Gizmo/StoreGizmoRequest.php');
+    $reshaped = <<<'PHP'
+<?php
+
+namespace App\Http\Requests\Gizmo;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreGizmoRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        if ($this->user()) {
+            return ['name' => ['required', 'string', 'max:255']];
+        }
+
+        return ['name' => ['required', 'string', 'max:255']];
+    }
+}
+PHP;
+    File::put($store, $reshaped);
+
+    $this->artisan('admin-core:field', ['name' => 'Gizmo', 'fields' => 'discount:decimal'])
+        ->expectsOutputToContain('could not patch')  // honest warning, not a false "patched"
+        ->assertSuccessful();
+
+    // The request is byte-identical (nothing silently written) and still has no `discount` rule.
+    expect(File::get($store))->toBe($reshaped)->not->toContain('discount');
+    // But the column + fillable WERE added (the model patch works on its own shape) — so the warning is the
+    // only thing standing between the author and an unvalidated column.
+    expect(File::get(app_path('Models/Gizmo.php')))->toContain("'discount'");
+});
+
 it('adds a field to a resource whose $fillable is empty without writing invalid PHP', function () {
     // A sequence/auth-only resource has no mass-assignable columns → `protected $fillable = [];`. Prepending
     // ', ' there used to yield `[, 'amount']`, a fatal parse error that broke the model's autoload.

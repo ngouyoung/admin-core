@@ -349,9 +349,16 @@ class AdminCoreFieldCommand extends Command
             1,
         );
 
-        if ($patched !== null) {
+        // Compare against $contents (not just !== null): if the rules() body isn't the exact
+        // `{ return [ … ]; }` shape (e.g. a hand-added conditional before the final return), preg_replace
+        // matches nothing and returns the subject UNCHANGED — writing it back and reporting "patched" would
+        // ship a field with NO validation (a bad value 500s at the DB instead of a clean 422). Warn instead,
+        // so the author adds the rule by hand. Mirrors every sibling patcher's equality check.
+        if ($patched !== null && $patched !== $contents) {
             File::put($path, $patched);
             $this->line('  <info>patched</info> ' . $this->relative($path));
+        } else {
+            $this->warn('  could not patch ' . $this->relative($path) . " — add the field's rule(s) by hand:\n{$rules}");
         }
     }
 
@@ -555,16 +562,22 @@ class AdminCoreFieldCommand extends Command
             return;
         }
 
+        $contents = File::get($path);
         $patched = preg_replace(
             '/(public function definition\(\): array\s*\{\s*return \[)(.*?)(\n\s*\];)/s',
             "$1$2\n{$definition}$3",
-            File::get($path),
+            $contents,
             1,
         );
 
-        if ($patched !== null) {
+        // Only report success when the definition() body actually changed — a reformatted factory would
+        // otherwise leave the file byte-identical while the CLI claims "patched", silently omitting the new
+        // column from generated test rows. Mirrors the sibling patchers' equality check.
+        if ($patched !== null && $patched !== $contents) {
             File::put($path, $patched);
             $this->line('  <info>patched</info> ' . $this->relative($path));
+        } else {
+            $this->warn('  could not patch ' . $this->relative($path) . " — add the factory line(s) by hand:\n{$definition}");
         }
     }
 
