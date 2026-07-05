@@ -2,6 +2,24 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.144
+
+**Security fix (HIGH — stored XSS): the rich-text sanitizer was a blocklist regex with real bypasses.**
+`Support\Html::clean()` (applied to richtext fields before they are stored and echoed raw on the show page via
+`{!! !!}`) matched dangerous patterns instead of allowlisting safe ones, so a crafted payload slipped through:
+`<img src="x"onerror="…">` (the `on*` filter required whitespace/slash before `on`, but here the boundary is the
+src value's closing quote) and `<a/href="javascript:…">` (the URL filter required whitespace before `href`, but a
+`/` separates it) both survived clean() byte-for-byte and executed in the admin's browser. Blocklist HTML
+sanitizing is whack-a-mole, so `clean()` is rewritten as a **DOM allowlist** using PHP's built-in ext-dom: it
+parses the HTML and keeps ONLY an allowlist of tags, attributes and URL schemes — every `on*` handler,
+`<script>/<iframe>/…`, `javascript:`/`data:` URL, framework directive (`x-on:`/`@click`) and unsafe inline style
+is dropped structurally, closing the entire bypass class (quote/slash-adjacent attributes, entity-obfuscated
+schemes, mutation-XSS) rather than pattern by pattern. Safe rich text (including multibyte/Khmer, links, images,
+tables, and text-align styles) round-trips unchanged; `target=_blank` gains `rel=noopener`. Regression tests
+cover both bypasses, the structural attribute/element drop, style filtering, and multibyte — with the old
+blocklist proven to fail them (mutation-verified). Found by an eleventh full-package audit (HTML-sanitizer
+dimension).
+
 ## v2.79.143
 
 **Fix: the Select2 remote source's cascade filter didn't guard against an array-valued param.** `WebController::select()`

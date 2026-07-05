@@ -40,3 +40,40 @@ it('keeps ordinary rich text and passes null/empty through', function () {
     expect(Html::clean(null))->toBeNull();
     expect(Html::clean(''))->toBe('');
 });
+
+it('strips a quote-adjacent event handler the old blocklist regex missed (audit-11 XSS)', function () {
+    // <img src="x"onerror=…> — the closing quote of src is the boundary before `onerror`, so a `[\s/]on…`
+    // regex never matched it. The allowlist drops onerror because it isn't an allowed attribute at all.
+    $out = Html::clean('<img src="x"onerror="alert(document.cookie)">');
+    expect($out)->not->toContain('onerror')->not->toContain('alert');
+});
+
+it('strips a slash-separated javascript: URL the old blocklist regex missed (audit-11 XSS)', function () {
+    // <a/href="javascript:…"> — the `/` before href isn't `\s`, so the old URL-scheme regex skipped it.
+    $out = Html::clean('<a/href="javascript:alert(document.cookie)">click</a>');
+    expect($out)->not->toContain('javascript')->toContain('click'); // scheme dropped, text kept
+});
+
+it('drops any non-allowlisted attribute (on* handlers, framework directives, id) structurally', function () {
+    // The allowlist means novel event/handler/directive sinks are dropped without needing a pattern for each.
+    $out = Html::clean('<p x-on:click="hack()" @click="hack()" onmouseover="hack()" id="sink" tabindex="1">hi</p>');
+    expect($out)->toContain('hi')
+        ->not->toContain('x-on')->not->toContain('@click')->not->toContain('onmouseover')
+        ->not->toContain('id=')->not->toContain('tabindex');
+});
+
+it('drops a non-allowlisted element but keeps its (sanitized) text content', function () {
+    $out = Html::clean('<section><font color="red">kept text</font></section>');
+    expect($out)->toContain('kept text')->not->toContain('<section')->not->toContain('<font');
+});
+
+it('keeps a safe inline style but drops a dangerous one (url()/expression)', function () {
+    expect(Html::clean('<p style="text-align:center;color:#333">ok</p>'))->toContain('text-align:center');
+    expect(Html::clean('<p style="width:expression(alert(1))">x</p>'))->not->toContain('expression')->toContain('x');
+    expect(Html::clean('<p style="background:url(javascript:alert(1))">y</p>'))->not->toContain('javascript')->toContain('y');
+});
+
+it('preserves multibyte (Khmer) content through the DOM round-trip', function () {
+    $out = Html::clean('<p>ខ្មែរ <strong>test</strong></p>');
+    expect($out)->toContain('ខ្មែរ')->toContain('<strong>test</strong>');
+});
