@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.153
+
+**Fix: a per-record-currency money validation (`@currency`) resolved the wrong currency on CSV import, and could
+500 the whole import.** `MoneyAmount('@currency')` read the sibling currency from `request()->input()`. On the web
+form that's the posted value, but `WebController::import()` validates each row with `Validator::make($row, …)`
+where `request()` carries only the uploaded file — so `@currency` fell back to the config default. That let a
+value that fits the default currency but overflows the row's real currency pass validation, then throw inside
+`MoneyCast` at `create()` — an `InvalidArgumentException` the import's try/catch (QueryException only) didn't
+catch, so it escaped as an HTTP 500 aborting the entire import (and the mirror case wrongly rejected valid rows).
+`MoneyAmount` now implements `DataAwareRule` and reads the currency from the data under validation (the form row
+OR the import row), so it resolves the same currency the cast will; and `import()` also catches an
+`InvalidArgumentException` per row (skip-and-report, never fatal). Regression tests cover the row-data resolution
+and a full import-shaped `Validator` run (mutation-verified). Found by an eleventh full-package audit
+(money-internals dimension).
+
 ## v2.79.152
 
 **Fix: a generated resource's `getData()` column filters LIKE-matched the datatables keyword unescaped.** The

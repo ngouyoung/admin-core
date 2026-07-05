@@ -47,11 +47,22 @@ it('bounds the amount to the currency decimals — a 6-decimal currency rejects 
     expect(moneyFails(new MoneyAmount('KHR'), '999999999999999999'))->toBeFalse(); // 18 digits, stores
 });
 
-it('resolves a per-record currency column from the request (@column), like the cast', function () {
-    // The rule reads the sibling currency the form posts, matching MoneyCast's per-record resolution.
-    request()->merge(['currency' => 'PTS']);
-    expect(moneyFails(new MoneyAmount('@currency'), '99999999999999'))->toBeTrue(); // PTS → too large
+it('resolves a per-record currency column from the DATA under validation (@column), like the cast', function () {
+    // The rule reads the sibling currency from the data being validated (the form row OR the CSV import row) via
+    // DataAwareRule::setData — matching MoneyCast's per-record resolution. NOT request(), which is empty on import.
+    expect(moneyFails((new MoneyAmount('@currency'))->setData(['currency' => 'PTS']), '99999999999999'))->toBeTrue()   // PTS → too large
+        ->and(moneyFails((new MoneyAmount('@currency'))->setData(['currency' => 'USD']), '99999999999999'))->toBeFalse(); // USD → fits
+});
 
-    request()->replace(['currency' => 'USD']);
-    expect(moneyFails(new MoneyAmount('@currency'), '99999999999999'))->toBeFalse(); // USD → fits
+it('resolves @currency during a CSV import (Validator on the row, request() empty) — no false pass / 500', function () {
+    // WebController::import() runs Validator::make($row, $rules), which calls setData($row). The '@currency' must
+    // resolve from the ROW, not request() (only the uploaded file). Before the fix it fell back to the default
+    // USD and let a PTS(6dp)-overflow value pass, then threw inside the cast at create() as an uncaught 500.
+    $v = \Illuminate\Support\Facades\Validator::make(
+        ['currency' => 'PTS', 'total' => '99999999999999'],       // an import row: fits USD, overflows PTS
+        ['total' => ['numeric', new MoneyAmount('@currency')]],
+    );
+
+    expect($v->fails())->toBeTrue()
+        ->and($v->errors()->first('total'))->toContain('too large');
 });

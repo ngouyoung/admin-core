@@ -737,6 +737,11 @@ abstract class WebController extends BaseController
                     ? 'a required database column is missing from the CSV.'
                     : 'the database rejected the row.');
                 continue;
+            } catch (\InvalidArgumentException $e) {
+                // A cast-level refusal (e.g. a money value too large for its currency's storable range) must
+                // also skip-and-report the row, not escape as an uncaught 500 that aborts the whole import.
+                $errors[] = "Row {$line}: the row could not be stored (" . $e->getMessage() . ').';
+                continue;
             }
             $imported++;
         }

@@ -3,6 +3,7 @@
 namespace Ngos\AdminCore\Rules;
 
 use Closure;
+use Illuminate\Contracts\Validation\DataAwareRule;
 use Illuminate\Contracts\Validation\ValidationRule;
 use InvalidArgumentException;
 use Ngos\AdminCore\Support\Money;
@@ -23,10 +24,20 @@ use Ngos\AdminCore\Support\Money;
  * The generator emits `new MoneyAmount('KHR')` (pinned), `new MoneyAmount('@currency')` (per-record column)
  * or `new MoneyAmount()` (config default) — the same argument shape as MoneyCast.
  */
-class MoneyAmount implements ValidationRule
+class MoneyAmount implements DataAwareRule, ValidationRule
 {
+    /** The full set of data under validation (the form row OR the CSV import row), for a "@currency" lookup. */
+    private array $data = [];
+
     /** A pinned ISO code ("KHR"), a per-record column marked "@currency", or null for the config default. */
     public function __construct(private ?string $currency = null) {}
+
+    public function setData(array $data): static
+    {
+        $this->data = $data;
+
+        return $this;
+    }
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -50,11 +61,15 @@ class MoneyAmount implements ValidationRule
         }
     }
 
-    /** The currency the cast will use: a per-record request column ("@currency"), a pinned code, or default. */
+    /** The currency the cast will use: a per-record column ("@currency"), a pinned code, or the config default. */
     private function resolveCurrency(): ?string
     {
         if ($this->currency !== null && str_starts_with($this->currency, '@')) {
-            $posted = request()->input(substr($this->currency, 1));
+            // Read the per-record currency from the DATA UNDER VALIDATION (the form row OR the CSV import row) —
+            // NOT request(), which during a CSV import carries only the uploaded file, so a '@currency' rule would
+            // fall back to the config default and mis-bound the amount: a false pass that then threw inside the
+            // cast at save (an uncaught 500 mid-import), or a valid row wrongly rejected as "too large".
+            $posted = $this->data[substr($this->currency, 1)] ?? null;
 
             return is_string($posted) && $posted !== '' ? $posted : null;
         }
