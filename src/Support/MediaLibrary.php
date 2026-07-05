@@ -24,6 +24,8 @@ class MediaLibrary
         $path = Media::store($file, 'media/' . $collection);
         [$width, $height] = $this->dimensions($path, (string) $file->getMimeType());
 
+        [$userId, $guard] = $this->actor();
+
         return MediaItem::create([
             // Strip HTML-dangerous chars from the user-supplied filename (defense-in-depth vs an XSS payload in the
             // name) and cap at the column length (255) so a long name can't 500.
@@ -36,8 +38,37 @@ class MediaLibrary
             'width' => $width,
             'height' => $height,
             'collection' => $collection,
-            'user_id' => auth()->id(),
+            'user_id' => $userId,
+            'guard' => $guard,
         ]);
+    }
+
+    /**
+     * The uploading/acting user's [id, guard], resolved guard-aware — the portal guard for a portal user, else
+     * the default guard. auth()->id() reads ONLY the default guard, so on a non-default-guard portal it is null,
+     * which would land every portal user's upload in a shared user_id=NULL bucket and defeat the 'own' scope.
+     * Iterate the portal guards (the same pattern as Dashboard::currentUser / ApprovalController).
+     *
+     * @return array{0: int|string|null, 1: string|null}
+     */
+    protected function actor(): array
+    {
+        foreach (self::guards() as $guard) {
+            if (($id = auth()->guard($guard)->id()) !== null) {
+                return [$id, $guard];
+            }
+        }
+
+        return [null, null];
+    }
+
+    /** The default guard first, then every configured portal guard. */
+    private static function guards(): array
+    {
+        return array_values(array_unique(array_merge(
+            [(string) config('auth.defaults.guard', 'web')],
+            array_keys((array) config('admin-core.permission.guards', [])),
+        )));
     }
 
     /**
@@ -71,8 +102,15 @@ class MediaLibrary
      */
     public function owns(MediaItem $item): bool
     {
-        return config('admin-core.uploads.media_scope', 'shared') !== 'own'
-            || ((string) $item->user_id !== '' && (string) $item->user_id === (string) auth()->id());
+        if (config('admin-core.uploads.media_scope', 'shared') !== 'own') {
+            return true;
+        }
+        [$userId, $guard] = $this->actor();
+
+        // Match on (user_id, guard) — user_id alone would let id 5 on 'merchant' delete id 5's 'web' upload.
+        return $userId !== null
+            && (string) $item->user_id === (string) $userId
+            && (string) $item->guard === (string) $guard;
     }
 
     /**
@@ -97,8 +135,9 @@ class MediaLibrary
     }
 
     /**
-     * Apply the configured library scope. 'own' limits to the current user's uploads (matching how store()
-     * records user_id); 'shared' (the default) leaves the query untouched — one global pool, the prior behaviour.
+     * Apply the configured library scope. 'own' limits to the current user's uploads by (user_id, guard) —
+     * matching how store() records them, and guard-aware so a portal user can't enumerate the default guard's
+     * (or another portal's) library. 'shared' (the default) leaves the query untouched — one global pool.
      *
      * @param  Builder<MediaItem>  $query
      * @return Builder<MediaItem>
@@ -106,8 +145,9 @@ class MediaLibrary
     protected function scoped(Builder $query): Builder
     {
         if (config('admin-core.uploads.media_scope', 'shared') === 'own') {
+            [$userId, $guard] = $this->actor();
             // Fail closed: an unresolved user (null id) scopes to nothing rather than the whole pool.
-            $query->where('user_id', auth()->id());
+            $query->where('user_id', $userId)->where('guard', $guard);
         }
 
         return $query;

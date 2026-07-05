@@ -21,12 +21,13 @@ use Ngos\AdminCore\Support\Media;
  * @property string $collection
  * @property string|null $alt
  * @property int|null $user_id
+ * @property string|null $guard
  * @property string|null $url
  * @property bool $is_image
  */
 class MediaItem extends Model
 {
-    protected $fillable = ['name', 'path', 'disk', 'mime', 'size', 'width', 'height', 'collection', 'alt', 'user_id'];
+    protected $fillable = ['name', 'path', 'disk', 'mime', 'size', 'width', 'height', 'collection', 'alt', 'user_id', 'guard'];
 
     protected $casts = ['size' => 'integer', 'width' => 'integer', 'height' => 'integer'];
 

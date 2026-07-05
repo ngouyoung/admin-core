@@ -30,6 +30,9 @@ return new class extends Migration
             $table->string('collection')->default('default')->index(); // folder / group
             $table->string('alt')->nullable();
             $table->unsignedBigInteger('user_id')->nullable();
+            // The auth guard the uploader was on — so the opt-in 'own' media scope walls a portal user off by
+            // (user_id, guard), not user_id alone (id 5 on 'web' and id 5 on 'merchant' are different people).
+            $table->string('guard')->nullable();
             $table->timestamps();
         });
     }

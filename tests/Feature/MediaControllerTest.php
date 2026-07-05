@@ -24,6 +24,7 @@ beforeEach(function () {
         $t->string('collection')->default('default');
         $t->string('alt')->nullable();
         $t->unsignedBigInteger('user_id')->nullable();
+        $t->string('guard')->nullable();
         $t->timestamps();
     });
     Storage::fake('public');
@@ -106,8 +107,8 @@ it('deletes a media item (and its file) via the endpoint', function () {
 it('404s deleting another user\'s item under uploads.media_scope=own (closes the cross-user/portal IDOR)', function () {
     config()->set('admin-core.uploads.media_scope', 'own');
 
-    $theirs = MediaItem::create(['name' => 'theirs.png', 'path' => 'm/theirs.png', 'user_id' => 2]);
-    $mine = MediaItem::create(['name' => 'mine.png', 'path' => 'm/mine.png', 'user_id' => 1]);
+    $theirs = MediaItem::create(['name' => 'theirs.png', 'path' => 'm/theirs.png', 'user_id' => 2, 'guard' => 'web']);
+    $mine = MediaItem::create(['name' => 'mine.png', 'path' => 'm/mine.png', 'user_id' => 1, 'guard' => 'web']);
 
     $this->actingAs(new \Illuminate\Auth\GenericUser(['id' => 1]));
 

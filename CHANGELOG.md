@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.146
+
+**Fix (follow-up to v2.79.137): the opt-in `media_scope='own'` was not guard-aware, so it broke — and leaked —
+on a portal.** v2.79.137 scoped the media library by `user_id` read via `auth()->id()`, which resolves ONLY the
+default guard. On a non-default-guard portal that returns null, so every portal user's upload was stored with
+`user_id=NULL` and the scope collapsed to `WHERE user_id IS NULL` — a shared null bucket every portal user could
+browse and delete (the exact cross-user IDOR the 'own' scope was meant to close). Even with the id resolved,
+`user_id` alone collides across guards (id 5 on `web` ≠ id 5 on `merchant`). Fixed the way the saved-views leak
+was (v2.79.115): a new nullable `guard` column on `media_items` (auto-migration, backfilled to the default guard
+for existing rows), `store()`/`owns()`/the browse scope now resolve the acting user guard-aware (iterating the
+portal guards like `Dashboard::currentUser`) and match on `(user_id, guard)`. Default `'shared'` scope is
+unchanged. Regression test proves a merchant-guard user id 5 sees/owns only their own upload, never the web
+user's of the same id (mutation-verified). Found by an eleventh full-package audit (completeness critic — the
+recurring guard-scoping bug class, this time in a prior audit's own fix).
+
 ## v2.79.145
 
 **Fix (HIGH — idempotency / data corruption): a self-loop state transition re-ran its side-effect on a

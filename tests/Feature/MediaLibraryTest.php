@@ -23,6 +23,7 @@ beforeEach(function () {
         $t->string('collection')->default('default');
         $t->string('alt')->nullable();
         $t->unsignedBigInteger('user_id')->nullable();
+        $t->string('guard')->nullable();
         $t->timestamps();
     });
     Storage::fake('public');
@@ -85,8 +86,8 @@ it('scopes the library to the current user when uploads.media_scope=own (browse,
     config()->set('admin-core.uploads.media_scope', 'own');
     $lib = app(MediaLibrary::class);
 
-    MediaItem::create(['name' => 'mine.png', 'path' => 'm/mine.png', 'collection' => 'a', 'user_id' => 1]);
-    MediaItem::create(['name' => 'theirs.png', 'path' => 'm/theirs.png', 'collection' => 'b', 'user_id' => 2]);
+    MediaItem::create(['name' => 'mine.png', 'path' => 'm/mine.png', 'collection' => 'a', 'user_id' => 1, 'guard' => 'web']);
+    MediaItem::create(['name' => 'theirs.png', 'path' => 'm/theirs.png', 'collection' => 'b', 'user_id' => 2, 'guard' => 'web']);
 
     $this->actingAs(new \Illuminate\Auth\GenericUser(['id' => 1]));
 
@@ -94,6 +95,27 @@ it('scopes the library to the current user when uploads.media_scope=own (browse,
         ->and($lib->collections())->toBe(['a'])                                      // only my collection
         ->and($lib->owns(MediaItem::where('user_id', 1)->first()))->toBeTrue()       // can delete my own
         ->and($lib->owns(MediaItem::where('user_id', 2)->first()))->toBeFalse();     // NOT another user's (404)
+});
+
+it('walls off a portal user from the default guard user of the SAME id under uploads.media_scope=own (audit-11)', function () {
+    // The audit-11 regression: store/owns/scoped read auth()->id() (default guard only), so a portal user's
+    // uploads landed in a shared user_id=NULL bucket AND id 5 on 'web' collided with id 5 on 'merchant'. The
+    // guard column + guard-aware resolution walls them apart.
+    config()->set('admin-core.uploads.media_scope', 'own');
+    config()->set('admin-core.permission.guards', ['merchant' => []]);
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+    $lib = app(MediaLibrary::class);
+
+    // Two DIFFERENT people who happen to share numeric id 5 on different guards.
+    $web = MediaItem::create(['name' => 'web.png', 'path' => 'm/web.png', 'user_id' => 5, 'guard' => 'web']);
+    $merchant = MediaItem::create(['name' => 'merchant.png', 'path' => 'm/merchant.png', 'user_id' => 5, 'guard' => 'merchant']);
+
+    // A merchant-guard user id 5 (default 'web' guard has NO user — the real portal shape).
+    auth()->guard('merchant')->setUser(new \Illuminate\Auth\GenericUser(['id' => 5]));
+
+    expect($lib->query()->pluck('name')->all())->toBe(['merchant.png'])   // only the merchant-guard upload…
+        ->and($lib->owns($merchant))->toBeTrue()                          // …which they own…
+        ->and($lib->owns($web))->toBeFalse();                            // …NOT the web user's of the same id
 });
 
 it('keeps one shared pool by default (uploads.media_scope=shared) — no behaviour change', function () {
