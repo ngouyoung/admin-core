@@ -327,12 +327,18 @@ class FieldSet
                 $decimalPrecision = ctype_digit($parts[0]) ? (int) $parts[0] : null;
                 $decimalScale = isset($parts[1]) && ctype_digit($parts[1]) ? (int) $parts[1] : null;
                 // Scale counts toward precision, so scale > precision is an invalid column the DB rejects at
-                // migrate time ("M must be >= D"). Reject it up front rather than shipping a broken migration.
-                if ($decimalPrecision !== null && $decimalScale !== null && $decimalScale > $decimalPrecision) {
+                // migrate time ("M must be >= D"). Check the EFFECTIVE scale — a BARE precision (`decimal:1`,
+                // scale omitted) still gets the default scale 2 below, yielding an un-migratable decimal(1,2).
+                // Reject it up front rather than shipping a broken migration. (2 must match the default at the
+                // `$decimalScale ?? 2` fallback where the column is built.)
+                $effectiveScale = $decimalScale ?? 2;
+                if ($decimalPrecision !== null && $effectiveScale > $decimalPrecision) {
                     throw new \InvalidArgumentException(
-                        "admin-core: decimal scale ({$decimalScale}) can't exceed its precision ({$decimalPrecision}) — "
-                        . "decimal({$decimalPrecision},{$decimalScale}) is invalid. Widen the precision (e.g. "
-                        . "`decimal:" . ($decimalScale + $decimalScale) . "|{$decimalScale}`).",
+                        "admin-core: decimal scale ({$effectiveScale}) can't exceed its precision ({$decimalPrecision}) — "
+                        . "decimal({$decimalPrecision},{$effectiveScale}) is invalid. "
+                        . ($decimalScale === null
+                            ? "A bare `decimal:{$decimalPrecision}` uses the default scale {$effectiveScale}; give a precision ≥ {$effectiveScale} (e.g. `decimal:10|2`) or an explicit scale (e.g. `decimal:{$decimalPrecision}|{$decimalPrecision}`)."
+                            : "Widen the precision (e.g. `decimal:" . ($effectiveScale + $effectiveScale) . "|{$effectiveScale}`)."),
                     );
                 }
                 $spec = 'decimal';

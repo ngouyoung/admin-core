@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.154
+
+**Fix: a bare `decimal:N` precision below the default scale generated an un-migratable `decimal(N,2)` column.**
+`admin-core:make Foo --fields="rating:decimal:1"` (a precision with the scale omitted) set precision=1 and let the
+scale default to 2, emitting `$table->decimal('rating', 1, 2)` and `new DecimalPrecision(1, 2)` — a column MySQL /
+Postgres reject at `migrate` time ("M must be >= D"), so the whole migration failed. The existing "scale can't
+exceed precision" guard only fired for an EXPLICIT scale (`decimal:2|5`); it now checks the EFFECTIVE scale (the
+default 2 when omitted), so `decimal:1` / `decimal:0` fail fast with a clear message (give a precision ≥ 2 or an
+explicit scale) instead of shipping a broken migration. A bare precision ≥ 2 (`decimal:5` → `decimal(5,2)`) is
+unaffected. Regression test covers the rejection and the still-valid cases (mutation-verified). Found by an
+eleventh full-package audit (generated-validation-cast dimension).
+
 ## v2.79.153
 
 **Fix: a per-record-currency money validation (`@currency`) resolved the wrong currency on CSV import, and could

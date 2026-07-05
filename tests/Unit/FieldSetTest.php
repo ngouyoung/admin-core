@@ -50,6 +50,19 @@ it('rejects a colon-separated decimal precision instead of silently falling back
         ->toThrow(InvalidArgumentException::class, 'decimal precision must be digits');
 });
 
+it('rejects a bare decimal precision below the default scale (decimal:1 → un-migratable decimal(1,2))', function () {
+    // A bare precision (scale omitted) still gets the default scale 2, so `decimal:1`/`decimal:0` would ship
+    // decimal(1,2)/decimal(0,2) — a migration MySQL/Postgres reject ("M must be >= D"). Catch it up front.
+    expect(fn () => fs('rating:decimal:1'))
+        ->toThrow(InvalidArgumentException::class, 'decimal(1,2) is invalid');
+    expect(fn () => fs('rating:decimal:0'))
+        ->toThrow(InvalidArgumentException::class, 'decimal(0,2) is invalid');
+
+    // A bare precision AT/above the default scale is fine — decimal(2,2), decimal(5,2) migrate cleanly.
+    expect(fs('rating:decimal:2')->migrationColumns())->toContain("\$table->decimal('rating', 2, 2)");
+    expect(fs('rating:decimal:5')->migrationColumns())->toContain("\$table->decimal('rating', 5, 2)");
+});
+
 it('rejects a decimal whose scale exceeds its precision (an invalid column the DB refuses)', function () {
     expect(fn () => fs('rate:decimal:2|5'))
         ->toThrow(InvalidArgumentException::class, "scale (5) can't exceed its precision (2)");
