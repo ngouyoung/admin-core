@@ -42,12 +42,20 @@ class ApprovalController extends Controller
         // double-submitted approve loses it → 404), but wrapping it WITH the action means a throwing handler
         // rolls the claim back too — so the request returns to 'pending' and is retryable, instead of being
         // stuck 'approved' with its effect rolled back and no way to re-run it.
-        DB::transaction(function () use ($approval, $request, $actor) {
+        $result = null;
+        DB::transaction(function () use ($approval, $request, $actor, &$result) {
             abort_unless($this->claim($approval, 'approved', $this->note($request), $actor), 404);
-            app($approval->handler)->applyApprovedAction($approval->action, $approval->ids());
+            $result = app($approval->handler)->applyApprovedAction($approval->action, $approval->ids());
         });
 
         $this->notifyRequester($approval, true); // after commit — never notify "approved" for a rolled-back run
+
+        // Surface a silent no-op: the replay resolves the captured ids through the APPROVER's service query()
+        // (a fresh controller), so in a tenant/scope-bound app a cross-scope request can affect 0 rows while
+        // still being marked 'approved'. Warn the approver instead of a green "approved" that did nothing.
+        if (($result['affected'] ?? null) === 0 && $approval->ids() !== []) {
+            return back()->with('warning', __('admin-core::admin-core.approvals.approved_no_rows'));
+        }
 
         return back()->with('success', __('admin-core::admin-core.approvals.approved'));
     }

@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.139
+
+**Fix: an approved action that affected 0 records still reported a green "approved".** When an approver approves,
+the held action re-runs through the *approver's* controller/service `query()` to resolve its captured ids. In a
+tenant- or scope-bound app (a scope applied in the Service or a global scope), a cross-scope request's ids fall
+outside the approver's scope — or the records were deleted between request and decision — so the action affects
+0 rows while the request is still marked 'approved'. The inbox now checks the affected count and flashes a
+**warning** ("approved, but it affected 0 records — they may have been changed, deleted, or be outside your
+scope") instead of a success, so a silent no-op is visible to the approver (the decision itself still stands).
+Regression test proves a 0-affected approval flashes a warning, not a success (mutation-verified). Found by a
+tenth full-package audit (completeness critic — approvals × Service-scope interaction).
+
 ## v2.79.138
 
 **Fix: the approvals inbox resolved the approver on the default guard, so a portal-mounted inbox judged the wrong

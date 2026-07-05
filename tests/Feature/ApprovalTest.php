@@ -247,6 +247,32 @@ it('rolls the approval back to pending when the action handler throws (retryable
     Notification::assertNothingSent();                        // never told the requester it was approved
 });
 
+it('warns (not a plain success) when an approved action affects zero of its captured records', function () {
+    // The approved action re-runs through the APPROVER's service query() on a fresh controller, so in a
+    // tenant/scope-bound app the requester's captured ids can resolve to 0 rows (also true if they were deleted
+    // between request and decision). Surface it instead of a green "approved" that silently did nothing.
+    Notification::fake();
+    config()->set('admin-core.permission.enabled', true);
+    Gate::define('approve-refund-action-widget', fn () => true);
+    $this->actingAs(new NotifiableUser(['name' => 'Owner']));
+
+    $approval = Approval::create([
+        'uuid' => (string) \Illuminate\Support\Str::uuid(),
+        'action' => 'refund',
+        'resource' => 'action-widget',
+        'handler' => \Ngos\AdminCore\Tests\Fixtures\ActionWidgetController::class,
+        'payload' => ['ids' => [999999], 'label' => 'Refund'], // an id that resolves to no record in scope
+        'status' => 'pending',
+    ]);
+
+    $this->post('/admin/approvals/' . $approval->uuid . '/approve')
+        ->assertRedirect()
+        ->assertSessionHas('warning')       // surfaced…
+        ->assertSessionMissing('success');  // …not a green success
+
+    expect($approval->fresh()->status)->toBe('approved'); // the decision still stands (approver acted)
+});
+
 it('marks rejected WITHOUT running the action', function () {
     Notification::fake();
     config()->set('admin-core.permission.enabled', true);

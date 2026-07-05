@@ -222,6 +222,7 @@ return [
         'confirm_reject' => 'Reject this request',
         'empty' => 'No pending approvals.',
         'approved' => 'Request approved.',
+        'approved_no_rows' => 'Request approved, but it affected 0 records — they may have been changed, deleted, or be outside your scope.',
         'rejected' => 'Request rejected.',
         'notify_request_title' => 'Approval requested',
         'notify_request_message' => ':label is waiting for your approval.',
