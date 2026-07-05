@@ -22,7 +22,13 @@ class AdminCoreReinstallCommand extends Command
         // So detect what's currently installed BEFORE purging and re-apply it, on top of any explicit flags.
         $hadApiAuth = File::exists(app_path('Http/Controllers/Api/AuthController.php'))
             || File::exists(app_path('Providers/ApiAuthServiceProvider.php'));
-        $hadAccess = File::isDirectory(resource_path('views/backend'));
+        // Detect the full theme + access kit by ITS OWN artifacts (the frontend kit --access installs), NOT by
+        // resource_path('views/backend') — the MINIMAL install (no --access) also creates that dir (a starter
+        // layout + dashboard), so the old check treated EVERY install as --access and silently force-upgraded a
+        // minimal one to the full kit on reinstall: overwriting the customised layout/dashboard, publishing the
+        // Role/Permission models, mutating app/Models/User.php (HasRoles/2FA), repointing the permission config.
+        // This matches the precise detector admin-core:uninstall / :doctor already use.
+        $hadAccess = File::exists(resource_path('js/datatable.js')) || File::exists(resource_path('sass/app.scss'));
 
         $this->warn('Reinstall purges admin-core\'s published files and re-scaffolds them. Customisations to those files will be lost.');
         $this->warn('Your admin-core:make-generated resources are NOT touched.');

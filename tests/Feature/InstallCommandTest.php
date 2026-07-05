@@ -305,7 +305,12 @@ it('preserves the --api-auth feature on reinstall even when not re-passed (auto-
     expect(File::exists(app_path('Http/Controllers/Api/AuthController.php')))->toBeTrue()
         ->and(File::exists(app_path('Providers/ApiAuthServiceProvider.php')))->toBeTrue()
         ->and(File::get(base_path('routes/api.php')))->toContain('admin-core:api-auth')
-        ->and(File::get(base_path('bootstrap/providers.php')))->toContain('ApiAuthServiceProvider');
+        ->and(File::get(base_path('bootstrap/providers.php')))->toContain('ApiAuthServiceProvider')
+        // …and it must NOT silently force-upgrade this MINIMAL install to the full --access kit (the old
+        // views/backend detection did, overwriting the customised layout + mutating the User model): the
+        // frontend kit + access module stay absent.
+        ->and(File::exists(resource_path('js/datatable.js')))->toBeFalse()
+        ->and(File::isDirectory(app_path('Services/Roles')))->toBeFalse();
 
     $this->artisan('admin-core:uninstall', ['--purge' => true, '--force' => true, '--no-interaction' => true]);
 });

@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.149
+
+**Fix (MED — unwanted overwrite / data loss): `admin-core:reinstall` silently upgraded a MINIMAL install to the
+full `--access` kit.** Reinstall auto-detects what's installed so a purge-then-reinstall doesn't drop a feature —
+but it detected the access kit by `resource_path('views/backend')`, which the MINIMAL install (no `--access`)
+also creates (a starter layout + dashboard). So every install looked like `--access`, and reinstalling a minimal
+app ran `install --access --force`: overwriting the operator's customised layout/dashboard, publishing the
+Role/Permission models, mutating `app/Models/User.php` (HasRoles / 2FA traits) and repointing the permission
+config — none of which a minimal user asked for. Detection now uses the frontend kit that ONLY `--access`
+installs (`js/datatable.js` / `sass/app.scss`, the same precise signal `admin-core:uninstall` / `:doctor` use), so
+a minimal install stays minimal. Regression test proves a minimal `--api-auth` install reinstalls without gaining
+the frontend kit or access module (mutation-verified). Found by an eleventh full-package audit (install-lifecycle
+dimension).
+
 ## v2.79.148
 
 **Security fix (MED — stored XSS): a menu item's `url` accepted a `javascript:` scheme.** The Menu manager
