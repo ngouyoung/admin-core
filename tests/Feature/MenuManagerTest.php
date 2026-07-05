@@ -108,6 +108,18 @@ it('store validates: a route link requires a route', function () {
     expect(MenuItem::where('label', 'Bad')->exists())->toBeFalse();
 });
 
+it('store rejects a dangerous javascript: url (stored XSS), keeps a safe one', function () {
+    // menu_items renders into an <a href> across every portal's sidebar; a javascript: scheme would be stored
+    // XSS on click. The url rule refuses it at the source (Html::safeUrl neutralises any that slip through).
+    $this->post('/admin/menu', ['label' => 'XSS', 'link_type' => 'url', 'url' => 'javascript:alert(document.cookie)'])
+        ->assertSessionHasErrors('url');
+    expect(MenuItem::where('label', 'XSS')->exists())->toBeFalse();
+
+    // A safe relative/http url still saves.
+    $this->post('/admin/menu', ['label' => 'OK', 'link_type' => 'url', 'url' => '/admin/reports'])->assertRedirect();
+    expect(MenuItem::where('label', 'OK')->exists())->toBeTrue();
+});
+
 it('reorder persists parent_id + sort from the dragged tree and busts the cache', function () {
     $a = MenuItem::create(['label' => 'A', 'route' => 'admin.dashboard', 'sort' => 1]);
     $b = MenuItem::create(['label' => 'B', 'route' => 'admin.dashboard', 'sort' => 2]);

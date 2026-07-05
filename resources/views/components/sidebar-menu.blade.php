@@ -43,7 +43,9 @@
     @else
         @php($active = isset($item['match']) && request()->is($item['match']))
         <li class="ac-nav-item">
-            <a href="{{ isset($item['route']) ? route($item['route']) : ($item['url'] ?? '#') }}"
+            {{-- A route builds a safe app URL; a raw `url` is user-supplied (Menu manager), so neutralise a
+                 javascript:/data: scheme — {{ }} escapes HTML entities but not the scheme. --}}
+            <a href="{{ isset($item['route']) ? route($item['route']) : \Ngos\AdminCore\Support\Html::safeUrl($item['url'] ?? null) }}"
                class="ac-nav-link {{ $active ? 'active' : '' }}" @if ($active) aria-current="page" @endif>
                 <i class="{{ $item['icon'] ?? 'bi bi-circle' }}" aria-hidden="true"></i><span>{{ __($item['label']) }}</span>
             </a>

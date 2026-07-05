@@ -77,3 +77,31 @@ it('preserves multibyte (Khmer) content through the DOM round-trip', function ()
     $out = Html::clean('<p>ខ្មែរ <strong>test</strong></p>');
     expect($out)->toContain('ខ្មែរ')->toContain('<strong>test</strong>');
 });
+
+it('exposes safeUrl/isSafeUrl for href sinks (menu links, redirects)', function () {
+    // Safe: permitted schemes + relative/anchor.
+    foreach (['https://x.test/y', 'http://x', 'mailto:a@b.test', 'tel:+123', '/panel', '#top', '?q=1', 'page.html', ''] as $ok) {
+        expect(Html::isSafeUrl($ok))->toBeTrue("expected '{$ok}' safe");
+    }
+    // Dangerous: script schemes, including obfuscated (browser decodes entities + strips whitespace/case).
+    foreach (['javascript:alert(1)', 'JAVASCRIPT:x', "java\tscript:x", 'vbscript:x', 'data:text/html,x', 'j&#97;vascript:x'] as $bad) {
+        expect(Html::isSafeUrl($bad))->toBeFalse("expected '{$bad}' dangerous");
+        expect(Html::safeUrl($bad))->toBe('#'); // neutralised to a harmless anchor
+    }
+    expect(Html::safeUrl('https://x.test'))->toBe('https://x.test') // safe url passes through
+        ->and(Html::safeUrl(null))->toBe('#');
+});
+
+it('neutralises a javascript: url in a menu item at render (Menu manager stored XSS)', function () {
+    // menu_items.url is admin-supplied; Blade {{ }} escapes HTML entities but not the javascript: scheme, so the
+    // sidebar render must route it through Html::safeUrl (covers already-stored rows, not just new validation).
+    $items = [
+        ['label' => 'Bad', 'url' => 'javascript:alert(document.cookie)'],
+        ['label' => 'Good', 'url' => 'https://example.test/page'],
+    ];
+    $html = \Illuminate\Support\Facades\Blade::render('<x-admin-core::sidebar-menu :items="$items" />', compact('items'));
+
+    expect($html)->not->toContain('javascript:')      // dangerous scheme dropped to href="#"
+        ->toContain('href="#"')
+        ->toContain('https://example.test/page');     // safe url kept
+});

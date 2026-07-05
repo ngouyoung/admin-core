@@ -33,7 +33,13 @@ class StoreMenuRequest extends FormRequest
             'label' => ['required', 'string', 'max:255'],
             'icon' => ['nullable', 'string', 'max:255'],
             'route' => [Rule::requiredIf($type === 'route'), 'nullable', 'string', 'max:255'],
-            'url' => [Rule::requiredIf($type === 'url'), 'nullable', 'string', 'max:255'],
+            // Reject a dangerous URL scheme (javascript:/vbscript:/data:) — the menu renders into an <a href>,
+            // where Blade's {{ }} escapes HTML entities but not the scheme, so it would be stored XSS on click.
+            'url' => [Rule::requiredIf($type === 'url'), 'nullable', 'string', 'max:255', function ($attr, $value, $fail) {
+                if (! \Ngos\AdminCore\Support\Html::isSafeUrl($value)) {
+                    $fail(__('The :attribute must be a safe URL (http, https, mailto, tel, or a relative path).'));
+                }
+            }],
             'match' => ['nullable', 'string', 'max:255'],
             'permission' => ['nullable', 'string', 'max:255'],
             'parent_id' => ['nullable', 'integer', 'exists:menu_items,id'],

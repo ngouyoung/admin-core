@@ -87,6 +87,27 @@ class Html
         return $out;
     }
 
+    /**
+     * Whether a user-supplied URL is safe to place in an href/src sink — a permitted scheme
+     * (http/https/mailto/tel/ftp) or a relative/anchor/query URL. Empty counts as safe (nothing to dispatch).
+     * Blade's `{{ }}` escapes HTML entities but NOT a `javascript:`/`vbscript:`/`data:` scheme, so any value
+     * echoed into a link (a menu url, a stored redirect) must be checked with this first.
+     */
+    public static function isSafeUrl(?string $url): bool
+    {
+        $url = trim((string) $url);
+
+        return $url === '' || self::schemeIsSafe($url);
+    }
+
+    /** The URL when {@see isSafeUrl}, else '#' — a drop-in for a raw href value in a Blade/template sink. */
+    public static function safeUrl(?string $url): string
+    {
+        $url = trim((string) $url);
+
+        return $url !== '' && self::schemeIsSafe($url) ? $url : '#';
+    }
+
     /** Recursively sanitize a node's children in place (iterate a snapshot — the tree is mutated). */
     private static function sanitizeChildren(DOMNode $node): void
     {

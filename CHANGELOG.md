@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.148
+
+**Security fix (MED — stored XSS): a menu item's `url` accepted a `javascript:` scheme.** The Menu manager
+validated `url` only as `nullable|string|max:255`, so an admin with `manage-menu` could save
+`url = javascript:alert(document.cookie)`; the sidebar renders it as `<a href="{{ $item['url'] }}">`, and Blade's
+`{{ }}` escapes HTML entities but NOT the scheme, so the payload fired on click — and because `menu_items` is a
+single global table rendered on every portal's sidebar, a lower-privilege portal admin could poison it for a
+higher-privilege admin. Fixed at both ends, reusing the sanitizer's scheme logic (now exposed as
+`Html::isSafeUrl()` / `Html::safeUrl()`): the sidebar render routes a raw `url` through `Html::safeUrl()` (a
+dangerous scheme → `#`, so already-stored rows are neutralised too), and `StoreMenuRequest` rejects an unsafe
+scheme at the source. Regression tests cover the render neutralisation, the store rejection, and the URL helpers
+(mutation-verified). Found by an eleventh full-package audit (nestable-tree dimension).
+
 ## v2.79.147
 
 **Fix (MED — panel-wide DoS + self-lockout): a menu item pointing at a parameterized route 500'd every page.**
