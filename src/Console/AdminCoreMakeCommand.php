@@ -749,7 +749,7 @@ PHP);
 
         // A database menu already got its row above; don't also inject the legacy Blade sidebar link.
         if (! $dbMenu) {
-            $this->injectSidebarBladeLink($label, $snakePlural);
+            $this->injectSidebarBladeLink($label, $snakePlural, $route, rtrim($routeNs, '.'));
         }
     }
 
@@ -800,8 +800,12 @@ PHP);
         $this->line('  <info>menu</info> added "' . $label . '" to the menu_items table');
     }
 
-    /** Legacy path: inject a nav `<li>` at the `{{-- admin-core:menu --}}` marker in the static sidebar. */
-    private function injectSidebarBladeLink(string $label, string $snakePlural): void
+    /**
+     * Legacy path: inject a nav `<li>` at the `{{-- admin-core:menu --}}` marker in the static sidebar.
+     * `$routeName` is the resolved CRUD route name (config name_prefix / portal aware — NEVER a hardcoded
+     * `admin.`) and `$urlPrefix` the matching URL segment, so a host on a non-default prefix links correctly.
+     */
+    private function injectSidebarBladeLink(string $label, string $snakePlural, string $routeName, string $urlPrefix): void
     {
         $partial = resource_path('views/backend/partials/sidebar.blade.php');
         $layout = resource_path('views/backend/layouts/app.blade.php');
@@ -812,7 +816,7 @@ PHP);
         }
 
         $contents = File::get($target);
-        $route = "route('admin.{$snakePlural}.index')";
+        $route = "route('{$routeName}')";
 
         if (! str_contains($contents, 'admin-core:menu') || str_contains($contents, $route)) {
             return;
@@ -822,7 +826,7 @@ PHP);
 
         $link = $themed
             ? "<li class=\"ac-nav-item\">\n"
-                . "                    <a href=\"{{ {$route} }}\" class=\"ac-nav-link {{ request()->is('admin/{$snakePlural}*') ? 'active' : '' }}\">\n"
+                . "                    <a href=\"{{ {$route} }}\" class=\"ac-nav-link {{ request()->is('{$urlPrefix}/{$snakePlural}*') ? 'active' : '' }}\">\n"
                 . "                        <i class=\"bi bi-circle\"></i><span>{$label}</span>\n"
                 . "                    </a>\n"
                 . "                </li>\n                {{-- admin-core:menu --}}"

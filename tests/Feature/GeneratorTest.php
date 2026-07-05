@@ -86,6 +86,29 @@ it('adds a menu_items row for a generated resource when menu_source=database (so
     Schema::dropIfExists('menu_items');
 });
 
+it('injects the legacy Blade sidebar link with the CONFIGURED route prefix, not a hardcoded admin.', function () {
+    // The legacy static-sidebar path used to hardcode route('admin.…') + request()->is('admin/…') — broken
+    // for any host on a custom route.name_prefix. It must honour the configured prefix (the recurring bug class).
+    config(['admin-core.menu_source' => 'config', 'admin-core.route.name_prefix' => 'panel.']);
+
+    $sidebar = resource_path('views/backend/partials/sidebar.blade.php');
+    File::ensureDirectoryExists(dirname($sidebar));
+    File::put($sidebar, "<ul class=\"ac-nav\">\n                {{-- admin-core:menu --}}\n</ul>\n");
+
+    try {
+        $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string'])->assertSuccessful();
+
+        $html = File::get($sidebar);
+        expect($html)
+            ->toContain("route('panel.gizmos.index')")            // configured name prefix
+            ->toContain("request()->is('panel/gizmos*')")          // configured URL prefix
+            ->not->toContain('admin.gizmos.index')                 // never the hardcoded default
+            ->not->toContain('admin/gizmos');
+    } finally {
+        File::delete($sidebar);
+    }
+});
+
 it('seeds a generated menu label into the host locale JSON so it can be translated', function () {
     config([
         'admin-core.translation.locales' => ['en' => 'English', 'km' => 'ខ្មែរ'],

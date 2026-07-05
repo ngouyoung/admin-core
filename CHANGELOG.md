@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.104
+
+**Fix: the legacy Blade-sidebar injector hardcoded the `admin.` route prefix.** When `admin-core:make` added a
+resource to a static (non-database) sidebar, it wrote `route('admin.{plural}.index')` and
+`request()->is('admin/{plural}*')` literally — so a host on a custom `route.name_prefix` (e.g. `panel.`) got a
+dead link and a never-active highlight. It now uses the already-resolved route name + URL prefix (config
+name_prefix / portal aware), exactly like the database-menu and config-menu paths beside it. This is the same
+route-prefix systemic class fixed in v2.50.1/v2.51.0/v2.79.x — **fourth recurrence**; the legacy Blade path was
+simply never swept. Regression test generates a resource under a non-default prefix and asserts the injected
+link carries it, never `admin.`/`admin/` (mutation-verified). Found by an eighth full-package audit
+(route-prefix-portal dimension).
+
 ## v2.79.103
 
 **Fix: a singleton write could land on a now-locked record (TOCTOU).** `SingletonController::update()` checked
