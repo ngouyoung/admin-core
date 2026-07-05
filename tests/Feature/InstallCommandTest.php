@@ -315,6 +315,32 @@ it('preserves the --api-auth feature on reinstall even when not re-passed (auto-
     $this->artisan('admin-core:uninstall', ['--purge' => true, '--force' => true, '--no-interaction' => true]);
 });
 
+it('preserves a host-owned package.json dependency across install --access then uninstall --purge', function () {
+    $pkgPath = base_path('package.json');
+    $backup = File::exists($pkgPath) ? File::get($pkgPath) : null;
+
+    // A host that already declares jquery (an OLDER version than the stub's ^3.7) plus its own dependency.
+    File::put($pkgPath, json_encode(['dependencies' => ['jquery' => '^3.5.0', 'my-own-lib' => '^1.0']], JSON_PRETTY_PRINT) . "\n");
+
+    try {
+        $this->artisan('admin-core:install', ['--access' => true, '--force' => true, '--no-interaction' => true])->assertSuccessful();
+        $afterInstall = json_decode(File::get($pkgPath), true);
+        expect($afterInstall['dependencies']['jquery'])->toBe('^3.5.0')      // host version NOT overwritten
+            ->and($afterInstall['dependencies'])->toHaveKey('my-own-lib')    // host dep intact
+            ->and($afterInstall['dependencies'])->toHaveKey('sweetalert2');  // an admin-core dep was added
+
+        $this->artisan('admin-core:uninstall', ['--purge' => true, '--force' => true, '--no-interaction' => true])->assertSuccessful();
+        $afterPurge = json_decode(File::get($pkgPath), true);
+        expect($afterPurge['dependencies']['jquery'] ?? null)->toBe('^3.5.0')       // host-owned jquery SURVIVES --purge
+            ->and($afterPurge['dependencies'])->toHaveKey('my-own-lib')              // host dep survives
+            ->and($afterPurge['dependencies'] ?? [])->not->toHaveKey('sweetalert2'); // the admin-core dep is removed
+    } finally {
+        // Belt-and-suspenders: clean the kit even if an assertion aborted mid-test, then restore package.json.
+        $this->artisan('admin-core:uninstall', ['--purge' => true, '--force' => true, '--no-interaction' => true]);
+        $backup !== null ? File::put($pkgPath, $backup) : File::delete($pkgPath);
+    }
+});
+
 it('is idempotent for --api-auth too', function () {
     $this->artisan('admin-core:install', ['--api-auth' => true])->assertSuccessful();
     $this->artisan('admin-core:install', ['--api-auth' => true])->assertSuccessful();

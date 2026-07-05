@@ -329,7 +329,10 @@ PHP;
         $add = json_decode(File::get($stub), true) ?: [];
 
         foreach (['dependencies', 'devDependencies'] as $section) {
-            $host[$section] = array_merge($host[$section] ?? [], $add[$section] ?? []);
+            // Host WINS: add only the deps the host doesn't already declare — never overwrite a version it
+            // pinned. So a host already depending on jquery/bootstrap keeps ITS version, and (crucially)
+            // admin-core:uninstall --purge won't later delete it, because it never became an admin-core dep.
+            $host[$section] = array_merge($add[$section] ?? [], $host[$section] ?? []);
             ksort($host[$section]);
         }
 

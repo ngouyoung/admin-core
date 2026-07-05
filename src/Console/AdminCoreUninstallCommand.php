@@ -269,8 +269,14 @@ class AdminCoreUninstallCommand extends Command
         $remove = json_decode(File::get($stub), true) ?: [];
 
         foreach (['dependencies', 'devDependencies'] as $section) {
-            foreach (array_keys($remove[$section] ?? []) as $dep) {
-                unset($host[$section][$dep]);
+            foreach (($remove[$section] ?? []) as $dep => $version) {
+                // Remove a dep ONLY when the host's value still EQUALS the stub's — i.e. admin-core added it. A
+                // host that pre-declared its own version of jquery/bootstrap kept that version at merge (host
+                // wins), so it differs from the stub and is preserved here. Prevents --purge from deleting a
+                // host-owned dependency and breaking the build (the merge/unmerge were asymmetric before).
+                if (($host[$section][$dep] ?? null) === $version) {
+                    unset($host[$section][$dep]);
+                }
             }
         }
 

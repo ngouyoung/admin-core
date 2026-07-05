@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.155
+
+**Fix (data loss): `admin-core:uninstall --purge` removed host-owned `package.json` dependencies it never added.**
+`mergePackageJson` did `array_merge($host, $add)` (the stub OVERWROTE a host's dep version) and
+`unmergePackageJson` then unset EVERY stub dep from the host unconditionally — so a host that already declared
+`jquery`/`bootstrap` (all of which the stub also lists) had them deleted on `--purge`, breaking the build. The two
+are now symmetric: install merges host-wins (adds only deps the host doesn't already declare — never overwriting a
+version it pinned), and uninstall removes a dep only when the host's value still EQUALS the stub's (i.e.
+admin-core actually added it), so a host-owned dependency is preserved through the purge. Regression test proves a
+host's older `jquery` and its own dependency survive install --access then uninstall --purge while the
+admin-core-added deps are cleaned (mutation-verified). Found by an eleventh full-package audit (install-lifecycle
+dimension).
+
 ## v2.79.154
 
 **Fix: a bare `decimal:N` precision below the default scale generated an un-migratable `decimal(N,2)` column.**
