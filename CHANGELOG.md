@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.126
+
+**Security fix: the maker could approve their own request (no segregation of duties).** The Approvals inbox
+gated `approve`/`reject` on the `approve-{action}-{resource}` permission ALONE — it never compared the deciding
+user against the request's requester. So a staff member who filed a pending request and was later granted the
+approve permission (an ordinary role change) could open the inbox and approve their OWN request, defeating the
+maker-checker control the subsystem is named for. `canDecide()` now refuses a decision by the requester,
+regardless of permissions (opt out with `admin-core.approval.allow_self_approval` for workflows that
+intentionally allow it). Regression test: the requester is forbidden even holding the permission, while a
+different approver still decides (mutation-verified). Found by a ninth full-package audit
+(approval-maker-checker dimension).
+
 ## v2.79.125
 
 **Fix: a reorder-only "Save layout" silently un-hid previously-hidden dashboard widgets.** The customize JS

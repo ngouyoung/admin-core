@@ -22,7 +22,11 @@ use Illuminate\Support\Str;
  * @property \Illuminate\Support\Carbon|null $decided_at
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Database\Eloquent\Model|null $requester
+ * @property int|string|null $requester_id
+ * @property string|null $requester_type
  * @property \Illuminate\Database\Eloquent\Model|null $approver
+ * @property int|string|null $approver_id
+ * @property string|null $approver_type
  */
 class Approval extends Model
 {

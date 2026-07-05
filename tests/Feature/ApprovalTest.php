@@ -145,6 +145,42 @@ it('runs the original action and marks approved when an approver approves', func
         ->and($approval->fresh()->decided_at)->not->toBeNull();
 });
 
+it('forbids the requester from approving their OWN request (maker != checker), even with the permission', function () {
+    Notification::fake();
+    config()->set('admin-core.permission.enabled', true);
+    Gate::define('approve-refund-action-widget', fn () => true); // Alice was later granted the approve permission
+
+    Schema::dropIfExists('mc_users');
+    Schema::create('mc_users', fn (Blueprint $t) => tap($t)->id()->string('name'));
+    $userModel = new class extends \Illuminate\Foundation\Auth\User
+    {
+        protected $table = 'mc_users';
+
+        public $timestamps = false;
+
+        protected $guarded = [];
+    };
+    $alice = $userModel::create(['name' => 'Alice']);
+    $bob = $userModel::create(['name' => 'Bob']);
+
+    $w = Widget::create(['name' => 'a']);
+    $approval = pendingRefund($w);
+    $approval->requester()->associate($alice)->save(); // Alice is the MAKER
+
+    // Alice now holds approve-… but she is the requester → self-approval is refused.
+    $this->actingAs($alice);
+    $this->post('/admin/approvals/' . $approval->uuid . '/approve')->assertForbidden();
+    expect($approval->fresh()->status)->toBe('pending')     // not self-approved
+        ->and($w->fresh()->status)->not->toBe('refunded');  // the action did not run
+
+    // A DIFFERENT approver with the permission can still decide it.
+    $this->actingAs($bob);
+    $this->post('/admin/approvals/' . $approval->uuid . '/approve')->assertRedirect();
+    expect($approval->fresh()->status)->toBe('approved');
+
+    Schema::dropIfExists('mc_users');
+});
+
 it('rolls the approval back to pending when the action handler throws (retryable, not stuck approved)', function () {
     Notification::fake();
     config()->set('admin-core.permission.enabled', true);

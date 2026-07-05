@@ -121,6 +121,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Approval workflow (maker-checker)
+    |--------------------------------------------------------------------------
+    | Actions marked ->requiresApproval() file a pending request the Approvals
+    | inbox decides. By default the REQUESTER can never approve their own request
+    | (segregation of duties), even if they hold the approve permission. Set true
+    | only for a workflow that intentionally allows self-approval.
+    */
+    'approval' => [
+        'allow_self_approval' => false,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Two-factor authentication (TOTP)
     |--------------------------------------------------------------------------
     | Opt-in authenticator-app 2FA for the admin login (Google Authenticator / Authy). Off by default,

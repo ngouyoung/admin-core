@@ -104,6 +104,14 @@ class ApprovalController extends Controller
     /** May the current user decide this request? Needs the action's `approve-{action}-{resource}` permission. */
     private function canDecide(Approval $approval): bool
     {
+        // Segregation of duties (the "maker-checker" this subsystem is named for): the requester can never
+        // decide their OWN request, regardless of permissions — otherwise a staff member who later gains the
+        // approve permission (an ordinary role change) could self-approve their pending request. Opt out via
+        // config for workflows that intentionally allow it.
+        if (! config('admin-core.approval.allow_self_approval', false) && $this->isRequester($approval)) {
+            return false;
+        }
+
         if (! config('admin-core.permission.enabled')) {
             return true;
         }
@@ -117,6 +125,18 @@ class ApprovalController extends Controller
             : $approval->action;
 
         return (bool) auth()->user()?->can('approve-' . $base);
+    }
+
+    /** Whether the currently-authenticated user is the one who filed this request (maker == checker). */
+    private function isRequester(Approval $approval): bool
+    {
+        $user = auth()->user();
+        if ($user === null || $approval->requester_id === null) {
+            return false;
+        }
+
+        return (string) $approval->requester_id === (string) $user->getKey()
+            && $approval->requester_type === $user->getMorphClass();
     }
 
     private function notifyRequester(Approval $approval, bool $approved): void
