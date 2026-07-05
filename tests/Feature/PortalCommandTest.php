@@ -16,7 +16,7 @@ afterEach(function () {
     $auth = config_path('auth.php');
     if (File::exists($auth)) {
         $cleaned = preg_replace(
-            "/^\s*'(shop|shops|depot|depots|merchant|merchants)' => \[.*\],\n/m",
+            "/^\s*'(shop|shops|depot|depots|merchant|merchants|vendor|vendors|vendor-support|vendor-supports)' => \[.*\],\n/m",
             '',
             File::get($auth),
         );
@@ -25,7 +25,7 @@ afterEach(function () {
         }
     }
 
-    foreach (['Shop', 'Depot', 'Merchant'] as $p) {
+    foreach (['Shop', 'Depot', 'Merchant', 'Vendor', 'VendorSupport'] as $p) {
         $snake = \Illuminate\Support\Str::snake($p);
         File::delete(app_path("Models/{$p}.php"));
         File::delete(database_path("factories/{$p}Factory.php"));
@@ -118,6 +118,29 @@ it('is idempotent — existing portal files are skipped on a re-run', function (
     expect(glob(database_path('migrations/*_create_shops_table.php')))->toHaveCount(1);
 });
 
+
+it('appends a portal route group even when a longer-named portal marker already exists (anchored idempotency)', function () {
+    // A bare str_contains made `portal vendor` see the existing "admin-core:portal:vendor-support" marker as
+    // itself and skip writing its route group — so /vendor/login 404'd though model/guard/menu were scaffolded.
+    $web = base_path('routes/web.php');
+    $original = File::exists($web) ? File::get($web) : null;
+
+    try {
+        File::ensureDirectoryExists(dirname($web));
+        File::put($web, "<?php\n\nuse Illuminate\\Support\\Facades\\Route;\n\n"
+            . "// >>> admin-core:portal:vendor-support (managed by admin-core:portal — do not edit the markers)\n"
+            . "// <<< admin-core:portal:vendor-support\n");
+
+        $this->artisan('admin-core:portal', ['name' => 'vendor'])->assertSuccessful();
+
+        $after = File::get($web);
+        expect($after)->toContain('>>> admin-core:portal:vendor (')     // vendor's own group WAS appended
+            ->toContain("prefix('vendor')")                             // the login/logout routes exist now
+            ->toContain('>>> admin-core:portal:vendor-support (');      // the pre-existing one is untouched
+    } finally {
+        $original === null ? File::delete($web) : File::put($web, $original);
+    }
+});
 
 it('refuses a portal name that would scaffold broken PHP, writing nothing', function () {
     $before = \Illuminate\Support\Facades\File::glob(app_path('Models/*'));

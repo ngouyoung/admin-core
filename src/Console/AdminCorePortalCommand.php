@@ -166,7 +166,13 @@ class AdminCorePortalCommand extends Command
             return;
         }
 
-        if (str_contains(File::get($web), "admin-core:portal:{$name}")) {
+        // Anchor the name (not a bare str_contains): the marker for portal "vendor-support" CONTAINS the
+        // literal "admin-core:portal:vendor", so a plain substring check made a later `admin-core:portal
+        // vendor` falsely "already exist" and its route group was never written (guard/model/menu all
+        // scaffolded, but /vendor/login 404s). The negative lookahead requires the name NOT be followed by a
+        // name char or hyphen, so it can't match a longer superstring name. Mirrors the sibling checks'
+        // anchored style (addAuthGuard/registerPortalConfig).
+        if (preg_match('/admin-core:portal:' . preg_quote($name, '/') . '(?![\w-])/', File::get($web)) === 1) {
             $this->line("  <comment>exists</comment>  '{$name}' route group in routes/web.php");
 
             return;

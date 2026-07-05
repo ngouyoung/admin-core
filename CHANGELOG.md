@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.120
+
+**Fix: `admin-core:portal` skipped a portal's route group when a longer-named portal already existed.**
+`wirePortalRoutes()`'s idempotency guard was a bare `str_contains(routes/web.php,
+"admin-core:portal:{$name}")` — unanchored, so scaffolding portal `vendor` AFTER `vendor-support` matched the
+existing `admin-core:portal:vendor-support` marker (a literal superstring), printed "exists", and returned
+WITHOUT writing the `vendor` route group. The command still exited SUCCESS and told the operator to sign in at
+`/vendor/login` — a 404, because no login route was ever registered (the model, guard, migration, seeder and
+menu were all created, so the portal looked scaffolded). The check is now anchored (the name must not be
+followed by a name char or hyphen), matching the sibling guard/config checks' anchored style. Regression test
+seeds a `vendor-support` marker, scaffolds `vendor`, and asserts its route group is still appended
+(mutation-verified). Found by a ninth full-package audit (page-portal-commands dimension).
+
 ## v2.79.119
 
 **Fix: auto-translate silently skipped a repeater-nested translatable field.** The `_translate[]` marker
