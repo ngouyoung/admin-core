@@ -201,6 +201,11 @@ it('narrows the remote select by an allowlisted parent filter (cascading), ignor
     // a column NOT in $selectFilters is ignored — both rows returned (no arbitrary-column filtering)
     $this->getJson('/admin/cascadewidgets/select?filter[secret]=zzz')
         ->assertOk()->assertJsonFragment(['text' => 'Apple'])->assertJsonFragment(['text' => 'Banana']);
+
+    // an ARRAY-valued param on an allowlisted column is ignored, not silently flattened to filter[sort]=2 (its
+    // first element) — the is_scalar guard, matching applyFilters/applyListFilters. Both rows returned.
+    $this->getJson('/admin/cascadewidgets/select?filter[sort][]=2&filter[sort][]=1')
+        ->assertOk()->assertJsonFragment(['text' => 'Apple'])->assertJsonFragment(['text' => 'Banana']);
 });
 
 it('bulk-deletes selected records', function () {

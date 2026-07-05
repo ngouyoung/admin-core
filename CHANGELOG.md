@@ -2,6 +2,16 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.143
+
+**Fix: the Select2 remote source's cascade filter didn't guard against an array-valued param.** `WebController::select()`
+applied an allowlisted cascade filter with `where($col, $val)` whenever `$val` was non-empty, but without an
+`is_scalar` check — so `?filter[province_id][]=1&filter[province_id][]=2` reached `where()` with an array, which
+Laravel silently flattens to just the first element, narrowing the dropdown by a wrong/partial value. It now
+requires `is_scalar($val)` (ignoring an array param), matching the `applyFilters` / `applyListFilters` guards.
+Regression test proves an array-valued allowlisted filter is ignored, not flattened (mutation-verified). Found by
+a tenth full-package audit (WebController runtime dimension).
+
 ## v2.79.142
 
 **Fix: a plain-number rollup summed with binary float, leaking drift into JSON/API output.** `Rollup::sum()`

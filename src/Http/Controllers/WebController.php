@@ -481,8 +481,10 @@ abstract class WebController extends BaseController
         $narrowed = false;
 
         // Cascading selects: narrow by an allowlisted parent value (e.g. communes where province_id = X).
+        // is_scalar guards an array-valued param (?filter[col][]=x): where() would otherwise flatten it to just
+        // the first element and silently filter by the wrong (partial) value — mirror applyFilters/applyListFilters.
         foreach ((array) $request->query('filter', []) as $col => $val) {
-            if (in_array($col, $this->selectFilters, true) && $val !== '' && $val !== null) {
+            if (in_array($col, $this->selectFilters, true) && is_scalar($val) && $val !== '') {
                 $query->where($col, $val);
                 $narrowed = true;
             }
