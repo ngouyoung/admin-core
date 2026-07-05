@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.130
+
+**Fix: an activity-log "updated" row was written even when only hidden columns changed.** When an audited
+model's sole change was a hidden/filtered column — a `touch()` bumping `updated_at`, a `remember_token`
+rotation, or a `$touches` parent-timestamp bump — the diff filtered down to empty `old`/`attributes`, yet an
+`updated` audit row was still written carrying zero auditable information. Under the keep-forever default
+retention these blank rows accumulate unbounded and bury the real trail. `recordActivity()` now skips an
+`updated` event whose filtered diff is empty (create/delete/restore still log — those are auditable facts even
+with no attribute diff). Regression test travels time so `touch()` genuinely fires the event, then asserts no
+blank row is written while a real change still is (mutation-verified). Found by a ninth full-package audit
+(log-pii-redaction dimension).
+
 ## v2.79.129
 
 **Fix: `admin-core:doctor` reported "everything in sync" after a whole managed subtree was deleted.** The

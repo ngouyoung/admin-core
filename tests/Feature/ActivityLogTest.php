@@ -111,6 +111,25 @@ it('logs created, updated, deleted, restored and (distinctly) force-deleted acti
         ->and(ActivityLog::where('description', 'deleted')->count())->toBe(1);
 });
 
+it('does not write a blank "updated" row when only hidden columns changed (touch/timestamp bump)', function () {
+    $widget = AuditedWidget::create(['name' => 'Alpha']);
+    expect(ActivityLog::where('description', 'updated')->count())->toBe(0);
+
+    // Advance time so touch() actually dirties updated_at (a hidden/filtered column) and fires the 'updated'
+    // event — its diff is empty after filtering, so no audit row should be written.
+    $this->travel(5)->seconds();
+    $widget->touch();
+    expect($widget->wasChanged('updated_at'))->toBeTrue()               // the event really fired…
+        ->and(ActivityLog::where('description', 'updated')->count())->toBe(0); // …but no blank row was written
+
+    // A real visible change is still logged (the guard is scoped to the empty-diff case).
+    $this->travel(5)->seconds();
+    $widget->update(['name' => 'Beta']);
+    $updated = ActivityLog::where('description', 'updated')->get();
+    expect($updated)->toHaveCount(1)
+        ->and($updated->first()->properties['attributes'])->toHaveKey('name');
+});
+
 it('never logs a password/hashed column (even when not named "password")', function () {
     $widget = AuditedWidget::create(['name' => 'Alpha', 'secret' => 'topsecret123']);
     $widget->update(['name' => 'Beta', 'secret' => 'changed456']);

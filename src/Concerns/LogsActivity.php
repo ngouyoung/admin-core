@@ -47,6 +47,16 @@ trait LogsActivity
             ],
             default => [],
         };
+        $properties = $this->filterLoggedProperties($properties);
+
+        // An 'updated' event whose only changed columns are hidden (touch() bumping updated_at, a
+        // remember_token rotation, a $touches parent-timestamp bump) filters down to empty old/attributes — a
+        // blank audit row with zero auditable information. Skip it: it would only dilute the real trail and grow
+        // unbounded under the keep-forever default retention. (created/deleted/restored still log — those are
+        // auditable facts even with no visible attribute diff.)
+        if ($description === 'updated' && ($properties['old'] ?? []) === [] && ($properties['attributes'] ?? []) === []) {
+            return;
+        }
 
         // Never let audit logging break — or roll back — the write it observes: skip when the table
         // isn't migrated yet, and swallow any insert failure (mirrors ErrorLog::capture).
@@ -67,7 +77,7 @@ trait LogsActivity
                 'subject_id' => (string) $this->getKey(),
                 'causer_type' => $causer?->getMorphClass(),
                 'causer_id' => $causer !== null ? (string) $causer->getAuthIdentifier() : null,
-                'properties' => $this->filterLoggedProperties($properties),
+                'properties' => $properties, // already filtered above
             ]);
         } catch (\Throwable $e) {
             report($e);
