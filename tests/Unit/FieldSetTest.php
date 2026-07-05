@@ -247,6 +247,19 @@ it('renders boolean and date columns in the list (not raw true/false or ISO stri
     expect($f->rawColumns())->toContain("'active'");
 });
 
+it('whitelists a belongsToMany column by its camelCase RELATION key (multi-word name) so badges are not escaped', function () {
+    // getDataColumns keys the m2m badge cell by the camelCase relation (relatedTags), but rawColumns used to
+    // emit the snake field name (related_tags). For a multi-word name those differ, so the badge markup was
+    // absent from rawColumns and yajra (escape='*') HTML-escaped it into literal <span> text. A single-word m2m
+    // hid the bug (camel == snake). rawColumns must whitelist the SAME key getDataColumns renders under.
+    $f = fs('related_tags:belongsToMany', 'products');
+
+    expect($f->getDataColumns())->toContain("->addColumn('relatedTags'"); // cell keyed by the relation
+    expect($f->rawColumns())
+        ->toContain("'relatedTags'")         // …so the raw whitelist uses the relation key (badges stay raw)
+        ->not->toContain("'related_tags'");  // NOT the snake field name (which yajra would HTML-escape)
+});
+
 it('renders date/datetime via the date-input component (Air Datepicker), passing the raw value through', function () {
     $form = fs('born_on:date?, start_at:datetime?')->formFields();
 

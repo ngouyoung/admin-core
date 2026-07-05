@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.141
+
+**Fix: a multi-word belongsToMany column rendered its list badges as literal `<span>` markup.** A generated
+resource's `getData()` keys a many-to-many cell by the camelCase relation (`relatedTags`), but `rawColumns()`
+(yajra's raw-HTML whitelist) emitted the snake field name (`related_tags`). For a single-word field the two
+coincide, so it worked — but for a multi-word name they differ, so the badge markup wasn't whitelisted and
+yajra (whose default `columns.escape` is `*`) HTML-escaped it, showing `<span class="badge …">Foo</span>` as
+text instead of a rendered badge. `rawColumns()` now emits the same camelCase relation key the cell renders
+under. No security impact (the inner value was already `e()`-escaped) — purely broken display. Regression test
+proves the raw whitelist uses the relation key for a multi-word m2m (mutation-verified). Found by a tenth
+full-package audit (generator-fieldset dimension).
+
 ## v2.79.140
 
 **Fix: LIKE wildcards in a search term over-matched on several paths (the fix only lived in global search).**

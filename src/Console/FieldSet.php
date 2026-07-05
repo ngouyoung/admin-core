@@ -2976,7 +2976,13 @@ PHP;
             $raw[] = "'name'";
         }
         foreach ($this->fields as $f) {
-            if (in_array($f['type'], ['belongsToMany', 'image', 'file', 'enum', 'boolean'], true)) {
+            if ($f['type'] === 'belongsToMany') {
+                // The m2m cell renders badge HTML and is keyed by the (camelCase) RELATION, not the field name.
+                // For a multi-word field name (related_tags → relatedTags) those differ, so emitting the snake
+                // name left the badges absent from the raw whitelist and yajra HTML-escaped them into literal
+                // <span> text. Emit the relation key getDataColumns() actually renders under.
+                $raw[] = "'{$f['relation']}'";
+            } elseif (in_array($f['type'], ['image', 'file', 'enum', 'boolean'], true)) {
                 $raw[] = "'{$f['name']}'";
             }
         }
