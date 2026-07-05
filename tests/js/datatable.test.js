@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DATATABLE_STUB, loadStub } from './helpers.js';
 
 // The real shipped datatable.js (escaping + custom-action dispatch + bulk-button injection + filters/views).
-const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates, acBuildColumns, acInitTables, acRefreshBulk } = loadStub(
+const { acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates, acBuildColumns, acInitTables, acRefreshBulk, acBindHandlers } = loadStub(
     DATATABLE_STUB,
-    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates, acBuildColumns, acInitTables, acRefreshBulk }',
+    '{ acEsc, acRunAction, acInjectBulkActions, acCollectFilters, acApplyView, acBuildFooter, acBindAggregates, acBuildColumns, acInitTables, acRefreshBulk, acBindHandlers }',
 );
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -13,7 +13,7 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 beforeEach(() => {
     document.body.innerHTML = '';
     window.jQuery = jQuery;
-    window.toastr = { success: vi.fn(), error: vi.fn() };
+    window.toastr = { success: vi.fn(), error: vi.fn(), warning: vi.fn() };
     window.Swal = { fire: vi.fn().mockResolvedValue({ value: true }) };
     jQuery.ajax = vi.fn((opts) => { if (opts.success) opts.success({ message: 'srv ok' }); });
 });
@@ -300,5 +300,70 @@ describe('bulk-selection reset on redraw', () => {
 
         expect(document.getElementById('bulk-count').textContent).toBe('1');
         expect(document.getElementById('bulk-delete').classList.contains('d-none')).toBe(false);
+    });
+});
+
+describe('bulk-delete outcome reporting', () => {
+    const CFG = {
+        ajax: '/admin/x/getData',
+        columns: [{ type: 'check', data: 'uuid' }, { data: 'name' }],
+        bulk: { url: '/admin/x/bulkDelete' },
+        i18n: {
+            deletedMany: 'Deleted :count', deletedSome: 'Deleted :deleted of :count',
+            error: 'Boom', confirmDeleteMany: 'Delete :count?', yesDeleteMany: 'Yes', cancel: 'No',
+        },
+    };
+
+    // Set up an inited table with two ticked rows, bind the document handlers, and return the elements.
+    const setup = () => {
+        document.body.innerHTML = `
+            <div class="card">
+                <div class="card-header"><button id="bulk-delete">Delete (<span id="bulk-count">2</span>)</button></div>
+                <input type="checkbox" id="check-all" checked>
+                <table id="t1" data-ac-datatable='${JSON.stringify(CFG)}'>
+                    <thead><tr><th></th><th>Name</th></tr></thead>
+                    <tbody>
+                        <tr><td><input type="checkbox" class="row-check" value="1" checked></td><td>A</td></tr>
+                        <tr><td><input type="checkbox" class="row-check" value="2" checked></td><td>B</td></tr>
+                    </tbody>
+                </table>
+            </div>`;
+        jQuery.fn.dataTable = { isDataTable: () => false };
+        jQuery.fn.DataTable = vi.fn(function () { return { ajax: { reload: vi.fn() } }; });
+        acInitTables(document);
+        acBindHandlers(); // once-guarded; the delegated #bulk-delete binding persists on document
+    };
+
+    it('reports the SERVER count and warns when fewer were deleted (a locked row was skipped)', async () => {
+        setup();
+        // 2 ticked, but the server excluded a locked row and deleted only 1.
+        jQuery.ajax = vi.fn((opts) => opts.success({ code: 200, deleted: 1 }));
+
+        jQuery('#bulk-delete').trigger('click');
+        await tick(); await tick(); // Swal.then → ajax → toastr
+
+        expect(window.toastr.warning).toHaveBeenCalledWith('Deleted 1 of 2'); // accurate, warns
+        expect(window.toastr.success).not.toHaveBeenCalled();                 // NOT a false "Deleted 2"
+    });
+
+    it('reports success with the server count when all were deleted', async () => {
+        setup();
+        jQuery.ajax = vi.fn((opts) => opts.success({ code: 200, deleted: 2 }));
+
+        jQuery('#bulk-delete').trigger('click');
+        await tick(); await tick();
+
+        expect(window.toastr.success).toHaveBeenCalledWith('Deleted 2');
+        expect(window.toastr.warning).not.toHaveBeenCalled();
+    });
+
+    it('surfaces a bulk-delete failure instead of swallowing it', async () => {
+        setup();
+        jQuery.ajax = vi.fn((opts) => opts.error({ responseJSON: { message: 'Nope' } }));
+
+        jQuery('#bulk-delete').trigger('click');
+        await tick(); await tick();
+
+        expect(window.toastr.error).toHaveBeenCalledWith('Nope');
     });
 });

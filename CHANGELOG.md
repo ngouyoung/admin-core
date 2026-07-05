@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.110
+
+**Fix: bulk-delete reported the ticked count, not what was actually deleted, and swallowed failures.** The
+`#bulk-delete` success toast always echoed `ids.length` (the checkboxes the admin ticked), ignoring the
+server's `{deleted: N}` — but `bulkDelete()` excludes locked-state rows, so on a document/state resource it can
+delete fewer than were selected. The admin was told "Deleted 5" when a protected row was skipped. And neither
+the bulk nor single delete handler had an `error:` callback, so a 403/422/500 vanished with no feedback.
+`datatable.js` now reports the server's real `deleted` count, warns (not success) when it's fewer than ticked
+(new `toast.deleted_some` string, en + km), and both handlers surface a failure via toastr. Regression tests
+cover the partial-delete warning, the full-delete success, and the error path (mutation-verified). Existing
+installs: republish the JS stub. Found by an eighth full-package audit (js-frontend dimension).
+
 ## v2.79.109
 
 **Fix: an inline media field's picker ignored the field's collection (uploads/browse hit the wrong bucket).**

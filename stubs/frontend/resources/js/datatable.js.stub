@@ -328,12 +328,25 @@ function acBindHandlers() {
             if (!r.value) return;
             $.ajax({
                 type: 'POST', url: t.cfg.bulk.url, data: { ids },
-                success: () => {
+                success: (res) => {
                     acReload();
                     $('#check-all').prop('checked', false);
                     $('.row-check').prop('checked', false); // the reload is async — clear now, not at draw
                     acRefreshBulk();
-                    window.toastr.success((i18n.deletedMany || 'Deleted').replace(':count', ids.length));
+                    // The server excludes locked-state rows, so it can delete FEWER than were ticked and
+                    // returns the real count in res.deleted. Report that — and warn (not success) when some
+                    // were skipped, so a protected row isn't falsely reported as deleted.
+                    const deleted = (res && typeof res.deleted === 'number') ? res.deleted : ids.length;
+                    if (deleted < ids.length) {
+                        window.toastr.warning((i18n.deletedSome || 'Deleted :deleted of :count')
+                            .replace(':deleted', deleted).replace(':count', ids.length));
+                    } else {
+                        window.toastr.success((i18n.deletedMany || 'Deleted').replace(':count', deleted));
+                    }
+                },
+                error: (xhr) => {
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message) || i18n.error || 'Something went wrong';
+                    window.toastr.error(msg);
                 },
             });
         });
@@ -354,6 +367,11 @@ function acBindHandlers() {
             $.ajax({
                 type: 'DELETE', url,
                 success: () => { acReload(); window.toastr.success(i18n.deleted || 'Deleted'); },
+                error: (xhr) => {
+                    // A 403 (locked/denied), 422 or 500 must surface — not vanish silently.
+                    const msg = (xhr.responseJSON && xhr.responseJSON.message) || i18n.error || 'Something went wrong';
+                    window.toastr.error(msg);
+                },
             });
         });
     });

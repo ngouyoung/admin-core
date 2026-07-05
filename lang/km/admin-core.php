@@ -188,6 +188,7 @@ return [
     'toast' => [
         'deleted' => 'បានលុប',
         'deleted_count' => 'បានលុប :count កំណត់ត្រា',
+        'deleted_some' => 'បានលុប :deleted ក្នុងចំណោម :count — ដែលនៅសល់ត្រូវបានចាក់សោ ឬបាត់រួចហើយ',
         'order_updated' => 'បានធ្វើបច្ចុប្បន្នភាពលំដាប់',
         'error' => 'មានបញ្ហាកើតឡើង!',
         'action_done' => 'រួចរាល់ (:count)',

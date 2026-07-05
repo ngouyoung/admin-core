@@ -43,6 +43,7 @@
                 'yesDeleteMany' => __('admin-core::admin-core.confirm.yes_delete_many'),
                 'cancel' => __('admin-core::admin-core.actions.cancel'),
                 'deletedMany' => __('admin-core::admin-core.toast.deleted_count'),
+                'deletedSome' => __('admin-core::admin-core.toast.deleted_some'),
                 'confirmYes' => __('admin-core::admin-core.actions.confirm'),
                 'actionDone' => __('admin-core::admin-core.toast.action_done'),
                 'error' => __('admin-core::admin-core.toast.error'),

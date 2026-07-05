@@ -197,6 +197,7 @@ return [
     'toast' => [
         'deleted' => 'Deleted',
         'deleted_count' => 'Deleted :count record(s)',
+        'deleted_some' => 'Deleted :deleted of :count — the rest were locked or already gone',
         'order_updated' => 'Order updated',
         'error' => 'Something went wrong!',
         'action_done' => 'Done (:count)',
