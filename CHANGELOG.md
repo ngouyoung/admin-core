@@ -2,6 +2,19 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.111
+
+**Fix: a repeater-nested translatable field never lit `is-invalid` or showed its error.** Every other field
+component normalises a bracketed/repeater name (`items[0][title]` → `items.0.title`) to the dot-notation key
+Laravel stores errors and flashed `old()` under — but `translatable-input` still checked the raw bracketed
+name (`@error('items[0][title].en')`), which never matches the real key `items.0.title.en`. So a translatable
+field inside a repeater row failed validation silently: no red border, no message, and `old()` came back blank.
+The component now derives the same `$errorKey` the others do and uses it for both the per-locale error checks
+and the `old()` repopulation. Regression test renders a bracket-named translatable-input with a keyed error and
+asserts the offending locale (and only it) lights up with its message (mutation-verified). This is the same
+bracket-normalisation fix applied to select/editor in v2.79.56. Found by an eighth full-package audit
+(blade-components dimension).
+
 ## v2.79.110
 
 **Fix: bulk-delete reported the ticked count, not what was actually deleted, and swallowed failures.** The

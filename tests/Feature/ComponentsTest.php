@@ -459,6 +459,25 @@ it('shows a validation error for a bracket-named field (settings[logo] -> settin
     expect($html)->toContain('is-invalid')->toContain('The logo must be an image.');
 });
 
+it('shows a per-locale validation error on a bracket-named translatable-input (items[0][title] -> items.0.title.en)', function () {
+    // A translatable field nested in a repeater posts items[0][title][en]; Laravel keys the error
+    // items.0.title.en. The component must normalise the bracket name — without it, is-invalid and the
+    // message never render for the offending locale (they used the raw items[0][title].en, which misses).
+    config(['admin-core.translation.locales' => ['en' => 'English', 'km' => 'Khmer']]);
+    $bag = (new ViewErrorBag)->put('default', new \Illuminate\Support\MessageBag(['items.0.title.en' => 'The title is required.']));
+    View::share('errors', $bag);
+
+    $html = Blade::render('<x-admin-core::translatable-input name="items[0][title]" :value="[]" />');
+
+    expect($html)->toContain('is-invalid')->toContain('The title is required.')
+        ->toContain('name="items[0][title][en]"'); // the input name itself stays bracketed (what PHP posts)
+
+    // The OTHER locale (km, no error) must NOT be marked invalid — the normalisation is per-locale.
+    expect(substr_count($html, 'is-invalid'))->toBe(1);
+
+    View::share('errors', new ViewErrorBag); // reset for later tests
+});
+
 it('renders a repeater: existing rows server-side, a clone template, and an add button', function () {
     // A throwaway row view for the repeater's @include (same fixture trick as the data-table test).
     View::addNamespace('actmp', sys_get_temp_dir());

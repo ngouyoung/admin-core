@@ -15,6 +15,10 @@
     $locales = (array) config('admin-core.translation.locales', ['en' => 'English']);
     $current = is_array($value) ? $value : [];
     $label ??= \Illuminate\Support\Str::headline($name);
+    // A bracketed/repeater name (items[0][title]) must become dot notation (items.0.title) — that's the key
+    // Laravel stores errors AND flashed old() under. Without it, is-invalid and the error/old value never
+    // resolve for a nested translatable field (matches the fix every other field component already has).
+    $errorKey = rtrim(str_replace(['[', ']'], ['.', ''], $name), '.');
 @endphp
 
 <div class="row mb-3" data-ac-translatable="{{ $name }}">
@@ -24,17 +28,17 @@
         <input type="hidden" name="_translate[]" value="{{ $name }}">
 
         @foreach ($locales as $code => $native)
-            @php $field = $name . '[' . $code . ']'; $val = old($name . '.' . $code, $current[$code] ?? ''); @endphp
+            @php $field = $name . '[' . $code . ']'; $val = old($errorKey . '.' . $code, $current[$code] ?? ''); @endphp
             <div class="input-group mb-2">
                 <span class="input-group-text text-uppercase" style="min-width:3.25rem">{{ $code }}</span>
                 @if ($type === 'textarea')
-                    <textarea name="{{ $field }}" class="form-control @error($name.'.'.$code) is-invalid @enderror"
+                    <textarea name="{{ $field }}" class="form-control @error($errorKey.'.'.$code) is-invalid @enderror"
                               placeholder="{{ $native }}" rows="2">{{ $val }}</textarea>
                 @else
                     <input type="text" name="{{ $field }}" value="{{ $val }}"
-                           class="form-control @error($name.'.'.$code) is-invalid @enderror" placeholder="{{ $native }}">
+                           class="form-control @error($errorKey.'.'.$code) is-invalid @enderror" placeholder="{{ $native }}">
                 @endif
-                @error($name.'.'.$code)<div class="invalid-feedback">{{ $message }}</div>@enderror
+                @error($errorKey.'.'.$code)<div class="invalid-feedback">{{ $message }}</div>@enderror
             </div>
         @endforeach
 
