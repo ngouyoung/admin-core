@@ -2,6 +2,18 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.122
+
+**Fix: a sidebar menu group's own `can` permission was never enforced.** `Sidebar::filter()` permission-checked
+only leaf items — for a treeview group (an item with `children`) it recursed and showed the group whenever ANY
+child survived, ignoring the group's own `can`. So a group meant to gate a whole section (e.g. `can =>
+'super-admin'`) leaked its label + expandable structure to any user a single child let through. The group's own
+`can` is now enforced before recursing (via the existing `visible()`, which handles the routeless group), so a
+group the user can't access is hidden entirely. Note this is menu *visibility* — the routes themselves stay
+middleware-guarded — but it stops leaking section structure to the unauthorized. Regression test hides a
+restrictive group whose child would otherwise pass, and keeps a group the user can access (mutation-verified).
+Found by a ninth full-package audit (menu-sidebar-authz dimension).
+
 ## v2.79.121
 
 **Security hardening: the active locale was string-interpolated into a raw SQL JSON path in global search.**

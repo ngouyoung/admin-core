@@ -54,6 +54,32 @@ it('ignores the can rule entirely when permissions are disabled', function () {
     expect(collect($items)->pluck('label')->all())->toBe(['X']);
 });
 
+it('enforces a treeview GROUP\'s own can — a restrictive group hides the whole section even if a child passes', function () {
+    // A group-level `can` gates the whole section. It used to be ignored (only leaf items were checked), so a
+    // group meant for super-admins leaked to anyone a single child let through.
+    config(['admin-core.permission.enabled' => true]);
+    Gate::define('super-only', fn ($u) => false);   // the group's gate — this user fails it
+    Gate::define('list-thing', fn ($u) => true);    // a child the user WOULD otherwise see
+    $this->actingAs(new \Illuminate\Foundation\Auth\User);
+
+    $items = Sidebar::items([
+        ['label' => 'Admin Zone', 'can' => 'super-only', 'children' => [
+            ['label' => 'Thing', 'route' => 'admin.widgets.index', 'can' => 'list-thing'],
+        ]],
+    ]);
+
+    expect($items)->toBe([]); // the whole group is hidden — not leaked because a child passed
+
+    // A group WITHOUT a can (or one the user passes) still shows its visible children.
+    Gate::define('ok', fn ($u) => true);
+    $open = Sidebar::items([
+        ['label' => 'Open Zone', 'can' => 'ok', 'children' => [
+            ['label' => 'Thing', 'route' => 'admin.widgets.index', 'can' => 'list-thing'],
+        ]],
+    ]);
+    expect(collect($open)->pluck('label')->all())->toBe(['Open Zone']);
+});
+
 it('prunes a treeview whose children are all hidden, keeps one with a visible child', function () {
     $items = Sidebar::items([
         ['label' => 'Empty', 'children' => [

@@ -68,6 +68,12 @@ class Sidebar
             }
 
             if (isset($item['children'])) {
+                // Enforce the GROUP's own `can` first — it gates the whole section. Without this a group with
+                // a restrictive `can` (e.g. 'super-admin') leaked to anyone a single child let through, because
+                // only leaf items were permission-checked. visible() handles the no-route group cleanly.
+                if (! self::visible($item, $guard)) {
+                    continue;
+                }
                 $children = self::filter($item['children'], $guard);
                 if ($children !== []) {
                     $item['children'] = $children;
