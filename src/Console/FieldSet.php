@@ -72,6 +72,12 @@ class FieldSet
 
     private bool $sortable = false;
 
+    /**
+     * The auth guard the resource runs under (a portal/guarded resource); null = the default guard.
+     * Drives the `:auth` ownership stamp so a portal user is resolved on ITS guard, not the default one.
+     */
+    private ?string $guard = null;
+
     /** @var array<int, array<int, string>> Composite unique constraints — each an ordered list of column names. */
     private array $uniqueGroups = [];
 
@@ -229,6 +235,17 @@ class FieldSet
     public function setUuid(bool $uuid): self
     {
         $this->uuid = $uuid;
+
+        return $this;
+    }
+
+    /**
+     * The auth guard the resource runs under (null = default). A portal/guarded resource passes its guard so
+     * the generated `:auth` stamp resolves the acting user on THAT guard — mirroring WebController::actingUser().
+     */
+    public function setGuard(?string $guard): self
+    {
+        $this->guard = $guard;
 
         return $this;
     }
@@ -1615,7 +1632,12 @@ PHP;
         foreach ($this->fields as $f) {
             if (! empty($f['system']) && $this->isColumn($f)) {
                 $assigns[] = match ($f['type']) {
-                    'auth' => "                \$model->{$f['name']} = auth()->id();",
+                    // The acting user on the resource's OWN guard, not the default one. A portal user is
+                    // authenticated only on its guard, so a bare auth()->id() (default guard) would resolve to
+                    // NULL and silently stamp a null owner on the very field meant to record ownership. When no
+                    // guard is set (a plain admin resource) auth()->id() is already correct.
+                    'auth' => "                \$model->{$f['name']} = auth("
+                        . ($this->guard !== null ? var_export($this->guard, true) : '') . ')->id();',
                     'sku' => "                \$model->{$f['name']} = \\Illuminate\\Support\\Str::upper(\\Illuminate\\Support\\Str::random(10));",
                     // Auto doc number — the next value in a concurrency-safe sequence (edit for reset-per-year etc).
                     // The prefix is var_export'd so any (already-validated) value stays a safe string literal.

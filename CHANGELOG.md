@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.156
+
+**Fix (data integrity): a generated `:auth` ownership stamp on a portal/guarded resource silently stored a NULL
+owner (or the wrong user).** `admin-core:make Listing --portal=merchant --fields="owner_id:auth"` emitted a
+`creating` hook of `$model->owner_id = auth()->id()`. `auth()` (no argument) resolves the DEFAULT guard, but a
+portal user is authenticated only on its OWN guard (`merchant`) — so `auth()->id()` returned null, and because the
+column is `nullable()->nullOnDelete()` the create succeeded and stamped `owner_id = NULL`, silently losing the
+ownership the field exists to record (and if an admin was concurrently logged in on the default web guard, it
+stamped the ADMIN's id onto the merchant record). `FieldSet` now carries the resource's guard (`setGuard()`,
+threaded from `--portal`/`--guard`) and `bootBody()` emits `auth('merchant')->id()` for a guarded resource,
+matching `WebController::actingUser()`'s `auth()->guard($this->guard)` convention; a plain admin resource (no
+guard) still emits the clean `auth()->id()`. This was the last bare-`auth()` actor-resolution site — every other
+(Dashboard, Media, Sidebar, Notification, Approval decide-side, Search, SavedView) was already guard-aware.
+Regression test proves the guarded stamp is guard-qualified and the unguarded one is not (mutation-verified). Found
+by a twelfth full-package audit (generated auth-field guard-stamping dimension).
+
 ## v2.79.155
 
 **Fix (data loss): `admin-core:uninstall --purge` removed host-owned `package.json` dependencies it never added.**

@@ -219,6 +219,7 @@ class AdminCoreMakeCommand extends Command
                 ->setAudit($audit)
                 ->setSortable($sortable)
                 ->setClass($class)
+                ->setGuard($guardOpt)
                 ->setUniqueGroups($uniqueGroups)
                 ->setDerived($derived);
         } catch (\InvalidArgumentException $e) {

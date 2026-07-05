@@ -948,6 +948,28 @@ it('rejects a sequence prefix with characters that could break the generated PHP
     expect(fn () => fs('no:sequence:INV/2026', 'docs'))->not->toThrow(InvalidArgumentException::class);
 });
 
+// -- auth (ownership stamp) --------------------------------------------------------------------------
+
+it('stamps an :auth field on the resource guard so a portal user is never resolved on the default guard', function () {
+    // A portal resource: the stamp MUST resolve the acting user on the resource's own guard. A bare
+    // auth()->id() reads the DEFAULT guard, which a portal user isn't authenticated on → NULL owner stamped
+    // silently on the very field meant to record ownership (audit-12 HIGH).
+    $portal = fs('title:string, owner_id:auth', 'listings')->setGuard('merchant');
+    expect($portal->bootBody())
+        ->toContain("\$model->owner_id = auth('merchant')->id();")
+        ->not->toContain('auth()->id()'); // never the bare, default-guard call for a guarded resource
+
+    // A plain admin resource (no guard) keeps the clean default-guard call — auth()->id() is correct there.
+    $admin = fs('title:string, owner_id:auth', 'listings');
+    expect($admin->bootBody())
+        ->toContain('$model->owner_id = auth()->id();')
+        ->not->toContain("auth('"); // no guard argument when none was set
+
+    // system → not mass-assignable, never validated.
+    expect($portal->fillable())->toBe("'title'");
+    expect($portal->storeRules())->not->toContain("'owner_id'");
+});
+
 // -- Relation-driven derived columns (--derived) -----------------------------------------------------
 
 it('compiles a --derived saving hook: relation compute + copy, fetched once', function () {
