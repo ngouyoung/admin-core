@@ -260,16 +260,18 @@ abstract class WebController extends BaseController
 
     public function getData($relation = null)
     {
-        // Cap the DataTables page length: `?length=-1` (show all) or a huge value would fetch + serialise the
-        // whole table into memory. Mirrors the JSON API's max_per_page. Only clamps an explicit out-of-range
-        // value; ordinary page sizes (and the no-length case) are untouched.
-        if (request()->has('length')) {
-            $max = (int) config('admin-core.pagination_max', 500);
-            $length = (int) request('length');
-            if ($length < 1 || $length > $max) {
-                request()->merge(['length' => $max]);
-            }
+        // Cap the DataTables page length so a crafted request can't fetch + serialise the whole table into
+        // memory (a DoS). yajra only paginates when BOTH `start` and `length` are present (and length != -1), so
+        // clamping `length` alone isn't enough: a request that OMITS `start` (or sends no params at all) skips
+        // pagination entirely and returns EVERY row — bypassing the clamp. So we clamp length into [1, max] AND
+        // force `start` (default 0), which bounds every response to at most pagination_max. A normal DataTables
+        // request (which always sends start + an in-range length) is unaffected. Mirrors the JSON API max_per_page.
+        $max = (int) config('admin-core.pagination_max', 500);
+        $length = (int) request('length', $max);
+        if ($length < 1 || $length > $max) {
+            $length = $max;
         }
+        request()->merge(['length' => $length, 'start' => max(0, (int) request('start', 0))]);
 
         $query = $this->service->query($relation);
         $this->applyListFilters($query, request());

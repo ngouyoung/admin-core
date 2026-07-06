@@ -135,6 +135,13 @@ it('caps the DataTables page length so ?length=-1 (show all) cannot fetch the wh
 
     // An ordinary page size is untouched.
     expect(count($this->getJson('/admin/widgets/getData?draw=1&start=0&length=3')->json('data')))->toBe(3);
+
+    // Cap can't be bypassed by OMITTING `start`: yajra only paginates when both start + length are present, so
+    // `?length=5` with no start (or no params at all) used to skip pagination and return the whole table. The
+    // cap now forces `start`, so every response is bounded to pagination_max (audit-15).
+    expect(count($this->getJson('/admin/widgets/getData?draw=1&length=5')->json('data')))->toBe(5)  // no start
+        ->and(count($this->getJson('/admin/widgets/getData')->json('data')))->toBe(5)                // no params
+        ->and(count($this->getJson('/admin/widgets/getData?draw=1&length=999999')->json('data')))->toBe(5); // no start + huge
 });
 
 it('returns select2-shaped {id,text} results from the remote select source, filtered by the term', function () {

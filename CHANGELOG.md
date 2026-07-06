@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.161
+
+**Fix (DoS): the DataTables page-length cap on `getData` was bypassed by omitting the `start` parameter.** The cap
+clamped an out-of-range `length` (e.g. `?length=-1` / a huge value) into `[1, pagination_max]`, but yajra only
+paginates when BOTH `start` and `length` are present (and `length != -1`) — so a request that omitted `start`
+(`?length=5`, or no params at all) skipped pagination entirely and serialised the WHOLE table into memory,
+defeating the exact show-all mitigation the cap was added for (a memory/CPU DoS on a large table, triggerable by
+any user who can reach the list endpoint). `getData` now clamps `length` into `[1, pagination_max]` AND forces
+`start` (default 0), so every response is bounded to `pagination_max` regardless of which params the client sends;
+a normal DataTables request (which always sends `start` + an in-range `length`) is unaffected. Regression test
+extends the cap coverage to `?length=N` with no `start`, no params at all, and a huge length with no start
+(mutation-verified). Found by a fifteenth (fresh-angle) audit — the automated finder erred mid-run, so this was
+confirmed by manual verification of its leftover hypothesis.
+
 ## v2.79.160
 
 **Fix: on a `--soft-deletes` resource, a generated unique rule excluded trashed rows while the DB index did not —
