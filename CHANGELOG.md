@@ -2,6 +2,20 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.164
+
+**Fix (data loss): `admin-core:uninstall --purge` deleted the host's own `views/auth/login.blade.php` (and
+`two-factor-challenge.blade.php`) after a minimal install.** Those two auth views are published ONLY by
+`installFrontend()` (i.e. `install --access`) — and to the SAME paths Laravel Breeze/UI use — but `ownedFiles()`
+listed them in the UNCONDITIONAL purge array instead of behind the `frontendKitInstalled()` gate that protects
+every other `--access`-only artifact. So a host that had its own Breeze `login.blade.php`, ran a minimal
+`admin-core:install` (which never publishes those views), then ran `uninstall --purge`, had its login view
+permanently deleted (`/login` 500s — view not found). The two paths now sit inside the `frontendKitInstalled()`
+block alongside `account.php`, so `--purge` claims them only when the `--access` kit was actually installed here.
+Regression test extends the existing minimal-vs-kit invariant to assert the auth views are NOT purge targets on a
+minimal install and ARE when the kit is present (mutation-verified). Found by a comprehensive breadth-first audit
+(lifecycle area) — the same host-file-preservation class as v2.79.155.
+
 ## v2.79.163
 
 **Fix (guard-scoping): the portal approvals inbox gated its permission on the DEFAULT guard, locking the portal

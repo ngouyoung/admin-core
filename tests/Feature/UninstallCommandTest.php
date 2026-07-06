@@ -94,7 +94,11 @@ it('excludes the frontend/access tree from purge targets on a minimal install (n
         ->and($owned)->toContain(database_path('migrations/0001_01_01_000021_create_notifications_table.php'))
         ->and($owned)->toContain(database_path('migrations/0001_01_01_000022_create_error_logs_table.php'))
         // account.php is --access-only, so it must NOT be claimed on a minimal install.
-        ->and($owned)->not->toContain(base_path('routes/Web/Backend/Modules/account.php'));
+        ->and($owned)->not->toContain(base_path('routes/Web/Backend/Modules/account.php'))
+        // The auth views are --access-only (installFrontend) AND share Breeze's paths, so on a minimal install
+        // they must NOT be purge targets — else --purge deletes the host's own login view (breaking /login).
+        ->and($owned)->not->toContain(resource_path('views/auth/login.blade.php'))
+        ->and($owned)->not->toContain(resource_path('views/auth/two-factor-challenge.blade.php'));
 });
 
 it('claims the frontend/access tree when the kit IS installed', function () {
@@ -105,7 +109,9 @@ it('claims the frontend/access tree when the kit IS installed', function () {
     $owned = (new ReflectionMethod($command, 'ownedFiles'))->invoke($command);
 
     expect($owned)->toContain(resource_path('js/app.js'))                                 // now ours to purge
-        ->and($owned)->toContain(base_path('routes/Web/Backend/Modules/account.php'));    // the --access account route too
+        ->and($owned)->toContain(base_path('routes/Web/Backend/Modules/account.php'))     // the --access account route too
+        ->and($owned)->toContain(resource_path('views/auth/login.blade.php'))             // and the --access auth views
+        ->and($owned)->toContain(resource_path('views/auth/two-factor-challenge.blade.php'));
 
     File::deleteDirectory(resource_path('js'));
 });

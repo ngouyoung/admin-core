@@ -169,8 +169,6 @@ class AdminCoreUninstallCommand extends Command
             config_path('class.php'),
             resource_path('views/backend/dashboard.blade.php'),
             resource_path('views/backend/layouts/app.blade.php'),
-            resource_path('views/auth/login.blade.php'),
-            resource_path('views/auth/two-factor-challenge.blade.php'),
             base_path('routes/Web/Backend/Modules/assessments.php'),
             // The three fixed-name migrations install copies from the top-level stubs dir (NOT the access/
             // tree, so the map walk below never sees them). The distinctive 000020–000022 names are ours,
@@ -191,6 +189,12 @@ class AdminCoreUninstallCommand extends Command
             // The account module's route is copied to a fixed path by `install --access` (like assessments.php),
             // not via a walked stub dir — claim it here so --purge doesn't orphan it.
             $files[] = base_path('routes/Web/Backend/Modules/account.php');
+
+            // The auth views are published ONLY by installFrontend() (i.e. --access) to the SAME paths Laravel
+            // Breeze/UI use. Claiming them unconditionally meant a minimal install followed by --purge deleted the
+            // HOST's own login/two-factor view (breaking /login). Gate them behind the kit like everything else.
+            $files[] = resource_path('views/auth/login.blade.php');
+            $files[] = resource_path('views/auth/two-factor-challenge.blade.php');
 
             $map = [
                 'frontend/resources' => resource_path(),
