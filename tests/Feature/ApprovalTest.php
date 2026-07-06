@@ -238,6 +238,33 @@ it('forbids the requester from approving their OWN request (maker != checker), e
     Schema::dropIfExists('mc_users');
 });
 
+it('gates the portal approvals inbox on the portal guard suffix, not the default guard (full-audit)', function () {
+    // registerApprovalsMacro must append the guard to the Spatie permission middleware
+    // (permission:list-approval,merchant) for a portal — else the middleware resolves the DEFAULT guard and
+    // 403s the merchant approver from her own inbox. Mirrors Route::crud. The middleware is baked at
+    // REGISTRATION time from permission.enabled, so set it true before mounting.
+    config()->set('admin-core.permission.enabled', true);
+
+    \Illuminate\Support\Facades\Route::middleware('web')->prefix('merchant')->name('merchant.')
+        ->group(fn () => \Illuminate\Support\Facades\Route::adminCoreApprovals('merchant'));
+    \Illuminate\Support\Facades\Route::middleware('web')->prefix('adminx')->name('adminx.')
+        ->group(fn () => \Illuminate\Support\Facades\Route::adminCoreApprovals()); // no guard = default
+    \Illuminate\Support\Facades\Route::getRoutes()->refreshNameLookups();
+
+    // Every portal approvals route (index + approve + reject) carries the guard-suffixed gate.
+    foreach (['merchant.approvals.index', 'merchant.approvals.approve', 'merchant.approvals.reject'] as $name) {
+        $route = \Illuminate\Support\Facades\Route::getRoutes()->getByName($name);
+        expect($route)->not->toBeNull()
+            ->and($route->gatherMiddleware())->toContain('permission:list-approval,merchant');
+    }
+
+    // A default (no-guard) inbox keeps the unsuffixed gate.
+    $plain = \Illuminate\Support\Facades\Route::getRoutes()->getByName('adminx.approvals.index');
+    expect($plain->gatherMiddleware())
+        ->toContain('permission:list-approval')
+        ->not->toContain('permission:list-approval,merchant');
+});
+
 it('resolves the approver on the route\'s portal guard for maker-checker, not the default guard', function () {
     // Multi-portal: the inbox mounted with Route::adminCoreApprovals('merchant') must evaluate the maker-checker
     // block (and the approve gate) against the MERCHANT user, not the default 'web' guard. With the old

@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.163
+
+**Fix (guard-scoping): the portal approvals inbox gated its permission on the DEFAULT guard, locking the portal
+approver out.** `Route::adminCoreApprovals('merchant')` threads the guard into the controller (via the
+`acApprovalGuard` route default, so `actor()`/maker-checker resolve correctly) but built the Spatie permission
+middleware as `permission:list-approval` WITHOUT the `,merchant` guard suffix — so the middleware resolved the
+user on the default (web) guard. A merchant approver authenticated only on the `merchant` guard was seen as a
+web-guest → `UnauthorizedException` (403) on her own inbox (and the approve/reject POSTs); conversely a
+default-guard admin passed the gate on the portal route. `registerApprovalsMacro` now appends the guard suffix
+(`permission:list-approval,merchant`), exactly like `Route::crud` and `Route::crudSingleton` already do (with the
+same "Spatie must be told the guard or it checks the default" rationale). A no-guard inbox keeps the unsuffixed
+gate. Regression test asserts the portal routes carry `permission:list-approval,merchant` and the default one does
+not (mutation-verified). Found by a comprehensive breadth-first audit (state/approvals area) — the guard-scoping
+systemic class, another route-macro instance. (Note: `adminCoreMedia` takes no guard param at all — a separate
+portal-media design question, not this bug.)
+
 ## v2.79.162
 
 **Fix: `MediaLibrary::actor()` 500'd every media operation when a portal guard was declared in config but missing

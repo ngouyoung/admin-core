@@ -341,7 +341,12 @@ class AdminCoreServiceProvider extends ServiceProvider
     protected function registerApprovalsMacro(): void
     {
         Route::macro('adminCoreApprovals', function (?string $guard = null) {
-            $middleware = config('admin-core.permission.enabled') ? ['permission:list-approval'] : [];
+            // For a non-default (portal) guard, Spatie's permission middleware must be TOLD the guard
+            // (`permission:list-approval,merchant`) — otherwise it resolves the DEFAULT guard and 403s the
+            // portal approver from her own inbox (and lets a default-guard admin pass a portal route). Mirrors
+            // registerCrudMacro / registerSingletonMacro; the controller already reads acApprovalGuard below.
+            $suffix = $guard ? ',' . $guard : '';
+            $middleware = config('admin-core.permission.enabled') ? ['permission:list-approval' . $suffix] : [];
             Route::controller(ApprovalController::class)
                 ->prefix('approvals')
                 ->name('approvals.')
