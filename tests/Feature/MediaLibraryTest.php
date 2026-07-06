@@ -118,6 +118,27 @@ it('walls off a portal user from the default guard user of the SAME id under upl
         ->and($lib->owns($web))->toBeFalse();                            // …NOT the web user's of the same id
 });
 
+it('skips a portal guard declared in config but missing from auth.php instead of 500ing every media op (audit-15)', function () {
+    // actor() iterates the configured portal guards. A guard named in admin-core.permission.guards but NOT
+    // defined in auth.php (a typo / renamed guard — the exact misconfig the package tolerates elsewhere) makes
+    // auth()->guard($undefined) throw. Every sibling guard-walker (Dashboard/SetLocale/AutoTranslate/LogsActivity/
+    // SavedView) catches this and skips; actor() was the lone one that didn't → a single config typo 500'd every
+    // upload/list/delete for a portal user whose real guard is ordered AFTER the undefined one.
+    config()->set('admin-core.uploads.media_scope', 'own');
+    config()->set('admin-core.permission.guards', ['ghost' => [], 'merchant' => []]); // 'ghost' has NO auth.php guard
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+    $lib = app(MediaLibrary::class);
+
+    $merchant = MediaItem::create(['name' => 'm.png', 'path' => 'm/m.png', 'user_id' => 7, 'guard' => 'merchant']);
+    auth()->guard('merchant')->setUser(new \Illuminate\Auth\GenericUser(['id' => 7]));
+
+    // The undefined 'ghost' guard (ordered before 'merchant' in the walk) is skipped, not thrown…
+    expect(fn () => $lib->owns($merchant))->not->toThrow(\Throwable::class);
+    // …and the real merchant guard still resolves, so ownership + scoping are correct.
+    expect($lib->owns($merchant))->toBeTrue()
+        ->and($lib->query()->pluck('name')->all())->toBe(['m.png']);
+});
+
 it('keeps one shared pool by default (uploads.media_scope=shared) — no behaviour change', function () {
     $lib = app(MediaLibrary::class);
     MediaItem::create(['name' => 'a.png', 'path' => 'm/a.png', 'user_id' => 1]);

@@ -54,8 +54,12 @@ class MediaLibrary
     protected function actor(): array
     {
         foreach (self::guards() as $guard) {
-            if (($id = auth()->guard($guard)->id()) !== null) {
-                return [$id, $guard];
+            try {
+                if (($id = auth()->guard($guard)->id()) !== null) {
+                    return [$id, $guard];
+                }
+            } catch (\Throwable) {
+                continue; // a guard named in admin-core config but not defined in auth.php — skip
             }
         }
 

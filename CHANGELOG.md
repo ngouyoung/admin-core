@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.162
+
+**Fix: `MediaLibrary::actor()` 500'd every media operation when a portal guard was declared in config but missing
+from `auth.php`.** Like its five sibling guard-walkers (`Dashboard`, `SetLocale`, `AutoTranslate`, `LogsActivity`,
+`SavedViewController`), `actor()` iterates the configured portal guards calling `auth()->guard($guard)->id()` — but
+it was the ONLY one missing the defensive `try/catch`. A guard named in `admin-core.permission.guards` but not
+defined in `auth.php` (a typo or a renamed guard — the exact misconfiguration the siblings tolerate) makes
+`auth()->guard($undefined)` throw `Auth guard [x] is not defined`, so a media store/list/delete for a portal user
+whose real guard is ordered after the undefined one failed FATAL (HTTP 500) where every sibling fails SAFE — even
+though `actor()`'s own doc-comment claims "the same pattern as `Dashboard::currentUser`". It now wraps the loop
+body in `try { … } catch (\Throwable) { continue; }`, skipping the undefined guard. A sibling sweep confirmed this
+was the sole remaining guard-walker missing the guard (the other config-guard references resolve a single guard,
+not an iterating `auth()->guard()` walk). Regression test asserts an undefined guard ordered before the real one is
+skipped, not thrown (mutation-verified). Found by a fifteenth (fresh-angle) audit, config-edge dimension.
+
 ## v2.79.161
 
 **Fix (DoS): the DataTables page-length cap on `getData` was bypassed by omitting the `start` parameter.** The cap
