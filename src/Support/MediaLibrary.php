@@ -158,6 +158,28 @@ class MediaLibrary
     }
 
     /**
+     * Filter a set of media-item ids to those the current actor may ATTACH to a record — the WRITE-side of the
+     * same boundary query()/owns()/scoped() enforce on READ. Under uploads.media_scope='own', only the actor's
+     * own (user_id, guard) uploads pass, so a resource form / API / import can't attach (and thus re-serve)
+     * another tenant's file by a guessable sequential id. Under the default 'shared' scope every id passes (one
+     * global pool). The input is int-cast + de-duplicated; the caller's order is preserved for the survivors.
+     * (Trusted programmatic code that must bypass the scope can attach via the `media()` relation directly.)
+     *
+     * @param  array<int, int|string>  $ids
+     * @return array<int, int>
+     */
+    public function ownedIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        if ($ids === [] || config('admin-core.uploads.media_scope', 'shared') !== 'own') {
+            return $ids;
+        }
+        $allowed = array_map('intval', $this->scoped(MediaItem::whereIn('id', $ids))->pluck('id')->all());
+
+        return array_values(array_filter($ids, fn ($id) => in_array($id, $allowed, true)));
+    }
+
+    /**
      * @return array{0: int|null, 1: int|null} [width, height] for an image upload, else [null, null]
      */
     /**

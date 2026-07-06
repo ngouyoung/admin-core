@@ -5,6 +5,7 @@ namespace Ngos\AdminCore\Concerns;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Ngos\AdminCore\Models\MediaItem;
+use Ngos\AdminCore\Support\MediaLibrary;
 
 /**
  * Polymorphic media attachments — any model can own multiple library files per named collection, reusing files
@@ -61,6 +62,11 @@ trait HasMedia
     public function attachMedia(MediaItem|int $item, string $collection = 'default'): void
     {
         $id = $item instanceof MediaItem ? $item->getKey() : $item;
+        // Enforce the media_scope='own' boundary on the WRITE side: an actor may only attach their own uploads,
+        // so a crafted foreign id can't be attached (and then re-served). No-op under the default 'shared' scope.
+        if (app(MediaLibrary::class)->ownedIds([$id]) === []) {
+            return;
+        }
         $sort = (int) ($this->media()->wherePivot('collection', $collection)->max('sort') ?? -1) + 1;
 
         $this->media()->attach($id, ['collection' => $collection, 'sort' => $sort]);
@@ -74,7 +80,11 @@ trait HasMedia
      */
     public function syncMedia(array $mediaItemIds, string $collection = 'default'): void
     {
-        $ids = array_values(array_unique(array_filter(array_map('intval', $mediaItemIds))));
+        // Under media_scope='own', drop any id the actor doesn't own BEFORE attaching — the write-side of the
+        // media-library boundary. The generated resource form/API/import calls this with request-supplied ids,
+        // so an unfiltered foreign id would attach (and re-serve) another tenant's file (IDOR). No-op under
+        // 'shared'. ownedIds() also does the int-cast + de-dupe this used to do inline.
+        $ids = app(MediaLibrary::class)->ownedIds($mediaItemIds);
 
         $this->media()->wherePivot('collection', $collection)->detach();
         foreach ($ids as $sort => $id) {

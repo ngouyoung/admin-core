@@ -32,6 +32,7 @@ beforeEach(function () {
         $t->string('collection')->default('default');
         $t->string('alt')->nullable();
         $t->unsignedBigInteger('user_id')->nullable();
+        $t->string('guard')->nullable();
         $t->timestamps();
     });
     Schema::create('mediables', function (Blueprint $t) {
@@ -69,6 +70,35 @@ it('attaches and reads media in a collection', function () {
     expect($w->mediaIn('gallery'))->toHaveCount(2)
         ->and($w->firstMedia('gallery')->is($a))->toBeTrue()
         ->and($w->firstMediaUrl('gallery'))->not->toBeNull();
+});
+
+it('enforces media_scope=own on the ATTACH side: syncMedia/attachMedia drop a foreign upload (IDOR closed)', function () {
+    // The read paths (list/owns/scoped) were already (user_id,guard)-scoped under 'own', but a resource form/API
+    // could POST a foreign media id: exists:media_items,id validated it, syncMedia attached it, and the URL was
+    // re-served — a cross-tenant IDOR. The attach side now drops any id the actor doesn't own.
+    config()->set('admin-core.uploads.media_scope', 'own');
+    $this->actingAs(new \Illuminate\Auth\GenericUser(['id' => 1])); // actor = (id 1, web guard)
+
+    $mine = MediaItem::create(['name' => 'mine.png', 'path' => 'm/mine.png', 'user_id' => 1, 'guard' => 'web']);
+    $foreign = MediaItem::create(['name' => 'foreign.png', 'path' => 'm/foreign.png', 'user_id' => 2, 'guard' => 'web']);
+    $w = HasMediaWidget::create(['name' => 'W']);
+
+    // syncMedia with BOTH ids → only the owned one attaches; the foreign id is silently dropped.
+    $w->syncMedia([$mine->id, $foreign->id], 'gallery');
+    expect($w->mediaIn('gallery')->pluck('id')->all())->toBe([$mine->id]);
+
+    // attachMedia with the foreign id → no-op; with the owned id → attaches.
+    $w->attachMedia($foreign->id, 'gallery');
+    expect($w->mediaIn('gallery')->pluck('id')->all())->toBe([$mine->id]);
+    $w->attachMedia($mine->id, 'other');
+    expect($w->mediaIn('other')->pluck('id')->all())->toBe([$mine->id]);
+});
+
+it('leaves attach unrestricted under the default shared media scope (no behaviour change)', function () {
+    $w = HasMediaWidget::create(['name' => 'W']);
+    $a = MediaItem::create(['name' => 'a.png', 'path' => 'm/a.png', 'user_id' => 99, 'guard' => 'web']); // not "mine"
+    $w->syncMedia([$a->id], 'gallery');   // shared pool → any id attaches
+    expect($w->mediaIn('gallery')->pluck('id')->all())->toBe([$a->id]);
 });
 
 it('syncs a collection in order, replacing the previous set', function () {

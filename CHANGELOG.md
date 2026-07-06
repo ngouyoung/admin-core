@@ -2,6 +2,23 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.168
+
+**Fix (IDOR): under `uploads.media_scope='own'`, the media/gallery ATTACH path didn't enforce ownership, so a
+resource form could attach (and re-serve) another tenant's uploads by id.** The `'own'` scope is the documented
+multi-tenant/portal confidentiality mode, and the media library's READ surface (`list`/`owns`/`scoped`/
+`collections`) was already `(user_id, guard)`-scoped — but the WRITE side was not. The generated media/gallery
+validation rule is `exists:media_items,id` (existence only, no owner scope), and `HasMedia::syncMedia()` attached
+the validated ids with no ownership filter. So tenant B, on B's own authorized edit form, could POST
+`gallery[]=<foreign id>` (iterating the sequential bigint id to harvest), attach tenant A's `'own'`-scoped upload,
+and the render path served back A's file URL — defeating exactly the cross-tenant isolation `'own'` promises. A new
+`MediaLibrary::ownedIds()` filters a set of ids to those the current actor owns (reusing the same `(user_id, guard)`
+`scoped()` boundary as the read paths), and `HasMedia::syncMedia()`/`attachMedia()` now run their incoming ids
+through it — so a foreign id is dropped before attaching. No-op under the default `'shared'` scope (one global
+pool); trusted programmatic code that must bypass can attach via the `media()` relation directly. Regression test
+proves a foreign id is dropped by both `syncMedia` and `attachMedia` under `'own'` and that `'shared'` is unchanged
+(mutation-verified). Found by a hard data-flow audit (media attach seam — read-scoped but write-unscoped).
+
 ## v2.79.167
 
 **Fix (data loss): `admin-core:uninstall --purge` deleted a host-owned `app/Http/Controllers/Api/AuthController.php`
