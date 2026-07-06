@@ -415,6 +415,15 @@ class FieldSet
                     }
                 } else {
                     $moneyCurrency = strtoupper($arg) ?: null;
+                    // Validate the pinned code before it's interpolated into the generated cast/rule string
+                    // literals — an unvalidated value like K'HR closes the PHP string and ships an un-parseable
+                    // model (the sibling @column / decimal / sequence branches all guard their arg the same way).
+                    if ($moneyCurrency !== null && ! preg_match('/^[A-Z]{2,4}$/', $moneyCurrency)) {
+                        throw new \InvalidArgumentException(
+                            "admin-core: money currency '{$arg}' must be an ISO-like code — letters only, e.g. "
+                            . 'price:money:KHR or price:money:USD.',
+                        );
+                    }
                 }
                 $spec = 'money';
             }
@@ -456,6 +465,15 @@ class FieldSet
             $foreignTable = null;
             if (str_starts_with($spec, 'foreign:')) {
                 $foreignTable = trim(substr($spec, 8));
+                // Guard the target before it's run through Str::snake and emitted into a class reference +
+                // constrained('…') — an unvalidated value like cat'x ships un-parseable PHP / an un-runnable
+                // migration (same class as the field-name guard below).
+                if ($foreignTable !== '' && ! preg_match('/^[a-z_][a-z0-9_]*$/i', $foreignTable)) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: foreign target table '{$foreignTable}' isn't a valid table name "
+                        . '(letters, digits and underscores — e.g. author_id:foreign:users).',
+                    );
+                }
                 $spec = 'foreign';
             }
 
@@ -468,6 +486,14 @@ class FieldSet
             $hasManyTable = null;
             if (str_starts_with(strtolower($spec), 'hasmany')) {
                 $hasManyTable = str_contains($spec, ':') ? trim(substr($spec, strpos($spec, ':') + 1)) : null;
+                // Same guard as the foreign target: the child table is run through Str::snake/Str::studly into a
+                // model class reference, so an unvalidated value like order'items would ship un-parseable PHP.
+                if ($hasManyTable !== null && $hasManyTable !== '' && ! preg_match('/^[a-z_][a-z0-9_]*$/i', $hasManyTable)) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: hasMany child table '{$hasManyTable}' isn't a valid table name "
+                        . '(letters, digits and underscores — e.g. lines:hasMany:order_items).',
+                    );
+                }
                 $spec = 'hasMany';
             }
 

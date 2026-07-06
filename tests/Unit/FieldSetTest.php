@@ -964,6 +964,23 @@ it('rejects a sequence prefix with characters that could break the generated PHP
     expect(fn () => fs('no:sequence:INV/2026', 'docs'))->not->toThrow(InvalidArgumentException::class);
 });
 
+it('rejects a money-currency / foreign-table / hasMany-table token that would break out of the generated PHP', function () {
+    // These tokens are interpolated verbatim into generated cast/rule string literals and class references. An
+    // unvalidated quote/space closes the literal → an un-parseable model while the command reports success. The
+    // sibling branches (field name, decimal, @column, sequence prefix) all guard their arg the same way.
+    expect(fn () => fs("price:money:K'HR"))->toThrow(InvalidArgumentException::class, 'ISO-like code');
+    expect(fn () => fs('price:money:US D'))->toThrow(InvalidArgumentException::class, 'ISO-like code');
+    expect(fn () => fs("parent_id:foreign:cat'x"))->toThrow(InvalidArgumentException::class, "isn't a valid table name");
+    expect(fn () => fs("lines:hasMany:order'items"))->toThrow(InvalidArgumentException::class, "isn't a valid table name");
+
+    // Valid forms still parse (no false positives).
+    expect(fn () => fs('price:money:KHR'))->not->toThrow(InvalidArgumentException::class);
+    expect(fn () => fs('price:money'))->not->toThrow(InvalidArgumentException::class);              // default currency
+    expect(fn () => fs('parent_id:foreign:categories'))->not->toThrow(InvalidArgumentException::class);
+    expect(fn () => fs('lines:hasMany:order_items'))->not->toThrow(InvalidArgumentException::class);
+    expect(fn () => fs('lines:hasMany'))->not->toThrow(InvalidArgumentException::class);            // inferred child
+});
+
 // -- auth (ownership stamp) --------------------------------------------------------------------------
 
 it('stamps an :auth field on the resource guard so a portal user is never resolved on the default guard', function () {

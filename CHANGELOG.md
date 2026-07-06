@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.166
+
+**Fix: three `admin-core:make` field tokens were emitted into generated PHP without validation, so a stray
+quote/space produced an un-parseable model while the command reported success.** A pinned money currency
+(`price:money:K'HR`), an explicit foreign target (`parent_id:foreign:cat'x`), and a hasMany child table
+(`lines:hasMany:order'items`) were interpolated verbatim into generated cast/rule string literals and
+`\App\Models\…::class` / `constrained('…')` references — an apostrophe closed the string literal and shipped a
+model/migration that fails `php -l` / `migrate`, yet `make` still printed success. Each now validates its token
+before use (money = an ISO-like letters-only code; foreign + hasMany tables = a valid identifier), throwing a
+clear generation-time error — exactly like the field-name, decimal, `@currency`-column and sequence-prefix
+branches already did. The audit flagged the money + foreign cases; a sibling sweep of the parser found the hasMany
+case was the same class (rollup and computed were already validated after the parse). Regression test covers all
+three rejections plus the still-valid forms (mutation-verified). Developer-facing scaffolding robustness (no
+external attacker). Found by a comprehensive breadth-first audit (generator area) + a parser sibling sweep.
+
 ## v2.79.165
 
 **Fix: the GroupPermissions (access kit) edit screen compared the bigint `id` column to the uuid route key, 500ing
