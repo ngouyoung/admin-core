@@ -2,6 +2,22 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.167
+
+**Fix (data loss): `admin-core:uninstall --purge` deleted a host-owned `app/Http/Controllers/Api/AuthController.php`
+(and `ApiAuthServiceProvider.php`) even when `--api-auth` was never installed.** Those two paths sat in the
+UNCONDITIONAL purge array — but the api-auth footprint is published only by the opt-in `install --api-auth`, to a
+CONVENTIONAL host path, and install even refuses to overwrite an existing file there. So a host with its own API
+`AuthController` that installed admin-core WITHOUT `--api-auth`, then ran `uninstall --purge`, had its controller
+permanently deleted — admin-core removing a file it never created. This is the identical shared-path class fixed
+for the auth views in v2.79.164 (its re-scan should have caught this sibling but wrongly treated the conventional
+`Api/AuthController.php` path as package-specific). The two paths are now gated behind a new `apiAuthInstalled()`
+signal — `File::exists(app_path('Providers/ApiAuthServiceProvider.php'))`, an admin-core-specific name a host won't
+own, which `unwire()` only un-registers (never deletes), so it survives to purge time — independent of the
+`--access` gate since `--api-auth` is a separate flag. Regression test now asserts the files are claimed only when
+the provider signal is present AND that a host-owned controller survives when it is not (mutation-verified). Found
+by a hard data-flow audit (install→uninstall symmetry seam).
+
 ## v2.79.166
 
 **Fix: three `admin-core:make` field tokens were emitted into generated PHP without validation, so a stray

@@ -176,10 +176,18 @@ class AdminCoreUninstallCommand extends Command
             database_path('migrations/0001_01_01_000020_create_activity_logs_table.php'),
             database_path('migrations/0001_01_01_000021_create_notifications_table.php'),
             database_path('migrations/0001_01_01_000022_create_error_logs_table.php'),
-            // --api-auth footprint (stubs/api-auth) — copied to fixed paths, not a walked stub dir.
-            app_path('Http/Controllers/Api/AuthController.php'),
-            app_path('Providers/ApiAuthServiceProvider.php'),
         ];
+
+        // The --api-auth footprint (stubs/api-auth) is published ONLY by `install --api-auth`, to a CONVENTIONAL
+        // host path (app/Http/Controllers/Api/AuthController.php). Claiming it unconditionally meant `--purge`
+        // deleted a host's OWN API auth controller when admin-core never installed one (install even refuses to
+        // overwrite it). Gate on an install-here signal: ApiAuthServiceProvider.php is an admin-core-specific
+        // name a host won't own, and unwire() only UN-registers it (doesn't delete the file), so it survives to
+        // purge time. Independent of --access, so a separate gate from frontendKitInstalled().
+        if ($this->apiAuthInstalled()) {
+            $files[] = app_path('Http/Controllers/Api/AuthController.php');
+            $files[] = app_path('Providers/ApiAuthServiceProvider.php');
+        }
 
         // The frontend kit + access module (the `$map` tree) is published ONLY by `install --access`. On a
         // minimal install those destinations hold the FRAMEWORK's own files (e.g. resources/js/app.js) — not
@@ -230,6 +238,17 @@ class AdminCoreUninstallCommand extends Command
     private function frontendKitInstalled(): bool
     {
         return File::exists(resource_path('js/datatable.js')) || File::exists(resource_path('sass/app.scss'));
+    }
+
+    /**
+     * Was the --api-auth kit actually installed here? Detected by the ApiAuthServiceProvider class file — an
+     * admin-core-specific name a host won't own, published only by `install --api-auth`. unwire() only strips its
+     * registration (not the file), so this signal survives to purge time. Guards against deleting a host's own
+     * conventional app/Http/Controllers/Api/AuthController.php that admin-core never created.
+     */
+    private function apiAuthInstalled(): bool
+    {
+        return File::exists(app_path('Providers/ApiAuthServiceProvider.php'));
     }
 
     private function removeEmptyDirs(): void

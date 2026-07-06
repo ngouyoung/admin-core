@@ -116,13 +116,36 @@ it('claims the frontend/access tree when the kit IS installed', function () {
     File::deleteDirectory(resource_path('js'));
 });
 
-it('lists the --api-auth files among the purge targets (so --purge deletes them, not orphans)', function () {
+it('claims the --api-auth files as purge targets only when the api-auth kit was installed here', function () {
+    // install --api-auth publishes ApiAuthServiceProvider.php — the install-here signal (unwire only un-registers
+    // it, never deletes the file). With the signal present, both api-auth files are purge targets.
+    File::ensureDirectoryExists(app_path('Providers'));
+    File::put(app_path('Providers/ApiAuthServiceProvider.php'), '<?php');
+
     $command = new \Ngos\AdminCore\Console\AdminCoreUninstallCommand();
     $owned = (new ReflectionMethod($command, 'ownedFiles'))->invoke($command);
 
     expect($owned)
         ->toContain(app_path('Http/Controllers/Api/AuthController.php'))
         ->toContain(app_path('Providers/ApiAuthServiceProvider.php'));
+
+    File::delete(app_path('Providers/ApiAuthServiceProvider.php'));
+});
+
+it('does NOT purge a host-owned Api/AuthController when --api-auth was never installed (no provider signal)', function () {
+    // The bug: app/Http/Controllers/Api/AuthController.php is a CONVENTIONAL host path. A host owning its own API
+    // auth controller, with admin-core installed WITHOUT --api-auth (so no ApiAuthServiceProvider.php), must not
+    // have that file deleted by --purge — admin-core never created it (install even refuses to overwrite it).
+    if (File::exists(app_path('Providers/ApiAuthServiceProvider.php'))) {
+        File::delete(app_path('Providers/ApiAuthServiceProvider.php')); // ensure no install-here signal
+    }
+
+    $command = new \Ngos\AdminCore\Console\AdminCoreUninstallCommand();
+    $owned = (new ReflectionMethod($command, 'ownedFiles'))->invoke($command);
+
+    expect($owned)
+        ->not->toContain(app_path('Http/Controllers/Api/AuthController.php'))
+        ->not->toContain(app_path('Providers/ApiAuthServiceProvider.php'));
 });
 
 it('reverts HasRoles/HasPublicUuid cleanly (no dangling trait or import)', function () {
