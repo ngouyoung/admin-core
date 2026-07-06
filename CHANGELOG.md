@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.165
+
+**Fix: the GroupPermissions (access kit) edit screen compared the bigint `id` column to the uuid route key, 500ing
+on Postgres and orphaning a group on MySQL.** `GroupPermission` uses `HasPublicUuid`, so its route key is the
+`uuid`; the edit controller built the "Parent" dropdown with `->where('id', '!=', $id)` where `$id` is that uuid
+string. On Postgres that comparison is `bigint <> uuid` → `invalid input syntax for type bigint` → the edit page
+500s for every group. On MySQL/SQLite the uuid coerces to a leading-digit integer that never equals the group's
+real id, so self-exclusion silently fails: the group appears in its own Parent select, and choosing it sets
+`parent_id = own id`, which `scopeParents()` (whereNull('parent_id')) then drops from the tree — the group and its
+permissions silently disappear from the manager (unrecoverable via the UI). The dropdown now excludes self by the
+loaded object's real primary key (`$object->getKey()`), correct under any key strategy; and
+`UpdateGroupPermissionRequest` now rejects `parent_id == self` (resolving the group's id from its uuid) as
+defense-in-depth against a crafted POST. Regression test pins both stub fixes (mutation-verified). Found by a
+comprehensive breadth-first audit (access-kit area).
+
 ## v2.79.164
 
 **Fix (data loss): `admin-core:uninstall --purge` deleted the host's own `views/auth/login.blade.php` (and

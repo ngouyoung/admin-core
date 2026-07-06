@@ -15,10 +15,14 @@ class UpdateGroupPermissionRequest extends FormRequest
     public function rules(): array
     {
         $id = $this->route('id');
+        // Reject choosing this group as its OWN parent — a self-parented group orphans out of the tree
+        // (getParents() returns only roots, so it becomes unreachable from the manager). parent_id is the bigint
+        // id (the dropdown value) but the route key is the uuid, so resolve the group's own id to exclude it.
+        $selfId = \App\Models\GroupPermission::where('uuid', $id)->value('id');
 
         return [
             'name' => ['required', 'string', 'max:255', Rule::unique('group_permissions', 'name')->ignore($id, 'uuid')],
-            'parent_id' => ['nullable', 'integer', 'exists:group_permissions,id'],
+            'parent_id' => ['nullable', 'integer', 'exists:group_permissions,id', Rule::notIn([$selfId])],
         ];
     }
 }

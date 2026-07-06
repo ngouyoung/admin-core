@@ -31,9 +31,14 @@ class GroupPermissionsController extends WebController
 
     public function edit(int|string $id)
     {
+        $object = $this->service->find($id);
+
         return $this->view('edit', [
-            'object' => $this->service->find($id),
-            'groups' => $this->service->query()->where('id', '!=', $id)->orderBy('name')->get(),
+            'object' => $object,
+            // Exclude self from the Parent options by the model's real primary key, not the route key: under
+            // hybrid keys $id is the uuid, and `where('id', $uuid)` 500s on Postgres (bigint vs uuid) and never
+            // matches on MySQL (so the group can pick itself as Parent → it orphans out of the tree).
+            'groups' => $this->service->query()->where('id', '!=', $object->getKey())->orderBy('name')->get(),
         ]);
     }
 
