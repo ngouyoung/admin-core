@@ -2,6 +2,24 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.79.169
+
+**Fix (cross-portal authorization): the approvals inbox was not guard-scoped — every portal listed, and could
+decide, every other portal's pending approvals.** `Route::adminCoreApprovals($guard)` already resolved the
+*actor* on the portal guard (v2.79.x), but the Approval row recorded no guard and neither `index()` nor the
+approve/reject lookup filtered by one — so a merchant approver's inbox showed the admin portal's pending
+requests (and vice versa), and a cross-portal uuid could be decided by any inbox whose actor held a
+colliding `approve-{action}-{resource}` permission name on their own guard. Approvals now carry the filing
+resource's guard: `WebController::createApproval()` records `$this->guard` (default guard when unset), a new
+`Approval::forGuard()` scope filters the inbox list AND the decision lookup (cross-portal decide → 404), and
+the guard column ships in the create migration plus an add-column upgrade migration. Backward compatible on
+both axes: pre-migration installs skip the column entirely (filing and listing behave exactly as v2.79.168
+until `migrate` runs), and legacy NULL-guard rows surface only on the DEFAULT guard's inbox — never on a
+portal's (fail closed). Regression tests: per-guard inbox isolation (incl. the legacy-NULL rule), cross-guard
+decision 404s while the owning portal's decision route still works, and the filing path records the guard.
+Found by the v3 hardening sweep (guard-scoping class — the same systemic class as the media/search/sidebar
+fixes; root cause tracked for a structural v4 fix).
+
 ## v2.79.168
 
 **Fix (IDOR): under `uploads.media_scope='own'`, the media/gallery ATTACH path didn't enforce ownership, so a

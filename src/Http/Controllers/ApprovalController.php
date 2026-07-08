@@ -21,7 +21,9 @@ class ApprovalController extends Controller
     public function index(Request $request): View
     {
         $actor = $this->actor($request);
-        $approvals = Approval::pending()->with('requester')->latest()
+        // forGuard(): each portal's inbox lists ONLY its own portal's requests — without it, every portal
+        // sees (and could decide) every other portal's pending approvals.
+        $approvals = Approval::pending()->forGuard($this->routeGuard($request))->with('requester')->latest()
             ->paginate((int) config('admin-core.pagination', 20));
 
         // Flag which rows this user may actually decide, so the inbox shows the buttons only where allowed.
@@ -32,7 +34,7 @@ class ApprovalController extends Controller
 
     public function approve(Request $request, string $id): RedirectResponse
     {
-        $approval = $this->pendingOrFail($id);
+        $approval = $this->pendingOrFail($id, $this->routeGuard($request));
         $actor = $this->actor($request);
         abort_unless($this->canDecide($approval, $actor), 403);
         // Re-run the original action through the requester's controller (the only place its handler lives).
@@ -62,7 +64,7 @@ class ApprovalController extends Controller
 
     public function reject(Request $request, string $id): RedirectResponse
     {
-        $approval = $this->pendingOrFail($id);
+        $approval = $this->pendingOrFail($id, $this->routeGuard($request));
         $actor = $this->actor($request);
         abort_unless($this->canDecide($approval, $actor), 403);
         abort_unless($this->claim($approval, 'rejected', $this->note($request), $actor), 404);
@@ -80,9 +82,13 @@ class ApprovalController extends Controller
      */
     private function actor(Request $request)
     {
-        $guard = $request->route()?->defaults['acApprovalGuard'] ?? null;
+        return auth()->guard($this->routeGuard($request))->user();
+    }
 
-        return auth()->guard($guard)->user();
+    /** The route group's approval guard (stashed by Route::adminCoreApprovals($guard)); null = the default guard. */
+    private function routeGuard(Request $request): ?string
+    {
+        return $request->route()?->defaults['acApprovalGuard'] ?? null;
     }
 
     /** The decision note as a string or null — `note[]=x` (an array) must not TypeError into a 500. */
@@ -93,9 +99,11 @@ class ApprovalController extends Controller
         return is_string($note) ? $note : null;
     }
 
-    private function pendingOrFail(string $id): Approval
+    private function pendingOrFail(string $id, ?string $guard): Approval
     {
-        $approval = Approval::where('uuid', $id)->firstOrFail();
+        // forGuard(): a decision route can only reach its OWN portal's requests — a cross-portal uuid 404s,
+        // so one portal's approver can never decide another portal's approval.
+        $approval = Approval::where('uuid', $id)->forGuard($guard)->firstOrFail();
         abort_unless($approval->isPending(), 404); // already decided — fail fast (the atomic claim is the real guard)
 
         return $approval;

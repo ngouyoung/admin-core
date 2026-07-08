@@ -1085,6 +1085,12 @@ abstract class WebController extends BaseController
             'status' => 'pending',
             'note' => $note !== '' ? $note : null,
         ]);
+        // Record THIS resource's guard so the request surfaces only in its own portal's inbox (and only that
+        // portal's decision routes can reach it). Skipped while the column hasn't been migrated yet — filing
+        // then keeps working exactly as the previous release.
+        if (Approval::guardColumnPresent()) {
+            $approval->guard = $this->guard ?? (string) config('auth.defaults.guard', 'web');
+        }
         if ($user = $this->actingUser()) {
             $approval->requester()->associate($user);
         }

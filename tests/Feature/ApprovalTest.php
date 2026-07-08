@@ -3,6 +3,7 @@
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Ngos\AdminCore\Models\Approval;
 use Ngos\AdminCore\Tests\Fixtures\NotifiableUser;
@@ -32,6 +33,7 @@ beforeEach(function () {
         $t->string('handler');
         $t->json('payload');
         $t->string('status')->default('pending');
+        $t->string('guard')->nullable();
         $t->text('note')->nullable();
         $t->text('decision_note')->nullable();
         $t->timestamp('decided_at')->nullable();
@@ -90,7 +92,52 @@ it('files a pending approval instead of executing, for a requester who cannot ap
     expect($approval->action)->toBe('refund')
         ->and($approval->status)->toBe('pending')
         ->and($approval->ids())->toBe([$w->id])
-        ->and($approval->note)->toBe('please');
+        ->and($approval->note)->toBe('please')
+        // The filing resource's guard is recorded (default guard here) so the request surfaces only in
+        // its own portal's inbox — the portal-scope hardening.
+        ->and($approval->guard)->toBe((string) config('auth.defaults.guard'));
+});
+
+// -- Portal / guard scope (hardening: each inbox lists + decides only its OWN portal's requests) -----
+
+it('scopes pending approvals per route guard — a portal inbox never lists another portal\'s requests', function () {
+    Approval::create(['action' => 'adm-thing', 'handler' => 'X', 'payload' => ['ids' => [1]], 'status' => 'pending',
+        'guard' => (string) config('auth.defaults.guard')]);
+    Approval::create(['action' => 'mer-thing', 'handler' => 'X', 'payload' => ['ids' => [2]], 'status' => 'pending',
+        'guard' => 'merchant']);
+    Approval::create(['action' => 'legacy-thing', 'handler' => 'X', 'payload' => ['ids' => [3]], 'status' => 'pending']); // pre-upgrade row: guard NULL
+
+    // The default inbox: its own requests + legacy (pre-column) rows — never a portal's.
+    expect(Approval::pending()->forGuard(null)->pluck('action')->sort()->values()->all())
+        ->toBe(['adm-thing', 'legacy-thing']);
+
+    // A portal inbox: ONLY its own requests — legacy NULL rows fail closed (default inbox only).
+    expect(Approval::pending()->forGuard('merchant')->pluck('action')->all())
+        ->toBe(['mer-thing']);
+});
+
+it('404s a decision attempted through another portal\'s inbox (cross-guard decide is blocked)', function () {
+    config()->set('admin-core.permission.enabled', false); // isolate the guard scope from the permission gate
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+
+    Route::middleware('web')->prefix('adminy')->name('adminy.')
+        ->group(fn () => Route::adminCoreApprovals()); // default-guard inbox
+    Route::middleware('web')->prefix('merchanty')->name('merchanty.')
+        ->group(fn () => Route::adminCoreApprovals('merchant'));
+    Route::getRoutes()->refreshNameLookups();
+
+    $merchantApproval = Approval::create(['action' => 'payout', 'handler' => 'X',
+        'payload' => ['ids' => [1]], 'status' => 'pending', 'guard' => 'merchant']);
+
+    $this->actingAs(new NotifiableUser(['name' => 'Admin']));
+
+    // The DEFAULT inbox's decision routes cannot reach a merchant request — 404, still pending.
+    $this->post('/adminy/approvals/' . $merchantApproval->uuid . '/reject')->assertNotFound();
+    expect($merchantApproval->fresh()->status)->toBe('pending');
+
+    // Its OWN portal's decision route still works.
+    $this->post('/merchanty/approvals/' . $merchantApproval->uuid . '/reject')->assertRedirect();
+    expect($merchantApproval->fresh()->status)->toBe('rejected');
 });
 
 it('resolves the approver pool and inbox link on THIS resource\'s guard/prefix, not the default admin one', function () {
@@ -290,6 +337,7 @@ it('resolves the approver on the route\'s portal guard for maker-checker, not th
 
     $w = Widget::create(['name' => 'a']);
     $approval = pendingRefund($w);
+    $approval->guard = 'merchant'; // as a merchant resource's createApproval() records — the row belongs to THIS portal's inbox
     $approval->requester()->associate($alice)->save();
 
     // Authenticate Alice ONLY on the merchant guard (default 'web' stays null — the real portal shape).

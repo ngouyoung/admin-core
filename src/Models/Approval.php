@@ -5,6 +5,7 @@ namespace Ngos\AdminCore\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
@@ -17,6 +18,7 @@ use Illuminate\Support\Str;
  * @property string $handler
  * @property array $payload
  * @property string $status
+ * @property string|null $guard
  * @property string|null $note
  * @property string|null $decision_note
  * @property \Illuminate\Support\Carbon|null $decided_at
@@ -30,7 +32,7 @@ use Illuminate\Support\Str;
  */
 class Approval extends Model
 {
-    protected $fillable = ['action', 'resource', 'handler', 'payload', 'status', 'note', 'decision_note', 'decided_at'];
+    protected $fillable = ['action', 'resource', 'handler', 'payload', 'status', 'guard', 'note', 'decision_note', 'decided_at'];
 
     protected $casts = [
         'payload' => 'array',
@@ -64,6 +66,38 @@ class Approval extends Model
     public function scopePending(Builder $query): void
     {
         $query->where('status', 'pending');
+    }
+
+    /**
+     * Scope to the requests filed under one route group's guard, so each portal's inbox lists (and can
+     * decide) only its OWN portal's requests. Null/'' = the default guard. Legacy rows that predate the
+     * guard column (guard NULL) surface only on the DEFAULT guard's inbox — never on a portal's (fail
+     * closed). No-op while the column hasn't been migrated yet: behavior then matches the previous release
+     * instead of a SQL error.
+     *
+     * @param  Builder<Approval>  $query
+     */
+    public function scopeForGuard(Builder $query, ?string $guard): void
+    {
+        if (! self::guardColumnPresent()) {
+            return;
+        }
+
+        $default = (string) config('auth.defaults.guard', 'web');
+        $effective = ($guard !== null && $guard !== '') ? $guard : $default;
+
+        $query->where(function (Builder $q) use ($effective, $default) {
+            $q->where('guard', $effective);
+            if ($effective === $default) {
+                $q->orWhereNull('guard');
+            }
+        });
+    }
+
+    /** Whether the guard column exists yet — an install may run the updated package before migrating. */
+    public static function guardColumnPresent(): bool
+    {
+        return Schema::hasColumn((new self)->getTable(), 'guard');
     }
 
     public function isPending(): bool

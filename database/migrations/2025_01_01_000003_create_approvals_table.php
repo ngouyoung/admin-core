@@ -27,6 +27,7 @@ return new class extends Migration
             $table->string('handler');           // controller FQCN that can re-run the action
             $table->json('payload');             // {ids: [...], label: '...'}
             $table->string('status')->default('pending')->index(); // pending | approved | rejected
+            $table->string('guard')->nullable()->index(); // filing route group's auth guard — scopes each portal's inbox to its own requests
             $table->text('note')->nullable();          // requester's reason
             $table->text('decision_note')->nullable(); // approver's reason
             $table->timestamp('decided_at')->nullable();
