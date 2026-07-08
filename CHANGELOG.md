@@ -2,6 +2,24 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.80.0
+
+**Change (generation default): `admin-core:make` now generates the hybrid public key BY DEFAULT —
+`generator.uuid` flips `false → true` (ADR-0007).** The hybrid key (fast bigint `id` PK + unique public
+`uuid` column via `HasPublicUuid`) was already the framework standard: admin-core's own tables (users, roles,
+permissions, group_permissions, media_items, approvals) use it, route binding / API resources / uniqueness
+self-ignore / bulk checkboxes all branch on "uuid under hybrid", and the api config states "the public
+identifier is always the uuid" — yet the generator defaulted every *product* resource to a bigint-only,
+enumerable key. Standard and default now agree: generated resources are non-enumerable and API-consistent out
+of the box (Secure by Default, Convention over Configuration). **Opt out per-resource with `--no-uuid`**
+(high-volume pivot/log/event tables that never appear in a URL) or app-wide via `generator.uuid => false` —
+a published config that already sets the key explicitly is unaffected. Also corrects the `--uuid`/`--no-uuid`
+help text, which described a "UUID primary key": the strategy is, and always was, the hybrid (bigint PK
+stays). **Affects future generation only** — existing generated resources are untouched; regenerate (or add
+the column + trait) to adopt. MINOR bump: behavior change for new scaffolds, no API change. Regression tests:
+a plain `make` emits the uuid column + trait and the update-request self-ignore uses the uuid route key;
+`--no-uuid` emits bigint-only with id-based self-ignore.
+
 ## v2.79.169
 
 **Fix (cross-portal authorization): the approvals inbox was not guard-scoped — every portal listed, and could

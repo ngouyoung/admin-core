@@ -14,8 +14,8 @@ class AdminCoreMakeCommand extends Command
     protected $signature = 'admin-core:make {name? : The resource name, e.g. Product}
                             {--fields= : Field DSL, e.g. "name:string, price:decimal?, category_id:foreign, parent_id:foreign:categories"}
                             {--list-fields : Print the field types + modifiers the --fields DSL accepts, then exit}
-                            {--uuid : Use a UUID primary key (and UUID foreign keys)}
-                            {--no-uuid : Force an auto-increment key even if config enables uuid}
+                            {--uuid : Add the hybrid public key (bigint id PK + unique public uuid column for URLs/APIs) even if config disables it}
+                            {--no-uuid : Skip the public uuid column (bigint id only) — for high-volume pivot/log/event tables that never appear in a URL}
                             {--soft-deletes : Add soft deletes + a trash/restore screen}
                             {--no-soft-deletes : Skip soft deletes even if config enables them}
                             {--audit : Log created/updated/deleted activity for this resource}
@@ -69,7 +69,7 @@ class AdminCoreMakeCommand extends Command
 
         $uuid = $this->option('no-uuid')
             ? false
-            : ($this->option('uuid') || (bool) config('admin-core.generator.uuid', false));
+            : ($this->option('uuid') || (bool) config('admin-core.generator.uuid', true));
 
         $soft = $this->option('no-soft-deletes')
             ? false

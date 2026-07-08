@@ -425,10 +425,13 @@ return [
     |--------------------------------------------------------------------------
     | Generator
     |--------------------------------------------------------------------------
-    | uuid: when true, `admin-core:make` uses the *hybrid* key strategy — a fast
-    | bigint `id` primary key (lean foreign keys + joins) plus a unique public
-    | `uuid` column used in URLs/APIs (non-enumerable). Override per-resource with
-    | the --uuid / --no-uuid flags.
+    | uuid: the *hybrid* key strategy — a fast bigint `id` primary key (lean
+    | foreign keys + joins) plus a unique public `uuid` column used in URLs/APIs
+    | (non-enumerable). ON BY DEFAULT: this is the framework standard (the same
+    | key strategy admin-core's own tables use), so generated resources are
+    | non-enumerable and API-consistent out of the box. Opt out per-resource
+    | with --no-uuid (high-volume pivot/log/event tables that never appear in a
+    | URL), or app-wide by setting this to false.
     |
     | soft_deletes: when true, every generated resource gets a `deleted_at` column,
     | the SoftDeletes trait + a trash/restore screen. Override per-resource with the
@@ -445,7 +448,7 @@ return [
     | Role/Permission can `use` it too; the base model just bundles them).
     */
     'generator' => [
-        'uuid' => false,
+        'uuid' => true,
         'soft_deletes' => false,
         'audit' => false,
         'base_model' => \Illuminate\Database\Eloquent\Model::class,

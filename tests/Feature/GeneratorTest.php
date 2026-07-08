@@ -389,6 +389,35 @@ it('uses the hybrid key strategy with --uuid (bigint PK + public uuid + bigint F
         ->toContain("ac_fk_option(\$object, 'category', 'category_id')");
 });
 
+it('generates the hybrid public key BY DEFAULT (framework standard), and --no-uuid opts out', function () {
+    // No flag, no config override: the shipped default is the hybrid key — the same strategy admin-core's
+    // own tables use, so generated resources are non-enumerable and API-consistent out of the box (ADR-0007).
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string', '--migration' => true])
+        ->assertSuccessful();
+
+    expect(File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))
+        ->toContain('$table->id();')                    // fast bigint primary key stays
+        ->toContain("\$table->uuid('uuid')->unique();"); // public URL/API key, by default
+    expect(File::get(app_path('Models/Gizmo.php')))->toContain('HasPublicUuid');
+
+    // --no-uuid: the explicit opt-out for tables that never appear in a URL. Bigint-only — and the
+    // update request's unique self-ignore falls back to the id column (no uuid route key to use).
+    $this->artisan('admin-core:make', [
+        'name' => 'Doodad',
+        '--fields' => 'sku:string, branch_id:integer',
+        '--unique' => ['sku,branch_id'],
+        '--no-uuid' => true,
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    expect(File::get(glob(database_path('migrations/*_create_doodads_table.php'))[0]))
+        ->toContain('$table->id();')
+        ->not->toContain("uuid('uuid')");
+    expect(File::get(app_path('Models/Doodad.php')))->not->toContain('HasPublicUuid');
+    expect(File::get(app_path('Http/Requests/Doodad/UpdateDoodadRequest.php')))
+        ->toContain("Rule::unique('doodads', 'sku')->ignore(\$this->route('id'), 'id')");
+});
+
 it('soft-deletes every resource when generator.soft_deletes is on, and --no-soft-deletes opts out', function () {
     // Global default ON: a plain make gets soft deletes without any flag.
     config()->set('admin-core.generator.soft_deletes', true);
@@ -1135,11 +1164,12 @@ it('generates a composite unique constraint + FormRequest rule from --unique', f
     // Store request: the composite rule rides on the group's first column with a ->where for the other.
     expect(File::get(app_path('Http/Requests/Gizmo/StoreGizmoRequest.php')))
         ->toContain("Rule::unique('gizmos', 'sku')->where('branch_id', \$this->input('branch_id'))");
-    // Update request: imports Rule + ignores self.
+    // Update request: imports Rule + ignores self — by the uuid route key, since the hybrid public key is
+    // the generator default (the {id} route param carries the uuid under hybrid).
     $update = File::get(app_path('Http/Requests/Gizmo/UpdateGizmoRequest.php'));
     expect($update)
         ->toContain('use Illuminate\Validation\Rule;')
-        ->toContain("Rule::unique('gizmos', 'sku')->ignore(\$this->route('id'), 'id')->where('branch_id', \$this->input('branch_id'))");
+        ->toContain("Rule::unique('gizmos', 'sku')->ignore(\$this->route('id'), 'uuid')->where('branch_id', \$this->input('branch_id'))");
 
     foreach (['Http/Requests/Gizmo/StoreGizmoRequest.php', 'Http/Requests/Gizmo/UpdateGizmoRequest.php'] as $rel) {
         $lint = Process::run('php -l ' . escapeshellarg(app_path($rel)));
