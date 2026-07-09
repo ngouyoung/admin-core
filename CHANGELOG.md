@@ -2,6 +2,48 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.83.0
+
+**Feature (generator): `--sortable=<column>` partitions ordering by a parent FK — per-parent drag order
+instead of one global list.** Until now `--sortable` ordered a resource's rows in a single global sequence.
+A child resource that lives under a parent (a course's lessons, an order's lines) needs its `sort` to restart
+per parent — a global sequence is meaningless across parents and lets a reorder mix rows from different
+parents. `--sortable=<column>` names a declared foreign-key field to order **within**:
+
+```bash
+# global ordering (unchanged)
+php artisan admin-core:make Banner --fields="title:string" --sortable
+
+# ordering partitioned by course_id (a course's lessons order independently of every other course's)
+php artisan admin-core:make Lesson --fields="title:string,course_id:foreign:courses" --sortable=course_id
+```
+
+- **`BaseService::reorder($ids, $scopeId = null)`** — the second argument is new and optional. On a **global**
+  resource (no scope column) `reorder($ids)` is **unchanged** (global, lenient as before) and a stray `$scopeId`
+  is inert. On a **scoped** resource the scope value is **mandatory at runtime**: `reorder($ids, null)` (or
+  omitting it) throws `InvalidArgumentException` *before any write* rather than silently doing a global
+  cross-scope renumber — the service enforces its own declared invariant, so a forgotten scope value fails
+  fast instead of corrupting order. With a `$scopeId`, ordering is confined to `where(<scope> = $scopeId)`
+  under a **strict integrity contract**: the submitted ids must be a **duplicate-free set of existing rows all
+  visible through the effective scoped query**. The whole operation is **rejected** (nothing written,
+  `ValidationException`) if any id is duplicated, nonexistent, soft-deleted, hidden by a `query()` override, or
+  in another scope — no partial, gapped, or surprising renumber can result. (An empty id list is a no-op.)
+- **Trusted scope, never HTTP input.** The scope **column** is a generator-emitted `protected $sortScope`
+  property on the service — it is never read from the request. Only the scope **value** (`$scopeId`) is passed
+  in, and it should come from a trusted route binding (e.g. a `{course:uuid}` parent), not a form field. The
+  reorder writes are constrained by both the child key **and** the parent scope, and still flow through
+  `query()` so a host `query()` override (e.g. a tenant scope) also applies.
+- **Migration** gains a plain composite index `['<scope>', 'sort']` for per-parent `ORDER BY sort`. It is
+  deliberately **not unique** — a sequential 1..N renumber transiently collides on a swap.
+- **The global reorder route + "Sort" toggle/panel are suppressed** for a scoped resource (they load and
+  renumber *every* row across all parents — wrong and unsafe when order is per-parent). A scoped resource's
+  per-parent reorder UI is product-owned: it resolves the parent from a trusted route binding and calls
+  `$service->reorder($ids, $parent->getKey())`.
+- **Reorder remains unaudited** (a query-builder bulk update bypasses model events — see the platform ADR on
+  reorder auditing); the scope change does not alter that.
+- Fails fast: `--sortable=<column>` that does not name a declared `foreign` field aborts generation with a
+  clear error. `--read-only` / `--singleton` continue to drop `--sortable` (both are write features).
+
 ## v2.82.1
 
 **Fix: dynamic UI labels could resolve to an array and 500 when a menu/section label matched a PHP

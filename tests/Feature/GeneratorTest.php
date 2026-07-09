@@ -1736,6 +1736,71 @@ it('adds a sort toggle and reorder route with --sortable', function () {
         ->and(File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))->toContain("'sort'");
 });
 
+it('scopes ordering by a parent FK column with --sortable=<column>', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string,course_id:foreign:courses',
+        '--sortable' => 'course_id',
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // Migration: sort column + a PLAIN composite [course_id, sort] index (not unique — see ADR-0007).
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+    expect($migration)
+        ->toContain("\$table->integer('sort')->default(0);")
+        ->toContain("\$table->index(['course_id', 'sort']);")
+        ->not->toContain("unique(['course_id', 'sort']");
+
+    // Service: the trusted scope column is declared on the service, so reorder($ids, $scopeId) partitions by it.
+    expect(File::get(app_path('Services/Gizmos/GizmoService.php')))
+        ->toContain("protected ?string \$sortScope = 'course_id';");
+
+    // The GLOBAL reorder route + Sort toggle/panel are SUPPRESSED for a scoped resource (they renumber
+    // every row across all parents — unsafe here; the per-parent UI is product-owned).
+    expect(File::get(base_path('routes/Web/Backend/Modules/gizmos.php')))
+        ->not->toContain('reorder');
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->not->toContain('toggle-sort')
+        ->not->toContain('sort-panel');
+
+    // The generated service (with the injected $sortScope property) + migration are valid PHP.
+    expect(Process::run('php -l ' . escapeshellarg(app_path('Services/Gizmos/GizmoService.php')))->successful())->toBeTrue();
+    expect(Process::run('php -l ' . escapeshellarg(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))->successful())->toBeTrue();
+});
+
+it('keeps bare --sortable global (no scope column, no composite index, panel present)', function () {
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string,course_id:foreign:courses',
+        '--sortable' => true,
+        '--migration' => true,
+    ])->assertSuccessful();
+
+    // Bare --sortable is unchanged: a plain `sort` column, no partitioning index, no scope property.
+    $migration = File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]);
+    expect($migration)
+        ->toContain("\$table->integer('sort')->default(0);")
+        ->not->toContain("\$table->index(['course_id', 'sort']);");
+    expect(File::get(app_path('Services/Gizmos/GizmoService.php')))
+        ->not->toContain('sortScope');
+    // The global reorder route + Sort panel remain (backward-compatible).
+    expect(File::get(base_path('routes/Web/Backend/Modules/gizmos.php')))->toContain('reorder');
+    expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
+        ->toContain('toggle-sort')->toContain('sort-panel');
+});
+
+it('rejects --sortable=<column> that is not a declared foreign-key field', function () {
+    // The scope must resolve to a real parent FK (backs the composite index + the scoped write).
+    // A typo or an attempt to partition by a non-FK column must fail loudly, not silently degrade.
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string,course_id:foreign:courses',
+        '--sortable' => 'name',
+    ])->assertFailed();
+
+    expect(File::exists(app_path('Models/Gizmo.php')))->toBeFalse(); // nothing generated on failure
+});
+
 it('derives every seeded and gated permission name from permission.pattern', function () {
     // Route::crud() resolves its gates from this pattern at request time — the generated route module,
     // views, menu entry and seeded permission rows must resolve from the SAME pattern, or a host with a

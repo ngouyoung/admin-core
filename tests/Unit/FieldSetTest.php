@@ -760,6 +760,27 @@ it('builds a sort column when sortable', function () {
     expect(fs('name:string')->setSortable(false)->sortColumn())->toBe('');
 });
 
+it('adds a composite [scope, sort] index (not unique) for scoped sortable', function () {
+    $col = fs('name:string, course_id:foreign:courses')->setSortable(true, 'course_id')->sortColumn();
+    expect($col)
+        ->toContain("\$table->integer('sort')->default(0);")
+        ->toContain("\$table->index(['course_id', 'sort']);")
+        ->not->toContain('unique'); // a unique(course_id, sort) would break the sequential reorder swap
+});
+
+it('does not emit a scope index for bare (global) sortable', function () {
+    expect(fs('name:string, course_id:foreign:courses')->setSortable(true)->sortColumn())
+        ->toBe("            \$table->integer('sort')->default(0);");
+});
+
+it('injects a trusted $sortScope property on the service for scoped sortable', function () {
+    $body = fs('name:string, course_id:foreign:courses')->setSortable(true, 'course_id')->serviceBody();
+    expect($body)->toContain("protected ?string \$sortScope = 'course_id';");
+    // Bare/global sortable declares no scope property.
+    expect(fs('name:string, course_id:foreign:courses')->setSortable(true)->serviceBody())
+        ->not->toContain('sortScope');
+});
+
 // -- computed (derived, read-only accessor) ---------------------------------------------------------
 
 it('compiles a numeric arithmetic accessor (operators, parenthesised)', function () {

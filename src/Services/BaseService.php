@@ -5,6 +5,7 @@ namespace Ngos\AdminCore\Services;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Base service every resource service extends — the shared business core used by
@@ -22,6 +23,14 @@ use Illuminate\Support\Facades\DB;
 abstract class BaseService
 {
     protected Model $model;
+
+    /**
+     * The parent/scope column that PARTITIONS `sort`, set by the generator from
+     * `admin-core:make --sortable=<column>` (e.g. 'course_id'). null (the default) = global ordering.
+     * Business-agnostic: the framework only knows a column name declared by trusted generated code —
+     * NEVER a value from HTTP input. When set, reorder() is confined to a single scope value.
+     */
+    protected ?string $sortScope = null;
 
     public function query(array|string|null $relation = null): Builder
     {
@@ -127,15 +136,67 @@ abstract class BaseService
         return $keep;
     }
 
-    /** Persist a new order: each (route-key) id's `sort` becomes its 1-based position. */
-    public function reorder(array $ids): void
+    /**
+     * Persist a new order — each (route-key) id's `sort` becomes its 1-based position.
+     *
+     * GLOBAL resource (no `$sortScope`): `reorder($ids)` renumbers rows as one sequence and an id you cannot
+     * see through query() simply updates nothing (a no-op). A `$scopeId` passed to a global service is inert.
+     * This lenient behaviour is unchanged.
+     *
+     * SCOPED resource (declares `$sortScope`, from `--sortable=<column>`): the scope VALUE is MANDATORY at
+     * runtime — the service enforces its own declared invariant. `reorder($ids, null)` (or omitting the arg)
+     * throws \InvalidArgumentException BEFORE any write; it never silently falls back to a global cross-scope
+     * renumber (a forgotten scope value is a programming error, not a global request). With a `$scopeId`,
+     * ordering is PARTITIONED by `$sortScope` under a STRICT integrity contract (ADR-0007): the submitted list
+     * must be a DUPLICATE-FREE set of EXISTING rows ALL visible through the effective scoped query. If any id
+     * is duplicated, nonexistent, soft-deleted, hidden by a query() override, or in another scope, the WHOLE
+     * operation is rejected (ValidationException) before any write. The scope COLUMN is always the resource's
+     * own generated `$sortScope`, never a caller/HTTP parameter.
+     */
+    public function reorder(array $ids, mixed $scopeId = null): void
     {
         $key = $this->model->getRouteKeyName();
+
+        // A resource that DECLARES a scope column enforces its own architectural invariant: a scope VALUE is
+        // required. Refuse (fail fast, before any write) rather than silently run a global cross-scope
+        // renumber — a trusted internal caller must not turn a scoped service global by forgetting the value.
+        if ($this->sortScope !== null && $scopeId === null) {
+            throw new \InvalidArgumentException(sprintf(
+                'A scope id is required to reorder [%s]: this resource orders within "%s". Pass the parent key, e.g. reorder($ids, $parent->getKey()).',
+                $this->model::class,
+                $this->sortScope,
+            ));
+        }
+
+        $scoped = $this->sortScope !== null; // $scopeId is guaranteed non-null here (guarded above)
         // One transaction so a mid-loop failure can't leave a half-renumbered (corrupt) order.
-        DB::transaction(function () use ($ids, $key) {
+        DB::transaction(function () use ($ids, $key, $scoped, $scopeId) {
+            if ($scoped) {
+                // Reject unless the submitted set is duplicate-free AND every id resolves to a distinct row
+                // inside the effective scoped query. Comparing three counts covers every failure at once:
+                //   count(submitted)  !== count(distinct)  → a duplicate id was submitted
+                //   count(distinct)   !== count(in scope)  → some id is nonexistent / soft-deleted /
+                //                                            query()-hidden / in another scope
+                $submitted = array_map('strval', $ids);
+                $distinct = count(array_unique($submitted));
+                $inScope = $this->query()
+                    ->where($this->sortScope, $scopeId)
+                    ->whereIn($key, $ids)
+                    ->count();
+                if (count($submitted) !== $distinct || $distinct !== $inScope) {
+                    throw ValidationException::withMessages([
+                        'ids' => 'The items to reorder must be a unique set of rows that all belong to this list.',
+                    ]);
+                }
+            }
             foreach (array_values($ids) as $position => $id) {
-                // Scoped through query() so a reorder can't write `sort` onto rows outside the scope.
-                $this->query()->where($key, $id)->update(['sort' => $position + 1]);
+                // Scoped through query() (so a query() override still applies) AND, when scoped, confined
+                // to $sortScope = $scopeId — a reorder can never write `sort` onto a row outside the scope.
+                $q = $this->query()->where($key, $id);
+                if ($scoped) {
+                    $q->where($this->sortScope, $scopeId);
+                }
+                $q->update(['sort' => $position + 1]);
             }
         });
     }

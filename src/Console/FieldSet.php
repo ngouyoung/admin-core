@@ -72,6 +72,9 @@ class FieldSet
 
     private bool $sortable = false;
 
+    /** Parent/scope column for `--sortable=<column>` (e.g. 'course_id'); null = global ordering. */
+    private ?string $sortScope = null;
+
     /**
      * The auth guard the resource runs under (a portal/guarded resource); null = the default guard.
      * Drives the `:auth` ownership stamp so a portal user is resolved on ITS guard, not the default one.
@@ -157,9 +160,12 @@ class FieldSet
         return $this;
     }
 
-    public function setSortable(bool $sortable): self
+    public function setSortable(bool $sortable, ?string $scope = null): self
     {
         $this->sortable = $sortable;
+        // The scope column comes from the generator (--sortable=<column>), validated by the command against
+        // the declared foreign keys — never from user input. null keeps the existing global ordering.
+        $this->sortScope = $sortable ? $scope : null;
 
         return $this;
     }
@@ -230,7 +236,17 @@ class FieldSet
     /** The `$table->integer('sort')...` migration line, or empty. */
     public function sortColumn(): string
     {
-        return $this->sortable ? "            \$table->integer('sort')->default(0);" : '';
+        if (! $this->sortable) {
+            return '';
+        }
+        $col = "            \$table->integer('sort')->default(0);";
+        if ($this->sortScope !== null) {
+            // Parent-scoped ordering (--sortable=<column>): a plain composite index for per-scope
+            // `ORDER BY sort`. NOT unique — the sequential reorder transiently collides on a swap (see ADR).
+            $col .= "\n            \$table->index(['{$this->sortScope}', 'sort']);";
+        }
+
+        return $col;
     }
 
     public function setTable(string $table): self
@@ -3204,8 +3220,14 @@ PHP;
 
     public function serviceBody(): string
     {
+        // A --sortable=<column> resource declares the trusted scope column on its service so
+        // BaseService::reorder($ids, $scopeId) partitions ordering by it. Generator-owned, never user input.
+        $scopeProp = $this->sortScope !== null
+            ? "\n    /** Ordering is partitioned by this parent column (--sortable={$this->sortScope}); reorder(\$ids, \$scopeId) confines writes to it. */\n    protected ?string \$sortScope = '{$this->sortScope}';\n"
+            : '';
+
         if (! $this->needsServiceBody()) {
-            return '';
+            return $scopeProp;
         }
 
         $extract = '';
@@ -3275,7 +3297,7 @@ PHP;
 PHP;
         }
 
-        return <<<PHP
+        return $scopeProp . <<<PHP
 
 
     public function create(array \$data): Model

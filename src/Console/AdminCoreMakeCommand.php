@@ -19,7 +19,7 @@ class AdminCoreMakeCommand extends Command
                             {--soft-deletes : Add soft deletes + a trash/restore screen}
                             {--no-soft-deletes : Skip soft deletes even if config enables them}
                             {--audit : Log created/updated/deleted activity for this resource}
-                            {--sortable : Add a drag-and-drop ordering column (sort) + reorder list}
+                            {--sortable= : Add a drag-and-drop ordering column (sort) + reorder list. Optionally scope ordering by a parent FK column: --sortable=course_id (per-parent order; the reorder UI is then product-owned)}
                             {--unique=* : Composite unique over multiple columns, e.g. --unique="order_id,product_id" (repeatable). Use the ^ modifier for a single column.}
                             {--derived=* : Denormalise a column from a picked belongsTo relation on save, e.g. --derived="qty_base=qty*unit_id.conversion_factor, variant_id=unit_id.variant_id" (repeatable; comma/semicolon-separated).}
                             {--migration : Also generate a create migration}
@@ -76,7 +76,15 @@ class AdminCoreMakeCommand extends Command
             : ($this->option('soft-deletes') || (bool) config('admin-core.generator.soft_deletes', false));
 
         $audit = $this->option('audit') || (bool) config('admin-core.generator.audit', false);
-        $sortable = (bool) $this->option('sortable');
+        // --sortable is a value-optional flag: bare `--sortable` = global ordering (unchanged); `--sortable=col`
+        // = ordering PARTITIONED by that parent column. hasParameterOption distinguishes "passed bare" (value
+        // null) from "not passed". The scope column is validated against the declared FKs below.
+        $sortablePassed = $this->input->hasParameterOption('--sortable');
+        $sortableValue = $this->option('sortable');
+        $sortable = $sortablePassed;
+        $sortScope = ($sortablePassed && is_string($sortableValue) && trim($sortableValue) !== '')
+            ? \Illuminate\Support\Str::snake(trim($sortableValue))
+            : null;
 
         // A read-only resource (a report): list + show + export + filters/totals, no create/edit/delete/import.
         // It's a WRITE-less channel, so soft-deletes + sortable (both write features) don't apply — drop them.
@@ -87,6 +95,7 @@ class AdminCoreMakeCommand extends Command
             }
             $soft = false;
             $sortable = false;
+            $sortScope = null;
         }
 
         // A singleton (Settings / profile): one edit form + a save, no list/create/delete. It's neither a CRUD
@@ -103,6 +112,7 @@ class AdminCoreMakeCommand extends Command
             }
             $soft = false;
             $sortable = false;
+            $sortScope = null;
         }
 
         // Multi-portal. --portal=merchant is the one-flag way: it routes the resource INTO that
@@ -217,7 +227,7 @@ class AdminCoreMakeCommand extends Command
                 ->setUuid($uuid)
                 ->setSoftDeletes($soft)
                 ->setAudit($audit)
-                ->setSortable($sortable)
+                ->setSortable($sortable, $sortScope)
                 ->setClass($class)
                 ->setGuard($guardOpt)
                 ->setUniqueGroups($uniqueGroups)
@@ -228,7 +238,18 @@ class AdminCoreMakeCommand extends Command
             return self::FAILURE;
         }
 
-        $sortRoutes = $sortable ? sprintf(
+        // A scope column (--sortable=course_id) must name a declared foreign-key field — the composite index
+        // and the scoped reorder target a real parent column, never arbitrary or user-supplied input.
+        if ($sortScope !== null && ! in_array($sortScope, $fields->foreignColumns(), true)) {
+            $this->error("--sortable={$sortScope} must name a declared foreign-key field (e.g. --sortable=course_id with `course_id:foreign:courses` in --fields).");
+
+            return self::FAILURE;
+        }
+
+        // The standalone reorder route + Sort panel are GLOBAL (they load/renumber every row). A scoped
+        // resource suppresses them — its per-parent reorder UI is product-owned and calls
+        // $service->reorder($ids, $scopeId) with the parent resolved from a trusted route binding.
+        $sortRoutes = ($sortable && $sortScope === null) ? sprintf(
             "\n    Route::post('reorder', [%sController::class, 'reorder'])->name('reorder')\n"
             . "        ->middleware(config('admin-core.permission.enabled') ? 'permission:%s%s' : []);",
             $class,
@@ -238,12 +259,12 @@ class AdminCoreMakeCommand extends Command
 
         // --sortable adds a "Sort" toggle button + a drag-and-drop panel to the
         // normal DataTable index (the table stays; sorting is an opt-in mode).
-        $sortButton = $sortable
+        $sortButton = ($sortable && $sortScope === null)
             ? "\n            <button type=\"button\" id=\"toggle-sort\" class=\"btn btn-sm btn-outline-primary\">\n"
                 . "                <i class=\"bi bi-grip-vertical\"></i> Sort\n            </button>"
             : '';
 
-        $sortPanel = $sortable ? str_replace(
+        $sortPanel = ($sortable && $sortScope === null) ? str_replace(
             ['__CLASS__', '__SNAKE__', '__AC_RNS__'],
             [$class, $snakePlural, $routeNs],
             <<<'BLADE'
