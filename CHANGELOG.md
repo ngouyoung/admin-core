@@ -2,6 +2,36 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.82.0
+
+**Feature (generator): field labels are now resolved at runtime via `ac_label()` — one localizable,
+regeneration-safe source of truth instead of a `Str::headline()` literal baked into 4–5 generated files.**
+Every generated field-label surface (form, table header, show/detail, export field-map, list-filters) now
+emits `ac_label('{resource}', '{field}')` instead of a hard-coded label string.
+
+Override a label — and localize it — in a **normal app lang file** the generator never creates or touches:
+
+```php
+// lang/en/courses.php          // lang/km/courses.php
+return ['fields' => [           return ['fields' => [
+    'cert_validity_months'          'cert_validity_months'
+        => 'Certificate Validity (Months)',  => 'សុពលភាពវិញ្ញាបនបត្រ (ខែ)',
+]];                             ]];
+```
+
+- **Resolution chain** (`ac_label()` in `src/helpers.php`): current-locale product override → fallback-locale
+  product override (Laravel's own `__()` fallback) → `Str::headline($field)`. A missing key **never** renders —
+  `__()` returns the raw key on a miss, which the helper detects and replaces with the humanised field name.
+- **No generator-owned lang file.** admin-core writes no translation file and owns no label text — it provides
+  only the `ac_label()` mechanism and the headline default. Zero Business Logic preserved.
+- **Full developer ownership.** `lang/{locale}/{resource}.php` is created/edited only by the product; the
+  generator has no code path that reads, writes, or prunes it, so `--force` regeneration (which rewrites views
+  full of `ac_label()` calls) can never clobber a customized or translated label.
+- **Backward compatible.** Existing generated resources keep their literal labels until regenerated; the change
+  affects new generation output only. Relation fields key on the relation name (`ac_label('...', 'category')`).
+- FI-2 solves label-source duplication + label preservation only; it does not claim to preserve arbitrary
+  manual edits in generated controllers/services/views.
+
 ## v2.81.0
 
 **Feature (generator DSL): declarative validation constraints `min` / `max` on `integer` and `decimal`

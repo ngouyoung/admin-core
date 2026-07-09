@@ -591,7 +591,7 @@ it('composes the index from the reusable UI components (not hand-rolled markup)'
         ->toContain("'type' => 'check'")                          // data-driven :columns config (no inline JS)
         ->toContain("['data' => 'name', 'name' => 'name']")
         ->toContain('<x-admin-core::export-menu :route="route(\'admin.gizmos.export\')"')
-        ->toContain("'name' => 'Name', 'price' => 'Price'")
+        ->toContain("'name' => ac_label('gizmos', 'name'), 'price' => ac_label('gizmos', 'price')")
         ->toContain('<x-admin-core::import-modal :route="route(\'admin.gizmos.import\')"')
         ->not->toContain('class="card-header')   // the shell is the component's job now
         ->not->toContain('id="importModal"');    // ditto the modal
@@ -762,7 +762,7 @@ it('wires a money field end-to-end (bigInteger column, MoneyCast, money-input, f
     // Form renders the money-input (with the currency override for the pinned column).
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
         ->toContain('<x-admin-core::money-input name="price"')
-        ->toContain('<x-admin-core::money-input name="balance" label="Balance" currency="KHR"');
+        ->toContain('<x-admin-core::money-input name="balance" :label="ac_label(\'gizmos\', \'balance\')" currency="KHR"');
 
     // Show + list format the amount via the Money object.
     expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))
@@ -1011,7 +1011,7 @@ it('wires a per-record money currency (@column → cast reads the row currency, 
     // input shows the symbol/step of the currency the user just picked, not the default. (An enum value is
     // normalised by the component.)
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/form.blade.php')))
-        ->toContain('<x-admin-core::money-input name="total" label="Total" :currency="old(\'currency\', $object?->currency)"');
+        ->toContain('<x-admin-core::money-input name="total" :label="ac_label(\'gizmos\', \'total\')" :currency="old(\'currency\', $object?->currency)"');
 
     // A per-record column gets NO amount range filter (one bound can't honour each row's decimals).
     expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))
@@ -1191,7 +1191,7 @@ it('generates a listFilters() method + the filter bar for boolean/date + seconda
         // The FIRST enum (status) is covered by <x-admin-core::filter-tabs> — not duplicated in the bar.
         ->not->toContain("'column' => 'status'")
         ->toContain("'column' => 'kind', 'type' => 'select'")  // a secondary enum IS in the bar
-        ->toContain("'column' => 'is_vip', 'type' => 'select', 'label' => 'Is Vip', 'options' => [1 => 'Yes', 0 => 'No']")
+        ->toContain("'column' => 'is_vip', 'type' => 'select', 'label' => ac_label('gizmos', 'is_vip'), 'options' => [1 => 'Yes', 0 => 'No']")
         ->toContain("'column' => 'joined', 'type' => 'date'")
         ->not->toContain('__AC_');
     $lint = Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')));
@@ -1212,9 +1212,9 @@ it('generates foreign (select) + money/decimal (number range) filters', function
     $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
     expect($controller)
         // foreign options are a CLOSURE → the query runs at render time, not on every getData() AJAX hit.
-        ->toContain("'column' => 'category_id', 'type' => 'select', 'label' => 'Category', 'options' => fn () => \\App\\Models\\Category::pluck('name', 'id')->all()")
-        ->toContain("'column' => 'price', 'type' => 'number', 'label' => 'Price', 'money' => true, 'currency' => 'KHR'")
-        ->toContain("'column' => 'weight', 'type' => 'number', 'label' => 'Weight']")
+        ->toContain("'column' => 'category_id', 'type' => 'select', 'label' => ac_label('gizmos', 'category'), 'options' => fn () => \\App\\Models\\Category::pluck('name', 'id')->all()")
+        ->toContain("'column' => 'price', 'type' => 'number', 'label' => ac_label('gizmos', 'price'), 'money' => true, 'currency' => 'KHR'")
+        ->toContain("'column' => 'weight', 'type' => 'number', 'label' => ac_label('gizmos', 'weight')]")
         ->not->toContain("'column' => 'qty'"); // integer is not auto-filtered (often an id/count — add by hand)
 
     $lint = Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')));

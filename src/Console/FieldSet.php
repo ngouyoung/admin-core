@@ -1251,6 +1251,17 @@ BLADE;
         return Str::headline($name);
     }
 
+    /**
+     * The RUNTIME label expression the generated views/config emit for a field or relation key:
+     * `ac_label('{resource}', '{key}')`. The helper resolves a product override in lang/{locale}/{resource}.php,
+     * then the fallback locale, then Str::headline — so one lang file is the single source of truth and no
+     * label literal is baked into 4–5 generated files. admin-core writes no lang file (FI-2).
+     */
+    private function acLabelExpr(string $key): string
+    {
+        return "ac_label('{$this->table}', '{$key}')";
+    }
+
     // ---- Migration ---------------------------------------------------
 
     public function migrationColumns(): string
@@ -2496,11 +2507,11 @@ PHP;
         // A translatable field renders the multi-locale widget (its own form-row), which posts
         // name[en], name[km], … and a _translate marker the AutoTranslate middleware fills.
         if ($f['type'] === 'translatable') {
-            $tLabel = $this->label($col);
+            $tLabel = $this->acLabelExpr($col);
 
-            return "<x-admin-core::translatable-input name=\"{$col}\" label=\"{$tLabel}\" :value=\"old('{$col}', \$object?->{$col} ?? [])\" />";
+            return "<x-admin-core::translatable-input name=\"{$col}\" :label=\"{$tLabel}\" :value=\"old('{$col}', \$object?->{$col} ?? [])\" />";
         }
-        $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $col);
+        $label = $this->acLabelExpr(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $col);
         $old = "old('{$col}', \$object?->{$col})";
         // Write-once fields lock on edit (UX only — the real guard is the missing UpdateRequest rule).
         // A text-like control uses readonly; a <select> (foreign/enum) can't be readonly in HTML, so it uses
@@ -2514,18 +2525,18 @@ PHP;
         // so styling lives in one place. Only the bespoke controls (boolean/image/file) wrap a raw control.
         switch ($f['type']) {
             case 'richtext':
-                return "<x-admin-core::editor name=\"{$col}\" label=\"{$label}\" :value=\"{$old}\" />";
+                return "<x-admin-core::editor name=\"{$col}\" :label=\"{$label}\" :value=\"{$old}\" />";
             case 'text':
-                return "<x-admin-core::textarea name=\"{$col}\" label=\"{$label}\" :value=\"{$old}\"{$ro} />";
+                return "<x-admin-core::textarea name=\"{$col}\" :label=\"{$label}\" :value=\"{$old}\"{$ro} />";
             case 'json':
                 $jsonOld = "old('{$col}', is_array(\$object?->{$col}) ? json_encode(\$object->{$col}, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) : \$object?->{$col})";
 
-                return "<x-admin-core::textarea name=\"{$col}\" label=\"{$label}\" :value=\"{$jsonOld}\" rows=\"4\" class=\"font-monospace\" />";
+                return "<x-admin-core::textarea name=\"{$col}\" :label=\"{$label}\" :value=\"{$jsonOld}\" rows=\"4\" class=\"font-monospace\" />";
             case 'enum':
                 $enumClass = '\\App\\Enums\\' . $this->enumClass($f);
                 $opts = "collect({$enumClass}::cases())->mapWithKeys(fn (\$case) => [\$case->value => \\Illuminate\\Support\\Str::headline(\$case->value)])";
 
-                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" :options=\"{$opts}\" :value=\"old('{$col}', \$object?->{$col}?->value)\"{$roSelect} />";
+                return "<x-admin-core::select name=\"{$col}\" :label=\"{$label}\" :options=\"{$opts}\" :value=\"old('{$col}', \$object?->{$col}?->value)\"{$roSelect} />";
             case 'foreign':
                 // Searchable + paginated remote select. `source` resolves the related resource's `select` route
                 // dynamically (falls back to a plain select if it has none). Only the current value is rendered —
@@ -2541,17 +2552,17 @@ PHP;
                     $dependsAttr = " :depends-on=\"[{$pairs}]\"";
                 }
 
-                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" source=\"{$f['relTable']}\"{$dependsAttr} :options=\"{$sel}\" :value=\"{$old}\"{$roSelect} placeholder=\"— search —\" />";
+                return "<x-admin-core::select name=\"{$col}\" :label=\"{$label}\" source=\"{$f['relTable']}\"{$dependsAttr} :options=\"{$sel}\" :value=\"{$old}\"{$roSelect} placeholder=\"— search —\" />";
             case 'belongsToMany':
                 // Searchable + paginated remote multi-select (mirrors `foreign`). Only the already-attached rows
                 // are pre-rendered as options; the rest load on search, so the form never eager-loads the table.
-                return "<x-admin-core::select name=\"{$col}\" label=\"{$label}\" source=\"{$f['relTable']}\" :options=\"\${$f['relation']}Selected\" :value=\"old('{$col}', array_keys(\${$f['relation']}Selected))\" multiple placeholder=\"— search —\" />";
+                return "<x-admin-core::select name=\"{$col}\" :label=\"{$label}\" source=\"{$f['relTable']}\" :options=\"\${$f['relation']}Selected\" :value=\"old('{$col}', array_keys(\${$f['relation']}Selected))\" multiple placeholder=\"— search —\" />";
             case 'media':
             case 'gallery':
                 // A HasMedia collection: browse the library + upload + reorder, submitting an array of media ids.
                 $mItems = "\$object?->mediaIn('{$f['collection']}')->map(fn (\$m) => ['id' => \$m->getKey(), 'url' => \$m->url, 'is_image' => \$m->is_image])->all() ?? []";
 
-                return "<x-admin-core::media-collection name=\"{$col}\" label=\"{$label}\" collection=\"{$f['collection']}\" :items=\"{$mItems}\" :multiple=\"" . ($f['single'] ? 'false' : 'true') . "\" />";
+                return "<x-admin-core::media-collection name=\"{$col}\" :label=\"{$label}\" collection=\"{$f['collection']}\" :items=\"{$mItems}\" :multiple=\"" . ($f['single'] ? 'false' : 'true') . "\" />";
             case 'hasMany':
                 $hmRel = $f['relation'];
                 $hmRows = "old('{$col}', \$object?->{$hmRel}->map(fn (\$i) => \$i->toArray())->all() ?? [])";
@@ -2559,7 +2570,7 @@ PHP;
 
                 return "<hr class=\"my-4\">\n"
                     . "<div class=\"d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2\">\n"
-                    . "    <label class=\"form-label fw-semibold mb-0\">{$label}</label>\n"
+                    . "    <label class=\"form-label fw-semibold mb-0\">{{ {$label} }}</label>\n"
                     . "    <small class=\"text-muted\">Line items — add a row per {$f['relModel']}.</small>\n"
                     . "</div>\n"
                     . "<input type=\"hidden\" name=\"_{$col}_form\" value=\"1\">\n"
@@ -2567,13 +2578,13 @@ PHP;
             // date/datetime use the date-input component (Air Datepicker via .js-datepicker); it formats a
             // Carbon value for the picker + 'date' rule and echoes a re-submitted string as-is.
             case 'date':
-                return "<x-admin-core::date-input name=\"{$col}\" label=\"{$label}\" :value=\"old('{$col}', \$object?->{$col})\"{$ro} />";
+                return "<x-admin-core::date-input name=\"{$col}\" :label=\"{$label}\" :value=\"old('{$col}', \$object?->{$col})\"{$ro} />";
             case 'datetime':
-                return "<x-admin-core::date-input name=\"{$col}\" label=\"{$label}\" mode=\"datetime\" :value=\"old('{$col}', \$object?->{$col})\"{$ro} />";
+                return "<x-admin-core::date-input name=\"{$col}\" :label=\"{$label}\" mode=\"datetime\" :value=\"old('{$col}', \$object?->{$col})\"{$ro} />";
             case 'password':
-                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"password\" autocomplete=\"new-password\" />";
+                return "<x-admin-core::input name=\"{$col}\" :label=\"{$label}\" type=\"password\" autocomplete=\"new-password\" />";
             case 'integer':
-                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" :value=\"{$old}\"{$ro} />";
+                return "<x-admin-core::input name=\"{$col}\" :label=\"{$label}\" type=\"number\" :value=\"{$old}\"{$ro} />";
             case 'decimal':
                 // Step must match the column's SCALE — a hardcoded 0.01 makes the number input reject any value
                 // finer than 2 decimals (decimal:12|3 → 1.234 fails browser validation) and coarser than needed
@@ -2581,7 +2592,7 @@ PHP;
                 $scale = (int) ($f['scale'] ?? 2);
                 $step = $scale > 0 ? '0.' . str_repeat('0', $scale - 1) . '1' : '1';
 
-                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"number\" step=\"{$step}\" :value=\"{$old}\"{$ro} />";
+                return "<x-admin-core::input name=\"{$col}\" :label=\"{$label}\" type=\"number\" step=\"{$step}\" :value=\"{$old}\"{$ro} />";
             case 'money':
                 // Edit the major amount (price->major() === "15.00"); the symbol + step come from the currency.
                 // Per-record currency: pass this row's currency column (an enum is normalised by the component)
@@ -2592,21 +2603,21 @@ PHP;
                     ? " :currency=\"old('{$f['currencyColumn']}', \$object?->{$f['currencyColumn']})\""
                     : (! empty($f['currency']) ? " currency=\"{$f['currency']}\"" : '');
 
-                return "<x-admin-core::money-input name=\"{$col}\" label=\"{$label}\"{$cur} :value=\"old('{$col}', \$object?->{$col}?->major())\"{$ro} />";
+                return "<x-admin-core::money-input name=\"{$col}\" :label=\"{$label}\"{$cur} :value=\"old('{$col}', \$object?->{$col}?->major())\"{$ro} />";
             case 'email':
-                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"email\" :value=\"{$old}\"{$ro} />";
+                return "<x-admin-core::input name=\"{$col}\" :label=\"{$label}\" type=\"email\" :value=\"{$old}\"{$ro} />";
             case 'url':
-                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"url\" :value=\"{$old}\"{$ro} />";
+                return "<x-admin-core::input name=\"{$col}\" :label=\"{$label}\" type=\"url\" :value=\"{$old}\"{$ro} />";
             case 'time':
-                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" type=\"time\" :value=\"{$old}\"{$ro} />";
+                return "<x-admin-core::input name=\"{$col}\" :label=\"{$label}\" type=\"time\" :value=\"{$old}\"{$ro} />";
             case 'image':
-                return "<x-admin-core::file-input name=\"{$col}\" label=\"{$label}\" image :value=\"\$object?->{$col}\" />";
+                return "<x-admin-core::file-input name=\"{$col}\" :label=\"{$label}\" image :value=\"\$object?->{$col}\" />";
             case 'file':
-                return "<x-admin-core::file-input name=\"{$col}\" label=\"{$label}\" :value=\"\$object?->{$col}\" />";
+                return "<x-admin-core::file-input name=\"{$col}\" :label=\"{$label}\" :value=\"\$object?->{$col}\" />";
             case 'boolean':
-                return "<x-admin-core::checkbox name=\"{$col}\" label=\"{$label}\" :checked=\"{$old}\" />";
+                return "<x-admin-core::checkbox name=\"{$col}\" :label=\"{$label}\" :checked=\"{$old}\" />";
             default: // string, slug and any other text-like column
-                return "<x-admin-core::input name=\"{$col}\" label=\"{$label}\" :value=\"{$old}\"{$ro} />";
+                return "<x-admin-core::input name=\"{$col}\" :label=\"{$label}\" :value=\"{$old}\"{$ro} />";
         }
     }
 
@@ -2664,7 +2675,7 @@ BLADE;
     /** The `<th>` cell for one field (reused when inserting a column later). */
     public function fieldTh(array $f): string
     {
-        return '    <th>' . $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']) . '</th>';
+        return '    <th>{{ ' . $this->acLabelExpr(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']) . ' }}</th>';
     }
 
     public function columnsJs(): string
@@ -2827,21 +2838,21 @@ BLADE;
         $tabEnum = collect($this->fields)->firstWhere('type', 'enum')['name'] ?? null;
         $lines = [];
         foreach ($this->fields as $f) {
-            $label = $this->label($f['name']);
+            $label = $this->acLabelExpr($f['name']);
             if ($f['type'] === 'enum') {
                 if ($f['name'] === $tabEnum) {
                     continue; // covered by <x-admin-core::filter-tabs>
                 }
                 $enumClass = '\\App\\Enums\\' . $this->enumClass($f);
-                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => '{$label}', 'options' => "
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => {$label}, 'options' => "
                     . "collect({$enumClass}::cases())->mapWithKeys(fn (\$c) => [\$c->value => \\Illuminate\\Support\\Str::headline(\$c->value)])->all()],";
             } elseif ($f['type'] === 'boolean') {
-                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => '{$label}', 'options' => [1 => 'Yes', 0 => 'No']],";
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => {$label}, 'options' => [1 => 'Yes', 0 => 'No']],";
             } elseif ($f['type'] === 'foreign') {
                 // Filter by the related id; a small relation's rows load as the dropdown options. The options are
                 // a CLOSURE so the query runs only when the bar renders (index) — NOT on every getData() AJAX hit,
                 // which reads type/currency only. A large / translatable-name relation: swap to a custom entry.
-                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => '{$this->label($f['relation'])}', 'options' => "
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => {$this->acLabelExpr($f['relation'])}, 'options' => "
                     . "fn () => \\App\\Models\\{$f['relModel']}::pluck('name', 'id')->all()],";
             } elseif ($f['type'] === 'money') {
                 // A per-record (multi-currency) money column can't be range-filtered with a single currency — one
@@ -2851,11 +2862,11 @@ BLADE;
                     continue;
                 }
                 $currency = ! empty($f['currency']) ? "'{$f['currency']}'" : 'null';
-                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'number', 'label' => '{$label}', 'money' => true, 'currency' => {$currency}],";
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'number', 'label' => {$label}, 'money' => true, 'currency' => {$currency}],";
             } elseif ($f['type'] === 'decimal') {
-                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'number', 'label' => '{$label}'],";
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'number', 'label' => {$label}],";
             } elseif (in_array($f['type'], ['date', 'datetime'], true)) {
-                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'date', 'label' => '{$label}'],";
+                $lines[] = "            ['column' => '{$f['name']}', 'type' => 'date', 'label' => {$label}],";
             }
         }
 
@@ -3019,22 +3030,24 @@ PHP;
      */
     public function exportFields(): array
     {
-        $fields = ['id' => 'ID'];
+        // Each VALUE is a PHP value-EXPRESSION baked verbatim into the export-menu :fields array: field
+        // columns resolve their label at runtime via ac_label(), id/timestamps stay literal strings.
+        $fields = ['id' => "'ID'"];
         foreach ($this->fields as $f) {
             if ($f['type'] === 'belongsToMany') {
-                $fields[$f['relation']] = $this->label($f['relation']); // e.g. tags (joined names)
+                $fields[$f['relation']] = $this->acLabelExpr($f['relation']); // e.g. tags (joined names)
                 continue;
             }
             if (! $this->isColumn($f) || ! empty($f['system']) || $f['type'] === 'password') {
                 continue; // skip non-columns, system fields and never-exported password columns
             }
-            $fields[$f['name']] = $this->label($f['name']); // name, price, status, category_id, …
+            $fields[$f['name']] = $this->acLabelExpr($f['name']); // name, price, status, category_id, …
             if ($f['type'] === 'foreign') {
-                $fields[$f['relation']] = $this->label($f['relation']); // category (related name)
+                $fields[$f['relation']] = $this->acLabelExpr($f['relation']); // category (related name)
             }
         }
-        $fields['created_at'] = 'Created at';
-        $fields['updated_at'] = 'Updated at';
+        $fields['created_at'] = "'Created at'";
+        $fields['updated_at'] = "'Updated at'";
 
         return $fields;
     }
@@ -3126,7 +3139,7 @@ PHP;
             if (! $this->isDisplayed($f)) {
                 continue; // password is write-only — never render its hash on the detail page
             }
-            $label = $this->label(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']);
+            $label = $this->acLabelExpr(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']);
             $value = match ($f['type']) {
                 'foreign' => "{{ ac_localize(\$object->{$f['relation']}?->name) }}",
                 'belongsToMany' => "@foreach(\$object->{$f['relation']} as \$i)<x-admin-core::badge tone=\"secondary\">{{ ac_localize(\$i->name) ?: \$i->id }}</x-admin-core::badge> @endforeach",
@@ -3144,7 +3157,7 @@ PHP;
                 'richtext' => "{!! \$object->{$f['name']} !!}",
                 default => "{{ \$object->{$f['name']} }}",
             };
-            $rows[] = "            <x-admin-core::detail-row label=\"{$label}\">{$value}</x-admin-core::detail-row>";
+            $rows[] = "            <x-admin-core::detail-row :label=\"{$label}\">{$value}</x-admin-core::detail-row>";
         }
 
         return implode("\n", $rows);

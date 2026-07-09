@@ -373,8 +373,8 @@ it('renders date/datetime via the date-input component (Air Datepicker), passing
     // The date-input component owns the .js-datepicker wiring + value formatting; the generator just
     // hands it the raw old()/model value (the component formats a Carbon, echoes a string as-is).
     expect($form)
-        ->toContain("<x-admin-core::date-input name=\"born_on\" label=\"Born On\" :value=\"old('born_on', \$object?->born_on)\"")
-        ->toContain("<x-admin-core::date-input name=\"start_at\" label=\"Start At\" mode=\"datetime\" :value=\"old('start_at', \$object?->start_at)\"")
+        ->toContain("<x-admin-core::date-input name=\"born_on\" :label=\"ac_label('products', 'born_on')\" :value=\"old('born_on', \$object?->born_on)\"")
+        ->toContain("<x-admin-core::date-input name=\"start_at\" :label=\"ac_label('products', 'start_at')\" mode=\"datetime\" :value=\"old('start_at', \$object?->start_at)\"")
         ->not->toContain('type="datetime-local"');
 });
 
@@ -750,7 +750,7 @@ it('builds read-only show rows', function () {
 it('emits show rows as <x-admin-core::detail-row> components (not raw <tr>)', function () {
     $rows = fs('name:string')->showRows();
     expect($rows)
-        ->toContain('<x-admin-core::detail-row label="Name">')
+        ->toContain('<x-admin-core::detail-row :label="ac_label(\'products\', \'name\')">')
         ->toContain('</x-admin-core::detail-row>')
         ->not->toContain('<tr>');
 });
@@ -1173,4 +1173,52 @@ it('excludes a derived target from fillable / rules / form but keeps it a displa
     // …but it stays a real, nullable, DISPLAYED column.
     expect($f->migrationColumns())->toContain("\$table->decimal('qty_base', 12, 3)->nullable();");
     expect($f->showRows())->toContain('qty_base');
+});
+
+// ── FI-2: runtime field labels via ac_label() ────────────────────────────────────────────────────────
+
+it('ac_label() resolves current-locale override → fallback-locale override → Str::headline, never the raw key', function () {
+    config(['app.fallback_locale' => 'en']);
+
+    // Case A — current-locale (km) product override present → Khmer.
+    app()->setLocale('km');
+    \Illuminate\Support\Facades\Lang::addLines(['courses.fields.cert_validity_months' => 'សុពលភាព (ខែ)'], 'km');
+    expect(ac_label('courses', 'cert_validity_months'))->toBe('សុពលភាព (ខែ)');
+
+    // Case B — km override absent, en (fallback) override present → English override (via Laravel fallback).
+    \Illuminate\Support\Facades\Lang::addLines(['courses.fields.pass_score' => 'Passing Score'], 'en');
+    expect(ac_label('courses', 'pass_score'))->toBe('Passing Score'); // locale still km, resolves via fallback
+
+    // Case C / D — no override anywhere (key or file absent) → Str::headline.
+    expect(ac_label('courses', 'lesson_count'))->toBe('Lesson Count');
+    expect(ac_label('courses', 'cert_validity_months'))->toBe('សុពលភាព (ខែ)'); // A still holds
+
+    // Case E — the raw translation key must NEVER render at any layer.
+    expect(ac_label('courses', 'lesson_count'))->not->toBe('courses.fields.lesson_count');
+    expect(ac_label('courses', 'pass_score'))->not->toBe('courses.fields.pass_score');
+});
+
+it('emits ac_label() at every field-label surface, keyed by the resource table', function () {
+    $f = fs('title:string, active:boolean, born_on:date', 'courses');
+    // form control → bound :label
+    expect($f->formFields())->toContain(":label=\"ac_label('courses', 'title')\"");
+    // table header → {{ }} echo (raw <th>)
+    expect($f->thead())->toContain("<th>{{ ac_label('courses', 'title') }}</th>");
+    // show / detail row → bound :label
+    expect($f->showRows())->toContain(":label=\"ac_label('courses', 'title')\"");
+    // export field map → PHP value-expression (id stays a literal)
+    expect($f->exportFields()['title'])->toBe("ac_label('courses', 'title')");
+    expect($f->exportFields()['id'])->toBe("'ID'");
+    // list-filters → PHP value-expression
+    expect($f->listFiltersConfig())->toContain("'label' => ac_label('courses', 'active')");
+    // no baked headline literal leaks into the form
+    expect($f->formFields())->not->toContain('label="Title"');
+});
+
+it('keys relation labels by the relation name, not the foreign-key column', function () {
+    $f = fs('category_id:foreign:categories', 'products');
+    expect($f->formFields())->toContain(":label=\"ac_label('products', 'category')\"");
+    expect($f->thead())->toContain("ac_label('products', 'category')");
+    expect($f->exportFields()['category'])->toBe("ac_label('products', 'category')");
+    expect($f->listFiltersConfig())->toContain("'label' => ac_label('products', 'category')");
 });

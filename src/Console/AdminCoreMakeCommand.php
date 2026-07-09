@@ -326,7 +326,7 @@ class AdminCoreMakeCommand extends Command
         // Export columns as a value => label literal for <x-admin-core::export-menu> (which renders the
         // checkboxes — all checked = export everything; unticking narrows ?columns[]).
         $exportFieldsLiteral = '[' . collect($fields->exportFields())
-            ->map(fn ($label, $col) => "'{$col}' => '{$label}'")
+            ->map(fn ($expr, $col) => "'{$col}' => {$expr}") // $expr is a PHP value-expression (ac_label() call or a quoted literal)
             ->implode(', ') . ']';
 
         // Base class the generated model extends. Default is Eloquent's Model; a host can point

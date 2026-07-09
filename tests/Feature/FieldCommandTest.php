@@ -207,7 +207,7 @@ it('adds new fields across migration, model, requests, views and factory', funct
 
     // Views: <th> before Actions, columns before the actions column.
     expect(File::get(resource_path('views/backend/pages/gizmos/partials/thead.blade.php')))
-        ->toContain('<th>Status</th>')->toContain('<th>Note</th>');
+        ->toContain('<th>{{ ac_label(\'gizmos\', \'status\') }}</th>')->toContain('<th>{{ ac_label(\'gizmos\', \'note\') }}</th>');
     expect(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))
         ->toContain("['data' => 'status', 'name' => 'status']")
         ->toContain("['data' => 'note', 'name' => 'note']");

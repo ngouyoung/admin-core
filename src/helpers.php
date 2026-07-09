@@ -36,6 +36,30 @@ if (! function_exists('ac_localize')) {
     }
 }
 
+if (! function_exists('ac_label')) {
+    /**
+     * The human label for a generated resource field, resolved at RUNTIME so a product can localise or
+     * override it in ONE place — a normal app lang file `lang/{locale}/{resource}.php`:
+     *
+     *     return ['fields' => ['cert_validity_months' => 'Certificate Validity (Months)']];
+     *
+     * Resolution: the product override for the current locale, then the fallback locale (Laravel's own
+     * `__()` fallback), then a humanised field name. A missing key NEVER renders — `__()` returns the raw
+     * key on a miss, which we detect and replace with `Str::headline()`. admin-core writes no lang file and
+     * owns no label text; the framework supplies only this mechanism and the headline default. The generated
+     * views call this at every field-label surface (form / table header / show / export / list-filters).
+     */
+    function ac_label(string $resource, string $field): string
+    {
+        $key = "{$resource}.fields.{$field}";
+        $label = __($key);
+
+        return is_string($label) && $label !== $key
+            ? $label
+            : \Illuminate\Support\Str::headline($field);
+    }
+}
+
 if (! function_exists('ac_fk_option')) {
     /**
      * The `[id => name]` option for a belongsTo field's edit-form select — resolving the current related row
