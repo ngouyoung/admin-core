@@ -26,14 +26,14 @@
 
 @foreach ($list as $item)
     @if (isset($item['header']))
-        <li class="ac-nav-header">{{ __($item['header']) }}</li>
+        <li class="ac-nav-header">{{ ac_menu_label($item['header']) }}</li>
     @elseif (isset($item['children']))
         @php($open = isset($item['match']) && request()->is($item['match']))
         @php($tvId = 'ac-tv-' . \Illuminate\Support\Str::random(8)) {{-- unique per render: no id collision even with duplicate labels --}}
         <li class="ac-nav-item {{ $open ? 'open' : '' }}">
             <a href="#" role="button" class="ac-nav-link ac-nav-toggle"
                aria-expanded="{{ $open ? 'true' : 'false' }}" aria-controls="{{ $tvId }}">
-                <i class="{{ $item['icon'] ?? 'bi bi-circle' }}" aria-hidden="true"></i><span>{{ __($item['label']) }}</span>
+                <i class="{{ $item['icon'] ?? 'bi bi-circle' }}" aria-hidden="true"></i><span>{{ ac_menu_label($item['label']) }}</span>
                 <i class="bi bi-chevron-right ac-nav-caret" aria-hidden="true"></i>
             </a>
             <ul class="ac-treeview" id="{{ $tvId }}">
@@ -47,7 +47,7 @@
                  javascript:/data: scheme — {{ }} escapes HTML entities but not the scheme. --}}
             <a href="{{ isset($item['route']) ? route($item['route']) : \Ngos\AdminCore\Support\Html::safeUrl($item['url'] ?? null) }}"
                class="ac-nav-link {{ $active ? 'active' : '' }}" @if ($active) aria-current="page" @endif>
-                <i class="{{ $item['icon'] ?? 'bi bi-circle' }}" aria-hidden="true"></i><span>{{ __($item['label']) }}</span>
+                <i class="{{ $item['icon'] ?? 'bi bi-circle' }}" aria-hidden="true"></i><span>{{ ac_menu_label($item['label']) }}</span>
             </a>
         </li>
     @endif

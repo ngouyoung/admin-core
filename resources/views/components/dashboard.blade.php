@@ -44,7 +44,7 @@
             <div class="btn-group btn-group-sm" role="group" aria-label="{{ __('Date range') }}">
                 @foreach ($acPresets as $acValue => $acLabel)
                     <a href="{{ request()->fullUrlWithQuery(['range' => $acValue, 'from' => null, 'to' => null]) }}"
-                        class="btn btn-outline-secondary {{ $acContext->range === $acValue ? 'active' : '' }}">{{ __($acLabel) }}</a>
+                        class="btn btn-outline-secondary {{ $acContext->range === $acValue ? 'active' : '' }}">{{ ac_menu_label($acLabel) }}</a>
                 @endforeach
             </div>
         @endif

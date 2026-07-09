@@ -60,6 +60,23 @@ if (! function_exists('ac_label')) {
     }
 }
 
+if (! function_exists('ac_menu_label')) {
+    /**
+     * Safely translate a DYNAMIC UI label (menu item, section header, dashboard control, …). Laravel's
+     * `__()` treats a bare word that matches a PHP translation GROUP file — e.g. a menu label "Courses"
+     * with `lang/en/courses.php` present — as a group and returns the WHOLE array, which Blade's `{{ }}`
+     * then hands to `htmlspecialchars()`, throwing a TypeError (a 500 on every page). This became common
+     * once resources ship a per-resource label file (FI-2). Guard it: use the translation only when it is a
+     * string, else fall back to the raw label. Never returns a non-string; never throws.
+     */
+    function ac_menu_label(string $label): string
+    {
+        $translated = __($label);
+
+        return is_string($translated) ? $translated : $label;
+    }
+}
+
 if (! function_exists('ac_fk_option')) {
     /**
      * The `[id => name]` option for a belongsTo field's edit-form select — resolving the current related row

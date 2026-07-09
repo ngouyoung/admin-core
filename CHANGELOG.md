@@ -2,6 +2,21 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.82.1
+
+**Fix: dynamic UI labels could resolve to an array and 500 when a menu/section label matched a PHP
+translation group file.** A menu label like "Courses" together with a `lang/{locale}/courses.php` group file
+— exactly what FI-2 per-resource label overrides (v2.82.0) create — made `__('Courses')` resolve to the whole
+group array (Laravel treats a bare word matching a group file as that group). Blade's `{{ }}` then handed the
+array to `htmlspecialchars()`, throwing a `TypeError` — a 500 on **every** admin page during sidebar render.
+
+Dynamic label rendering now goes through the new **`ac_menu_label()`** helper: it uses the translation only
+when it is a string, and otherwise falls back to the raw label — never a non-string, never a throw, never a
+silent `"Array"`. Applied at every dynamic-label render site (sidebar item labels + section headers, and the
+dashboard date-range controls). **FI-2 product-owned PHP group override files (`lang/{locale}/{resource}.php`)
+remain fully supported** — `ac_label()` still resolves them. Regression test renders the real sidebar Blade
+with a real colliding group file on disk (the interaction the FI-2 tests missed).
+
 ## v2.82.0
 
 **Feature (generator): field labels are now resolved at runtime via `ac_label()` — one localizable,
