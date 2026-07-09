@@ -2,6 +2,30 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.84.0
+
+**Fix (FK selects): a foreign-key `<select>` now labels + searches by the related model's real display
+column, not a hardcoded `name`.** Previously the current-value prefill (`ac_fk_option`) read `$related->name`
+and the remote Select2 search (`WebController::select()`) defaulted `$selectLabel` to `'name'`. A related
+model whose human label lives in another column — e.g. a `title`-based catalog model (Course, Lesson,
+Document) — therefore rendered a **blank** current label and, worse, the remote search issued
+`WHERE name LIKE …` against a **non-existent column** (a SQL error the moment you typed in the dropdown).
+
+A single resolver, **`ac_display_column($model)`**, now drives every related-label surface so the prefill and
+the search can never disagree:
+
+- **Precedence:** an explicit `displayColumn()` method on the related model → else the first present of
+  `name` → `title` → `label` (name first, so existing `name`-based resources are **unchanged**) → else the
+  model's route key (always a real column, so a search never targets a missing one).
+- **Applied to:** `ac_fk_option()` (belongsTo prefill), `ac_bt_options()` (belongsToMany prefill),
+  `WebController::select()` (remote label + search columns + sort), and the CSV export's related-label cells.
+- **`WebController::$selectLabel`** now defaults to `null` (= auto-resolve per model via `ac_display_column`);
+  set a string to force a specific column. `$selectSearch` still overrides the searchable columns.
+
+**Runtime-only — no regeneration needed.** Existing generated resources pick up the correct behavior
+immediately: a `name`-based model resolves to `name` (identical to before), a `title`-based model resolves to
+`title` (fixed). Zero business logic — the resolver inspects column *names* only, never what a model means.
+
 ## v2.83.0
 
 **Feature (generator): `--sortable=<column>` partitions ordering by a parent FK — per-parent drag order

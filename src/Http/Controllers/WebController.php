@@ -451,8 +451,10 @@ abstract class WebController extends BaseController
         }
     }
 
-    /** The column shown as each option's label in the Select2 remote source ({@see select()}). */
-    protected string $selectLabel = 'name';
+    /** The column shown as each option's label in the Select2 remote source ({@see select()}). null (the
+     *  default) resolves it per model via ac_display_column() — name → title → label → route key — so a
+     *  title-based resource labels/searches by `title`, not a non-existent `name`. Set a string to force one. */
+    protected ?string $selectLabel = null;
 
     /** Columns the Select2 remote source matches the typed term against (defaults to [$selectLabel]). */
     protected array $selectSearch = [];
@@ -475,7 +477,11 @@ abstract class WebController extends BaseController
      */
     public function select(Request $request): JsonResponse
     {
-        $label = $this->selectLabel;
+        // Default the label/search column to the model's resolved display column (name → title → label →
+        // route key) so a title-based resource searches + labels by `title`, never a non-existent `name`. An
+        // explicit $selectLabel string still wins. The SAME resolution drives the current-value prefill
+        // (ac_fk_option), so they can't disagree.
+        $label = $this->selectLabel ?? ac_display_column($this->service->query()->getModel());
         $columns = $this->selectSearch ?: [$label];
         $term = trim((string) $request->query('term', ''));
 
@@ -579,8 +585,8 @@ abstract class WebController extends BaseController
                     // ac_localize so a translatable related name exports as the localized string, not raw
                     // JSON (belongsTo) or an "Array to string conversion" crash (belongsToMany).
                     $cells[] = $related instanceof \Illuminate\Support\Collection
-                        ? $this->csvCell($related->map(fn ($i) => ac_localize($i->name) ?: $i->getKey())->implode(', '))
-                        : $this->csvCell(ac_localize($related?->name));
+                        ? $this->csvCell($related->map(fn ($i) => ac_localize($i->{ac_display_column($i)}) ?: $i->getKey())->implode(', '))
+                        : $this->csvCell($related ? ac_localize($related->{ac_display_column($related)}) : null);
                 }
                 fputcsv($out, $cells, escape: '');
             });

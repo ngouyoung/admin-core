@@ -77,6 +77,38 @@ if (! function_exists('ac_menu_label')) {
     }
 }
 
+if (! function_exists('ac_display_column')) {
+    /**
+     * The column holding a related model's human-readable label — used for a belongsTo/belongsToMany
+     * <select>'s current-value option AND its remote search, and for a related column in a CSV export, so all
+     * of them resolve the SAME column (never one by `title` and another by `name`). Order: an explicit model
+     * override (a `displayColumn()` method), then the first conventional column present on the table — `name`,
+     * then `title`, then `label` (name first, so existing `name`-based resources are unchanged) — and finally
+     * the model's route key (always a real column, so a remote search never targets a column that does not
+     * exist). Framework mechanism: it inspects column NAMES only, never what the model represents. Memoised per
+     * model class (a hot path in exports).
+     */
+    function ac_display_column(\Illuminate\Database\Eloquent\Model $model): string
+    {
+        static $memo = [];
+        $class = $model::class;
+        if (isset($memo[$class])) {
+            return $memo[$class];
+        }
+        if (method_exists($model, 'displayColumn')) {
+            return $memo[$class] = (string) $model->{'displayColumn'}();
+        }
+        $table = $model->getTable();
+        foreach (['name', 'title', 'label'] as $column) {
+            if (\Illuminate\Support\Facades\Schema::hasColumn($table, $column)) {
+                return $memo[$class] = $column;
+            }
+        }
+
+        return $memo[$class] = $model->getRouteKeyName();
+    }
+}
+
 if (! function_exists('ac_fk_option')) {
     /**
      * The `[id => name]` option for a belongsTo field's edit-form select — resolving the current related row
@@ -103,7 +135,7 @@ if (! function_exists('ac_fk_option')) {
             }
         }
 
-        return $related ? [$model->{$fkColumn} => ac_localize($related->name)] : [];
+        return $related ? [$model->{$fkColumn} => ac_localize($related->{ac_display_column($related)})] : [];
     }
 }
 
@@ -128,7 +160,7 @@ if (! function_exists('ac_bt_options')) {
             $query = $query->withTrashed();
         }
 
-        return $query->get()->mapWithKeys(fn ($i) => [$i->getKey() => ac_localize($i->name)])->all();
+        return $query->get()->mapWithKeys(fn ($i) => [$i->getKey() => ac_localize($i->{ac_display_column($i)})])->all();
     }
 }
 

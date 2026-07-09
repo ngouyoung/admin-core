@@ -339,9 +339,12 @@ zero-pads to 5 and **restarts each year** (`"INV-2026-00001"`); pass `'month'` t
 > readonly input — so a user editing the DOM or POSTing directly still can't change them.
 
 **Foreign keys**: `category_id:foreign` adds a `belongsTo` relation on the model, a Select2 dropdown of
-the related rows in the form (labelled by the related row's `name`, falling back to `id`), and a
-related-name column in the table. The related table is inferred (`category_id` → `categories`), so it
-must already exist — generate the parent resource first.
+the related rows in the form, and a related-label column in the table. The dropdown's **current value and
+its remote search both use the related model's display column**, resolved the same way: an explicit
+`displayColumn()` method on the related model, else the first of `name` → `title` → `label` present on its
+table, else the route key (so a `title`-based model like a Course labels/searches by `title`, and a
+`name`-based model is unchanged). The related table is inferred (`category_id` → `categories`), so it must
+already exist — generate the parent resource first.
 
 ### App shell (with `--access`)
 
