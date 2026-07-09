@@ -2,6 +2,36 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.81.0
+
+**Feature (generator DSL): declarative validation constraints `min` / `max` on `integer` and `decimal`
+fields.** Write the business bound in the field spec instead of hand-editing the generated FormRequests:
+
+```
+pass_score:integer:min=0:max=100
+quantity:integer:min=0
+rating:integer:min=1:max=5
+price:decimal:10|2:min=0
+```
+
+The framework provides only the *mechanism*; the product provides the *values* — no business knowledge
+enters admin-core. Constraints are parsed **structurally** (a `min=<int>`/`max=<int>` map), never as
+raw Laravel rule strings, and only `min`/`max` on `integer`/`decimal` are accepted in this release.
+
+- **Backward compatible.** A field with no explicit constraint generates exactly as before — a plain
+  `integer` keeps its implicit signed-32-bit storage guard (`between:-2147483648,2147483647`); every other
+  type is byte-for-byte unchanged. The `min=/max=` token shape cannot collide with any existing token
+  (`enum:a|b|c`, `decimal:P|S`, `money:CODE`, `foreign:table`, trailing `? ^ ~ @ #`).
+- **Explicit vs implicit bounds.** A one-sided integer bound keeps the column's int32 limit on the open
+  side as an *implicit storage guard*, added only during rule generation and never stored as a declared
+  constraint: `quantity:integer:min=0` → `min:0` + `max:2147483647`; `x:integer:max=100` →
+  `min:-2147483648` + `max:100`. Decimal relies on the existing `DecimalPrecision` rule for storage
+  magnitude, so only the declared bounds are appended.
+- **Fails loudly at generation:** unknown constraint key, non-integer/empty value, `min` > `max`,
+  duplicate `min`/`max`, a constraint on an incompatible type, or a misplaced constraint — each with a
+  clear message naming the field and offending token.
+- `--list-fields` documents the constraints; `--fields` example updated.
+
 ## v2.80.0
 
 **Change (generation default): `admin-core:make` now generates the hybrid public key BY DEFAULT —

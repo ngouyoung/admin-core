@@ -1035,8 +1035,17 @@ PHP);
             ],
         );
 
+        $this->info('Validation constraints (integer / decimal only — append after the type)');
+        $this->table(
+            ['Constraint', 'Meaning'],
+            [
+                ['min=N', 'minimum value       (quantity:integer:min=0)'],
+                ['max=N', 'maximum value       (pass_score:integer:min=0:max=100)'],
+            ],
+        );
+
         $this->line(' Special types: <comment>password</comment> (hashed), <comment>auth</comment> (current user id), <comment>sku</comment> (auto code), <comment>sequence</comment> (auto doc number, e.g. invoice_no:sequence:INV) — see the README.');
-        $this->line(' Example: <comment>--fields="name:string^, price:decimal?, status:enum:draft|published, category_id:foreign"</comment>');
+        $this->line(' Example: <comment>--fields="name:string^, price:decimal:10|2:min=0, rating:integer:min=1:max=5, status:enum:draft|published, category_id:foreign"</comment>');
     }
 
     /** Map one fillable column back to a DSL type from its cast (enum/password) then its migration column type. */

@@ -356,6 +356,36 @@ class FieldSet
                 $spec = substr($spec, 0, -1);
             }
 
+            // Optional declarative validation constraints: `pass_score:integer:min=0:max=100`. Structured
+            // `key=value` tokens (min/max only, integer values) are popped from the TRAILING colon-segments.
+            // The `min=<int>` / `max=<int>` shape can't collide with any type token — enum values, decimal
+            // p|s, table names and money codes carry no `=` — so a spec without constraints is byte-for-byte
+            // unchanged (backward compatible). Type-compatibility (numeric only) is enforced once the type is
+            // known; malformed values, duplicates and min>max fail loudly right here.
+            $constraints = [];
+            $segs = explode(':', $spec);
+            while (count($segs) > 1 && preg_match('/^(min|max)=(-?\d+)$/', (string) end($segs), $cm)) {
+                if (array_key_exists($cm[1], $constraints)) {
+                    throw new \InvalidArgumentException(
+                        "admin-core: duplicate constraint '{$cm[1]}' on field '{$name}' — min and max may each appear once.",
+                    );
+                }
+                $constraints[$cm[1]] = (int) $cm[2];
+                array_pop($segs);
+            }
+            // A trailing min=/max= whose value isn't a valid integer (min=abc, an empty min=) — precise error.
+            if (count($segs) > 1 && preg_match('/^(min|max)=(.*)$/', (string) end($segs), $bm)) {
+                throw new \InvalidArgumentException(
+                    "admin-core: constraint '{$bm[1]}' on field '{$name}' requires an integer value, got '{$bm[2]}'.",
+                );
+            }
+            $spec = implode(':', $segs);
+            if (isset($constraints['min'], $constraints['max']) && $constraints['min'] > $constraints['max']) {
+                throw new \InvalidArgumentException(
+                    "admin-core: field '{$name}' has min={$constraints['min']} greater than max={$constraints['max']} — min may not exceed max.",
+                );
+            }
+
             $enum = [];
             if (str_starts_with($spec, 'enum:')) {
                 $enum = array_values(array_filter(array_map('trim', explode('|', substr($spec, 5)))));
@@ -499,6 +529,16 @@ class FieldSet
 
             $type = $spec ?: 'string';
 
+            // A trailing key=value that survived constraint extraction still carries an '=' in the type
+            // token — an unknown key (foo=1) or a constraint placed before the type's params. Report it as
+            // a constraint problem rather than a confusing "unknown field type".
+            if (str_contains($type, '=')) {
+                throw new \InvalidArgumentException(
+                    "admin-core: field '{$name}' has an unknown or misplaced constraint in '{$type}' — the only "
+                    . "constraints are min and max (on integer/decimal), e.g. {$name}:integer:min=0:max=100.",
+                );
+            }
+
             // Reject malformed tokens before they reach the migration. The usual culprit is a comma'd or
             // parenthesised enum (`status:enum(a,b,c)`) — the outer split shatters it, so values arrive as
             // their own "fields" with names like `c)`. Fail loudly with the right syntax instead.
@@ -522,6 +562,16 @@ class FieldSet
                 throw new \InvalidArgumentException(
                     "admin-core: unknown field type '{$type}' for '{$name}'. Valid types: "
                     . implode(', ', self::TYPES) . '. Enum syntax: status:enum:draft|published.',
+                );
+            }
+            // Numeric value bounds apply to value-typed numeric fields only. On any other type a min/max is
+            // rejected (never silently dropped) — string/text `min`/`max` would mean LENGTH, a different
+            // semantic reserved for a future keyword; enum/date/foreign/boolean have no meaningful bound.
+            if ($constraints !== [] && ! in_array($type, ['integer', 'decimal'], true)) {
+                $k = array_key_first($constraints);
+                throw new \InvalidArgumentException(
+                    "admin-core: constraint '{$k}' isn't supported on the '{$type}' field '{$name}' — "
+                    . 'min/max apply to integer and decimal fields only.',
                 );
             }
             if ($type === 'enum') {
@@ -548,6 +598,9 @@ class FieldSet
             }
 
             $field = $this->field($name, $type, $nullable, $unique, $enum, $writeOnce, $system, $index, $foreignTable);
+            // Explicit product min/max (empty for every field that declared none). Consumed by rules() only;
+            // never a stored/implicit storage bound (those are added at rule-generation for integer).
+            $field['constraints'] = $constraints;
             if ($type === 'decimal') {
                 $field['precision'] = $decimalPrecision ?? 10;
                 $field['scale'] = $decimalScale ?? 2;
@@ -2096,15 +2149,38 @@ PHP;
                     $rules = [$required, "'string'"];
                     break;
                 case 'integer':
-                    // Bound to the signed 32-bit range of the `->integer()` column: a larger value passes the
-                    // bare `integer` rule but overflows the column, which MySQL's default strict mode rejects
-                    // with an uncaught QueryException (a 500) instead of a clean 422. Mirrors decimal/money.
-                    $rules = [$required, "'integer'", "'between:-2147483648,2147483647'"];
+                    $ic = (array) ($f['constraints'] ?? []);
+                    if ($ic === []) {
+                        // No explicit product bound → keep the implicit signed-32-bit STORAGE guard: a larger
+                        // value passes the bare `integer` rule but overflows the column, which MySQL's default
+                        // strict mode rejects with an uncaught QueryException (a 500) instead of a clean 422.
+                        // Unchanged behaviour; mirrors decimal/money.
+                        $rules = [$required, "'integer'", "'between:-2147483648,2147483647'"];
+                    } else {
+                        // Explicit product bound(s) from the DSL (min/max). The signed-32-bit STORAGE guard
+                        // fills any side the developer left open — an IMPLICIT column limit, deliberately not
+                        // part of the parsed constraints map — so overflow protection is never lost.
+                        $iMin = (int) ($ic['min'] ?? -2147483648);
+                        $iMax = (int) ($ic['max'] ?? 2147483647);
+                        $rules = [$required, "'integer'", "'min:{$iMin}'", "'max:{$iMax}'"];
+                    }
                     break;
                 case 'decimal':
                     // Cap the magnitude/scale to the column's decimal(p,s) so an over-long value can't be
-                    // silently truncated by the database. The rule lives in src/ (FQ, no import needed).
+                    // silently truncated by the database (the storage guard, always present). The rule lives
+                    // in src/ (FQ, no import needed).
                     $rules = [$required, "'numeric'", "new \\Ngos\\AdminCore\\Rules\\DecimalPrecision({$f['precision']}, {$f['scale']})"];
+                    // Optional explicit product bounds. DecimalPrecision already guards storage magnitude, so
+                    // only the declared min/max are appended (no implicit range synthesis needed).
+                    $dc = (array) ($f['constraints'] ?? []);
+                    if (array_key_exists('min', $dc)) {
+                        $dMin = (int) $dc['min'];
+                        $rules[] = "'min:{$dMin}'";
+                    }
+                    if (array_key_exists('max', $dc)) {
+                        $dMax = (int) $dc['max'];
+                        $rules[] = "'max:{$dMax}'";
+                    }
                     break;
                 case 'money':
                     // The form posts a major amount ("15.00"); the MoneyCast parses it to minor units.

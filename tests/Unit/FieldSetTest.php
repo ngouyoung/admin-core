@@ -153,6 +153,94 @@ it('bounds an integer rule to the 32-bit column range (a larger value 422s, not 
         ->toContain("'qty' => ['nullable', 'integer', 'between:-2147483648,2147483647']");
 });
 
+// ── FI-1: declarative validation constraints (min/max) ───────────────────────────────────────────────
+
+it('applies an explicit integer min, keeping the int32 upper bound as an implicit storage guard', function () {
+    // Product bound on the low side; the framework fills the open (max) side with the column's own limit,
+    // so overflow protection is never lost. The implicit max is NOT a declared constraint.
+    expect(fs('quantity:integer:min=0')->storeRules())
+        ->toContain("'quantity' => ['required', 'integer', 'min:0', 'max:2147483647']");
+});
+
+it('applies an explicit integer max, keeping the int32 lower bound as an implicit storage guard', function () {
+    expect(fs('score:integer:max=100')->storeRules())
+        ->toContain("'score' => ['required', 'integer', 'min:-2147483648', 'max:100']");
+});
+
+it('applies both explicit integer bounds and is order-independent', function () {
+    $expected = "'pass_score' => ['required', 'integer', 'min:0', 'max:100']";
+    expect(fs('pass_score:integer:min=0:max=100')->storeRules())->toContain($expected);
+    expect(fs('pass_score:integer:max=100:min=0')->storeRules())->toContain($expected); // order swapped
+});
+
+it('accepts negative integer bounds', function () {
+    expect(fs('temp:integer:min=-10:max=10')->storeRules())
+        ->toContain("'temp' => ['required', 'integer', 'min:-10', 'max:10']");
+});
+
+it('combines a trailing nullable modifier with constraints', function () {
+    expect(fs('pass_score:integer:min=0:max=100?')->storeRules())
+        ->toContain("'pass_score' => ['nullable', 'integer', 'min:0', 'max:100']");
+});
+
+it('appends decimal bounds after the DecimalPrecision storage guard (no implicit range synthesis)', function () {
+    expect(fs('price:decimal:10|2:min=0')->storeRules())
+        ->toContain("'price' => ['required', 'numeric', new \\Ngos\\AdminCore\\Rules\\DecimalPrecision(10, 2), 'min:0']");
+    expect(fs('rate:decimal:10|2:min=-10:max=100')->storeRules())
+        ->toContain("new \\Ngos\\AdminCore\\Rules\\DecimalPrecision(10, 2), 'min:-10', 'max:100']");
+});
+
+it('rejects a non-integer constraint value', function () {
+    expect(fn () => fs('pass_score:integer:min=abc'))
+        ->toThrow(InvalidArgumentException::class, "constraint 'min' on field 'pass_score' requires an integer value, got 'abc'");
+});
+
+it('rejects an empty constraint value', function () {
+    expect(fn () => fs('pass_score:integer:min='))
+        ->toThrow(InvalidArgumentException::class, 'requires an integer value');
+});
+
+it('rejects an unknown constraint key', function () {
+    expect(fn () => fs('pass_score:integer:foo=1'))
+        ->toThrow(InvalidArgumentException::class, 'unknown or misplaced constraint');
+});
+
+it('rejects min greater than max at generation', function () {
+    expect(fn () => fs('pass_score:integer:min=100:max=0'))
+        ->toThrow(InvalidArgumentException::class, 'min=100 greater than max=0');
+});
+
+it('rejects a duplicate constraint', function () {
+    expect(fn () => fs('pass_score:integer:min=0:min=1'))
+        ->toThrow(InvalidArgumentException::class, "duplicate constraint 'min'");
+});
+
+it('rejects constraints on an incompatible (enum) type', function () {
+    expect(fn () => fs('status:enum:a|b:min=0'))
+        ->toThrow(InvalidArgumentException::class, "constraint 'min' isn't supported on the 'enum' field 'status'");
+});
+
+it('rejects a constraint placed before the decimal precision (misplaced)', function () {
+    // Constraints must trail the type + its params; a misplaced one leaves decimal:min=0:10|2, which the
+    // decimal precision guard rejects loudly.
+    expect(fn () => fs('price:decimal:min=0:10|2'))
+        ->toThrow(InvalidArgumentException::class, 'decimal precision must be digits');
+});
+
+it('leaves every existing typed token unchanged when no constraints are given (backward compatibility)', function () {
+    // Not one of these should acquire a min:/max: rule or otherwise change from pre-FI-1 output.
+    expect(fs('qty:integer')->storeRules())
+        ->toContain("'qty' => ['required', 'integer', 'between:-2147483648,2147483647']")
+        ->not->toContain("'min:");
+    expect(fs('price:decimal:12|4')->storeRules())->not->toContain("'min:");
+    expect(fs('status:enum:draft|published')->setClass('Product')->storeRules())
+        ->toContain('Rule::enum(');
+    expect(fs('code:money:KHR')->storeRules())->toContain("MoneyAmount('KHR')");
+    expect(fs('parent_id:foreign:categories')->storeRules())->toContain("'exists:categories,id'");
+    // Trailing modifiers still work alongside the untouched type.
+    expect(fs('slug:string^')->storeRules())->toContain("'unique:products,slug'");
+});
+
 it('builds an enum select backed by a generated enum class', function () {
     $f = fs('status:enum:draft|published')->setClass('Product');
     // Validation + form both reference the backed enum — the single source of truth.
