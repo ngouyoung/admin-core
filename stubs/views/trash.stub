@@ -35,7 +35,7 @@
             @forelse ($items as $item)
                 <tr>
                     <td><input type="checkbox" class="row-check" value="{{ $item->getRouteKey() }}"></td>
-                    <td class="text-capitalize">{{ ac_localize($item->name) ?: $item->id }}</td>
+                    <td class="text-capitalize">{{ ac_related_label($item) ?: $item->id }}</td>
                     <td>{{ $item->deleted_at }}</td>
                     <td>
                         <form action="{{ route('__AC_RNS__dummyModels.restore', $item->getRouteKey()) }}" method="POST" class="d-inline">

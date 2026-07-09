@@ -408,12 +408,12 @@ it('a generated file field carries a mimes allowlist (no executable/markup uploa
 it('localizes a foreign relation display so a translatable related name never breaks', function () {
     $f = fs('category_id:foreign');
 
-    // list column, form <select> options, and show row all run the value through ac_localize()
-    expect($f->getDataColumns())->toContain('ac_localize($row->category?->name)');
+    // list column, form <select> options, and show row all resolve the related display column (FI-6/FI-7)
+    expect($f->getDataColumns())->toContain('ac_related_label($row->category)');
     expect($f->formFields())
         ->toContain('source="categories"')                          // searchable + paginated remote select (no eager-load)
         ->toContain("ac_fk_option(\$object, 'category', 'category_id')"); // preselected option, withTrashed-aware + localized
-    expect($f->showRows())->toContain('ac_localize($object->category?->name)');
+    expect($f->showRows())->toContain('ac_related_label($object->category)');
 
     // and the helper resolves a translatable array to the locale string, passing plain strings through
     expect(ac_localize(['en' => 'Drinks', 'km' => 'x']))->toBe('Drinks');
@@ -561,10 +561,10 @@ it('makes a belongsTo list column searchable and sortable by the related name', 
     // getData wires the search (whereHas on the related name, via the escaped LIKE helper) and sort.
     expect($f->getDataColumns())
         ->toContain("->filterColumn('category', fn (\$q, \$keyword) => \$q->whereHas('category'")
-        ->toContain("\\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, 'name', \$keyword)")
+        ->toContain("\\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, ac_display_column(\$rq->getModel()), \$keyword)")
         ->not->toContain("->where('name', 'like', \"%{\$keyword}%\")") // no raw unescaped LIKE
         ->toContain("->orderColumn('category'")
-        ->toContain("\\App\\Models\\Category::select('name')->whereColumn('categories.id', 'products.category_id')");
+        ->toContain("\\App\\Models\\Category::select(ac_display_column(new \\App\\Models\\Category))->whereColumn('categories.id', 'products.category_id')");
 });
 
 it('handles a unique field with the Rule import on update', function () {
@@ -744,7 +744,7 @@ it('adds a sort column when sortable', function () {
 it('builds read-only show rows', function () {
     $f = fs('name:string, category_id:foreign');
     expect($f->showRows())->toContain('$object->name');
-    expect($f->showRows())->toContain('$object->category?->name');
+    expect($f->showRows())->toContain('ac_related_label($object->category)');
 });
 
 it('emits show rows as <x-admin-core::detail-row> components (not raw <tr>)', function () {

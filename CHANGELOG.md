@@ -2,6 +2,33 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.85.0
+
+**Fix (generator): generated resources render/filter/sort related + own labels by the resolved display
+column, not a hardcoded `name`.** FI-6 (v2.84.0) fixed the *runtime* FK-`<select>` surface, but the
+*generator* still emitted `name` into the resource's own controller/resource/views — so a title-based model
+(a Course, Lesson, Document) had blank related columns in the list, and **filtering or sorting a related
+column threw a SQL error against a non-existent `name` column**. FI-7 routes every generated related-label
+surface through the same canonical contract (`displayColumn()` override → `name` → `title` → `label` → route
+key):
+
+- **List DataTable** — related column display (`ac_related_label($row->rel)`), **filter**
+  (`whereLike($rq, ac_display_column($rq->getModel()), …)`), and **sort** (`Model::select(ac_display_column(new
+  Model))…`);
+- **List-filter dropdown** options (`Model::pluck(ac_display_column(new Model), 'id')`);
+- **API resource** related labels (`ac_related_label($this->rel)`), belongsTo + belongsToMany;
+- **Show view** related labels; **trash view** primary label; **belongsToMany** across all of the above;
+- the index's **own primary column** styling now follows the resolved display column (`name`/`title`/`label`),
+  not just `name`.
+
+New runtime helper **`ac_related_label(?Model): ?string`** (a related model's `ac_display_column()` value,
+localized, null-safe) is what the generated code calls.
+
+**Backward compatible:** a `name`-based resource resolves `name` (identical output). **Regeneration:** because
+this changes generator *output*, an already-generated **title-based** resource must be **regenerated** to pick
+up the fix (a `name`-based one need not — its old output already resolves `name` at runtime). The write-side
+`slug`-from-`name` derivation is unchanged (a separate, non-display concern).
+
 ## v2.84.0
 
 **Fix (FK selects): a foreign-key `<select>` now labels + searches by the related model's real display

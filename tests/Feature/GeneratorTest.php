@@ -1212,7 +1212,7 @@ it('generates foreign (select) + money/decimal (number range) filters', function
     $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
     expect($controller)
         // foreign options are a CLOSURE → the query runs at render time, not on every getData() AJAX hit.
-        ->toContain("'column' => 'category_id', 'type' => 'select', 'label' => ac_label('gizmos', 'category'), 'options' => fn () => \\App\\Models\\Category::pluck('name', 'id')->all()")
+        ->toContain("'column' => 'category_id', 'type' => 'select', 'label' => ac_label('gizmos', 'category'), 'options' => fn () => \\App\\Models\\Category::pluck(ac_display_column(new \\App\\Models\\Category), 'id')->all()")
         ->toContain("'column' => 'price', 'type' => 'number', 'label' => ac_label('gizmos', 'price'), 'money' => true, 'currency' => 'KHR'")
         ->toContain("'column' => 'weight', 'type' => 'number', 'label' => ac_label('gizmos', 'weight')]")
         ->not->toContain("'column' => 'qty'"); // integer is not auto-filtered (often an id/count — add by hand)
@@ -1387,7 +1387,7 @@ it('generates a JSON API with --api (resource + controller + routes)', function 
         ->toContain('class GizmoResource extends JsonResource')
         ->toContain("'id' => \$this->getRouteKey()")
         ->toContain("'category_id' => \$this->category_id")               // the FK id, so ?filter[category_id] works
-        ->toContain("'category' => ac_localize(\$this->category?->name)") // + the readable related name
+        ->toContain("'category' => ac_related_label(\$this->category)") // + the readable related label
         ->not->toContain("'secret'");
 
     // The web controller appends the belongsTo's related name to the CSV export.
@@ -1531,7 +1531,7 @@ it('infers fields from the existing model when adding a channel without --fields
         ->toContain("'title' => \$this->title")
         ->toContain("'status' => \$this->status")
         ->toContain("'qty' => \$this->qty")
-        ->toContain("'category' => ac_localize(\$this->category?->name)");
+        ->toContain("'category' => ac_related_label(\$this->category)");
 
     // Whitelists are type-correct: the integer/time columns stay OUT of $searchable
     // (a LIKE on them errors on Postgres); enum + foreign go to $filterable.
@@ -1734,6 +1734,41 @@ it('adds a sort toggle and reorder route with --sortable', function () {
         ->toContain('toggle-sort')->toContain('sort-panel')
         ->and(File::get(base_path('routes/Web/Backend/Modules/gizmos.php')))->toContain('reorder')
         ->and(File::get(glob(database_path('migrations/*_create_gizmos_table.php'))[0]))->toContain("'sort'");
+});
+
+it('FI-7: generated related-label surfaces resolve the display column, never a hardcoded name', function () {
+    // A title-based resource (no `name`) with a self-referencing FK to another title-based row: every
+    // generated related-label surface must resolve the display column (title) via the FI-6 resolver, not `name`.
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'title:string, parent_id:foreign:gizmos',
+        '--migration' => true,
+        '--soft-deletes' => true, // generates the trash view
+        '--api' => true,
+    ])->assertSuccessful();
+    $this->artisan('migrate', ['--force' => true])->assertSuccessful(); // self-ref FK + title schema migrates
+
+    $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    expect($controller)
+        ->toContain('->addColumn(\'parent\', fn ($row) => ac_related_label($row->parent))')          // list display
+        ->toContain('Search::whereLike($rq, ac_display_column($rq->getModel())')                        // list filter
+        ->toContain('->orderBy(\App\Models\Gizmo::select(ac_display_column(new \App\Models\Gizmo))')     // list sort
+        ->toContain('\App\Models\Gizmo::pluck(ac_display_column(new \App\Models\Gizmo), \'id\')')        // filter dropdown
+        ->toContain('->editColumn(\'title\', fn ($row) =>')                                              // own-display styling → title
+        ->not->toContain('$row->parent?->name')
+        ->not->toContain("whereLike(\$rq, 'name'")
+        ->not->toContain("editColumn('name'");
+
+    expect(File::get(app_path('Http/Resources/GizmoResource.php')))
+        ->toContain('ac_related_label($this->parent)')->not->toContain('$this->parent?->name');
+    expect(File::get(resource_path('views/backend/pages/gizmos/show.blade.php')))
+        ->toContain('ac_related_label($object->parent)')->not->toContain('$object->parent?->name');
+    expect(File::get(resource_path('views/backend/pages/gizmos/trash.blade.php')))
+        ->toContain('ac_related_label($item)')->not->toContain('ac_localize($item->name)');
+
+    // the emitted controller + resource (with the resolver calls) are valid PHP
+    expect(Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')))->successful())->toBeTrue();
+    expect(Process::run('php -l ' . escapeshellarg(app_path('Http/Resources/GizmoResource.php')))->successful())->toBeTrue();
 });
 
 it('scopes ordering by a parent FK column with --sortable=<column>', function () {

@@ -224,3 +224,30 @@ it('falls back to the route key (a real column) when no name/title/label exists 
     expect($res->getStatusCode())->toBe(200);
     Schema::dropIfExists('adv_keyed');
 });
+
+// ---- FI-7: the runtime helper + the generated list/filter/sort SQL patterns ---------------------
+
+it('ac_related_label resolves the related display column, null-safe', function () {
+    $t = TitledCategory::create(['title' => 'Phones']);
+    $n = RelCategory::create(['name' => 'Audio']);
+
+    expect(ac_related_label($t))->toBe('Phones')   // title-based
+        ->and(ac_related_label($n))->toBe('Audio') // name-based (backward compatible)
+        ->and(ac_related_label(null))->toBeNull();  // null-safe (absent belongsTo)
+});
+
+it('the generated filter + sort SQL patterns query the resolved column, never a missing name', function () {
+    TitledCategory::create(['title' => 'Alpha']);
+    TitledCategory::create(['title' => 'Beta']);
+
+    // getData filterColumn pattern: whereLike($rq, ac_display_column($rq->getModel()), term)
+    $filtered = TitledCategory::query()
+        ->where(fn ($q) => \Ngos\AdminCore\Support\Search::whereLike($q, ac_display_column($q->getModel()), 'Alp'))
+        ->pluck('title')->all();
+    expect($filtered)->toBe(['Alpha']); // matched by title — no "no such column: name"
+
+    // getData orderColumn / filter-dropdown pattern: select/pluck on ac_display_column(new Model)
+    $ordered = TitledCategory::orderBy(ac_display_column(new TitledCategory))
+        ->pluck(ac_display_column(new TitledCategory))->all();
+    expect($ordered)->toBe(['Alpha', 'Beta']); // ordered by title, real column
+});

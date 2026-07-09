@@ -109,6 +109,19 @@ if (! function_exists('ac_display_column')) {
     }
 }
 
+if (! function_exists('ac_related_label')) {
+    /**
+     * A related model's human label for display — its {@see ac_display_column()} value, localized. Null-safe:
+     * returns null for a null relation (a genuinely absent belongsTo). Used by generated list/show/API/trash
+     * surfaces so they render a title-based model's `title` (or its resolved display column), never a hardcoded
+     * `name`. Pairs with ac_display_column() for the SQL side (filter/sort), so display and query agree.
+     */
+    function ac_related_label(?\Illuminate\Database\Eloquent\Model $related): ?string
+    {
+        return $related ? ac_localize($related->{ac_display_column($related)}) : null;
+    }
+}
+
 if (! function_exists('ac_fk_option')) {
     /**
      * The `[id => name]` option for a belongsTo field's edit-form select — resolving the current related row

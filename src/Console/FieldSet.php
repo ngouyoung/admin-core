@@ -1177,6 +1177,27 @@ class FieldSet
         return collect($this->fields)->contains(fn ($f) => $f['name'] === 'name' && $f['type'] === 'translatable');
     }
 
+    /** The resource's own human-label column for index/trash styling — the first of name → title → label
+     *  declared on this resource (mirrors ac_display_column()'s runtime probe), or null when none is declared. */
+    private function ownDisplayColumn(): ?string
+    {
+        foreach (['name', 'title', 'label'] as $column) {
+            if (($this->hasNameOverride && $column === 'name')
+                || collect($this->fields)->contains(fn ($f) => $f['name'] === $column)) {
+                return $column;
+            }
+        }
+
+        return null;
+    }
+
+    private function ownDisplayIsTranslatable(): bool
+    {
+        $col = $this->ownDisplayColumn();
+
+        return $col !== null && collect($this->fields)->contains(fn ($f) => $f['name'] === $col && $f['type'] === 'translatable');
+    }
+
     private function hasFiles(): bool
     {
         return collect($this->fields)->contains(fn ($f) => $this->isFile($f));
@@ -1847,13 +1868,14 @@ PHP;
                 continue;
             }
             if ($f['type'] === 'foreign') {
-                // The FK id (so ?filter[{col}] works — the API whitelists it) + the readable related name.
+                // The FK id (so ?filter[{col}] works — the API whitelists it) + the readable related label
+                // (its resolved display column — title/name/… — via ac_related_label, never a hardcoded name).
                 $lines[] = "            '{$f['name']}' => \$this->{$f['name']},";
-                $lines[] = "            '{$f['relation']}' => ac_localize(\$this->{$f['relation']}?->name),";
+                $lines[] = "            '{$f['relation']}' => ac_related_label(\$this->{$f['relation']}),";
                 continue;
             }
             if ($f['type'] === 'belongsToMany') {
-                $lines[] = "            '{$f['relation']}' => \$this->whenLoaded('{$f['relation']}', fn () => \$this->{$f['relation']}->map(fn (\$i) => ac_localize(\$i->name))),";
+                $lines[] = "            '{$f['relation']}' => \$this->whenLoaded('{$f['relation']}', fn () => \$this->{$f['relation']}->map(fn (\$i) => ac_related_label(\$i))),";
                 continue;
             }
             if ($f['type'] === 'hasMany') {
@@ -2869,7 +2891,7 @@ BLADE;
                 // a CLOSURE so the query runs only when the bar renders (index) — NOT on every getData() AJAX hit,
                 // which reads type/currency only. A large / translatable-name relation: swap to a custom entry.
                 $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => {$this->acLabelExpr($f['relation'])}, 'options' => "
-                    . "fn () => \\App\\Models\\{$f['relModel']}::pluck('name', 'id')->all()],";
+                    . "fn () => \\App\\Models\\{$f['relModel']}::pluck(ac_display_column(new \\App\\Models\\{$f['relModel']}), 'id')->all()],";
             } elseif ($f['type'] === 'money') {
                 // A per-record (multi-currency) money column can't be range-filtered with a single currency — one
                 // bound's decimals would be wrong for every row not in that currency. Skip it (filter by the
@@ -3071,8 +3093,9 @@ PHP;
     public function getDataColumns(): string
     {
         $lines = [];
-        if ($this->hasName() && ! $this->nameIsTranslatable()) {
-            $lines[] = "            ->editColumn('name', fn (\$row) => '<span class=\"text-capitalize\">' . e(\$row->name) . '</span>')";
+        $ownDisplay = $this->ownDisplayColumn();
+        if ($ownDisplay !== null && ! $this->ownDisplayIsTranslatable()) {
+            $lines[] = "            ->editColumn('{$ownDisplay}', fn (\$row) => '<span class=\"text-capitalize\">' . e(\$row->{$ownDisplay}) . '</span>')";
         }
         foreach ($this->fields as $f) {
             if ($line = $this->fieldDataColumn($f)) {
@@ -3092,8 +3115,8 @@ PHP;
     {
         return match ($f['type']) {
             'foreign' => $this->foreignDataColumn($f),
-            'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(ac_localize(\$i->name) ?: \$i->id) . '</span>')->implode(' '))\n"
-                . "            ->filterColumn('{$f['relation']}', fn (\$q, \$keyword) => \$q->whereHas('{$f['relation']}', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, 'name', \$keyword)))",
+            'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(ac_related_label(\$i) ?: \$i->id) . '</span>')->implode(' '))\n"
+                . "            ->filterColumn('{$f['relation']}', fn (\$q, \$keyword) => \$q->whereHas('{$f['relation']}', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, ac_display_column(\$rq->getModel()), \$keyword)))",
             // Match the show view's status badge / Yes-No / formatted date rather than leaking a raw value.
             'enum' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\\Illuminate\\Support\\Str::headline(\$row->{$f['name']}->value)) . '</span>' : '')",
             'boolean' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')",
@@ -3142,9 +3165,9 @@ PHP;
         // `exists:` rule for irregular plurals (e.g. the order subquery and the rule naming different tables).
         $relTable = $f['relTable'];
 
-        return "            ->addColumn('{$rel}', fn (\$row) => ac_localize(\$row->{$rel}?->name))\n"
-            . "            ->filterColumn('{$rel}', fn (\$q, \$keyword) => \$q->whereHas('{$rel}', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, 'name', \$keyword)))\n"
-            . "            ->orderColumn('{$rel}', fn (\$q, \$dir) => \$q->orderBy({$relModel}::select('name')->whereColumn('{$relTable}.id', '{$this->table}.{$f['name']}'), \$dir))";
+        return "            ->addColumn('{$rel}', fn (\$row) => ac_related_label(\$row->{$rel}))\n"
+            . "            ->filterColumn('{$rel}', fn (\$q, \$keyword) => \$q->whereHas('{$rel}', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, ac_display_column(\$rq->getModel()), \$keyword)))\n"
+            . "            ->orderColumn('{$rel}', fn (\$q, \$dir) => \$q->orderBy({$relModel}::select(ac_display_column(new {$relModel}))->whereColumn('{$relTable}.id', '{$this->table}.{$f['name']}'), \$dir))";
     }
 
     /** Read-only detail rows for the show view. */
@@ -3157,8 +3180,8 @@ PHP;
             }
             $label = $this->acLabelExpr(in_array($f['type'], ['foreign', 'belongsToMany'], true) ? $f['relation'] : $f['name']);
             $value = match ($f['type']) {
-                'foreign' => "{{ ac_localize(\$object->{$f['relation']}?->name) }}",
-                'belongsToMany' => "@foreach(\$object->{$f['relation']} as \$i)<x-admin-core::badge tone=\"secondary\">{{ ac_localize(\$i->name) ?: \$i->id }}</x-admin-core::badge> @endforeach",
+                'foreign' => "{{ ac_related_label(\$object->{$f['relation']}) }}",
+                'belongsToMany' => "@foreach(\$object->{$f['relation']} as \$i)<x-admin-core::badge tone=\"secondary\">{{ ac_related_label(\$i) ?: \$i->id }}</x-admin-core::badge> @endforeach",
                 'image' => "@if(\$object->{$f['name']})<img src=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" style=\"height:80px\" class=\"rounded\">@endif",
                 'file' => "@if(\$object->{$f['name']})<a href=\"{{ \\Ngos\\AdminCore\\Support\\Media::url(\$object->{$f['name']}) }}\" target=\"_blank\">Download</a>@endif",
                 'boolean' => "{{ \$object->{$f['name']} ? 'Yes' : 'No' }}",
