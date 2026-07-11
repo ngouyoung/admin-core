@@ -2,6 +2,39 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.86.0
+
+**Separate filesystem generation from database synchronization — new `admin-core:sync-permissions`.**
+`admin-core:make` mixed two responsibilities: it generated files AND mutated the runtime database
+(firstOrCreate permissions, grant the super role, clear the permission cache). When generation ran against
+an unreachable/`:memory:` database (CI, offline), it silently reached `if (! Schema::hasTable('permissions'))
+return;` and created **no** permissions — so the generated resource, its routes and its menu entry all
+existed, but `Sidebar::visible()` correctly hid it because `user->can('list-resource')` was false.
+
+- **`admin-core:make` is now filesystem-only** — it never creates permissions, grants roles, or touches the
+  database. (The one remaining DB write, an opt-in `menu_items` row for `menu_source=database`, is a *menu*
+  concern reserved for a future `admin-core:sync-menu`.)
+- **New `php artisan admin-core:sync-permissions`** — discovers the CRUD permissions the **routes** enforce
+  (`permission:{action}-{resource}[,{guard}]` middleware — no manifest), then `firstOrCreate`s the missing
+  ones and grants the configured role(s). Fully **idempotent**; **guard-aware**; **never throws when the
+  database is unavailable** — it prints the plan and exits with a documented code so CI/CD can detect a failed
+  sync: **exit 2** on a real run against an unreachable store (nothing written), **exit 0** for `--dry-run`
+  (plan only) and for success. Options: `--guard`, `--resource=*`, `--role=*`, `--dry-run`.
+- **First Synchronization Engine** — the logic lives behind a reusable `Support\Sync\Synchronizer` contract +
+  `SyncReport`, so future `sync-menu` / `sync-routes` / `sync-policies` share the same discover→plan→apply→report
+  flow. The relocated permission logic is `Support\Permissions\PermissionSynchronizer`.
+- **`admin-core:doctor` gains a Permission Health check** — flags route-enforced permissions with no database
+  row, permissions not granted to the super role, and orphan permissions, and recommends
+  `admin-core:sync-permissions` (never auto-fixes). Doctor now **exits non-zero** when it finds
+  missing/ungranted permissions (previously it only checked front-end asset drift), so CI catches a resource
+  that was generated but never synced.
+- **New config** `permission.default_roles` (roles to grant; empty = the per-guard/global `super_role`).
+
+**Upgrade note (non-breaking mechanism change):** after `admin-core:make`, run
+`php artisan admin-core:sync-permissions` to create + grant the resource's permissions — make no longer does
+it. Existing permissions are untouched; the command is idempotent, so run it any time (e.g. after a deploy or
+a database restore) to reconcile. No schema change, no migration required.
+
 ## v2.85.0
 
 **Fix (generator): generated resources render/filter/sort related + own labels by the resolved display

@@ -5,7 +5,11 @@ namespace Ngos\AdminCore\Console;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Ngos\AdminCore\Support\Permissions\PermissionNaming;
+use Ngos\AdminCore\Support\Permissions\PermissionSynchronizer;
+use Ngos\AdminCore\Support\Permissions\RouteResourceDiscovery;
 
 /**
  * Detect — and optionally repair — STUB DRIFT in an installed app.
@@ -37,13 +41,16 @@ class AdminCoreDoctorCommand extends Command
 
     public function handle(): int
     {
+        // Permission Health runs regardless of the frontend kit — it's a config-install concern.
+        $permissionsHealthy = $this->checkPermissionHealth();
+
         // Only the --access frontend kit publishes these files. On a minimal install the target paths hold the
         // framework's own defaults (e.g. resources/js/app.js) — comparing them to our stubs falsely reports
         // "drifted"/"missing", and --fix --force would overwrite a working minimal app with the theme stub.
         if (! $this->frontendKitInstalled()) {
-            $this->line('admin-core frontend kit not installed (run <info>admin-core:install --access</info>) — nothing to check.');
+            $this->line('admin-core frontend kit not installed (run <info>admin-core:install --access</info>) — skipping asset drift check.');
 
-            return self::SUCCESS;
+            return $permissionsHealthy ? self::SUCCESS : self::FAILURE;
         }
 
         $managed = $this->managedFiles();
@@ -75,9 +82,9 @@ class AdminCoreDoctorCommand extends Command
         }
 
         if ($drift === [] && $missing === []) {
-            $this->info('Everything is in sync with the package. ✔');
+            $this->info('admin-core frontend assets are in sync with the package. ✔');
 
-            return self::SUCCESS;
+            return $permissionsHealthy ? self::SUCCESS : self::FAILURE;
         }
 
         if (! $this->option('fix')) {
@@ -109,7 +116,117 @@ class AdminCoreDoctorCommand extends Command
         $this->newLine();
         $this->info('Updated. Review the changes with `git diff`, then rebuild assets (npm run build).');
 
-        return self::SUCCESS;
+        return $permissionsHealthy ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * Permission Health — verify the CRUD permissions the routes enforce exist in the database and are
+     * granted to the super role, and flag orphan permissions no route enforces. Reports only; the fix is
+     * `admin-core:sync-permissions`. Returns true when healthy / not applicable (nothing to recommend).
+     */
+    private function checkPermissionHealth(): bool
+    {
+        if (! config('admin-core.permission.enabled')) {
+            return true; // permissions disabled — not applicable
+        }
+
+        if (! app(PermissionSynchronizer::class)->available()) {
+            $this->line('Permission Health: <comment>database unavailable — skipped</comment>.');
+
+            return true; // can't check; not a failure
+        }
+
+        $specs = app(RouteResourceDiscovery::class)->discover();
+        if ($specs === []) {
+            return true;
+        }
+
+        /** @var class-string $permModel */
+        $permModel = config('admin-core.permission.model', \Spatie\Permission\Models\Permission::class);
+        /** @var class-string $roleModel */
+        $roleModel = config('admin-core.permission.role_model', \Spatie\Permission\Models\Role::class);
+        $rolesExist = Schema::hasTable('roles');
+
+        $missing = $ungranted = [];
+        $enforced = [];
+        foreach ($specs as $spec) {
+            $names = $spec->permissionNames();
+            $existing = $permModel::query()->whereIn('name', $names)->where('guard_name', $spec->guard)->pluck('name')->all();
+
+            foreach ($names as $name) {
+                $enforced[$spec->guard."\0".$name] = true;
+                if (! in_array($name, $existing, true)) {
+                    $missing[] = $name;
+                }
+            }
+
+            $roleName = config("admin-core.permission.guards.{$spec->guard}.super_role")
+                ?? config('admin-core.permission.super_role', 'admin');
+            if ($rolesExist && $roleName) {
+                // Only report ungranted permissions when the super role ACTUALLY EXISTS on this guard —
+                // otherwise sync-permissions can't grant them either (it grants only to existing roles), so
+                // flagging them would leave doctor permanently red with a remedy that can't clear it. A
+                // missing role on a guard (e.g. a portal without its own super_role) is not this check's
+                // concern; grant-time simply skips it.
+                $role = $roleModel::where('name', $roleName)->where('guard_name', $spec->guard)->first();
+                if ($role) {
+                    $held = $role->permissions->pluck('name')->all();
+                    foreach ($existing as $name) {
+                        if (! in_array($name, $held, true)) {
+                            $ungranted[] = $name;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Orphans: CRUD-shaped permission rows that no registered route enforces (a resource was removed).
+        $orphans = [];
+        foreach ($permModel::query()->get(['name', 'guard_name']) as $perm) {
+            if (PermissionNaming::parse($perm->name) !== null && ! isset($enforced[$perm->guard_name."\0".$perm->name])) {
+                $orphans[] = $perm->name;
+            }
+        }
+
+        $this->newLine();
+        $this->line('<options=bold>Permission Health</>');
+        $this->line('-----------------');
+
+        if ($missing === [] && $ungranted === [] && $orphans === []) {
+            $this->info('every route-enforced CRUD permission exists and is granted. ✔');
+
+            return true;
+        }
+
+        $this->reportList('route-enforced permissions with no database row', $missing);
+        $this->reportList('permissions not granted to the super role', $ungranted);
+        $this->reportList('orphan permissions — no route enforces them (informational; not auto-removed)', $orphans);
+
+        // An actionable recommendation — but NEVER run it automatically.
+        if ($missing !== [] || $ungranted !== []) {
+            $this->newLine();
+            $this->warn($missing !== [] ? 'Missing permissions detected.' : 'Ungranted permissions detected.');
+            $this->newLine();
+            $this->line('Recommended action:');
+            $this->line('    <info>php artisan admin-core:sync-permissions</info>');
+
+            return false;
+        }
+
+        return true; // only orphans — informational, nothing to sync
+    }
+
+    /** @param list<string> $items */
+    private function reportList(string $heading, array $items): void
+    {
+        if ($items === []) {
+            return;
+        }
+        $this->newLine();
+        $this->line("  <comment>{$heading}:</comment>");
+        foreach ($items as $item) {
+            $this->line('    '.$item);
+        }
     }
 
     /**

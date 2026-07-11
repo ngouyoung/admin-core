@@ -99,7 +99,8 @@ return [
     |--------------------------------------------------------------------------
     | When enabled, the Route::crud() macro wraps each action in a
     | `permission:{action}-{resource}` middleware (e.g. list-user, create-user),
-    | and admin-core:make creates the matching permission rows via `model`.
+    | and `admin-core:sync-permissions` creates the matching permission rows via `model` (make is
+    | filesystem-only and never touches the database).
     | Set enabled to false to register routes without permission middleware.
     */
     'permission' => [
@@ -107,9 +108,12 @@ return [
         'pattern' => '{action}-{resource}',
         'model' => \Spatie\Permission\Models\Permission::class,
         'role_model' => \Spatie\Permission\Models\Role::class,
-        // admin-core:make grants each new resource's permissions to this role so
-        // it's usable immediately (no AccessSeeder re-run). Set null to disable.
+        // `admin-core:sync-permissions` grants each resource's permissions to this role so it's usable
+        // immediately (make itself is filesystem-only and never touches the database). Set null to disable.
         'super_role' => 'admin',
+        // Roles `admin-core:sync-permissions` grants to. Empty = just the (per-guard) super_role above.
+        // Set to grant several roles, e.g. ['admin', 'super-admin']. The --role option overrides this per run.
+        'default_roles' => [],
         // Default guard for generated permissions + route gates. `admin-core:make --guard=…`
         // overrides per resource (multi-portal). Spatie scopes permissions by guard.
         'guard' => 'web',

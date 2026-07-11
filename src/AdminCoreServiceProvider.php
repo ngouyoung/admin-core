@@ -14,6 +14,7 @@ use Ngos\AdminCore\Console\AdminCoreMenuImportCommand;
 use Ngos\AdminCore\Console\AdminCorePageCommand;
 use Ngos\AdminCore\Console\AdminCorePortalCommand;
 use Ngos\AdminCore\Console\AdminCoreReinstallCommand;
+use Ngos\AdminCore\Console\AdminCoreSyncPermissionsCommand;
 use Ngos\AdminCore\Console\AdminCoreTranslateCommand;
 use Ngos\AdminCore\Console\AdminCoreUninstallCommand;
 use Ngos\AdminCore\Console\AdminCoreVersionCommand;
@@ -65,6 +66,7 @@ class AdminCoreServiceProvider extends ServiceProvider
                 AdminCoreInstallCommand::class,
                 AdminCoreMakeCommand::class,
                 AdminCoreMakeWidgetCommand::class,
+                AdminCoreSyncPermissionsCommand::class,
                 AdminCoreFieldCommand::class,
                 AdminCorePageCommand::class,
                 AdminCoreDoctorCommand::class,

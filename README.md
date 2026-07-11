@@ -55,10 +55,11 @@ Log in at **`/login`** with **`admin@example.com` / `password`**.
 php artisan admin-core:make Product --migration \
     --fields="name:string, price:decimal, status:enum:draft|published"
 php artisan migrate
+php artisan admin-core:sync-permissions   # create + grant the resource's permissions
 ```
 
-Visit **`/admin/products`** — full CRUD with search, sort, status filter-tabs and CSV export, permissions
-already granted to the admin role. That's the whole loop; everything below is detail.
+Visit **`/admin/products`** — full CRUD with search, sort, status filter-tabs and CSV export. That's the whole
+loop; everything below is detail.
 
 > **No styling?** The theme needs a front-end build. The `--build` flag above runs it; otherwise run
 > `npm install && npm run build` yourself. (The admin still renders without it — just unstyled.)
@@ -107,7 +108,24 @@ On top of the minimal install, `--access` adds (all in *your* `App\` namespace, 
   and an `AccessSeeder` (an `admin` role with every permission + the `admin@example.com` user).
 - The themed front-end kit (`--build` runs `npm install && npm run build`).
 
-`admin-core:make` auto-grants each new resource's permissions to the `admin` role, so there's nothing to re-seed.
+### Syncing permissions (`admin-core:sync-permissions`)
+
+`admin-core:make` writes **only files** — it never touches the database (so generation works offline, in CI,
+and against an unreachable database). The routes it generates gate on `permission:{action}-{resource}`; run
+`admin-core:sync-permissions` to create those permissions and grant them to the configured role. It reads the
+permissions from the **routes** (no manifest), is **idempotent** (safe to re-run any time — after a deploy, a
+database restore, or generating a new resource), and never throws when the database is unavailable:
+
+```bash
+php artisan admin-core:sync-permissions              # create + grant the CRUD permissions the routes enforce
+php artisan admin-core:sync-permissions --dry-run    # show the plan; write nothing (exit 0)
+php artisan admin-core:sync-permissions --resource=product --guard=web --role=admin
+```
+
+Exit codes (for CI): **0** on success or `--dry-run`; **2** when the database is unreachable on a real run
+(nothing written). Grants go to `config('admin-core.permission.default_roles')` (or the per-guard/global
+`super_role` when empty). Run `admin-core:doctor` (below) to check which route-enforced permissions are still
+missing. *(Detailed docs to follow.)*
 
 ### Keeping published assets in sync (`admin-core:doctor`)
 
@@ -124,6 +142,11 @@ php artisan admin-core:doctor --fix    # update them to the package version (rev
 Behaviour files (`.js`) are flagged distinctly — they're the ones that usually carry bug/security fixes. Your
 own theme/layout edits live in these files too, so `--fix` is opt-in (and refuses non-interactively without
 `--force`); review with `git diff` before committing, then rebuild assets.
+
+`admin-core:doctor` also runs a **Permission Health** check: it reports route-enforced permissions with no
+database row, permissions not granted to the super role, and orphan permissions, and recommends
+`admin-core:sync-permissions` (it never changes anything automatically). Doctor **exits non-zero** when it
+finds missing/ungranted permissions, so CI can catch a resource that was generated but never synced.
 
 ## Generating a resource
 
