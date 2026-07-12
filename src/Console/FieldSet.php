@@ -2891,7 +2891,7 @@ BLADE;
                 // a CLOSURE so the query runs only when the bar renders (index) — NOT on every getData() AJAX hit,
                 // which reads type/currency only. A large / translatable-name relation: swap to a custom entry.
                 $lines[] = "            ['column' => '{$f['name']}', 'type' => 'select', 'label' => {$this->acLabelExpr($f['relation'])}, 'options' => "
-                    . "fn () => \\App\\Models\\{$f['relModel']}::pluck(ac_display_column(new \\App\\Models\\{$f['relModel']}), 'id')->all()],";
+                    . "fn () => \\App\\Models\\{$f['relModel']}::pluck(\\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(new \\App\\Models\\{$f['relModel']})->labelColumn(), 'id')->all()],";
             } elseif ($f['type'] === 'money') {
                 // A per-record (multi-currency) money column can't be range-filtered with a single currency — one
                 // bound's decimals would be wrong for every row not in that currency. Skip it (filter by the
@@ -3116,7 +3116,7 @@ PHP;
         return match ($f['type']) {
             'foreign' => $this->foreignDataColumn($f),
             'belongsToMany' => "            ->addColumn('{$f['relation']}', fn (\$row) => \$row->{$f['relation']}->map(fn (\$i) => '<span class=\"badge text-bg-secondary\">' . e(ac_related_label(\$i) ?: \$i->id) . '</span>')->implode(' '))\n"
-                . "            ->filterColumn('{$f['relation']}', fn (\$q, \$keyword) => \$q->whereHas('{$f['relation']}', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, ac_display_column(\$rq->getModel()), \$keyword)))",
+                . "            ->filterColumn('{$f['relation']}', fn (\$q, \$keyword) => \$q->whereHas('{$f['relation']}', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, \\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(\$rq->getModel())->labelColumn(), \$keyword)))",
             // Match the show view's status badge / Yes-No / formatted date rather than leaking a raw value.
             'enum' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"ac-status\" data-status=\"' . e(\$row->{$f['name']}->value) . '\">' . e(\\Illuminate\\Support\\Str::headline(\$row->{$f['name']}->value)) . '</span>' : '')",
             'boolean' => "            ->editColumn('{$f['name']}', fn (\$row) => \$row->{$f['name']} ? '<span class=\"badge text-bg-success\">Yes</span>' : '<span class=\"badge text-bg-secondary\">No</span>')",
@@ -3152,10 +3152,12 @@ PHP;
     }
 
     /**
-     * getData() lines for a belongsTo column: display the related name, make the global search match it
-     * (filterColumn → whereHas on the related `name`), and make the column sortable by that name
-     * (orderColumn → a correlated subquery). Assumes the related model has a `name` column — the same
-     * assumption the form select and the list/show display already make.
+     * getData() lines for a belongsTo column: display the related label, make the global search match it
+     * (filterColumn → whereHas on the related display column), and make the column sortable by that column
+     * (orderColumn → a correlated subquery). The display/search/sort column is resolved through the resource
+     * view-config API — RelationDisplayColumn::for()->labelColumn(), which is descriptor-backed and type-anchored
+     * (correct even inside the whereHas self-join alias) and NONE-safe (never null). This is byte-for-byte the
+     * prior ac_display_column() resolution — the same column the form select and the list/show display use.
      */
     private function foreignDataColumn(array $f): string
     {
@@ -3166,8 +3168,8 @@ PHP;
         $relTable = $f['relTable'];
 
         return "            ->addColumn('{$rel}', fn (\$row) => ac_related_label(\$row->{$rel}))\n"
-            . "            ->filterColumn('{$rel}', fn (\$q, \$keyword) => \$q->whereHas('{$rel}', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, ac_display_column(\$rq->getModel()), \$keyword)))\n"
-            . "            ->orderColumn('{$rel}', fn (\$q, \$dir) => \$q->orderBy({$relModel}::select(ac_display_column(new {$relModel}))->whereColumn('{$relTable}.id', '{$this->table}.{$f['name']}'), \$dir))";
+            . "            ->filterColumn('{$rel}', fn (\$q, \$keyword) => \$q->whereHas('{$rel}', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, \\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(\$rq->getModel())->labelColumn(), \$keyword)))\n"
+            . "            ->orderColumn('{$rel}', fn (\$q, \$dir) => \$q->orderBy({$relModel}::select(\\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(new {$relModel})->labelColumn())->whereColumn('{$relTable}.id', '{$this->table}.{$f['name']}'), \$dir))";
     }
 
     /** Read-only detail rows for the show view. */

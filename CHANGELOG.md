@@ -2,6 +2,92 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.87.0
+
+This release completes the **Display Column / Model Naming** subsystem (RFC-0009 Rev 2), delivered as one coherent
+set of additive, default-preserving changes: a structured display-column **descriptor** (`ac_display_descriptor()`),
+the formalized resource **view configuration** (`RelationDisplayColumn`, `SearchColumnSet`, `SortColumnSet`), the
+runtime read path and newly generated resources routed through them, and an **opt-in compatibility flag** for
+Explicit NONE. **By default every change is byte-for-byte** — labels, lists, `<select>`s, exports, API responses,
+search, sort, and existing generated applications are identical unless you opt into `admin-core.explicit_none`.
+SemVer: **MINOR** (additive; a future v3.0.0 flips the flag default). The per-step notes below each preserved default
+behavior on their own; together they are this one release.
+
+**Add: `ac_display_descriptor()` — the read-side display-column descriptor.** A new, additive helper that
+exposes a model type's display-column resolution as structured metadata: `['kind' => 'column'|'computed'|'none',
+'column' => …, 'columns' => [...]]` (the label kind, its backing column when there is one, and the columns that
+must be hydrated to render it). Like `ac_display_column()`, it resolves from the immutable class (composition
+fidelity — never a mutable, possibly-aliased instance `getTable()`) and is memoised per class, so its output is
+deterministic and Octane-safe.
+
+**Wire: the descriptor is now the single internal read source for display-column resolution.** `ac_display_column()`
+is reimplemented as a thin string facade over the descriptor — it returns the descriptor's backing column, or (the
+unchanged legacy behavior) the model's route key for a label-less (`none`) model. The read-side label consumers —
+`ac_related_label()` and the `WebController` select/export label surfaces, which resolve labels through
+`ac_display_column()` — therefore obtain their naming information through the descriptor, with no duplicated
+resolution logic.
+
+- **No behavior change** — `ac_display_column(): string` is byte-for-byte compatible for every existing caller,
+  and every rendered label (list, `<select>`, export, API) is identical. This step re-plumbs the read path only; it
+  does not change what any consumer displays. (The view-configuration, generator, and compatibility-flag additions
+  below build on this wiring; the write path is untouched throughout the release.)
+- **The concrete descriptor array representation is an internal implementation detail** — RFC-0009 Rev 2 guarantees
+  only the descriptor *semantics*; the array layout and key names may evolve in a future release without an
+  architectural-contract change. Read the descriptor through the helper, not by depending on the literal shape.
+
+**Formalize: Resource View Configuration.** Three resource-owned, immutable, stateless value objects under
+`Ngos\AdminCore\Support\View` name what a resource already computes for its list/select/API surfaces:
+
+- `RelationDisplayColumn` — the single column used to display / sort / search **one relation** by its label.
+  Its default derives from the *related* model's canonical label backing column (via the descriptor); a
+  **computed** or absent label yields **NONE** (formally not sortable/searchable by a label column). Its
+  `labelColumn()` is byte-for-byte `ac_display_column()` — the route-key fallback for a label-less related model
+  is preserved — so nothing rendered changes.
+- `SearchColumnSet` / `SortColumnSet` — the resource's **broad, multi-column** searchable / sortable sets over
+  its own fields (from an API controller's `$searchable`/`$sortable`, a `select()`'s `$selectSearch`). They are
+  **not** derived from, nor narrowed to, a single display column — the split from `RelationDisplayColumn` exists
+  precisely to prevent silent search/sort narrowing.
+
+This is a **formalization**: `ApiController` search/sort, `WebController::select()`, and `ac_related_label()` now
+read these value objects, and every rendered label, search match, and sort order is **byte-for-byte identical**.
+No write-path or public-API behavior change. Acting on a relation's NONE is not enabled by this formalization: the
+opt-in `admin-core.explicit_none` flag (below) gates it for the display label, and disabling sort/search on a NONE
+column remains a future v3.0.0 change.
+
+**Generator: emit descriptor-aware, Resource View Configuration-aware resources.** Newly generated resources now
+resolve a relation's search (`filterColumn`), sort (`orderColumn`) and filter-bar option label through the
+`RelationDisplayColumn` view-config API — `\Ngos\AdminCore\Support\View\RelationDisplayColumn::for(...)->labelColumn()`
+— instead of the inline `ac_display_column()` call. The resolution is descriptor-backed and type-anchored (correct
+inside a self-referential `whereHas` alias) and NONE-safe (`labelColumn()` never returns null).
+
+- **Generator output only, no runtime behavior change.** `labelColumn()` is byte-for-byte `ac_display_column()`, so
+  the emitted queries and labels behave exactly as before. **Existing generated applications are untouched** — only
+  newly generated code adopts the new internal API. No public-API or write-path change, and this generator step is
+  Explicit-NONE-agnostic — the opt-in flag below is the release's only Explicit-NONE surface.
+
+**Testing: expanded generator verification and regression coverage.** Added regression locks over the descriptor /
+Resource View Configuration-aware generator output (Backlogs #4–#7): the belongsTo, belongsToMany, and
+self-referential relation `getData` emission (descriptor-aware `ac_related_label` display + `RelationDisplayColumn::for(...)->labelColumn()`
+search/sort, NONE-safe, with no legacy `ac_display_column()` or hardcoded `name`), the show/resource relation
+labels, the current API `SearchColumnSet`/`SortColumnSet` whitelists (verified, not re-shaped), deterministic and
+byte-stable output, and `php -l` validity of the generated controllers. Verification only — no runtime, emission, or
+generated-public-API change.
+
+**Add: `admin-core.explicit_none` compatibility flag (default OFF) — opt-in Explicit NONE.** A new config flag gates
+the future v3.0.0 behavior for a **genuinely label-less related model** (descriptor kind `none`: no `name`/`title`/`label`
+and no `displayColumn()` override):
+
+- `false` (**default — today's behavior**): the relation label falls back to the model's route key (its id/uuid).
+  Byte-for-byte the historical behavior — leaving the flag off changes nothing.
+- `true` (**opt-in**): that missing label resolves to **NONE** (an empty cell) instead of leaking a route key. Gated
+  in the label read path (`ac_related_label()`) only; a `computed` label (whose accessor is a real value) is **not**
+  gated, and the flag touches **nothing else** — not the descriptor, `RelationDisplayColumn`, `ac_display_column()`,
+  search, or sort (search/sort keep resolving a real column, never a missing one).
+
+This is a **compatibility gate**, not a behavior change: the default preserves existing output, labels, API, and
+generated applications exactly. A future **v3.0.0** flips the default to `true` (a MAJOR change); this release lets a
+product adopt it early via `ADMIN_CORE_EXPLICIT_NONE=true`. SemVer: MINOR (additive, default-preserving).
+
 ## v2.86.2
 
 **Fix: `ac_display_column()` resolves the display column from the model TYPE, not a mutable runtime instance

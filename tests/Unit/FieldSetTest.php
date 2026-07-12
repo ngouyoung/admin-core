@@ -558,13 +558,16 @@ it('makes a belongsTo list column searchable and sortable by the related name', 
     // JS column carries a name and is no longer searchable:false (so the global search + sort reach it).
     expect($f->columnsJs())->toContain("{data: 'category', name: 'category'}");
 
-    // getData wires the search (whereHas on the related name, via the escaped LIKE helper) and sort.
+    // getData wires the search (whereHas on the related display column, via the escaped LIKE helper) and sort.
+    // Backlog #7: both resolve the column through the RelationDisplayColumn view-config API (->labelColumn() —
+    // byte-for-byte ac_display_column, type-anchored, NONE-safe), not the raw helper.
     expect($f->getDataColumns())
         ->toContain("->filterColumn('category', fn (\$q, \$keyword) => \$q->whereHas('category'")
-        ->toContain("\\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, ac_display_column(\$rq->getModel()), \$keyword)")
+        ->toContain("\\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, \\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(\$rq->getModel())->labelColumn(), \$keyword)")
         ->not->toContain("->where('name', 'like', \"%{\$keyword}%\")") // no raw unescaped LIKE
+        ->not->toContain('ac_display_column(') // legacy inline helper replaced by the view-config API
         ->toContain("->orderColumn('category'")
-        ->toContain("\\App\\Models\\Category::select(ac_display_column(new \\App\\Models\\Category))->whereColumn('categories.id', 'products.category_id')");
+        ->toContain("\\App\\Models\\Category::select(\\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(new \\App\\Models\\Category)->labelColumn())->whereColumn('categories.id', 'products.category_id')");
 });
 
 it('handles a unique field with the Rule import on update', function () {
@@ -717,9 +720,12 @@ it('makes a belongsToMany list column searchable by the related name (not sortab
     // Searchable (name + no searchable:false) but not orderable (multi-value relation).
     expect($f->columnsJs())->toContain("{data: 'tags', name: 'tags', orderable: false}");
 
-    // Search wires a whereHas on the related name; no orderColumn (sorting a m2m is ambiguous).
+    // Search wires a whereHas on the related display column, resolved through the RelationDisplayColumn view-config
+    // API (Backlog #7 — ->labelColumn(), byte-for-byte ac_display_column, type-anchored, NONE-safe); no orderColumn
+    // (sorting a m2m is ambiguous).
     expect($f->getDataColumns())
-        ->toContain("->filterColumn('tags', fn (\$q, \$keyword) => \$q->whereHas('tags'")
+        ->toContain("->filterColumn('tags', fn (\$q, \$keyword) => \$q->whereHas('tags', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, \\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(\$rq->getModel())->labelColumn(), \$keyword)))")
+        ->not->toContain('ac_display_column(')            // legacy inline helper replaced by the view-config API
         ->not->toContain("->orderColumn('tags'");
 });
 
@@ -1242,4 +1248,86 @@ it('keys relation labels by the relation name, not the foreign-key column', func
     expect($f->thead())->toContain("ac_label('products', 'category')");
     expect($f->exportFields()['category'])->toBe("ac_label('products', 'category')");
     expect($f->listFiltersConfig())->toContain("'label' => ac_label('products', 'category')");
+});
+
+/*
+ * ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+ * Backlog #8 (RFC-0009 Rev 2) — Generator verification & regression lock.
+ *
+ * These pin the descriptor / Resource View Configuration-aware output the generator emits (Backlogs #4–#7), so a
+ * future edit cannot silently regress a generated resource back to a hardcoded `name`, the legacy inline
+ * ac_display_column() call, or a NONE-unsafe ->column(). Verification only — no runtime behaviour, no new emission.
+ * ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+ */
+
+it('locks the belongsTo getData emission: descriptor display + RelationDisplayColumn search/sort, NONE-safe, no legacy', function () {
+    $data = fs('name:string, category_id:foreign:categories', 'products')->getDataColumns();
+
+    expect($data)
+        // display: the descriptor-aware, null-safe related label (never a hardcoded name)
+        ->toContain("->addColumn('category', fn (\$row) => ac_related_label(\$row->category))")
+        // search: through the view-config API, type-anchored (resolves the aliased whereHas instance from its class)
+        ->toContain("\\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, \\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(\$rq->getModel())->labelColumn(), \$keyword)")
+        // sort: the correlated subquery selects the RelationDisplayColumn label column
+        ->toContain("\\App\\Models\\Category::select(\\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(new \\App\\Models\\Category)->labelColumn())")
+        // NONE-safe: the emitted SQL uses ->labelColumn() (never null), never the nullable formal ->column()
+        ->toContain('->labelColumn()')
+        ->not->toContain('->column()')
+        // no legacy inline helper, no hardcoded name column
+        ->not->toContain('ac_display_column(')
+        ->not->toContain("whereLike(\$rq, 'name'");
+});
+
+it('locks the self-referencing foreign getData emission: RelationDisplayColumn on both the search and the self-join sort', function () {
+    // parent_id:foreign:categories on the categories table → a self-referential adjacency (the FI-6/FI-7 shape).
+    $data = fs('name:string, parent_id:foreign:categories', 'categories')->setClass('Category')->getDataColumns();
+
+    expect($data)
+        ->toContain("->filterColumn('parent', fn (\$q, \$keyword) => \$q->whereHas('parent', fn (\$rq) => \\Ngos\\AdminCore\\Support\\Search::whereLike(\$rq, \\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(\$rq->getModel())->labelColumn(), \$keyword)))")
+        // the self-join correlates categories.id to categories.parent_id, ordering by the resolved label column
+        ->toContain("\\App\\Models\\Category::select(\\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(new \\App\\Models\\Category)->labelColumn())->whereColumn('categories.id', 'categories.parent_id')")
+        ->not->toContain('ac_display_column(');
+});
+
+it('locks the belongsToMany getData emission: RelationDisplayColumn search, descriptor-aware badge label, no sort', function () {
+    $data = fs('name:string, tags:belongsToMany', 'products')->getDataColumns();
+
+    expect($data)
+        ->toContain('ac_related_label($i)')                                    // badge label via the descriptor
+        ->toContain("\\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(\$rq->getModel())->labelColumn()") // search
+        ->not->toContain('ac_display_column(')
+        ->not->toContain("->orderColumn('tags'");                             // a m2m is not sortable
+});
+
+it('locks the descriptor-aware show + resource emission for a relation (ac_related_label, never a raw name)', function () {
+    $f = fs('name:string, category_id:foreign:categories', 'products');
+
+    expect($f->showRows())
+        ->toContain('ac_related_label($object->category)')
+        ->not->toContain('$object->category?->name');
+});
+
+it('verifies the current SearchColumnSet / SortColumnSet emission (API whitelists) without changing it', function () {
+    // The resource's own multi-column search/sort sets, as the generator emits them today (broad, type-derived —
+    // Backlog #8 verifies CURRENT behaviour only; it does not narrow or re-shape them).
+    $f = fs('title:string, body:text, qty:integer, price:money:KHR, category_id:foreign:categories', 'products');
+
+    expect($f->apiSearchable())->toBe("'title', 'body'");                       // text-like fields only
+    expect($f->apiSortable())->toBe("'title', 'qty', 'price', 'created_at'");   // scalar whitelist + created_at
+    expect($f->apiFilterable())->toBe("'category_id'");                         // exact-match (foreign)
+});
+
+it('emits deterministic, stable output: the same field spec yields byte-identical generator output', function () {
+    $spec = 'name:string, category_id:foreign:categories, tags:belongsToMany, price:money:KHR';
+    $a = fs($spec, 'products');
+    $b = fs($spec, 'products');
+
+    // Pure emission — no ordering, randomness, or timestamps leak into a generated resource's code.
+    expect($a->getDataColumns())->toBe($b->getDataColumns())
+        ->and($a->columnsConfig())->toBe($b->columnsConfig())
+        ->and($a->relations())->toBe($b->relations())
+        ->and($a->foreignColumns())->toBe($b->foreignColumns())
+        ->and($a->showRows())->toBe($b->showRows())
+        ->and($a->apiSearchable())->toBe($b->apiSearchable())
+        ->and($a->apiSortable())->toBe($b->apiSortable());
 });

@@ -64,13 +64,16 @@ abstract class ApiController extends BaseController
     /** `?search=term` → OR-LIKE across the searchable columns (grouped so it doesn't leak past filters). */
     protected function applySearch(Builder $query, Request $request): void
     {
+        // Read the resource's SearchColumnSet (RFC-0009 Rev 2 view-config) — the same broad, multi-column set of
+        // $this->searchable, formalized; the OR-LIKE fans out across exactly the columns it does today.
+        $searchColumns = \Ngos\AdminCore\Support\View\SearchColumnSet::of($this->searchable);
         $term = $request->query('search', '');
-        if (! is_string($term) || ($term = trim($term)) === '' || $this->searchable === []) {
+        if (! is_string($term) || ($term = trim($term)) === '' || $searchColumns->isEmpty()) {
             return;
         }
 
-        $query->where(function (Builder $q) use ($term) {
-            foreach ($this->searchable as $column) {
+        $query->where(function (Builder $q) use ($searchColumns, $term) {
+            foreach ($searchColumns->columns() as $column) {
                 // Route through the shared escaped LIKE so `_`/`%` in the term match literally (no over-match),
                 // consistently with the global search + list filters (one place to keep this correct).
                 \Ngos\AdminCore\Support\Search::whereLike($q, $column, $term, 'or');
@@ -89,7 +92,9 @@ abstract class ApiController extends BaseController
         $descending = str_starts_with($sort, '-');
         $column = ltrim($sort, '-');
 
-        if (in_array($column, $this->sortable, true)) {
+        // Whitelist against the resource's SortColumnSet (RFC-0009 Rev 2 view-config) — the same broad, multi-column
+        // $this->sortable, formalized; membership accepts exactly the columns the resource sorts by today.
+        if (\Ngos\AdminCore\Support\View\SortColumnSet::of($this->sortable)->contains($column)) {
             $query->orderBy($column, $descending ? 'desc' : 'asc');
         }
     }

@@ -90,22 +90,64 @@ if (! function_exists('ac_display_column')) {
      */
     function ac_display_column(\Illuminate\Database\Eloquent\Model $model): string
     {
+        // The descriptor is the single internal read source (RFC-0009 Rev 2, Backlog #5). This backward-compatible
+        // string facade returns the descriptor's backing column — or, the unchanged legacy behavior, the model's
+        // route key for a label-less (`none`) model. Type-based resolution (composition fidelity: from the
+        // immutable class, never a mutable instance getTable()), the name→title→label order, the displayColumn()
+        // override, and per-class memoisation all live in ac_display_descriptor(), so this facade is byte-for-byte
+        // compatible for every existing caller. Read-side consumers (ac_related_label, WebController::select /
+        // ::export) resolve labels through this facade and are thereby wired to the descriptor with no duplication.
+        return ac_display_descriptor($model)['column'] ?? $model->getRouteKeyName();
+    }
+}
+
+if (! function_exists('ac_display_descriptor')) {
+    /**
+     * The full display-column DESCRIPTOR for a model type (RFC-0009 Rev 2): its KIND — a backing `column`, a
+     * model-`computed` label, or explicit `none` (no label column) — plus the columns that must be hydrated to
+     * render it. This is the additive, READ-SIDE companion to {@see ac_display_column()}: it exposes the same
+     * type-level resolution as structured metadata. It resolves from the IMMUTABLE class (composition fidelity —
+     * never the passed instance's getTable(), which a self-referential relation query may have aliased) and is
+     * memoised per class, so the result is deterministic and Octane-safe. Nothing consumes this yet, and
+     * {@see ac_display_column()} is unchanged — a label-less model still yields its route-key string there while
+     * this descriptor reports the explicit `none`.
+     *
+     * The concrete array REPRESENTATION is an INTERNAL implementation detail. RFC-0009 Rev 2 guarantees only the
+     * descriptor SEMANTICS (its kind, the backing column when there is one, and the columns to hydrate) — never
+     * this array layout, its key names, or any serialization. The representation may evolve in a future release
+     * without changing the architectural contract; read it through this helper, do not depend on the literal shape.
+     *
+     * @return array{kind: 'column'|'computed'|'none', column: string|null, columns: list<string>}
+     */
+    function ac_display_descriptor(\Illuminate\Database\Eloquent\Model $model): array
+    {
         static $memo = [];
         $class = $model::class;
         if (isset($memo[$class])) {
             return $memo[$class];
         }
+        // Resolve the schema from the TYPE's canonical table (a fresh instance of the class), matching
+        // ac_display_column()'s composition-fidelity fix — never the passed instance's possibly-aliased getTable().
+        $table = (new $class)->getTable();
+
         if (method_exists($model, 'displayColumn')) {
-            return $memo[$class] = (string) $model->{'displayColumn'}();
+            $declared = (string) $model->{'displayColumn'}();
+
+            // A declared display column that exists on the table is a plain `column`; one that does not is a
+            // model-`computed` label (an accessor the model resolves itself) — a bare name declares no columns.
+            return $memo[$class] = \Illuminate\Support\Facades\Schema::hasColumn($table, $declared)
+                ? ['kind' => 'column', 'column' => $declared, 'columns' => [$declared]]
+                : ['kind' => 'computed', 'column' => $declared, 'columns' => []];
         }
-        $table = $model->getTable();
+
         foreach (['name', 'title', 'label'] as $column) {
             if (\Illuminate\Support\Facades\Schema::hasColumn($table, $column)) {
-                return $memo[$class] = $column;
+                return $memo[$class] = ['kind' => 'column', 'column' => $column, 'columns' => [$column]];
             }
         }
 
-        return $memo[$class] = $model->getRouteKeyName();
+        // No conventional label column — explicit `none`.
+        return $memo[$class] = ['kind' => 'none', 'column' => null, 'columns' => []];
     }
 }
 
@@ -118,7 +160,24 @@ if (! function_exists('ac_related_label')) {
      */
     function ac_related_label(?\Illuminate\Database\Eloquent\Model $related): ?string
     {
-        return $related ? ac_localize($related->{ac_display_column($related)}) : null;
+        if ($related === null) {
+            return null;
+        }
+
+        // Resolve the relation's display column through the formalized RESOURCE view-config (RFC-0009 Rev 2).
+        $display = \Ngos\AdminCore\Support\View\RelationDisplayColumn::for($related);
+
+        // Explicit NONE (RFC-0009 Rev 2) — DEFAULT since v3.0.0. A genuinely label-less related model (descriptor
+        // kind 'none': no name/title/label and no displayColumn() override) resolves to NONE (null / an empty cell)
+        // instead of leaking a route key. The `explicit_none` flag remains only as a DEPRECATED opt-out — set it to
+        // false to restore the pre-v3.0.0 route-key fallback during migration (to be removed in a future major). A
+        // 'computed' label is deliberately NOT gated (its accessor IS a real value), and this gate touches neither
+        // the descriptor, RelationDisplayColumn, nor search/sort (labelColumn() below is byte-for-byte ac_display_column()).
+        if ($display->kind === 'none' && config('admin-core.explicit_none', false)) {
+            return null;
+        }
+
+        return ac_localize($related->{$display->labelColumn()});
     }
 }
 

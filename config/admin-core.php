@@ -458,4 +458,31 @@ return [
         'base_model' => \Illuminate\Database\Eloquent\Model::class,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Explicit NONE for a missing display label (RFC-0009 Rev 2) — compatibility flag
+    |--------------------------------------------------------------------------
+    |
+    | How a RELATED model that has NO human label column (no `name` / `title` /
+    | `label`, and no `displayColumn()` override) renders in a list / show / API
+    | relation cell.
+    |
+    |   true   (DEFAULT since v3.0.0) — such a label resolves to NONE: the cell
+    |            renders empty instead of leaking a route key. It affects ONLY the
+    |            label shown for a genuinely label-less related model — never a
+    |            `computed` label (whose accessor is a real value), and never the
+    |            descriptor, search, or sort.
+    |
+    |   false  (DEPRECATED opt-out) — restore the pre-v3.0.0 behavior: fall back to
+    |            the model's route key, so the cell shows its id / uuid. Provided as
+    |            a temporary migration escape hatch; it will be REMOVED in a future
+    |            major (RFC-0009 Rev 2: "deprecate then remove").
+    |
+    | v3.0.0 flipped this default from false to true (a MAJOR behavior change). Set
+    | it to false only to defer the change while you give label-less related models a
+    | real label column (`name`/`title`/`label`) or a `displayColumn()` override.
+    |
+    */
+    'explicit_none' => env('ADMIN_CORE_EXPLICIT_NONE', false),
+
 ];

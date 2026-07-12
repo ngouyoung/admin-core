@@ -482,7 +482,9 @@ abstract class WebController extends BaseController
         // explicit $selectLabel string still wins. The SAME resolution drives the current-value prefill
         // (ac_fk_option), so they can't disagree.
         $label = $this->selectLabel ?? ac_display_column($this->service->query()->getModel());
-        $columns = $this->selectSearch ?: [$label];
+        // The remote source's SearchColumnSet (RFC-0009 Rev 2 view-config): the resource's $selectSearch, or the
+        // resolved label column when none is declared — formalized, matching today's columns exactly.
+        $columns = \Ngos\AdminCore\Support\View\SearchColumnSet::of($this->selectSearch ?: [$label])->columns();
         $term = trim((string) $request->query('term', ''));
 
         $query = $this->service->query();

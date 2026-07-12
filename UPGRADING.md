@@ -12,6 +12,49 @@ npm install && npm run build
 
 ---
 
+## → v2.87.0 — Display-column descriptor, view config, generator update & Explicit NONE flag (opt-in; no action required)
+
+**No breaking change. No action required to stay on today's behavior.** v2.87.0 completes the Display Column /
+Model Naming subsystem: a structured display-column descriptor (`ac_display_descriptor()`), the formalized resource
+view configuration (`RelationDisplayColumn`, `SearchColumnSet`, `SortColumnSet`), and a generator that emits them.
+**All of that is internal and byte-for-byte** — existing applications, already-generated code, labels, search, and
+sort are unchanged, and newly generated resources behave identically. Nothing to do.
+
+The only opt-in is a compatibility flag, `admin-core.explicit_none`, that is **OFF by default** — every label,
+list, API response, and generated application behaves byte-for-byte as before.
+
+The flag controls one thing: how a **related model with no human label column** (no `name` / `title` / `label`,
+and no `displayColumn()` override) renders in a relation cell.
+
+| `explicit_none` | Behavior for a label-less related model |
+|---|---|
+| `false` (default) | Falls back to the route key — the cell shows the id / uuid (today's behavior). |
+| `true` (opt-in) | Resolves to **NONE** — the cell renders empty instead of leaking a route key. |
+
+To adopt the new behavior early (it becomes the default in a future **v3.0.0**), publish the config and set the
+flag, or use the env var:
+
+```bash
+# .env
+ADMIN_CORE_EXPLICIT_NONE=true
+```
+
+```php
+// config/admin-core.php
+'explicit_none' => true,
+```
+
+Scope of the flag when ON: it affects **only** the label shown for a genuinely label-less related model. A
+`computed` label (a `displayColumn()` accessor) is unaffected — its value is real and still renders. Search and
+sort are unchanged (they always resolve a real column, never a missing one). The descriptor and
+`RelationDisplayColumn` are unchanged. Turning the flag off restores the previous behavior exactly.
+
+**Planning for v3.0.0:** when the default flips to `true`, any list/show/API cell that today shows a route key for
+a label-less relation will render empty. If you rely on that route key being visible, give the related model a real
+label column (`name` / `title` / `label`) or a `displayColumn()` override before upgrading to v3.0.0.
+
+---
+
 ## → v2.5.0 — One-command portals (`admin-core:portal`)
 
 No breaking change — new command. Stand up a whole second portal in one go (since v2.6.0, with a

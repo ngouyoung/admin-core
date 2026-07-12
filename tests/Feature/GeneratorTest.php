@@ -1195,7 +1195,7 @@ it('generates foreign (select) + money/decimal (number range) filters', function
     $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
     expect($controller)
         // foreign options are a CLOSURE → the query runs at render time, not on every getData() AJAX hit.
-        ->toContain("'column' => 'category_id', 'type' => 'select', 'label' => ac_label('gizmos', 'category'), 'options' => fn () => \\App\\Models\\Category::pluck(ac_display_column(new \\App\\Models\\Category), 'id')->all()")
+        ->toContain("'column' => 'category_id', 'type' => 'select', 'label' => ac_label('gizmos', 'category'), 'options' => fn () => \\App\\Models\\Category::pluck(\\Ngos\\AdminCore\\Support\\View\\RelationDisplayColumn::for(new \\App\\Models\\Category)->labelColumn(), 'id')->all()")
         ->toContain("'column' => 'price', 'type' => 'number', 'label' => ac_label('gizmos', 'price'), 'money' => true, 'currency' => 'KHR'")
         ->toContain("'column' => 'weight', 'type' => 'number', 'label' => ac_label('gizmos', 'weight')]")
         ->not->toContain("'column' => 'qty'"); // integer is not auto-filtered (often an id/count — add by hand)
@@ -1733,11 +1733,16 @@ it('FI-7: generated related-label surfaces resolve the display column, never a h
 
     $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
     expect($controller)
-        ->toContain('->addColumn(\'parent\', fn ($row) => ac_related_label($row->parent))')          // list display
-        ->toContain('Search::whereLike($rq, ac_display_column($rq->getModel())')                        // list filter
-        ->toContain('->orderBy(\App\Models\Gizmo::select(ac_display_column(new \App\Models\Gizmo))')     // list sort
-        ->toContain('\App\Models\Gizmo::pluck(ac_display_column(new \App\Models\Gizmo), \'id\')')        // filter dropdown
-        ->toContain('->editColumn(\'title\', fn ($row) =>')                                              // own-display styling → title
+        ->toContain('->addColumn(\'parent\', fn ($row) => ac_related_label($row->parent))')          // list display (unchanged)
+        // Backlog #7: relation search/sort/option-label resolve through the RelationDisplayColumn view-config API,
+        // via ->labelColumn() (byte-for-byte ac_display_column, type-anchored, NONE-safe — never null).
+        ->toContain('Search::whereLike($rq, \Ngos\AdminCore\Support\View\RelationDisplayColumn::for($rq->getModel())->labelColumn()') // list filter
+        ->toContain('->orderBy(\App\Models\Gizmo::select(\Ngos\AdminCore\Support\View\RelationDisplayColumn::for(new \App\Models\Gizmo)->labelColumn())') // list sort
+        ->toContain('\App\Models\Gizmo::pluck(\Ngos\AdminCore\Support\View\RelationDisplayColumn::for(new \App\Models\Gizmo)->labelColumn(), \'id\')') // filter dropdown
+        ->toContain('->labelColumn()')                                                                  // NONE-safe accessor, not ->column()
+        ->not->toContain('->column())')                                                                 // never the nullable formal column in emitted SQL
+        ->not->toContain('ac_display_column(')                                                          // legacy inline helper fully replaced
+        ->toContain('->editColumn(\'title\', fn ($row) =>')                                             // own-display styling → title
         ->not->toContain('$row->parent?->name')
         ->not->toContain("whereLike(\$rq, 'name'")
         ->not->toContain("editColumn('name'");
@@ -1752,6 +1757,38 @@ it('FI-7: generated related-label surfaces resolve the display column, never a h
     // the emitted controller + resource (with the resolver calls) are valid PHP
     expect(Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')))->successful())->toBeTrue();
     expect(Process::run('php -l ' . escapeshellarg(app_path('Http/Resources/GizmoResource.php')))->successful())->toBeTrue();
+});
+
+// Backlog #8 — end-to-end regression locks for the view-config-aware generator output (belongsToMany + determinism).
+it('generates a belongsToMany controller that resolves search through the RelationDisplayColumn view-config API (valid PHP)', function () {
+    $this->artisan('admin-core:make', ['name' => 'Gizmo', '--fields' => 'name:string, tags:belongsToMany'])->assertSuccessful();
+
+    $controller = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    expect($controller)
+        ->toContain('ac_related_label($i)')                                                              // badge display via the descriptor
+        ->toContain('->filterColumn(\'tags\', fn ($q, $keyword) => $q->whereHas(\'tags\'')               // m2m search
+        ->toContain('\Ngos\AdminCore\Support\View\RelationDisplayColumn::for($rq->getModel())->labelColumn()') // via the view-config API
+        ->not->toContain('->orderColumn(\'tags\'')                                                        // a m2m is not sortable
+        ->not->toContain('ac_display_column(');                                                           // legacy inline helper fully replaced
+    // the emitted controller (with the belongsToMany resolver call) is valid PHP
+    expect(Process::run('php -l ' . escapeshellarg(app_path('Http/Controllers/Backend/GizmoController.php')))->successful())->toBeTrue();
+});
+
+it('is deterministic: regenerating the same resource yields byte-identical controller + resource output', function () {
+    $make = fn () => $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, category_id:foreign:categories, tags:belongsToMany',
+    ])->assertSuccessful();
+
+    $make();
+    $firstController = File::get(app_path('Http/Controllers/Backend/GizmoController.php'));
+    $firstView = File::get(resource_path('views/backend/pages/gizmos/index.blade.php'));
+    cleanupGizmo(); // clean slate so the regenerate isn't an overwrite/no-op
+    $make();
+
+    // The controller + view are a pure function of the field spec — no timestamps/ordering leak into them.
+    expect(File::get(app_path('Http/Controllers/Backend/GizmoController.php')))->toBe($firstController)
+        ->and(File::get(resource_path('views/backend/pages/gizmos/index.blade.php')))->toBe($firstView);
 });
 
 it('scopes ordering by a parent FK column with --sortable=<column>', function () {
