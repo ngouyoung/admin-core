@@ -2,6 +2,25 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.86.2
+
+**Fix: `ac_display_column()` resolves the display column from the model TYPE, not a mutable runtime instance
+(composition fidelity).** `ac_display_column()` probed `$model->getTable()` on the *passed* instance. A
+relation-existence query — a self-referential `whereHas` (an adjacency-list `parent`/prerequisite relation) —
+calls `setTable('laravel_reserved_N')` on the related model to disambiguate the self-join, so the probe ran
+against that alias, silently failed the `name`/`title`/`label` lookup, fell back to the route key, and — because
+the result is memoised per class — **poisoned every later `ac_display_column()` call for that model in the
+process** (returning the route key in place of the label across list display, sort, search, export and API).
+On PostgreSQL this surfaced as a hard error when the route key was a native `uuid` column; on MySQL/SQLite it
+silently rendered/searched the wrong column.
+
+- The schema is now resolved from the **type's canonical table** (a fresh instance of the class), which is
+  immutable and un-aliasable, so resolution is **deterministic**, the per-class memo is **transparent** (never
+  poisoned), and the result is **Octane-safe** across resident-worker requests.
+- **Behaviour is unchanged for correct cases** — the `displayColumn()` override, the `name → title → label`
+  convention order, and the route-key fallback are all preserved. No public API, generator, or configuration
+  change; no migration required.
+
 ## v2.86.1
 
 **Fix: `Support\Search` now generates portable SQL on every supported database (was SQLite-only).**
