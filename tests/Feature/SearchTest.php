@@ -113,7 +113,7 @@ it('resolves the user on the given PORTAL guard, not the default guard (multi-po
 
 it('exposes a shared escaped-LIKE helper every search path routes through', function () {
     // The systemic fix: one helper so LIKE-metacharacter escaping can't drift out of a single search path again.
-    expect(Search::likePattern('a_c%'))->toBe('%a\_c\%%'); // _ and % escaped, wrapped in %…%
+    expect(Search::likePattern('a_c%'))->toBe('%a!_c!%%'); // _ and % escaped with the portable "!" sentinel, wrapped in %…%
 
     Schema::create('wl_items', fn (Blueprint $t) => tap($t)->id()->string('name'));
     $m = new class extends \Illuminate\Database\Eloquent\Model

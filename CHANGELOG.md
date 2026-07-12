@@ -2,6 +2,35 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v2.86.1
+
+**Fix: `Support\Search` now generates portable SQL on every supported database (was SQLite-only).**
+`Support\Search` hand-rolled raw LIKE SQL with MySQL/SQLite-only constructs, so search worked **only on
+SQLite — the sole database the CI suite exercised.** It broke everywhere else: MySQL backtick identifier
+quoting and `json_extract()` are invalid on PostgreSQL (`SQLSTATE[42601]` / `[42883]`) and SQL Server, while
+the `ESCAPE '\'` clause is a malformed string literal on MySQL/MariaDB under default `sql_mode`
+(`ERROR 1064`). Every search surface shared this SQL, so all of them 500'd off SQLite: the DataTable
+relation/list-filter search, the Select2 foreign-key dropdown, the media-library search, the global-search
+omnibox, and the API list search.
+
+- **Identifiers are now quoted by the connection's query grammar** (`grammar->wrap()`), never a hardcoded
+  backtick — correct on SQLite, MySQL, MariaDB, PostgreSQL and SQL Server.
+- **JSON (translatable) search renders the driver's own accessor** — `json_extract`/`json_unquote` on
+  MySQL/SQLite, `->>` on PostgreSQL, `json_value` on SQL Server — instead of a hardcoded `json_extract()`.
+- **The LIKE escape sentinel changed from `\` to `!`** (centralised in one constant, applied by both
+  `likePattern()` and the `ESCAPE` clause), so the clause is a valid string literal on every engine.
+- **Matching is now consistently case-insensitive** via `LOWER()` on both sides — identical to the DataTable's
+  native (yajra) search and to MySQL/SQLite's default collation, and it restores case-insensitive search on
+  PostgreSQL (whose `LIKE` is case-sensitive).
+- **No public API, signature, generated-code or caller change** — the fix is entirely inside
+  `src/Support/Search.php` (two new private helpers: `grammarFor()`, `applyLike()`).
+- **CI now guards portability** — a new `search-portability` job runs the Search suite against real
+  PostgreSQL and MySQL (the full suite still runs on SQLite), plus per-grammar SQL compile tests, so this
+  class of regression can't hide behind SQLite again.
+
+SemVer: **patch** — bug fix only; behaviour on SQLite/MySQL is unchanged (results identical under default
+collations), and PostgreSQL search — which previously errored — is restored.
+
 ## v2.86.0
 
 **Separate filesystem generation from database synchronization — new `admin-core:sync-permissions`.**

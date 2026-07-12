@@ -24,12 +24,31 @@ abstract class TestCase extends Orchestra
     protected function defineEnvironment($app): void
     {
         $app['config']->set('app.key', 'base64:' . base64_encode(random_bytes(32)));
-        $app['config']->set('database.default', 'testing');
+
+        // SQLite in-memory by DEFAULT (unchanged). A CI matrix can point the suite at a real driver by setting
+        // DB_CONNECTION (+ DB_HOST/PORT/DATABASE/USERNAME/PASSWORD) to pgsql/mysql — so cross-database SQL
+        // portability (e.g. the Support\Search grammar rendering) is exercised against the engines SQLite alone
+        // would hide. No env => 'testing'/sqlite, identical to before.
+        $connection = env('DB_CONNECTION', 'testing');
+        $app['config']->set('database.default', $connection);
         $app['config']->set('database.connections.testing', [
             'driver' => 'sqlite',
             'database' => ':memory:',
             'prefix' => '',
         ]);
+        if ($connection !== 'testing') {
+            $app['config']->set("database.connections.{$connection}", array_filter([
+                'driver' => $connection,
+                'host' => env('DB_HOST', '127.0.0.1'),
+                'port' => env('DB_PORT'),
+                'database' => env('DB_DATABASE', 'testing'),
+                'username' => env('DB_USERNAME', 'root'),
+                'password' => env('DB_PASSWORD', ''),
+                'charset' => $connection === 'pgsql' ? 'utf8' : 'utf8mb4',
+                'prefix' => '',
+                'schema' => $connection === 'pgsql' ? 'public' : null,
+            ], fn ($v) => $v !== null));
+        }
         $app['config']->set('admin-core.permission.enabled', false);
         $app['config']->set('admin-core.route.name_prefix', 'admin.');
         $app['config']->set('admin-core.views.path_prefix', 'backend.pages.');

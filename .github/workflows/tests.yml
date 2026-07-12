@@ -45,6 +45,68 @@ jobs:
       - name: Run tests
         run: composer test
 
+  # Cross-database portability guard: the main suite runs on SQLite, which uniquely tolerates SQL that breaks
+  # on other engines (backtick identifiers, json_extract, ESCAPE '\'). Run the Search suite — the one subsystem
+  # that emits raw LIKE SQL — against real PostgreSQL and MySQL so a portability regression can't hide again.
+  # Scoped to the Search tests to stay fast; the full suite still runs on SQLite above.
+  search-portability:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { db: pgsql, port: 5432 }
+          - { db: mysql, port: 3306 }
+    name: Search portability - ${{ matrix.db }}
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: testing
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U root -d testing" --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_ROOT_PASSWORD: password
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 --silent" --health-interval 5s --health-timeout 5s --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, sqlite3, pdo_sqlite, pdo_pgsql, pdo_mysql
+          coverage: none
+
+      - name: Install dependencies
+        run: |
+          for attempt in 1 2 3; do
+            composer update --prefer-dist --no-interaction --no-progress && exit 0
+            echo "::warning::composer update failed (attempt $attempt/3) — retrying in 15s (transient Packagist outage?)"
+            sleep 15
+          done
+          exit 1
+
+      - name: Run Search suite on ${{ matrix.db }}
+        env:
+          DB_CONNECTION: ${{ matrix.db }}
+          DB_HOST: 127.0.0.1
+          DB_PORT: ${{ matrix.port }}
+          DB_DATABASE: testing
+          DB_USERNAME: root
+          DB_PASSWORD: password
+        run: vendor/bin/pest tests/Feature/SearchTest.php tests/Feature/SearchPortabilityTest.php
+
   analyse:
     runs-on: ubuntu-latest
     name: Static analysis (Larastan)

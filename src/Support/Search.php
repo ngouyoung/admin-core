@@ -5,6 +5,16 @@ namespace Ngos\AdminCore\Support;
 class Search
 {
     /**
+     * The LIKE ESCAPE sentinel — the character that makes a `%` or `_` in the user's term match LITERALLY.
+     * Deliberately NOT backslash: MySQL/MariaDB process C-style backslash escapes in string literals, so
+     * `ESCAPE '\'` is an unterminated string (ERROR 1064), and no single SQL literal spells one backslash on
+     * both MySQL and PostgreSQL. `!` is inert in string literals AND in LIKE patterns on every supported
+     * driver (SQLite, MySQL, MariaDB, PostgreSQL, SQL Server). Centralised here so {@see likePattern()} (which
+     * escapes with it) and the `ESCAPE` clause ({@see applyLike()}) can never diverge.
+     */
+    private const ESCAPE = '!';
+
+    /**
      * Global search across the resources declared in config('admin-core.search'). Each entry:
      *   ['model' => Product::class, 'columns' => ['name', 'slug'], 'label' => 'Products',
      *    'route' => 'admin.products.edit', 'key' => 'uuid', 'icon' => 'bi bi-box-seam',
@@ -66,32 +76,20 @@ class Search
                 ? app($service)->query()
                 : $model::query();
 
-            // Escape the LIKE metacharacters (%, _, \) in the user's term so they match LITERALLY — an
-            // underscore in the query used to act as a single-char wildcard (searching 'a_c' matched 'aXc'),
-            // returning rows the user never searched for. The pattern carries an explicit ESCAPE '\' (portable
-            // across MySQL + SQLite; MySQL's default is already '\', SQLite has none unless stated).
-            $like = self::likePattern($term);
-
             $rows = $base
-                ->where(function ($q) use ($columns, $like, $casts, $locale) {
+                ->where(function ($q) use ($columns, $term, $casts, $locale) {
                     foreach ($columns as $col) {
                         if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $col)) {
                             continue; // only plain column identifiers are searchable
                         }
+                        // A translatable / JSON-cast column matches ONE locale's value (never the raw JSON
+                        // blob, which would match across locales + JSON syntax); every other column matches
+                        // directly. Both route through the shared, driver-portable LIKE builders below, so the
+                        // escaping and case handling live in exactly one place.
                         if (in_array($casts[$col] ?? null, ['array', 'json', 'object', 'collection'], true)) {
-                            // Translatable / JSON column: match the active locale's value, not the raw JSON
-                            // blob (which would match across locales and JSON syntax). Backtick-quoted
-                            // identifier works on MySQL + SQLite; the column name is validated above.
-                            //
-                            // The JSON PATH is a BOUND parameter, never string-interpolated: app()->getLocale()
-                            // is a global mutable value (any middleware/host code can set it, and Search doesn't
-                            // depend on admin-core's allowlisting SetLocale), so splicing it into the SQL was a
-                            // latent injection. Binding it makes a hostile locale a harmless wrong-path lookup;
-                            // sanitising to locale-safe chars keeps the path well-formed too.
-                            $safeLocale = preg_replace('/[^A-Za-z0-9_-]/', '', (string) $locale);
-                            $q->orWhereRaw("json_extract(`{$col}`, ?) LIKE ? ESCAPE '\\'", ['$."' . $safeLocale . '"', $like]);
+                            self::whereJsonLike($q, $col, (string) $locale, $term, 'or');
                         } else {
-                            $q->orWhereRaw("`{$col}` LIKE ? ESCAPE '\\'", [$like]);
+                            self::whereLike($q, $col, $term, 'or');
                         }
                     }
                 })
@@ -115,23 +113,29 @@ class Search
     }
 
     /**
-     * Escape a user term's LIKE metacharacters (`%`, `_`, `\`) so they match LITERALLY, returning the ready
-     * `%term%` pattern. Without this an underscore is a single-char wildcard and a `%` matches anything, so a
-     * search over-matches rows the user never asked for. Pair with an explicit `ESCAPE '\'` clause (see
-     * {@see whereLike}) — MySQL's default LIKE escape is already `\`, but SQLite has none unless stated, so the
-     * clause is needed for portable behaviour.
+     * Escape a user term's LIKE metacharacters (`%`, `_`) — and the {@see ESCAPE} sentinel itself — so they
+     * match LITERALLY, returning the ready `%term%` pattern. Without this an underscore is a single-char
+     * wildcard and a `%` matches anything, so a search over-matches rows the user never asked for. Pairs with
+     * the `ESCAPE '<sentinel>'` clause emitted by {@see applyLike()}, which every supported driver honours.
      */
     public static function likePattern(string $term): string
     {
-        return '%' . str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $term) . '%';
+        // Escape the sentinel FIRST (so a literal sentinel the user typed survives), then the wildcards.
+        return '%' . str_replace(
+            [self::ESCAPE, '%', '_'],
+            [self::ESCAPE . self::ESCAPE, self::ESCAPE . '%', self::ESCAPE . '_'],
+            $term
+        ) . '%';
     }
 
     /**
-     * Apply an escaped, portable LIKE on a plain column to a query builder — the one place every admin-core
-     * search path (API list search, list-filter text, the select remote source, the media library) should route
-     * through, so the LIKE-metacharacter escaping can never drift out of one of them again. The column is
-     * validated as a bare identifier and backtick-quoted (never user input); a non-identifier is skipped. The
-     * `%_\` in the term are escaped and the LIKE carries `ESCAPE '\'` (works on MySQL + SQLite).
+     * Apply an escaped, case-insensitive, DRIVER-PORTABLE LIKE on a plain column to a query builder — the one
+     * place every admin-core search path (API list search, list-filter text, the select remote source, the
+     * media library, and the generated relation filterColumn) routes through, so the escaping can never drift
+     * out of one of them again. The column is validated as a bare identifier then quoted BY THE CONNECTION'S
+     * QUERY GRAMMAR (never a hardcoded backtick), the match is case-insensitive via LOWER() on both sides
+     * (consistent across drivers, matching the DataTable's native search), the `%_` in the term are escaped,
+     * and the LIKE carries `ESCAPE '<sentinel>'`. A non-identifier column is skipped (never spliced into SQL).
      *
      * @param  \Illuminate\Contracts\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
      * @param  'and'|'or'  $boolean
@@ -142,15 +146,16 @@ class Search
             return; // only plain column identifiers are searchable — never splice arbitrary text into SQL
         }
 
-        $query->whereRaw("`{$column}` LIKE ? ESCAPE '\\'", [self::likePattern($term)], $boolean);
+        self::applyLike($query, self::grammarFor($query)->wrap($column), $term, $boolean);
     }
 
     /**
-     * Apply an escaped, portable LIKE against ONE locale's value inside a translatable JSON column — the
-     * generated getData() filterColumn for a `translatable` field routes through this so its per-locale search
-     * escapes the LIKE metacharacters too (the same fix {@see whereLike} gives plain columns). The column is a
-     * validated bare identifier (backtick-quoted); the locale is sanitised to path-safe chars and BOUND, never
-     * interpolated (a hostile app locale can't inject SQL).
+     * Apply the same portable LIKE against ONE locale's value inside a translatable JSON column — the generated
+     * getData() filterColumn for a `translatable` field routes through this. The column and the sanitised
+     * locale are rendered as a JSON path (`col->locale`) BY THE CONNECTION'S GRAMMAR, which compiles to the
+     * driver's OWN JSON accessor — `json_extract`/`json_unquote` on MySQL/SQLite, `->>` on PostgreSQL,
+     * `json_value` on SQL Server — instead of a hardcoded json_extract(). The locale is sanitised to path-safe
+     * chars, so a hostile app locale can never inject SQL.
      *
      * @param  \Illuminate\Contracts\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
      * @param  'and'|'or'  $boolean
@@ -161,7 +166,41 @@ class Search
             return;
         }
         $safeLocale = preg_replace('/[^A-Za-z0-9_-]/', '', $locale);
-        $query->whereRaw("json_extract(`{$column}`, ?) LIKE ? ESCAPE '\\'", ['$."' . $safeLocale . '"', self::likePattern($term)], $boolean);
+        if ($safeLocale === null || $safeLocale === '') {
+            return; // an all-non-path-safe locale leaves no valid JSON path to search
+        }
+
+        self::applyLike($query, self::grammarFor($query)->wrap($column . '->' . $safeLocale), $term, $boolean);
+    }
+
+    /**
+     * Build `lower(<expr>) like lower(?) escape '<sentinel>'` on the query — the single source of the LIKE
+     * fragment every search path shares. `$expr` is an already-grammar-wrapped column/JSON expression (safe to
+     * embed raw); the pattern is a bound parameter; the ESCAPE literal is the {@see ESCAPE} sentinel (a fixed
+     * constant that is safe in a SQL string literal, never user input). LOWER() on both sides makes the match
+     * case-insensitive on every driver.
+     *
+     * @param  \Illuminate\Contracts\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
+     * @param  'and'|'or'  $boolean
+     */
+    private static function applyLike($query, string $expr, string $term, string $boolean): void
+    {
+        $query->whereRaw("lower({$expr}) like lower(?) escape '" . self::ESCAPE . "'", [self::likePattern($term)], $boolean);
+    }
+
+    /**
+     * The connection's query grammar for either an Eloquent or a base query builder — used to quote the
+     * identifier and render the JSON path PER DRIVER, so the emitted SQL is never dialect-locked to one
+     * database (the root cause of the pre-2.86.1 non-portability).
+     *
+     * @param  \Illuminate\Contracts\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
+     */
+    private static function grammarFor($query): \Illuminate\Database\Query\Grammars\Grammar
+    {
+        $base = $query instanceof \Illuminate\Database\Eloquent\Builder ? $query->getQuery() : $query;
+        /** @var \Illuminate\Database\Query\Builder $base */
+
+        return $base->getGrammar();
     }
 
     /** First non-empty searched column as the display label (handles translatable JSON columns). */
