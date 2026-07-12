@@ -2,6 +2,28 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v3.0.0
+
+**BREAKING — Explicit NONE is now the default for a label-less related model.** `admin-core.explicit_none` flips
+from `false` to **`true`** (the RFC-0009 Rev 2 planned MAJOR flip). A related model with **no** human label column
+(no `name`/`title`/`label` and no `displayColumn()` override) now renders as **NONE** — an empty cell — in a list,
+show, or API relation label, instead of falling back to its route key (id / uuid).
+
+- **Scope of the change** — only the *displayed label* of a genuinely label-less related model (via
+  `ac_related_label()`). A relation whose model has a real label column, and a `computed` label (a `displayColumn()`
+  accessor), are **unchanged**. The descriptor, `ac_display_column()`, `RelationDisplayColumn` semantics, search, and
+  sort are **unchanged** — the column facade still resolves a real fallback column, so search/sort never target a
+  missing column.
+- **The flag remains as a DEPRECATED opt-out** — set `admin-core.explicit_none => false` (env
+  `ADMIN_CORE_EXPLICIT_NONE=false`) to restore the pre-v3.0.0 route-key display during migration. This escape hatch
+  will be removed in a future major (RFC-0009 Rev 2: "deprecate then remove").
+- **Migration** — if you rely on a label-less relation cell showing its id/uuid, give that related model a real label
+  column (`name`/`title`/`label`) or a `displayColumn()` override before upgrading, or set the opt-out flag. See
+  `UPGRADING.md`.
+
+SemVer: **MAJOR** — a default behavior change to a public display surface. Everything else from v2.87.0 (the
+descriptor, view configuration, generator output) is unchanged.
+
 ## v2.87.0
 
 This release completes the **Display Column / Model Naming** subsystem (RFC-0009 Rev 2), delivered as one coherent

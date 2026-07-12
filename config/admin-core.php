@@ -483,6 +483,6 @@ return [
     | real label column (`name`/`title`/`label`) or a `displayColumn()` override.
     |
     */
-    'explicit_none' => env('ADMIN_CORE_EXPLICIT_NONE', false),
+    'explicit_none' => env('ADMIN_CORE_EXPLICIT_NONE', true),
 
 ];

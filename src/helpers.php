@@ -173,7 +173,7 @@ if (! function_exists('ac_related_label')) {
         // false to restore the pre-v3.0.0 route-key fallback during migration (to be removed in a future major). A
         // 'computed' label is deliberately NOT gated (its accessor IS a real value), and this gate touches neither
         // the descriptor, RelationDisplayColumn, nor search/sort (labelColumn() below is byte-for-byte ac_display_column()).
-        if ($display->kind === 'none' && config('admin-core.explicit_none', false)) {
+        if ($display->kind === 'none' && config('admin-core.explicit_none', true)) {
             return null;
         }
 

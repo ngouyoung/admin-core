@@ -105,7 +105,7 @@ jobs:
           DB_DATABASE: testing
           DB_USERNAME: root
           DB_PASSWORD: password
-        run: vendor/bin/pest tests/Feature/SearchTest.php tests/Feature/SearchPortabilityTest.php tests/Feature/DisplayColumnFidelityTest.php tests/Feature/DisplayDescriptorTest.php tests/Feature/ResourceViewConfigTest.php
+        run: vendor/bin/pest tests/Feature/SearchTest.php tests/Feature/SearchPortabilityTest.php tests/Feature/DisplayColumnFidelityTest.php tests/Feature/DisplayDescriptorTest.php tests/Feature/DisplayLabelWiringTest.php tests/Feature/ResourceViewConfigTest.php tests/Feature/ExplicitNoneFlagTest.php
 
   analyse:
     runs-on: ubuntu-latest

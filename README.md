@@ -370,6 +370,14 @@ on its table, else the route key (so a `title`-based model like a Course labels/
 a `name`-based model is unchanged). The related table is inferred (`category_id` → `categories`), so it must
 already exist — generate the parent resource first.
 
+This resolution is exposed as structured metadata via **`ac_display_descriptor($model)`** (`kind` = `column` /
+`computed` / `none`, plus the backing column), and the related-label read path (`ac_related_label()`) resolves
+through it. For a **label-less** related model (no `name`/`title`/`label` and no `displayColumn()` override) that
+relation cell renders **empty** (Explicit NONE) **by default since v3.0.0**; set **`admin-core.explicit_none`** (env
+`ADMIN_CORE_EXPLICIT_NONE`) to `false` to restore the pre-v3.0.0 route-key display — a deprecated opt-out (see
+`UPGRADING.md`). The column resolution itself still falls back to the route key, so search/sort keyed on it are
+unaffected.
+
 ### App shell (with `--access`)
 
 The `--access` kit now ships a complete admin shell beyond the access screens:

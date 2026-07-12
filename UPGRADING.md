@@ -12,6 +12,30 @@ npm install && npm run build
 
 ---
 
+## → v3.0.0 — Explicit NONE becomes the default (BREAKING)
+
+**Breaking change.** `admin-core.explicit_none` now defaults to **`true`** (it was `false` in v2.87.0). A related
+model with **no** human label column (no `name` / `title` / `label`, and no `displayColumn()` override) now renders
+as an **empty cell** in list / show / API relation labels, instead of falling back to its route key (id / uuid).
+
+**Do you need to do anything?** Only if a label-less related model's id/uuid was intentionally visible.
+
+| You want… | Do this |
+|---|---|
+| The new behavior (empty cell) | Nothing — it is the default. |
+| Keep the old route-key display | Set `ADMIN_CORE_EXPLICIT_NONE=false` (or `'explicit_none' => false`) — a **deprecated** opt-out, removed in a future major. |
+| A real label instead of empty | Add a `name` / `title` / `label` column, or a `displayColumn()` method, to the related model. |
+
+**Scope:** the flip affects **only** the displayed label of a genuinely label-less related model. Models with a real
+label column, and `computed` labels (a `displayColumn()` accessor returning a real value), are unaffected. Search,
+sort, exports keyed on the column, `ac_display_column()`, and `RelationDisplayColumn` are unchanged — the column
+resolution still falls back to a real column, so nothing that queries by it breaks.
+
+The `explicit_none` opt-out is a temporary migration bridge (RFC-0009 Rev 2: "deprecate then remove") and will be
+removed in a future major; prefer giving label-less related models a real label column.
+
+---
+
 ## → v2.87.0 — Display-column descriptor, view config, generator update & Explicit NONE flag (opt-in; no action required)
 
 **No breaking change. No action required to stay on today's behavior.** v2.87.0 completes the Display Column /
