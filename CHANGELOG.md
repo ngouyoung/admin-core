@@ -2,6 +2,28 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v3.0.3
+
+**Fix (test): make `ErrorLogTest` portable across PHP runtimes.** The `it('stores an ARGUMENT-FREE stack trace …')`
+case asserted its precondition on `Throwable::getTraceAsString()` — the formatted **string** trace. GitHub Actions'
+`setup-php` ships PHP with `zend.exception_string_param_max_len=0`, which renders **every** string argument in that
+string form as `'...'` regardless of `zend.exception_ignore_args`, so the secret (`SEKRETPASS`) can never appear
+there — and both `Test - PHP 8.3` and `Test - PHP 8.4` failed on CI on every push since the test was introduced.
+(v3.0.1's `ini_set('zend.exception_ignore_args', 0)` could not fix this: it restores argument *capture*, not the
+string-rendering cap.) `ErrorLog::capture()` consumes the **structured** `Throwable::getTrace()` frames
+(`$frame['args']`), never the formatted string, so the precondition now asserts the secret is present in those
+structured frames — the exact surface the feature reads — which the runtime `ini_set` restores on every build.
+
+- **Every assertion preserved** — nothing skipped or weakened. The precondition is asserted on the correct (and more
+  precise) surface; the stored-trace security check is unchanged. Verified on the exact `ondrej`/`setup-php` build
+  that reproduced the CI failure (PHP 8.3 + 8.4, `zend.exception_ignore_args=On`,
+  `zend.exception_string_param_max_len=0`): **978 passed**.
+- **Test-only change; no production behavior.** No `src/`, config, helper, generator, descriptor, or public-API
+  change — the `ErrorLog` production code is byte-identical. Supersedes the incomplete v3.0.1 fix; a pre-existing
+  test-portability issue, **not** part of the RFC-0009 Rev 2 program.
+
+SemVer: **PATCH** — test portability only; no runtime behavior change.
+
 ## v3.0.2
 
 **Fix (test): make `SidebarMenuLabelTest` portable across case-sensitive and case-insensitive filesystems.** A

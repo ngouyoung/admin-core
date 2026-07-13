@@ -50,16 +50,18 @@ it('redacts secret query params from the stored URL (a reset token / email is no
 });
 
 it('stores an ARGUMENT-FREE stack trace (a string arg like a password is never inlined)', function () {
-    // PHP's getTraceAsString() inlines scalar args (truncated to 15 chars, NOT redacted) — a password/
-    // token passed up the stack would be stored. The rebuilt trace keeps the call chain but drops all args.
-    // (A short secret so it appears whole in the raw trace — PHP truncates longer ones to 15 chars.)
+    // A scalar arg (a password/token/OTP) passed up the call chain lives in the exception's *structured* trace
+    // frames (`getTrace()[$i]['args']`). The stored trace is rebuilt from those frames keeping the call chain but
+    // dropping every 'args' value — see ErrorLog::argFreeTrace(), which reads getTrace() and never the string form.
     //
-    // Whether PHP inlines args into a trace is governed by the `zend.exception_ignore_args` INI: OFF (the dev
-    // default) inlines them; ON (php.ini-production, and GitHub Actions' setup-php default) STRIPS them. The
-    // raw-trace sanity below therefore only holds when the arg was actually inlined, so we pin the INI OFF for the
-    // throw — the exception's trace is captured at construction time, so it must be off BEFORE `throw`. This makes
-    // the precondition portable across runtimes; the STORED-trace redaction (the real guarantee) is independent of
-    // the INI and unchanged.
+    // Whether the frames carry args at all is governed by the `zend.exception_ignore_args` INI: OFF (the dev
+    // default) captures them; ON (php.ini-production, and GitHub Actions' setup-php default) strips them at throw
+    // time. So we pin the INI OFF *before* the throw (trace args are captured at construction) — a runtime ini_set
+    // is enough to restore the structured getTrace() args on every runtime. The precondition is asserted on the
+    // structured frames, NOT on getTraceAsString(): hardened builds set `zend.exception_string_param_max_len=0`
+    // (setup-php's default), which renders every string arg in the *string* form as '...' regardless of the args
+    // INI, so the raw value never appears there — but the feature consumes getTrace(), which is where it must (and
+    // does) appear. The STORED-trace redaction below is the real guarantee.
     $ignoreArgs = ini_get('zend.exception_ignore_args');
     ini_set('zend.exception_ignore_args', '0');
 
@@ -68,10 +70,12 @@ it('stores an ARGUMENT-FREE stack trace (a string arg like a password is never i
             throw new RuntimeException('kaboom');
         };
         try {
-            $boom('SEKRETPASS'); // 10 chars < PHP's 15-char trace-arg truncation → would appear verbatim raw
+            $boom('SEKRETPASS');
         } catch (RuntimeException $e) {
-            // Sanity: the RAW trace really would have leaked it (guards against a no-longer-discriminating test).
-            expect($e->getTraceAsString())->toContain('SEKRETPASS');
+            // Sanity: the secret really is present in the structured trace the feature consumes (getTrace()), so
+            // the arg-dropping below is genuinely exercised (guards against a no-longer-discriminating test).
+            $capturedArgs = collect($e->getTrace())->flatMap(fn ($frame) => $frame['args'] ?? [])->all();
+            expect($capturedArgs)->toContain('SEKRETPASS');
             ErrorLog::capture($e);
         }
 
