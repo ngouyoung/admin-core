@@ -42,6 +42,7 @@ Permanent release index for the RFC-0009 Rev 2 program. This file is an index; p
 | v2.87.0 | Descriptor + View Configuration + Generator + Compatibility Flag + Documentation | MINOR | No | 2026-07 |
 | v3.0.0 | Explicit NONE Default | MAJOR | **Yes** | 2026-07 |
 | v3.0.1 | ErrorLogTest portability fix _(follow-up patch — **not** part of the RFC-0009 program)_ | PATCH | No | 2026-07 |
+| v3.0.2 | SidebarMenuLabelTest portability fix _(follow-up patch — **not** part of the RFC-0009 program)_ | PATCH | No | 2026-07 |
 
 Release order (ascending): **v2.86.1 → v2.86.2 → v2.87.0 → v3.0.0**.
 

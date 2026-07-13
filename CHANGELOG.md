@@ -2,6 +2,25 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v3.0.2
+
+**Fix (test): make `SidebarMenuLabelTest` portable across case-sensitive and case-insensitive filesystems.** A
+pre-existing test wrote its translation-group fixture only as `lang/en/courses.php` (lowercase) but queries it via
+`__('Courses')`. Laravel's `FileLoader` resolves a group name **verbatim** — `"{$path}/{$locale}/{$group}.php"` — so
+`__('Courses')` reads `lang/en/Courses.php` while `ac_label('courses', …)` reads `lang/en/courses.php`. On a
+case-**in**sensitive filesystem (macOS/Windows) both hit one file and the test passed; on a case-**sensitive** one
+(Linux/CI) they are distinct files, so the array-collision precondition `expect(__('Courses'))->toBeArray()` failed.
+The test helper now writes **both** filename cases (and cleans both up), so the collision is deterministic on every
+filesystem.
+
+- **Every assertion preserved** — nothing skipped or weakened; the fix only ensures the fixture exists at the case
+  the loader actually reads. Verified on a real case-sensitive volume: with only `courses.php` the group resolves to
+  `[]` (the CI failure); with both cases it resolves to the array.
+- **Test-only change; no production behavior.** No `src/`, config, or public-API change — the `ac_menu_label` /
+  `ac_label` production code is byte-identical. Pre-existing bug, **not** part of the RFC-0009 Rev 2 program.
+
+SemVer: **PATCH** — test portability only; no runtime behavior change.
+
 ## v3.0.1
 
 **Fix (test): make `ErrorLogTest` deterministic across PHP runtimes.** A pre-existing test — `it('stores an
