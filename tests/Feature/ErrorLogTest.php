@@ -53,21 +53,35 @@ it('stores an ARGUMENT-FREE stack trace (a string arg like a password is never i
     // PHP's getTraceAsString() inlines scalar args (truncated to 15 chars, NOT redacted) — a password/
     // token passed up the stack would be stored. The rebuilt trace keeps the call chain but drops all args.
     // (A short secret so it appears whole in the raw trace — PHP truncates longer ones to 15 chars.)
-    $boom = function (string $secret) {
-        throw new RuntimeException('kaboom');
-    };
-    try {
-        $boom('SEKRETPASS'); // 10 chars < PHP's 15-char trace-arg truncation → would appear verbatim raw
-    } catch (RuntimeException $e) {
-        // Sanity: the RAW trace really would have leaked it (guards against a no-longer-discriminating test).
-        expect($e->getTraceAsString())->toContain('SEKRETPASS');
-        ErrorLog::capture($e);
-    }
+    //
+    // Whether PHP inlines args into a trace is governed by the `zend.exception_ignore_args` INI: OFF (the dev
+    // default) inlines them; ON (php.ini-production, and GitHub Actions' setup-php default) STRIPS them. The
+    // raw-trace sanity below therefore only holds when the arg was actually inlined, so we pin the INI OFF for the
+    // throw — the exception's trace is captured at construction time, so it must be off BEFORE `throw`. This makes
+    // the precondition portable across runtimes; the STORED-trace redaction (the real guarantee) is independent of
+    // the INI and unchanged.
+    $ignoreArgs = ini_get('zend.exception_ignore_args');
+    ini_set('zend.exception_ignore_args', '0');
 
-    $trace = ErrorLog::first()->trace;
-    expect($trace)->not->toBeEmpty()
-        ->not->toContain('SEKRETPASS') // the arg value never appears in the STORED trace
-        ->toContain('{main}');         // still a well-formed trace
+    try {
+        $boom = function (string $secret) {
+            throw new RuntimeException('kaboom');
+        };
+        try {
+            $boom('SEKRETPASS'); // 10 chars < PHP's 15-char trace-arg truncation → would appear verbatim raw
+        } catch (RuntimeException $e) {
+            // Sanity: the RAW trace really would have leaked it (guards against a no-longer-discriminating test).
+            expect($e->getTraceAsString())->toContain('SEKRETPASS');
+            ErrorLog::capture($e);
+        }
+
+        $trace = ErrorLog::first()->trace;
+        expect($trace)->not->toBeEmpty()
+            ->not->toContain('SEKRETPASS') // the arg value never appears in the STORED trace
+            ->toContain('{main}');         // still a well-formed trace
+    } finally {
+        ini_set('zend.exception_ignore_args', $ignoreArgs === false ? '0' : $ignoreArgs);
+    }
 });
 
 it('ignores expected exceptions (4xx, validation, auth) so the log is not flooded', function () {

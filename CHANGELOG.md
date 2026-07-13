@@ -2,6 +2,24 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v3.0.1
+
+**Fix (test): make `ErrorLogTest` deterministic across PHP runtimes.** A pre-existing test — `it('stores an
+ARGUMENT-FREE stack trace …')` — asserted that `Throwable::getTraceAsString()` inlines a call argument
+(`SEKRETPASS`) into the raw trace. That holds only when `zend.exception_ignore_args` is **off** (PHP's development
+default); with it **on** (php.ini-production, and GitHub Actions' `setup-php` default) PHP strips arguments from
+traces, so the precondition failed on CI while passing locally. The test now pins `zend.exception_ignore_args=0` for
+the duration of that one case (set before the `throw`, restored in `finally`), making the raw-trace precondition
+deterministic on every runtime.
+
+- **Both assertions preserved** — the raw-trace sanity check and the stored-trace security check are unchanged;
+  nothing is skipped, removed, or weakened.
+- **Test-only change; no production behavior.** No `src/`, config, generator, descriptor, or public-API change — the
+  `ErrorLog` production code is byte-identical. This is a portability fix for a pre-existing test and is **not** part
+  of the RFC-0009 Rev 2 program (v2.86.1–v3.0.0), whose commits and tags are untouched.
+
+SemVer: **PATCH** — test portability only; no runtime behavior change.
+
 ## v3.0.0
 
 **BREAKING — Explicit NONE is now the default for a label-less related model.** `admin-core.explicit_none` flips
