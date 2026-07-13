@@ -1,6 +1,6 @@
 # Final Release Report — RFC-0009 Rev 2 (Naming / View Configuration)
 
-_Prepared: 2026-07. Status: implementation complete, audit APPROVED, release prepared (tags pending)._
+_2026-07. Status: implementation complete, audit APPROVED; commits and annotated tags created locally; not yet pushed._
 
 ## Implementation summary
 
@@ -75,5 +75,6 @@ runtime search/sort NONE-disabling in generated code, Explicit NONE for typed-st
 ## Final approval
 
 Final audit verdict: **APPROVED.** RFC-0009 Rev 2 is fully realized and closed; Roadmap Rev 2 is complete; governance
-was enforced. The release is prepared and ready for tag creation and publication upon explicit approval. No commits,
-tags, pushes, or GitHub Releases have been created by this preparation.
+was enforced. The releases are committed with annotated tags **created locally** — the four RFC-0009 releases
+(v2.86.1 → v3.0.0) plus the two follow-up test-portability patches (v3.0.1, v3.0.2). Nothing has been pushed, and no
+GitHub Releases have been created.

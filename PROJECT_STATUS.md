@@ -3,7 +3,7 @@
 A point-in-time status index for the `ngos/admin-core` naming/view-configuration line of work. Complements — does
 not replace — `RELEASE_MANIFEST.md`, `CHANGELOG.md`, and `docs/releases/`.
 
-_Last updated: 2026-07 (release preparation; tags pending)._
+_Last updated: 2026-07 (commits and annotated tags created locally; not yet pushed)._
 
 ## Completed projects
 
@@ -39,9 +39,9 @@ _Last updated: 2026-07 (release preparation; tags pending)._
 
 ## Release status
 
-- **Prepared, pending tag + publish.** Four releases are staged in the working tree (v2.86.1 → v2.86.2 → v2.87.0 →
-  v3.0.0). Annotated tags are planned but **not created**; nothing is pushed or published. See "Remaining manual
-  steps" in the release preparation summary.
+- **Committed and tagged locally; not yet pushed.** The four RFC-0009 releases (v2.86.1 → v2.86.2 → v2.87.0 →
+  v3.0.0), plus the two follow-up test-portability patches v3.0.1 and v3.0.2, exist as commits with **annotated tags
+  created locally**. Nothing has been pushed or published yet.
 - **Quality gates:** 978 tests / 3,806 assertions passing; PHPStan L5 clean; cross-database CI (PostgreSQL / MySQL /
   SQLite).
 

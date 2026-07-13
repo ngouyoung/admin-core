@@ -9,7 +9,7 @@ Permanent release index for the RFC-0009 Rev 2 program. This file is an index; p
 - **RFC:** RFC-0009 Revision 2 — **CLOSED**
 - **Roadmap:** Implementation Roadmap Revision 2 — **COMPLETE**
 - **Final audit:** **APPROVED**
-- **Prepared:** 2026-07 (tags pending creation; not yet pushed or published)
+- **State:** 2026-07 — commits and annotated tags created locally; not yet pushed or published
 
 ## Completed backlogs
 
@@ -35,7 +35,7 @@ Permanent release index for the RFC-0009 Rev 2 program. This file is an index; p
 
 ## Release timeline
 
-| Version | Theme | SemVer | Breaking | Prepared |
+| Version | Theme | SemVer | Breaking | Tagged (local) |
 |---|---|---|---|---|
 | v2.86.1 | Search Portability | PATCH | No | 2026-07 |
 | v2.86.2 | Composition Fidelity | PATCH | No | 2026-07 |
@@ -55,7 +55,9 @@ Release order (ascending): **v2.86.1 → v2.86.2 → v2.87.0 → v3.0.0**.
 
 ## Supported versions
 
-- **v3.0.0** — current / latest.
+- **v3.0.2** — current / latest tag (the v3.0.0 feature release plus the v3.0.1/v3.0.2 test-portability patches; no
+  runtime difference from v3.0.0).
+- **v3.0.0** — latest feature release (the MAJOR).
 - **v2.87.0** — previous minor; functionally equivalent to v3.0.0 with `explicit_none` off.
 - **v2.86.x** — superseded patch line (folded into v2.87.0).
 

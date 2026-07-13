@@ -2,13 +2,13 @@
 
 ## Supported versions
 
-Security fixes land on the latest `2.x` release. Please upgrade to the most recent tag before reporting, in
+Security fixes land on the latest `3.x` release. Please upgrade to the most recent tag before reporting, in
 case the issue is already fixed.
 
 | Version | Supported |
 | ------- | --------- |
-| 2.x     | ✅        |
-| < 2.0   | ❌        |
+| 3.x     | ✅        |
+| < 3.0   | ❌        |
 
 ## Reporting a vulnerability
 
