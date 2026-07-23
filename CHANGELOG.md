@@ -2,6 +2,27 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## Unreleased
+
+**Test infrastructure: multi-engine CI matrix (TS-1).** The full test suite now runs against real **PostgreSQL**
+and **MySQL** in CI, not only SQLite — closing the portability blind spot where SQLite tolerates SQL/DDL the server
+engines reject. Coverage is **inclusion-by-default**: every test runs cross-engine unless tagged into a
+reason-documented deny-list group — `sqlite-only` (a genuine SQLite-only capability; none today) or `pgsql-skip`
+(a *deferred* PostgreSQL-only framework bug, excluded on the pgsql leg only so MySQL still covers it). The untested
+**SQL Server** support claim is dropped; the tested + claimed engines are SQLite, MySQL/MariaDB, and PostgreSQL.
+
+- Fixed the cross-engine test-isolation and engine-specific assumptions the widening surfaced: persistent-engine
+  table cleanup (defensive `dropIfExists`), anonymous-model morph types replaced with named fixtures (an anonymous
+  class name carries a NUL byte PostgreSQL text columns reject), an incomplete fixture schema (a missing `price`
+  column), and identifier-quoting in a few SQL-shape assertions.
+- Two real PostgreSQL framework bugs the matrix caught are **documented and tracked** — not fixed here — in
+  `docs/ci/deferred-portability-issues.md` (PORT-1 `lower(bigint)`; PORT-2 uuid route-binding on a non-uuid key).
+- **Test-infrastructure + CI + docs only** — no `src/` runtime, generator, schema, or public-API change; the fast
+  SQLite gate is unchanged (`composer test` = 978 passed). Verified on real engines: SQLite 978, PostgreSQL 976
+  (978 − 2 pgsql-skip), MySQL 978.
+
+SemVer: **PATCH** — test/CI/docs only; no runtime behavior change.
+
 ## v3.0.3
 
 **Fix (test): make `ErrorLogTest` portable across PHP runtimes.** The `it('stores an ARGUMENT-FREE stack trace …')`

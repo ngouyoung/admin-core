@@ -33,8 +33,36 @@ npm ci
 npm test             # Vitest (front-end JS)
 ```
 
-The database layer runs on SQLite in-memory by default. The cross-database suite (`search-portability`) can be run
-against a real PostgreSQL/MySQL by exporting `DB_CONNECTION` + `DB_HOST`/`DB_PORT`/`DB_DATABASE`/`DB_USERNAME`/`DB_PASSWORD`.
+### Cross-engine testing
+
+The suite runs on **SQLite in-memory** by default (`composer test`) — the fast gate. CI also runs the **full suite
+against real PostgreSQL and MySQL** (the `cross-engine` job), because SQLite tolerates SQL/DDL that the server
+engines reject. Point the suite at a real engine by exporting the connection env:
+
+```bash
+DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=5432 DB_DATABASE=testing DB_USERNAME=root DB_PASSWORD=password \
+  vendor/bin/pest            # or DB_CONNECTION=mysql (port 3306)
+```
+
+Coverage is **inclusion-by-default**: every test runs on every engine unless tagged into a deny-list group — never
+add a test to one without a written reason:
+
+- **`sqlite-only`** — a genuine SQLite-only capability. Excluded on *every* server engine. (None exist today.)
+- **`pgsql-skip`** — a test that exposes a *deferred* PostgreSQL-only framework bug. Excluded on the **pgsql** leg
+  only; it still runs (and passes) on MySQL. Each is tracked in `docs/ci/deferred-portability-issues.md`; remove the
+  tag when the underlying bug is fixed.
+
+Do **not** tag a flaky, order-dependent, or otherwise broken test into a group — fix it. Exclusions are only for a
+real engine-capability difference or a tracked, deferred framework bug. The CI legs run:
+
+```bash
+vendor/bin/pest --exclude-group=sqlite-only --exclude-group=pgsql-skip   # PostgreSQL
+vendor/bin/pest --exclude-group=sqlite-only                              # MySQL
+```
+
+To confirm the matrix truly catches a regression (real execution, not string-matching), temporarily reintroduce a
+known engine-specific bug — e.g. change `Support\Search`'s `ESCAPE` sentinel from `'!'` back to `'\\'` — and run the
+Search suite on MySQL: the leg fails with `SQLSTATE 1064`. Restore the fix (`git checkout`) — never commit the revert.
 
 ## Coding standards
 
