@@ -21,6 +21,17 @@ reason-documented deny-list group — `sqlite-only` (a genuine SQLite-only capab
   SQLite gate is unchanged (`composer test` = 978 passed). Verified on real engines: SQLite 978, PostgreSQL 976
   (978 − 2 pgsql-skip), MySQL 978.
 
+**Test infrastructure: execute generated resources (TS-2).** `GeneratorTest` proves the generated code *lints and
+migrates*; it never booted the resource, so the emitted list query, relation display-column search/sort, route-key
+binding and master-detail sync executed against no engine — SQL only SQLite would tolerate could still ship green.
+`GeneratorExecutionTest` closes that: after `admin-core:make` + migrate it registers the route module, seeds via the
+generated factory, and HTTP-executes the resource (index/list-data/store/show/update), plus the generated service's
+master-detail `syncHasMany`. It rides TS-1's matrix, so the emitted SQL now runs on real PostgreSQL and MySQL.
+
+- Includes a **negative control** (a lint-clean query that throws at runtime reddens the suite) so the coverage
+  can't go vacuous, and asserts the skeleton is left pristine (every generated artifact removed) after each run.
+- **Test-only** — no `src/` runtime, generator, schema, or public-API change.
+
 SemVer: **PATCH** — test/CI/docs only; no runtime behavior change.
 
 ## v3.0.3
