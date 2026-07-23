@@ -9,7 +9,7 @@ class Search
      * Deliberately NOT backslash: MySQL/MariaDB process C-style backslash escapes in string literals, so
      * `ESCAPE '\'` is an unterminated string (ERROR 1064), and no single SQL literal spells one backslash on
      * both MySQL and PostgreSQL. `!` is inert in string literals AND in LIKE patterns on every supported
-     * driver (SQLite, MySQL, MariaDB, PostgreSQL, SQL Server). Centralised here so {@see likePattern()} (which
+     * driver (SQLite, MySQL, MariaDB, PostgreSQL). Centralised here so {@see likePattern()} (which
      * escapes with it) and the `ESCAPE` clause ({@see applyLike()}) can never diverge.
      */
     private const ESCAPE = '!';
@@ -153,8 +153,8 @@ class Search
      * Apply the same portable LIKE against ONE locale's value inside a translatable JSON column — the generated
      * getData() filterColumn for a `translatable` field routes through this. The column and the sanitised
      * locale are rendered as a JSON path (`col->locale`) BY THE CONNECTION'S GRAMMAR, which compiles to the
-     * driver's OWN JSON accessor — `json_extract`/`json_unquote` on MySQL/SQLite, `->>` on PostgreSQL,
-     * `json_value` on SQL Server — instead of a hardcoded json_extract(). The locale is sanitised to path-safe
+     * driver's OWN JSON accessor — `json_extract`/`json_unquote` on MySQL/SQLite, `->>` on PostgreSQL —
+     * instead of a hardcoded json_extract(). The locale is sanitised to path-safe
      * chars, so a hostile app locale can never inject SQL.
      *
      * @param  \Illuminate\Contracts\Database\Query\Builder|\Illuminate\Database\Eloquent\Builder  $query
