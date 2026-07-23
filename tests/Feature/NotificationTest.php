@@ -194,7 +194,10 @@ it('renders the bell with a bounded count + 6-item preview, never loading every 
     $queries = collect(\Illuminate\Support\Facades\DB::getQueryLog())->pluck('query');
 
     // No unbounded SELECT of the notifications rows — the row fetch is LIMIT-ed, and the badge is a COUNT.
-    $selects = $queries->filter(fn ($q) => str_contains($q, 'from "notifications"') && str_contains($q, 'read_at'));
+    // Identifier quoting differs by engine ("notifications" on sqlite+pgsql, `notifications` on mysql);
+    // normalise it out so the query-shape assertions are engine-agnostic. (TS-1)
+    $selects = $queries->map(fn ($q) => str_replace(['"', '`'], '', $q))
+        ->filter(fn ($q) => str_contains($q, 'from notifications') && str_contains($q, 'read_at'));
     expect($selects->filter(fn ($q) => str_contains($q, 'select *')))
         ->each(fn ($q) => $q->toContain('limit 6'))            // any full-row select is bounded to 6
         ->and($selects->contains(fn ($q) => str_contains($q, 'count(')))->toBeTrue(); // the badge is a COUNT

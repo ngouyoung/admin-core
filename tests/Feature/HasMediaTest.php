@@ -19,6 +19,11 @@ class HasMediaWidget extends Model
 }
 
 beforeEach(function () {
+    // Defensive drops: a persistent engine (pgsql/mysql) keeps tables between tests, unlike SQLite :memory;
+    // drop before create so a leak from another test can't collide ("table already exists"). (TS-1)
+    Schema::dropIfExists('mediables');
+    Schema::dropIfExists('media_items');
+    Schema::dropIfExists('has_media_widgets');
     Schema::create('media_items', function (Blueprint $t) {
         $t->id();
         $t->uuid('uuid')->unique();

@@ -122,6 +122,7 @@ describe('execution on the live connection', function () {
     });
 
     it('whereJsonLike matches one locale value case-insensitively and ignores other locales', function () {
+        Schema::dropIfExists('translatables'); // defensive: persistent engines keep tables between tests (TS-1)
         Schema::create('translatables', function (Blueprint $t) {
             $t->id();
             $t->json('title');

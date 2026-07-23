@@ -9,6 +9,9 @@ use Ngos\AdminCore\Tests\Fixtures\NotifiableUser;
    TestCase). Every row is scoped to the current user — a crafted id/resource can't reach another user's. */
 
 beforeEach(function () {
+    // Defensive drops for persistent engines (pgsql/mysql keep tables between tests, unlike SQLite :memory). (TS-1)
+    Schema::dropIfExists('saved_views');
+    Schema::dropIfExists('users');
     Schema::create('users', function (Blueprint $t) {
         $t->id();
         $t->string('name')->nullable();

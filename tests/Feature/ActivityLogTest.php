@@ -61,13 +61,9 @@ it('still resolves the causer after that user is soft-deleted (audit attribution
         $table->softDeletes();
     });
 
-    $causerModel = new class extends \Illuminate\Database\Eloquent\Model {
-        use \Illuminate\Database\Eloquent\SoftDeletes;
-
-        protected $table = 'causer_users';
-        protected $guarded = [];
-        public $timestamps = false;
-    };
+    // Named fixture (not an anonymous model): an anonymous class name carries a NUL byte pgsql text
+    // columns reject, so it cannot round-trip as a stored morphTo type. See Fixtures\CauserUser. (TS-1)
+    $causerModel = new \Ngos\AdminCore\Tests\Fixtures\CauserUser;
     $alice = $causerModel->create(['name' => 'Alice']);
 
     $log = ActivityLog::create([
@@ -183,14 +179,8 @@ it('attributes the change to the active portal guard, not the default web guard'
         $t->id();
         $t->string('name')->nullable();
     });
-    $userModel = new class extends \Illuminate\Foundation\Auth\User
-    {
-        protected $table = 'merchant_users';
-
-        public $timestamps = false;
-
-        protected $guarded = [];
-    };
+    // Named fixture (see Fixtures\MerchantUser) — an anonymous morph class name can't round-trip on pgsql. (TS-1)
+    $userModel = new \Ngos\AdminCore\Tests\Fixtures\MerchantUser;
     $merchant = $userModel::create(['name' => 'Shopkeeper']);
 
     // A 'merchant' portal guard, authenticated — while the default 'web' guard is NOT.

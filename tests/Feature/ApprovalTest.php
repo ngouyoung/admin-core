@@ -51,13 +51,8 @@ it('still resolves the requester after that user is soft-deleted (approvals scre
         $t->softDeletes();
     });
 
-    $reqModel = new class extends \Illuminate\Database\Eloquent\Model {
-        use \Illuminate\Database\Eloquent\SoftDeletes;
-
-        protected $table = 'req_users';
-        protected $guarded = [];
-        public $timestamps = false;
-    };
+    // Named fixture (see Fixtures\ReqUser) — an anonymous morph class name can't round-trip on pgsql. (TS-1)
+    $reqModel = new \Ngos\AdminCore\Tests\Fixtures\ReqUser;
     $bob = $reqModel->create(['name' => 'Bob']);
 
     $approval = \Ngos\AdminCore\Models\Approval::create([
@@ -256,14 +251,8 @@ it('forbids the requester from approving their OWN request (maker != checker), e
 
     Schema::dropIfExists('mc_users');
     Schema::create('mc_users', fn (Blueprint $t) => tap($t)->id()->string('name'));
-    $userModel = new class extends \Illuminate\Foundation\Auth\User
-    {
-        protected $table = 'mc_users';
-
-        public $timestamps = false;
-
-        protected $guarded = [];
-    };
+    // Named fixture (see Fixtures\McUser) — an anonymous morph class name can't round-trip on pgsql. (TS-1)
+    $userModel = new \Ngos\AdminCore\Tests\Fixtures\McUser;
     $alice = $userModel::create(['name' => 'Alice']);
     $bob = $userModel::create(['name' => 'Bob']);
 
@@ -325,14 +314,8 @@ it('resolves the approver on the route\'s portal guard for maker-checker, not th
 
     Schema::dropIfExists('mc_users');
     Schema::create('mc_users', fn (Blueprint $t) => tap($t)->id()->string('name'));
-    $userModel = new class extends \Illuminate\Foundation\Auth\User
-    {
-        protected $table = 'mc_users';
-
-        public $timestamps = false;
-
-        protected $guarded = [];
-    };
+    // Named fixture (see Fixtures\McUser) — an anonymous morph class name can't round-trip on pgsql. (TS-1)
+    $userModel = new \Ngos\AdminCore\Tests\Fixtures\McUser;
     $alice = $userModel::create(['name' => 'Alice']); // the MAKER, a merchant-guard user
 
     $w = Widget::create(['name' => 'a']);

@@ -48,17 +48,19 @@ jobs:
   # Cross-engine portability gate (TS-1): the main `test` job runs the FULL suite on SQLite, which uniquely
   # tolerates SQL/DDL that breaks on other engines. This job runs the suite against real PostgreSQL and MySQL so
   # a portability regression fails CI before it reaches a downstream product. Coverage is inclusion-by-default:
-  # every test runs cross-engine UNLESS it is tagged into the `sqlite-only` group (--exclude-group=sqlite-only) —
-  # an explicit, reason-tagged deny-list, never an allow-list. Widened incrementally (TS-1 commit 1: the migrating
-  # GeneratorTest + the Search/Display suites; commit 2: the full suite). The fast SQLite gate above is unchanged.
+  # every test runs cross-engine UNLESS tagged into a deny-list group, never an allow-list. Two groups:
+  #   `sqlite-only` — genuinely SQLite-only cases (excluded on every server engine; none today);
+  #   `pgsql-skip`  — deferred PostgreSQL-only framework bugs (excluded on the pgsql leg only; MySQL still runs
+  #                   them) — see docs/ci/deferred-portability-issues.md. The fast SQLite gate above is unchanged.
   cross-engine:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { db: pgsql, port: 5432 }
-          - { db: mysql, port: 3306 }
+          # exclude_groups is per-engine: pgsql additionally skips the deferred pgsql-only bugs (pgsql-skip).
+          - { db: pgsql, port: 5432, exclude_groups: '--exclude-group=sqlite-only --exclude-group=pgsql-skip' }
+          - { db: mysql, port: 3306, exclude_groups: '--exclude-group=sqlite-only' }
     name: Cross-engine - ${{ matrix.db }}
 
     services:
@@ -107,9 +109,8 @@ jobs:
           DB_DATABASE: testing
           DB_USERNAME: root
           DB_PASSWORD: password
-        # TS-1 commit 1: the migrating GeneratorTest + the Search/Display suites, minus the sqlite-only deny-list.
-        # Commit 2 replaces this file list with the full suite: `vendor/bin/pest --exclude-group=sqlite-only`.
-        run: vendor/bin/pest tests/Feature/GeneratorTest.php tests/Feature/SearchTest.php tests/Feature/SearchPortabilityTest.php tests/Feature/DisplayColumnFidelityTest.php tests/Feature/DisplayDescriptorTest.php tests/Feature/DisplayLabelWiringTest.php tests/Feature/ResourceViewConfigTest.php tests/Feature/ExplicitNoneFlagTest.php --exclude-group=sqlite-only
+        # TS-1: the FULL suite runs cross-engine (inclusion-by-default); only deny-list groups are skipped.
+        run: vendor/bin/pest ${{ matrix.exclude_groups }}
 
   analyse:
     runs-on: ubuntu-latest

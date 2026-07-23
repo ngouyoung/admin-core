@@ -10,6 +10,9 @@ use Ngos\AdminCore\Tests\Fixtures\NotifiableUser;
 /* Per-user dashboard layouts: the saved arrangement (order + hidden) and the save endpoint. */
 
 beforeEach(function () {
+    // Defensive drops for persistent engines (pgsql/mysql keep tables between tests, unlike SQLite :memory). (TS-1)
+    Schema::dropIfExists('dashboard_layouts');
+    Schema::dropIfExists('users');
     Schema::create('users', function (Blueprint $t) {
         $t->id();
         $t->string('name')->nullable();

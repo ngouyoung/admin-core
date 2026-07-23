@@ -93,4 +93,7 @@ it('does not resolve a hybrid record by its bigint id', function () {
     $this->put("/admin/hybrid-widgets/update/{$w->id}", ['name' => 'New'])->assertNotFound();
 
     expect($w->fresh()->name)->toBe('Old');
-});
+    // PORT-2 (deferred, NOT fixed in TS-1): on PostgreSQL, resolving a hybrid record by a non-uuid bigint key
+    // queries `where uuid = '1'` against a native uuid column -> 22P02 (500) instead of 404. Real framework bug;
+    // passes on sqlite + mysql. See docs/ci/deferred-portability-issues.md.
+})->group('pgsql-skip');

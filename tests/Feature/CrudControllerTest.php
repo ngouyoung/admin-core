@@ -11,6 +11,10 @@ beforeEach(function () {
         $table->string('name');
         $table->string('secret')->nullable();
         $table->integer('sort')->default(0);
+        // The WidgetController fixture declares a `price` money column + a sum(price) footer aggregate, so
+        // getData runs `select sum(price)`. SQLite tolerates the missing column; MySQL/PostgreSQL reject it
+        // (1054 / 42703). Provide the column the fixture requires so the list query is valid on every engine. (TS-1)
+        $table->decimal('price', 12, 2)->nullable();
         $table->timestamps();
     });
 });
@@ -292,10 +296,13 @@ it('streams the export with a keyset cursor (lazyById), never OFFSET pagination'
 
     // Both rows exported, and the row-select is id-cursor-ordered, never OFFSET-paginated.
     expect($content)->toContain('Row A')->toContain('Row B');
-    $rowQueries = array_values(array_filter($queries, fn ($sql) => str_starts_with($sql, 'select * from "widgets"')));
+    // Identifier quoting differs by engine ("widgets"/"id" on sqlite+pgsql, `widgets`/`id` on mysql);
+    // normalise it out so the cursor-order assertion is engine-agnostic. (TS-1)
+    $unquote = fn ($sql) => str_replace(['"', '`'], '', $sql);
+    $rowQueries = array_values(array_filter(array_map($unquote, $queries), fn ($sql) => str_starts_with($sql, 'select * from widgets')));
     expect($rowQueries)->not->toBeEmpty()
         ->and(implode(' ', $rowQueries))->not->toContain('offset')
-        ->and($rowQueries[0])->toContain('order by "id" asc');
+        ->and($rowQueries[0])->toContain('order by id asc');
 });
 
 it('downloads a blank import template of the importable columns (no hashed/secret)', function () {
