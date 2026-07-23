@@ -40,6 +40,12 @@ function cleanupGizmo(): void
     foreach (glob(database_path('migrations/*_gizmos_table.php')) ?: [] as $migration) {
         File::delete($migration); // create_ and add_…_to_gizmos_table
     }
+    // The --migration tests (up()/down(), artisan migrate) create real tables. On SQLite :memory: the fresh
+    // per-test DB hides them; on a persistent engine (pgsql/mysql — TS-1's matrix) they leak between tests and
+    // the next migrate hits "table already exists". Drop them so each test starts clean on every engine —
+    // pivot first (FK → gizmos). Test-isolation infrastructure only; changes no assertion. (TS-1)
+    Schema::dropIfExists('gizmo_tag');
+    Schema::dropIfExists('gizmos');
 }
 
 /** Every concrete generated file currently on disk (php + blade). */

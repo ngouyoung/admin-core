@@ -45,11 +45,13 @@ jobs:
       - name: Run tests
         run: composer test
 
-  # Cross-database portability guard: the main suite runs on SQLite, which uniquely tolerates SQL that breaks
-  # on other engines (backtick identifiers, json_extract, ESCAPE '\'). Run the Search suite — the one subsystem
-  # that emits raw LIKE SQL — against real PostgreSQL and MySQL so a portability regression can't hide again.
-  # Scoped to the Search tests to stay fast; the full suite still runs on SQLite above.
-  search-portability:
+  # Cross-engine portability gate (TS-1): the main `test` job runs the FULL suite on SQLite, which uniquely
+  # tolerates SQL/DDL that breaks on other engines. This job runs the suite against real PostgreSQL and MySQL so
+  # a portability regression fails CI before it reaches a downstream product. Coverage is inclusion-by-default:
+  # every test runs cross-engine UNLESS it is tagged into the `sqlite-only` group (--exclude-group=sqlite-only) —
+  # an explicit, reason-tagged deny-list, never an allow-list. Widened incrementally (TS-1 commit 1: the migrating
+  # GeneratorTest + the Search/Display suites; commit 2: the full suite). The fast SQLite gate above is unchanged.
+  cross-engine:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -57,7 +59,7 @@ jobs:
         include:
           - { db: pgsql, port: 5432 }
           - { db: mysql, port: 3306 }
-    name: Search portability - ${{ matrix.db }}
+    name: Cross-engine - ${{ matrix.db }}
 
     services:
       postgres:
@@ -97,7 +99,7 @@ jobs:
           done
           exit 1
 
-      - name: Run Search suite on ${{ matrix.db }}
+      - name: Run cross-engine suite on ${{ matrix.db }}
         env:
           DB_CONNECTION: ${{ matrix.db }}
           DB_HOST: 127.0.0.1
@@ -105,7 +107,9 @@ jobs:
           DB_DATABASE: testing
           DB_USERNAME: root
           DB_PASSWORD: password
-        run: vendor/bin/pest tests/Feature/SearchTest.php tests/Feature/SearchPortabilityTest.php tests/Feature/DisplayColumnFidelityTest.php tests/Feature/DisplayDescriptorTest.php tests/Feature/DisplayLabelWiringTest.php tests/Feature/ResourceViewConfigTest.php tests/Feature/ExplicitNoneFlagTest.php
+        # TS-1 commit 1: the migrating GeneratorTest + the Search/Display suites, minus the sqlite-only deny-list.
+        # Commit 2 replaces this file list with the full suite: `vendor/bin/pest --exclude-group=sqlite-only`.
+        run: vendor/bin/pest tests/Feature/GeneratorTest.php tests/Feature/SearchTest.php tests/Feature/SearchPortabilityTest.php tests/Feature/DisplayColumnFidelityTest.php tests/Feature/DisplayDescriptorTest.php tests/Feature/DisplayLabelWiringTest.php tests/Feature/ResourceViewConfigTest.php tests/Feature/ExplicitNoneFlagTest.php --exclude-group=sqlite-only
 
   analyse:
     runs-on: ubuntu-latest
