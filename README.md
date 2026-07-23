@@ -316,7 +316,7 @@ field name, so generate the related resource first.
 |---|---|---|
 | `?` | nullable | nullable column + `nullable` rule |
 | `^` | unique | unique index + `unique` rule (ignores self by route key on update) |
-| `#` | index | plain (non-unique) DB index — `->index()` on a hot filter/sort column (no-op if also `^`, or on a `foreign`, since both already index) |
+| `#` | index | plain (non-unique) DB index — `->index()` on a hot filter/sort column (no-op if also `^`, or on a `foreign`/`auth`, whose FK column the generator already indexes) |
 | `~` | **write-once** | settable on create, **locked on update** — fillable + StoreRequest rule, *no* UpdateRequest rule, `readonly` input on edit |
 | `@` | **system** | set by trusted code only — **not** fillable, not validated, not in the form; a `booted()` hook scaffold + nullable column (shown read-only) |
 

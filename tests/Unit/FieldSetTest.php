@@ -296,10 +296,11 @@ it('generates a working self-referencing belongsToMany (distinct pivot columns +
 
     $schema = $f->extraSchema();
     expect($schema)->toContain("Schema::create('category_category'")
-        ->toContain("\$table->foreignId('category_id')->constrained()->cascadeOnDelete();")
+        ->toContain("\$table->foreignId('category_id')->index()->constrained()->cascadeOnDelete();")
         // The far side is related_*, constrained explicitly back to the same table (constrained()
-        // would infer a nonexistent related_categories table from the column name).
-        ->toContain("\$table->foreignId('related_category_id')->constrained('categories')->cascadeOnDelete();");
+        // would infer a nonexistent related_categories table from the column name). Both pivot FK
+        // columns are indexed (DB-1).
+        ->toContain("\$table->foreignId('related_category_id')->index()->constrained('categories')->cascadeOnDelete();");
     expect(substr_count($schema, "foreignId('category_id')"))->toBe(1); // never the duplicate column
 
     // The relation names the pivot + both keys explicitly, matching the schema.
@@ -430,9 +431,9 @@ it('adds the DB unique constraint for a one-to-one foreign field (foreign^), mat
         ->toContain("foreignId('profile_id')->unique()->constrained('profiles')");
     expect($f->storeRules())->toContain("unique:accounts,profile_id");
 
-    // A plain (non-unique) foreign key does NOT get ->unique().
+    // A plain (non-unique) foreign key does NOT get ->unique(), but IS indexed (DB-1).
     expect(fs('profile_id:foreign:profiles', 'accounts')->migrationColumns())
-        ->toContain("foreignId('profile_id')->constrained('profiles')")
+        ->toContain("foreignId('profile_id')->index()->constrained('profiles')")
         ->not->toContain('->unique()');
 });
 
@@ -787,6 +788,50 @@ it('injects a trusted $sortScope property on the service for scoped sortable', f
         ->not->toContain('sortScope');
 });
 
+// -- DB-1: portable foreign-key indexing ------------------------------------------------------------
+
+it('indexes every generated foreign-key column — belongsTo, :auth, pivot, self-ref (DB-1)', function () {
+    // belongsTo FK
+    expect(fs('category_id:foreign:categories')->migrationColumns())
+        ->toContain("foreignId('category_id')->index()->constrained('categories')");
+    // :auth stamp FK
+    expect(fs('owner_id:auth')->migrationColumns())
+        ->toContain("foreignId('owner_id')->nullable()->index()->constrained('users')");
+    // self-referencing belongsTo (forced-nullable parent) is indexed too
+    expect(fs('parent_id:foreign:categories', 'categories')->migrationColumns())
+        ->toContain("foreignId('parent_id')->nullable()->index()->constrained('categories')->nullOnDelete()");
+    // both columns of a belongsToMany pivot are indexed
+    expect(fs('name:string, tags:belongsToMany', 'products')->extraSchema())
+        ->toContain("foreignId('product_id')->index()->constrained()")
+        ->toContain("foreignId('tag_id')->index()->constrained()");
+});
+
+it('never double-indexes a foreign key already covered by a leftmost index (DB-1)', function () {
+    // (A1) a unique one-to-one FK (^) is covered by its unique index — no separate ->index().
+    expect(fs('profile_id:foreign:profiles^', 'accounts')->migrationColumns())
+        ->toContain("foreignId('profile_id')->unique()->constrained('profiles')")
+        ->not->toContain("foreignId('profile_id')->index()");
+    // (A2) a FK that LEADS the --sortable [scope, sort] composite gets NO dedicated ->index()…
+    $scoped = fs('name:string, course_id:foreign:courses', 'lessons')->setSortable(true, 'course_id');
+    expect($scoped->migrationColumns())
+        ->toContain("foreignId('course_id')")
+        ->not->toContain("foreignId('course_id')->index()");
+    expect($scoped->sortColumn())->toContain("\$table->index(['course_id', 'sort']);"); // …the composite covers it
+    // (A3) a FK that is NOT the sort scope still gets its own ->index().
+    expect(fs('grp:string, category_id:foreign:categories', 'items')->setSortable(true, 'grp')->migrationColumns())
+        ->toContain("foreignId('category_id')->index()->constrained('categories')");
+});
+
+it('decides FK indexing purely from structure — field type, unique flag, sort scope — never relation meaning (DB-1, INV-7)', function () {
+    // Same relation "meaning" (a belongsTo to categories), two structural situations → two outcomes,
+    // driven only by the unique flag and the sort scope, never by what "category" is.
+    $plain = fs('category_id:foreign:categories', 'products')->migrationColumns();
+    $unique = fs('category_id:foreign:categories^', 'products')->migrationColumns();
+    expect($plain)->toContain("foreignId('category_id')->index()->constrained('categories')");
+    expect($unique)->toContain("foreignId('category_id')->unique()->constrained('categories')")
+        ->not->toContain("foreignId('category_id')->index()");
+});
+
 // -- computed (derived, read-only accessor) ---------------------------------------------------------
 
 it('compiles a numeric arithmetic accessor (operators, parenthesised)', function () {
@@ -1127,13 +1172,13 @@ it('points the :auth FK at the resource guard\'s provider table, not a literal u
 
     $portal = fs('title:string, owner_id:auth', 'listings')->setGuard('merchant');
     expect($portal->migrationColumns())
-        ->toContain("\$table->foreignId('owner_id')->nullable()->constrained('merchants')->nullOnDelete();")
+        ->toContain("\$table->foreignId('owner_id')->nullable()->index()->constrained('merchants')->nullOnDelete();")
         ->not->toContain("constrained('users')");
 
     // A plain admin resource (no guard) still targets the default users table.
     $admin = fs('title:string, owner_id:auth', 'listings');
     expect($admin->migrationColumns())
-        ->toContain("\$table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();");
+        ->toContain("\$table->foreignId('owner_id')->nullable()->index()->constrained('users')->nullOnDelete();");
 
     // An unresolvable guard (provider/model not configured) degrades to the safe default, never a broken FK.
     $unknown = fs('title:string, owner_id:auth', 'listings')->setGuard('ghost');

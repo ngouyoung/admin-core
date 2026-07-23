@@ -365,6 +365,42 @@ it('drops the belongsToMany pivot table on rollback (down() cleans up extraSchem
     Schema::dropIfExists('tags');
 });
 
+it('indexes the generated foreign-key columns in the LIVE schema on every engine, with no duplicate (DB-1)', function () {
+    // FK targets must exist for the constraint to migrate on pgsql/mysql (SQLite alone doesn't enforce FKs).
+    Schema::create('categories', fn (\Illuminate\Database\Schema\Blueprint $t) => $t->id());
+    Schema::create('tags', fn (\Illuminate\Database\Schema\Blueprint $t) => $t->id());
+
+    $this->artisan('admin-core:make', [
+        'name' => 'Gizmo',
+        '--fields' => 'name:string, category_id:foreign:categories, parent_id:foreign:gizmos, tags:belongsToMany',
+        '--migration' => true,
+    ])->assertSuccessful();
+    $file = collect(glob(database_path('migrations/*_create_gizmos_table.php')))->first();
+    (require $file)->up();
+
+    // Main table: the belongsTo FK and the self-ref FK are indexed on the real engine — the whole point of DB-1
+    // (PostgreSQL/SQL Server never auto-index a FK column; without this they sequential-scan every FK filter).
+    $gizmos = collect(Schema::getIndexes('gizmos'));
+    expect($gizmos->flatMap(fn ($i) => $i['columns'])->all())
+        ->toContain('category_id')   // AC-1: belongsTo indexed
+        ->toContain('parent_id');    // AC-5: self-referencing FK indexed
+    // …and EXACTLY ONE index leads with each FK column — no duplicate (InnoDB adopts the explicit index; AC-9).
+    expect($gizmos->filter(fn ($i) => $i['columns'] === ['category_id']))->toHaveCount(1);
+    expect($gizmos->filter(fn ($i) => $i['columns'] === ['parent_id']))->toHaveCount(1);
+
+    // Pivot: BOTH foreign-key columns are indexed, each exactly once (AC-3 + AC-9 no-duplicate).
+    $pivotIx = collect(Schema::getIndexes('gizmo_tag'));
+    expect($pivotIx->flatMap(fn ($i) => $i['columns'])->all())
+        ->toContain('gizmo_id')->toContain('tag_id');
+    expect($pivotIx->filter(fn ($i) => $i['columns'] === ['gizmo_id']))->toHaveCount(1);
+    expect($pivotIx->filter(fn ($i) => $i['columns'] === ['tag_id']))->toHaveCount(1);
+
+    Schema::dropIfExists('gizmo_tag');
+    Schema::dropIfExists('gizmos');
+    Schema::dropIfExists('tags');
+    Schema::dropIfExists('categories');
+});
+
 it('uses the hybrid key strategy with --uuid (bigint PK + public uuid + bigint FKs)', function () {
     $this->artisan('admin-core:make', [
         'name' => 'Gizmo',
@@ -522,7 +558,7 @@ it('auto-fills :auth and :sku system fields in the booted hook', function () {
 
     // auth → users FK (bigint, nullable); sku → nullable string column.
     expect($migration)
-        ->toContain("\$table->foreignId('created_by')->nullable()->constrained('users')")
+        ->toContain("\$table->foreignId('created_by')->nullable()->index()->constrained('users')")
         ->toContain("\$table->string('code')->nullable();");
 
     expect(Process::run('php -l ' . escapeshellarg(app_path('Models/Gizmo.php')))->successful())->toBeTrue();

@@ -1327,8 +1327,13 @@ BLADE;
                 // A `foreign^` (one-to-one) adds ->unique() on the column — the general unique/index block
                 // below is skipped for foreign fields, so without this the DB constraint the validation rule
                 // (unique:table,col) promises would never exist and duplicates could slip past a bypassed form.
-                'foreign' => "\$table->foreignId('{$col}')" . ($n || $f['relTable'] === $this->table ? '->nullable()' : '') . ($f['unique'] ? '->unique()' : '') . "->constrained('{$f['relTable']}')" . ($n || $f['relTable'] === $this->table ? '->nullOnDelete()' : '->cascadeOnDelete()'),
-                'auth' => "\$table->foreignId('{$col}')->nullable()->constrained('{$this->authTable}')->nullOnDelete()", // FK to the guard's provider table; set from auth($guard)->id()
+                // The referencing FK column is indexed on EVERY engine: `->unique()` when one-to-one (^),
+                // else `->index()` — UNLESS a leftmost-covering index already exists (the --sortable scope's
+                // [scope, sort] composite leads with this column). InnoDB reuses the explicit index for the FK
+                // constraint (no duplicate on MySQL); PostgreSQL/SQLite/SQL Server do NOT auto-index a FK, so
+                // without this they sequential-scan every FK filter/join/cascade. (DB-1)
+                'foreign' => "\$table->foreignId('{$col}')" . ($n || $f['relTable'] === $this->table ? '->nullable()' : '') . ($f['unique'] ? '->unique()' : ($col !== $this->sortScope ? '->index()' : '')) . "->constrained('{$f['relTable']}')" . ($n || $f['relTable'] === $this->table ? '->nullOnDelete()' : '->cascadeOnDelete()'),
+                'auth' => "\$table->foreignId('{$col}')->nullable()->index()->constrained('{$this->authTable}')->nullOnDelete()", // FK to the guard's provider table; set from auth($guard)->id() — indexed like any FK (DB-1)
                 default => "\$table->string('{$col}')", // also covers 'sku' (a string, made nullable below as a system field)
             };
             if (! in_array($f['type'], ['foreign', 'auth'], true)) {
@@ -1342,7 +1347,8 @@ BLADE;
                     $line .= '->unique()';
                 } elseif (! empty($f['index'])) {
                     // A unique constraint already creates an index, so only add a plain
-                    // one when the column isn't unique. (Foreign keys index themselves.)
+                    // one when the column isn't unique. (foreign/auth get their FK-column
+                    // index in their own branch above — hence this block skips them.)
                     $line .= '->index()';
                 }
             }
@@ -1362,7 +1368,7 @@ BLADE;
         $lines = [];
         foreach ($this->fields as $f) {
             if (! $this->isColumn($f) || $f['type'] === 'foreign') {
-                continue; // relations/derived aren't plain columns; a foreign key indexes itself + is skipped by admin-core:field
+                continue; // relations/derived aren't plain columns; a FK's index is emitted inline in the create migration (dropped with the table) and admin-core:field doesn't add FK columns
             }
             if (! empty($f['unique'])) {
                 $lines[] = "            \$table->dropUnique(['{$f['name']}']);";
@@ -1408,8 +1414,8 @@ BLADE;
                 $blocks[] = <<<PHP
 
         Schema::create('{$pivot}', function (Blueprint \$table) {
-            \$table->foreignId('{$self}_id')->constrained()->cascadeOnDelete();
-            \$table->foreignId('related_{$self}_id')->constrained('{$this->table}')->cascadeOnDelete();
+            \$table->foreignId('{$self}_id')->index()->constrained()->cascadeOnDelete();
+            \$table->foreignId('related_{$self}_id')->index()->constrained('{$this->table}')->cascadeOnDelete();
         });
 PHP;
 
@@ -1418,8 +1424,8 @@ PHP;
             $blocks[] = <<<PHP
 
         Schema::create('{$pivot}', function (Blueprint \$table) {
-            \$table->foreignId('{$self}_id')->constrained()->cascadeOnDelete();
-            \$table->foreignId('{$other}_id')->constrained()->cascadeOnDelete();
+            \$table->foreignId('{$self}_id')->index()->constrained()->cascadeOnDelete();
+            \$table->foreignId('{$other}_id')->index()->constrained()->cascadeOnDelete();
         });
 PHP;
         }
