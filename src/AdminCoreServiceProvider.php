@@ -54,6 +54,12 @@ class AdminCoreServiceProvider extends ServiceProvider
         // consumes them is a later work package.
         $this->app->singleton(\Ngos\AdminCore\Notifications\Platform\NotificationChannelManager::class);
         $this->app->singleton(\Ngos\AdminCore\Notifications\Platform\NotificationTypeRegistry::class);
+
+        // WP-N2A — the dispatcher the facade delegates to (orchestration only).
+        $this->app->bind(
+            \Ngos\AdminCore\Notifications\Platform\Contracts\NotificationDispatcher::class,
+            \Ngos\AdminCore\Notifications\Platform\Dispatcher::class,
+        );
     }
 
     public function boot(): void

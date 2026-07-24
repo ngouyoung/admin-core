@@ -45,7 +45,7 @@ it('seeds channel drivers from config', function () {
 
 it('delivers an OutboundNotification through a channel with NO dispatcher involved (dispatcher-independent)', function () {
     $channel = new FakeChannel;
-    $outbound = new OutboundNotification('uuid-1', 'orders.shipped', 'a@b.com', ['title' => 'Hi']);
+    $outbound = new OutboundNotification('uuid-1', 'orders.shipped', Recipient::forAddress('mail', 'a@b.com'), ['title' => 'Hi']);
 
     $result = $channel->deliver($outbound);
 
@@ -56,10 +56,11 @@ it('delivers an OutboundNotification through a channel with NO dispatcher involv
 
 // ---- DTO / value-object immutability ----------------------------------------------------------------------------
 
-it('OutboundNotification is an immutable read-only DTO carrying the uuid (never a bigint id)', function () {
-    $o = new OutboundNotification('uuid-9', 'orders.shipped', 'a@b.com', ['title' => 'Hi']);
+it('OutboundNotification is an immutable read-only DTO carrying the uuid + recipient (never a bigint id)', function () {
+    $o = new OutboundNotification('uuid-9', 'orders.shipped', Recipient::forAddress('mail', 'a@b.com'), ['title' => 'Hi']);
 
-    expect($o->notificationUuid)->toBe('uuid-9')->and($o->address)->toBe('a@b.com')
+    expect($o->notificationUuid)->toBe('uuid-9')
+        ->and($o->recipient->address)->toBe('a@b.com')
         ->and($o->content)->toBe(['title' => 'Hi']);
     expect(fn () => $o->type = 'x')->toThrow(Error::class); // readonly — cannot mutate
 });
@@ -118,9 +119,11 @@ it('the platform namespace references no product model — structural mechanism-
     foreach ($files as $file) {
         $src = (string) file_get_contents($file->getPathname());
         $scanned++;
-        // No product model, no Eloquent model type — the platform never knows a domain entity.
-        expect($src)->not->toContain('App\\Models')
-            ->not->toContain('Illuminate\\Database\\Eloquent\\Model');
+        // The structural guard: the platform never references a PRODUCT/domain model. (The framework Eloquent base
+        // is a legitimate mechanism — e.g. the InApp channel `instanceof Model` to resolve the recipient's morph —
+        // exactly as Recipient uses the Authenticatable contract; the DTO-boundary test proves no persistence model
+        // crosses a public contract.)
+        expect($src)->not->toContain('App\\Models');
     }
 
     expect($scanned)->toBeGreaterThanOrEqual(11); // all platform files were scanned

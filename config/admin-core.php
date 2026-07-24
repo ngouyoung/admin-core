@@ -282,7 +282,9 @@ return [
 
         // Notification Platform channel drivers: a `name => Driver::class` map the NotificationChannelManager
         // seeds from. A host or module also registers channels at runtime via ->extend() from a provider's boot().
-        'channels' => [],
+        'channels' => [
+            'inapp' => \Ngos\AdminCore\Notifications\Platform\InAppChannel::class,
+        ],
 
         // The channel the ChannelRouter uses when a send does not constrain channels via PendingNotification::channel().
         'default_channel' => 'inapp',
