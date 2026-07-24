@@ -32,7 +32,25 @@ master-detail `syncHasMany`. It rides TS-1's matrix, so the emitted SQL now runs
   can't go vacuous, and asserts the skeleton is left pristine (every generated artifact removed) after each run.
 - **Test-only** — no `src/` runtime, generator, schema, or public-API change.
 
-SemVer: **PATCH** — test/CI/docs only; no runtime behavior change.
+**Feature: `admin-core:doctor` now flags stale generated resource files (CG-2).** doctor previously byte-compared
+only the frozen frontend kit — it never inspected the per-resource controllers/services/views that
+`admin-core:make` writes, yet the CHANGELOG directed operators to doctor for exactly those files after a
+generated-code fix (the v2.79.152 raw-`LIKE` search-escaping fix; the v2.79.27 trash route-key fix). doctor now
+idiom-lints generated files against a maintained catalog of superseded framework idioms, listing each stale file
+under a distinct **Generated Resource Staleness** heading with the idiom, the admin-core version that superseded
+it, and the remedy — so a **catalogued** shipped fix can no longer sit unapplied behind a green doctor.
+
+- **Severity-gated exit code:** only a **security/correctness** idiom makes doctor exit non-zero (CI-catchable); a
+  cosmetic idiom is advisory. A host with no generated resources — or only current ones — sees no new output and no
+  exit-code change (no false red).
+- **Report-only + not a byte-compare:** the check never mutates a generated file, even under `--fix` (regenerating
+  or hand-patching is the operator's call); the per-resource stubs carry `DummyClass`/`__AC_*__` placeholders, so a
+  generated file is never byte-identical to its stub. Full-fidelity regenerate-from-manifest diff is deferred to CG-1.
+- Corrects the two CHANGELOG entries (v2.79.152, v2.79.27) that promised this detection before it existed — each now
+  carries an editor's note tying the claim to the shipped catalog.
+
+SemVer (Unreleased batch): **MINOR** — CG-2 adds a new `admin-core:doctor` check (feature); TS-1/TS-2 are
+test/CI/docs-only, so the feature governs the batch bump. No breaking change to any existing command or public API.
 
 ## v3.0.3
 
@@ -743,7 +761,10 @@ new `Search::whereJsonLike($sub, 'name', $locale, $keyword)` for the translatabl
 (no SQLi) — this fixes the wildcard over-match. Regression tests assert the generated code routes through the
 helpers and that an underscore matches literally (mutation-verified). Note: already-generated host controllers
 keep their old code until regenerated; `admin-core:doctor` surfaces stub drift. Found by an eleventh full-package
-audit (generated-getdata-like dimension — the audit-11 candidate).
+audit (generated-getdata-like dimension — the audit-11 candidate). *(Editor's note — when this shipped,
+`admin-core:doctor` inspected only the frontend kit, so this raw-`LIKE` idiom went undetected; doctor's
+generated-resource staleness check now catalogs it (`raw-like-filtercolumn`, security) and flags any generated
+controller still carrying it.)*
 
 ## v2.79.151
 
@@ -2210,7 +2231,9 @@ force-delete 404'd and bulk restore/force-delete silently matched nothing while 
 view now uses `$item->getRouteKey()` at all three sites (identical output for plain-id resources). Regression
 test asserts the generated trash view keys off `getRouteKey()` and never passes `->id` to a route
 (mutation-verified). Found by a third full-package audit (view layer). Existing generated trash views should be
-re-generated or hand-patched; `admin-core:doctor` stub-drift will flag them.
+re-generated or hand-patched; `admin-core:doctor` stub-drift will flag them. *(Editor's note — doctor did not
+inspect generated views when this shipped; its generated-resource staleness check now catalogs this `$item->id`
+trash-route idiom (`trash-route-key-id`, correctness) and flags any generated trash view still carrying it.)*
 
 ## v2.79.26
 

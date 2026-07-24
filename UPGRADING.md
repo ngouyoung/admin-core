@@ -12,6 +12,26 @@ npm install && npm run build
 
 ---
 
+## → Unreleased — `admin-core:doctor` may newly flag stale generated files
+
+`admin-core:doctor` now idiom-lints the per-resource files `admin-core:make` generated (controllers, trash views)
+for **known superseded framework idioms** and, for a **security/correctness** one, **exits non-zero**. If your app
+has generated resources that predate a generated-code fix (e.g. the v2.79.152 raw-`LIKE` search escaping or the
+v2.79.27 trash route-key fix), doctor — and any CI step that runs it — may now go **red** where it was green. This
+is a true positive: a shipped fix is sitting unapplied in that generated file.
+
+**Do you need to do anything?**
+
+| You see… | Do this |
+|---|---|
+| A **Generated Resource Staleness** section naming your controllers / trash views | Regenerate the resource (`admin-core:make <Name> --force`, then review `git diff`) or hand-patch the idiom the report names. |
+| Nothing new | Nothing — a host with no generated resources, or only current ones, is unaffected. |
+
+The check is **report-only**: it never rewrites your files, even under `--fix`. Only security/correctness idioms
+affect the exit code; a cosmetic idiom is advisory.
+
+---
+
 ## → v3.0.0 — Explicit NONE becomes the default (BREAKING)
 
 **Breaking change.** `admin-core.explicit_none` now defaults to **`true`** (it was `false` in v2.87.0). A related

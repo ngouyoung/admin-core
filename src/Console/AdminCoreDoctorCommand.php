@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Ngos\AdminCore\Support\Doctor\GeneratedIdiomCatalog;
 use Ngos\AdminCore\Support\Permissions\PermissionNaming;
 use Ngos\AdminCore\Support\Permissions\PermissionSynchronizer;
 use Ngos\AdminCore\Support\Permissions\RouteResourceDiscovery;
@@ -26,6 +27,11 @@ use Ngos\AdminCore\Support\Permissions\RouteResourceDiscovery;
  *
  * --fix overwrites files, so review with `git diff` before committing — your own theme SCSS / layout
  * edits live in these files too. Behaviour files (JS) are the ones that usually carry fixes.
+ *
+ * It ALSO idiom-lints the per-resource files `admin-core:make` generates (controllers, trash views) for KNOWN
+ * superseded framework idioms ({@see GeneratedIdiomCatalog}) — a byte-compare is impossible there (the stubs
+ * carry placeholders), so it matches catalogued constructs the current generator no longer emits. This check is
+ * REPORT-ONLY (never mutated, even by --fix) and severity-gated: only a security/correctness idiom exits non-zero.
  */
 class AdminCoreDoctorCommand extends Command
 {
@@ -34,7 +40,7 @@ class AdminCoreDoctorCommand extends Command
                             {--diff : Print a unified diff for each drifted file}
                             {--force : With --fix, skip the confirmation prompt}';
 
-    protected $description = 'Report (or --fix) admin-core frontend assets that have drifted from the current package version — frozen copies that never auto-update.';
+    protected $description = 'Report (or --fix) drifted admin-core frontend assets, flag generated resource files carrying a superseded framework idiom, and check permission health.';
 
     /** managed dest path => its top-level managed AREA root (for the deleted-whole-subtree missing check). */
     private array $areaRoots = [];
@@ -44,13 +50,21 @@ class AdminCoreDoctorCommand extends Command
         // Permission Health runs regardless of the frontend kit — it's a config-install concern.
         $permissionsHealthy = $this->checkPermissionHealth();
 
+        // Generated-resource staleness (CG-2) also runs regardless of the frontend kit — it inspects the
+        // per-resource files admin-core:make wrote, not the published theme assets. Severity-gated: only a
+        // security/correctness idiom makes this false (→ non-zero exit); a cosmetic one is advisory.
+        $generatedHealthy = $this->checkGeneratedResourceStaleness();
+
+        // The exit status the non-frontend checks contribute; the frontend drift/missing branches below add to it.
+        $baseline = ($permissionsHealthy && $generatedHealthy) ? self::SUCCESS : self::FAILURE;
+
         // Only the --access frontend kit publishes these files. On a minimal install the target paths hold the
         // framework's own defaults (e.g. resources/js/app.js) — comparing them to our stubs falsely reports
         // "drifted"/"missing", and --fix --force would overwrite a working minimal app with the theme stub.
         if (! $this->frontendKitInstalled()) {
             $this->line('admin-core frontend kit not installed (run <info>admin-core:install --access</info>) — skipping asset drift check.');
 
-            return $permissionsHealthy ? self::SUCCESS : self::FAILURE;
+            return $baseline;
         }
 
         $managed = $this->managedFiles();
@@ -84,7 +98,7 @@ class AdminCoreDoctorCommand extends Command
         if ($drift === [] && $missing === []) {
             $this->info('admin-core frontend assets are in sync with the package. ✔');
 
-            return $permissionsHealthy ? self::SUCCESS : self::FAILURE;
+            return $baseline;
         }
 
         if (! $this->option('fix')) {
@@ -116,7 +130,82 @@ class AdminCoreDoctorCommand extends Command
         $this->newLine();
         $this->info('Updated. Review the changes with `git diff`, then rebuild assets (npm run build).');
 
-        return $permissionsHealthy ? self::SUCCESS : self::FAILURE;
+        return $baseline;
+    }
+
+    /**
+     * Generated-resource staleness (CG-2) — idiom-lint the per-resource files admin-core:make wrote for KNOWN
+     * superseded framework idioms ({@see GeneratedIdiomCatalog}). NOT a byte-compare (the stubs carry
+     * DummyClass/__AC_*__ placeholders); a construct the current generator no longer emits, matched within the
+     * generated file, so up-to-date resources never match. Report-only — never mutates a host file, even under
+     * --fix (regenerating/patching is the operator's call). Returns true when nothing ACTIONABLE
+     * (security/correctness) is stale; a purely-cosmetic finding is reported but leaves this true (advisory).
+     */
+    private function checkGeneratedResourceStaleness(): bool
+    {
+        $findings = [];
+        foreach (GeneratedIdiomCatalog::fileKinds() as $kind) {
+            foreach ($this->generatedFilesFor($kind) as $file) {
+                foreach (GeneratedIdiomCatalog::matches($kind, File::get($file)) as $entry) {
+                    $findings[] = ['file' => $file] + $entry;
+                }
+            }
+        }
+
+        // No stale generated file (or no generated resources at all): the section is ABSENT — it prints nothing
+        // and contributes nothing to the exit code, so a host without generated resources sees no new output.
+        if ($findings === []) {
+            return true;
+        }
+
+        $this->newLine();
+        $this->line('<options=bold>Generated Resource Staleness</>');
+        $this->line('----------------------------');
+        $this->line('  Generated files still carrying a superseded framework idiom (regenerate or hand-patch — never auto-fixed):');
+        foreach ($findings as $f) {
+            $this->newLine();
+            $this->line('  <comment>'.$this->relative($f['file']).'</comment>  <fg=yellow>['.$f['severity'].']</>');
+            $this->line('    idiom:      '.$f['description']);
+            $this->line('    superseded: admin-core '.$f['supersededIn']);
+            $this->line('    remedy:     '.$f['remedy']);
+        }
+
+        // Severity-gate (user decision 2026-07-24): a shipped security/correctness fix sitting unapplied reddens
+        // the build; a cosmetic idiom is advisory only — reported above, but it does not force a non-zero exit.
+        $actionable = array_filter($findings, fn ($f) => GeneratedIdiomCatalog::isActionable($f['severity']));
+        if ($actionable !== []) {
+            $this->newLine();
+            $this->warn('A shipped security/correctness fix is unapplied in the generated files above — regenerate or hand-patch them.');
+
+            return false;
+        }
+
+        return true; // only cosmetic staleness — advisory, does not fail the build
+    }
+
+    /**
+     * Host-app files of one generated KIND to scan — scoped to admin-core-generated locations, and (for
+     * controllers) gated on a generated-only marker so a hand-written Backend controller isn't linted.
+     *
+     * @return list<string>
+     */
+    private function generatedFilesFor(string $kind): array
+    {
+        return match ($kind) {
+            // Generated resource controllers live directly under Backend/ and are the only ones that call
+            // parent::getData() — the marker keeps a hand-written Backend controller out of the scan. is_file()
+            // guards against a glob hit that is a directory (File::get would throw).
+            'backend-controller' => array_values(array_filter(
+                glob(app_path('Http/Controllers/Backend').'/*Controller.php') ?: [],
+                fn (string $f) => is_file($f) && str_contains(File::get($f), 'parent::getData('),
+            )),
+            // Generated trash views live at the generator's own path; the location is the generated-file signal.
+            'trash-view' => array_values(array_filter(
+                glob(resource_path('views/backend/pages').'/*/trash.blade.php') ?: [],
+                fn (string $f) => is_file($f),
+            )),
+            default => [],
+        };
     }
 
     /**
