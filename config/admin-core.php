@@ -279,6 +279,10 @@ return [
     */
     'notifications' => [
         'realtime' => env('ADMIN_CORE_REALTIME', false),
+
+        // Notification Platform channel drivers: a `name => Driver::class` map the NotificationChannelManager
+        // seeds from. A host or module also registers channels at runtime via ->extend() from a provider's boot().
+        'channels' => [],
     ],
 
     /*

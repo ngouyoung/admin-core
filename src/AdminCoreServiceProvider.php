@@ -48,6 +48,12 @@ class AdminCoreServiceProvider extends ServiceProvider
         // config('admin-core.translation.driver') is the only switch.
         $this->app->singleton(TranslationManager::class);
         $this->app->bind(Translator::class, fn ($app) => $app->make(TranslationManager::class)->driver());
+
+        // Notification Platform (WP-N1) registries — singletons so runtime extend()/registerType() calls persist
+        // for the request. The channel driver map + type presentation metadata live here; the dispatcher that
+        // consumes them is a later work package.
+        $this->app->singleton(\Ngos\AdminCore\Notifications\Platform\NotificationChannelManager::class);
+        $this->app->singleton(\Ngos\AdminCore\Notifications\Platform\NotificationTypeRegistry::class);
     }
 
     public function boot(): void
