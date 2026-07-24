@@ -148,6 +148,15 @@ database row, permissions not granted to the super role, and orphan permissions,
 `admin-core:sync-permissions` (it never changes anything automatically). Doctor **exits non-zero** when it
 finds missing/ungranted permissions, so CI can catch a resource that was generated but never synced.
 
+Finally, `admin-core:doctor` flags **stale generated resource files**. The per-resource controllers and trash
+views that `admin-core:make` writes into your app also freeze — a later framework fix to what the generator
+emits (e.g. a raw `LIKE` filter superseded by `Support\Search`, or a trash route keyed off `->id` instead of the
+public route key) doesn't reach already-generated resources. Doctor idiom-lints those files against a catalog of
+superseded framework idioms and lists each stale file under a distinct **Generated Resource Staleness** heading
+with the idiom, the version that superseded it, and the remedy (regenerate or hand-patch). This check is
+**report-only** — it never rewrites a generated file, even under `--fix` — and **severity-gated**: only a
+security/correctness idiom makes doctor exit non-zero; a cosmetic one is advisory.
+
 ## Generating a resource
 
 ```bash
@@ -995,6 +1004,13 @@ changing the name; single-guard apps never touch any of this.
 > **One guard, not separate logins?** If admin and merchant are the *same* users with different roles, skip
 > `--portal`/`--guard` entirely and just give each area a named menu — see
 > [`config('admin-core.menus')`](#ui-components--theme).
+
+> **Which user is "acting" when several guards are active?** admin-core resolves the acting *(user, guard)* pair
+> through one place — `Ngos\AdminCore\Support\ActorResolver` — with a single canonical order: **configured portal
+> guards first, then the default guard**. So the audit trail, media attribution, saved views, dashboard layout,
+> and locale all agree on one identity for any authentication state; if a request is signed in on the default
+> *and* a portal guard at once, the **portal** user is the actor. The precedence is fixed (not a per-app knob) —
+> see [`docs/adr/ADR-0008-guard-precedence.md`](docs/adr/ADR-0008-guard-precedence.md).
 
 ## Notifications
 
