@@ -60,13 +60,15 @@ it('the Notification model uses hybrid identity: bigint id + public uuid route k
 
 it('the InApp channel writes a Notification row from the OutboundNotification recipient', function () {
     $user = NotifiableUser::create(['name' => 'A']);
-    $outbound = new OutboundNotification('uuid-abc', 'orders.shipped', Recipient::forUser($user, 'web'), ['title' => 'Shipped']);
+    // a real uuid — the store's `uuid` column is a strict uuid type on pgsql (SQLite would accept any text)
+    $uuid = '0192f1e2-0000-7000-8000-000000000abc';
+    $outbound = new OutboundNotification($uuid, 'orders.shipped', Recipient::forUser($user, 'web'), ['title' => 'Shipped']);
 
     $result = (new InAppChannel)->deliver($outbound);
 
     expect($result->status->value)->toBe('sent'); // DeliveryResult::sent()
     $n = Notification::firstOrFail();
-    expect($n->uuid)->toBe('uuid-abc')
+    expect($n->uuid)->toBe($uuid)
         ->and($n->notifiable_type)->toBe($user->getMorphClass())
         ->and((int) $n->notifiable_id)->toBe((int) $user->getKey())
         ->and($n->guard)->toBe('web')
