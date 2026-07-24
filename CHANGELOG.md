@@ -71,9 +71,24 @@ hardening (skip a guard named in admin-core config but absent from `auth.php`) i
   mis-resolved to a later guard; healthy requests are unchanged. The portal-first precedence is recorded in
   `docs/adr/ADR-0008-guard-precedence.md`; the dashboard authorization-vs-attribution decision in `docs/adr/ADR-0009`.
 
-SemVer (Unreleased batch): **MINOR** — CG-2 adds a new `admin-core:doctor` check (feature); AR-1 is a fix with one
-dual-session attribution change; TS-1/TS-2 are test/CI/docs-only. The feature governs the batch bump. No breaking
-change to any existing command or public API.
+**Generator: index generated foreign-key columns on every engine (DB-1).** `admin-core:make` now emits `->index()`
+on every generated foreign-key column — belongsTo, `:auth`, self-referential, and both pivot columns — so a newly
+scaffolded migration is index-complete on **PostgreSQL, SQLite and SQL Server**, not only MySQL/InnoDB (which
+auto-indexes a constrained key). Deduplicated: no extra index where a leftmost-covering one already exists (a `^`
+unique one-to-one FK, or the `--sortable=<fk>` leftmost composite). On MySQL the explicit index is adopted by the
+existing constraint (a functional no-op). **On by default** (no flag/config key). **Generator-output only —
+existing databases are UNTOUCHED**; the change affects migrations generated *after* upgrading.
+
+- **Deferred (existing apps):** the optional half — an `admin-core:doctor` advisory listing unindexed FK columns,
+  and/or a one-off add-index backfill migration for already-deployed schemas — is **NOT shipped in this batch**.
+  An app that generated FK columns before this release keeps them un-indexed until it regenerates the resource's
+  migration (or hand-adds the index): a no-op on MySQL, an additive `CREATE INDEX` elsewhere. Tracked as a follow-up.
+
+SemVer (Unreleased batch): **MINOR** — CG-2 adds a new `admin-core:doctor` check (feature) and governs the bump;
+DB-1 is an additive, non-breaking generator-output change (new resources gain FK indexes; existing DBs untouched);
+AR-1 (with its B13a catch-narrowing hardening) is a fix with one dual-session attribution change; TS-1/TS-2 are
+test/CI/docs-only; the guard-precedence (ADR-0008) and dashboard-authorization (ADR-0009) decisions are governance
+docs. No breaking change to any existing command or public API.
 
 ## v3.0.3
 
@@ -5110,7 +5125,10 @@ If you're already on v1.28.7 and don't reference the removed aliases, upgrading 
   the migration column (e.g. `status:enum:new|paid#`, `placed_at:datetime#`) for columns you filter/sort on
   often. It's a no-op when the column is already `^` unique (a unique constraint indexes itself) or a
   `foreign` (constrained keys self-index), so you never get a double index. Works in both `admin-core:make`
-  (create migration) and `admin-core:field` (add migration).
+  (create migration) and `admin-core:field` (add migration). *(Editor's note — "constrained keys self-index"
+  holds only on MySQL/InnoDB; on PostgreSQL, SQLite and SQL Server a foreign-key column is NOT auto-indexed, which
+  is why the generator now indexes every generated FK column itself — see the DB-1 entry under Unreleased. The `#`
+  modifier stays a no-op on a generated FK, since the generator already indexes it.)*
 
 ## v1.27.0
 

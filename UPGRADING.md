@@ -49,6 +49,23 @@ No config, schema, or data migration. Storage keys `(user_id, guard)` are unchan
 
 ---
 
+## → Unreleased — generated foreign-key columns are now indexed on every engine
+
+`admin-core:make` now emits `->index()` on every generated foreign-key column (belongsTo, `:auth`, self-referential,
+both pivot columns). MySQL/InnoDB already auto-indexes a constrained key; **PostgreSQL, SQLite and SQL Server do
+not**, so an unindexed FK column there meant sequential scans on joins, filters, and cascade deletes.
+
+**Do you need to do anything?** No — it is **generator-output only** and **existing databases are untouched**.
+
+| Your situation | Effect |
+|---|---|
+| You scaffold new resources after upgrading | Their generated migrations index FK columns automatically. Nothing to do. |
+| You have **existing** generated FK columns (already migrated) | They stay **un-indexed** until you pick up the fix. The automated remediation (a doctor advisory + an add-index backfill migration) is a **deferred follow-up, not shipped in this batch** — so if you want the index now, regenerate the resource's migration (`admin-core:make <Name> --force`, review with `git diff`) or hand-add `->index()` in a `Schema::table(...)` migration. This is a no-op on MySQL and an additive `CREATE INDEX` elsewhere. |
+
+No breaking change, no config key, no automatic schema change to any live database.
+
+---
+
 ## → v3.0.0 — Explicit NONE becomes the default (BREAKING)
 
 **Breaking change.** `admin-core.explicit_none` now defaults to **`true`** (it was `false` in v2.87.0). A related
@@ -252,8 +269,10 @@ php artisan admin-core:make Order --migration --fields="status:enum:new|paid#, p
 php artisan admin-core:field Order "tracking_no:string#"
 ```
 
-No-op when the column is already `^` unique or a `foreign` (both already index). To index a column on a
-resource generated earlier, add `->index()` in a hand-written `Schema::table(...)` migration as usual.
+No-op when the column is already `^` unique (a unique constraint indexes itself) or a generated `foreign` / `auth`
+FK column (the generator now indexes every generated FK column on **every** engine — see the DB-1 note below; only
+MySQL/InnoDB auto-indexes a constrained key). To index a **non-FK** column on a resource generated earlier, add
+`->index()` in a hand-written `Schema::table(...)` migration as usual.
 
 ## → v1.26.0 — Add a channel without re-typing `--fields`
 
