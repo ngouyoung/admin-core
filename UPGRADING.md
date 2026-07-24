@@ -32,6 +32,23 @@ affect the exit code; a cosmetic idiom is advisory.
 
 ---
 
+## → Unreleased — guard/actor resolution is now portal-first everywhere
+
+admin-core resolves *(acting user, active guard)* for six internal concerns (audit causer, media attribution,
+saved-view scoping, dashboard-layout persistence, locale user, auto-translate gate). These now share one resolver
+with a single canonical order: **configured portal guards first, then the default guard**.
+
+**Do you need to do anything?** Almost certainly **no**.
+
+| Your setup | Effect |
+|---|---|
+| Single guard (no portal guards), or one session at a time | **No change** — the resolved user/guard is identical to before. |
+| A request authenticated on the default guard AND a portal guard **at the same time** | The acting user is now the **portal** user for all six concerns (previously five of them used the default-guard user). This matches what the audit trail already recorded, so it *removes* a split-identity inconsistency. |
+
+No config, schema, or data migration. Storage keys `(user_id, guard)` are unchanged.
+
+---
+
 ## → v3.0.0 — Explicit NONE becomes the default (BREAKING)
 
 **Breaking change.** `admin-core.explicit_none` now defaults to **`true`** (it was `false` in v2.87.0). A related

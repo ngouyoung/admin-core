@@ -87,24 +87,12 @@ class SetLocale
      */
     protected function authenticatedUser(Request $request): ?\Illuminate\Contracts\Auth\Authenticatable
     {
-        // The default guard first, via the request resolver (respects Laravel's + any host/test override).
-        if ($request->user() !== null) {
-            return $request->user();
-        }
-
-        // Otherwise a portal user on a configured NON-default guard — else a portal user's stored locale is
-        // never read and a ?setlang switch is written to nobody (only the default guard was ever consulted).
-        foreach (array_keys((array) config('admin-core.permission.guards', [])) as $guard) {
-            try {
-                if (auth()->guard($guard)->check()) {
-                    return auth()->guard($guard)->user();
-                }
-            } catch (\Throwable) {
-                continue; // a guard named in admin-core config but not defined in auth.php — skip
-            }
-        }
-
-        return null;
+        // Delegated to the single canonical resolver (AR-1). This used to consult the default guard FIRST (via
+        // $request->user()) then portals; it is now portal-first, identical to every other locus. ($request is
+        // retained for the signature. In a normal request the resolver's guard read equals $request->user(); a
+        // non-session guard promoted to the runtime default, or a custom request user-resolver, is not consulted
+        // here — an accepted edge of routing every locus through one guard-based resolver.)
+        return \Ngos\AdminCore\Support\ActorResolver::user();
     }
 
     /**

@@ -161,42 +161,14 @@ class Dashboard
      */
     protected function currentUser(): array
     {
-        foreach ($this->guards() as $guard) {
-            try {
-                if (auth()->guard($guard)->check()) {
-                    return [auth()->guard($guard)->id(), (string) $guard];
-                }
-            } catch (\Throwable) {
-                continue; // a guard named in admin-core config but not defined in auth.php — skip
-            }
-        }
-
-        return [null, null];
-    }
-
-    /** The default guard first, then every configured portal guard. */
-    private function guards(): array
-    {
-        return array_unique(array_merge(
-            [config('auth.defaults.guard', 'web')],
-            array_keys((array) config('admin-core.permission.guards', [])),
-        ));
+        // Delegated to the single canonical resolver (AR-1) — was default-first, now the canonical portal-first.
+        return \Ngos\AdminCore\Support\ActorResolver::actor();
     }
 
     /** The signed-in user on the first guard that has one (portal-aware) — for the widget permission gate. */
     private function actingUser()
     {
-        foreach ($this->guards() as $guard) {
-            try {
-                if (auth()->guard($guard)->check()) {
-                    return auth()->guard($guard)->user();
-                }
-            } catch (\Throwable) {
-                continue;
-            }
-        }
-
-        return null;
+        return \Ngos\AdminCore\Support\ActorResolver::user(); // AR-1: single canonical resolution
     }
 
     private function make($widget): ?Widget

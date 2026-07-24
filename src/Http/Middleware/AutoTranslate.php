@@ -44,22 +44,8 @@ class AutoTranslate
     /** Authenticated on the default guard OR any configured portal guard (multi-portal), ignoring undefined guards. */
     protected function isAuthenticated(): bool
     {
-        $guards = array_unique(array_merge(
-            [config('auth.defaults.guard', 'web')],
-            array_keys((array) config('admin-core.permission.guards', [])),
-        ));
-
-        foreach ($guards as $guard) {
-            try {
-                if (auth()->guard($guard)->check()) {
-                    return true;
-                }
-            } catch (\Throwable) {
-                continue; // a guard named in admin-core config but not defined in auth.php — skip
-            }
-        }
-
-        return false;
+        // Delegated to the single canonical resolver (AR-1) — was default-first, now the canonical portal-first.
+        return \Ngos\AdminCore\Support\ActorResolver::check();
     }
 
     protected function fill(Request $request): void

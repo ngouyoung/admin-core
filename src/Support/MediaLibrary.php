@@ -53,26 +53,9 @@ class MediaLibrary
      */
     protected function actor(): array
     {
-        foreach (self::guards() as $guard) {
-            try {
-                if (($id = auth()->guard($guard)->id()) !== null) {
-                    return [$id, $guard];
-                }
-            } catch (\Throwable) {
-                continue; // a guard named in admin-core config but not defined in auth.php — skip
-            }
-        }
-
-        return [null, null];
-    }
-
-    /** The default guard first, then every configured portal guard. */
-    private static function guards(): array
-    {
-        return array_values(array_unique(array_merge(
-            [(string) config('auth.defaults.guard', 'web')],
-            array_keys((array) config('admin-core.permission.guards', [])),
-        )));
+        // Delegated to the single canonical resolver (AR-1) — this was a copy of the guard walk in the INVERSE
+        // (default-first) order; it now resolves portal-first, identical to every other locus.
+        return \Ngos\AdminCore\Support\ActorResolver::actor();
     }
 
     /**

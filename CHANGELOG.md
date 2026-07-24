@@ -49,8 +49,26 @@ it, and the remedy — so a **catalogued** shipped fix can no longer sit unappli
 - Corrects the two CHANGELOG entries (v2.79.152, v2.79.27) that promised this detection before it existed — each now
   carries an editor's note tying the claim to the shipped catalog.
 
-SemVer (Unreleased batch): **MINOR** — CG-2 adds a new `admin-core:doctor` check (feature); TS-1/TS-2 are
-test/CI/docs-only, so the feature governs the batch bump. No breaking change to any existing command or public API.
+**Fix: unify actor/guard resolution on one canonical portal-first order (AR-1).** The question "which guard is
+this request authenticated on, and who is the acting user?" was answered by a guard-resolution loop copy-pasted
+across six cross-cutting concerns (audit causer, media attribution, saved-view scoping, dashboard-layout
+persistence, locale user, auto-translate gate), and the precedence had DRIFTED — the audit path consulted portal
+guards first while five others consulted the default guard first. So an operator with two simultaneously-active
+sessions (the default `web` guard AND a portal guard) could have ONE request attributed to TWO identities — an
+audit-integrity defect. All six now delegate to a single `Support\ActorResolver` with one canonical order —
+**portal guards first (in configured order), then the default guard, de-duplicated** — and the undefined-guard
+hardening (skip a guard named in admin-core config but absent from `auth.php`) in one place.
+
+- **Behavior change — dual active session only:** when a request is authenticated on BOTH the default guard
+  (user A) AND a configured portal guard (user B), every locus now resolves **(B, portal)** — matching what the
+  audit path already did; five loci previously resolved (A, default). This includes the dashboard's per-widget
+  visibility gate, which now reflects the portal user's permissions (a presentation consequence — the operator
+  still only ever sees data their own portal account is authorized for; no cross-user access). A **single-session**
+  request (only one guard authenticated) is **unchanged**. An arch test fails CI on any new hand-rolled guard walk.
+
+SemVer (Unreleased batch): **MINOR** — CG-2 adds a new `admin-core:doctor` check (feature); AR-1 is a fix with one
+dual-session attribution change; TS-1/TS-2 are test/CI/docs-only. The feature governs the batch bump. No breaking
+change to any existing command or public API.
 
 ## v3.0.3
 

@@ -158,16 +158,18 @@ it('persists the chosen locale to the signed-in user (durable across devices) an
     // ?setlang=km on an authenticated request → applied AND written back to the user's locale column.
     $req = Request::create('/admin?setlang=km', 'GET');
     $req->setLaravelSession(app('session.store'));
-    $req->setUserResolver(fn () => $user);
+    // Sign in on the default guard — AR-1's resolver reads the guard (in a real request $request->user() IS the
+    // guard's user; this test previously injected via setUserResolver, which bypassed the guard).
+    auth()->guard(config('auth.defaults.guard', 'web'))->setUser($user);
     (new SetLocale)->handle($req, fn ($r) => response('ok'));
     expect(app()->getLocale())->toBe('km')
         ->and($user->fresh()->locale)->toBe('km'); // durable per-user
 
-    // resolve() prefers the stored user locale over a different session value.
+    // resolve() prefers the stored user locale over a different session value. The guard still holds $user, whose
+    // locale is now km (persisted above).
     $req2 = Request::create('/admin', 'GET');
     $req2->setLaravelSession(app('session.store'));
-    $req2->session()->put('admin-core.locale', 'en'); // session says en…
-    $req2->setUserResolver(fn () => $user->fresh());   // …but the user says km
+    $req2->session()->put('admin-core.locale', 'en'); // session says en… but the guard user says km
     (new SetLocale)->handle($req2, fn ($r) => response('ok'));
     expect(app()->getLocale())->toBe('km');
 

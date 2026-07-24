@@ -91,22 +91,9 @@ trait LogsActivity
      */
     private function resolveCauser(): ?\Illuminate\Contracts\Auth\Authenticatable
     {
-        $guards = array_unique(array_merge(
-            array_keys((array) config('admin-core.permission.guards', [])), // portal guards first
-            [config('auth.defaults.guard', 'web')],
-        ));
-
-        foreach ($guards as $guard) {
-            try {
-                if (auth()->guard($guard)->check()) {
-                    return auth()->guard($guard)->user();
-                }
-            } catch (\Throwable) {
-                continue; // a guard named in admin-core config but not defined in auth.php — skip, don't throw
-            }
-        }
-
-        return null;
+        // Delegated to the single canonical resolver (AR-1) — this used to hand-roll the portal-first guard walk
+        // that five other loci copy-pasted with the INVERSE order; now every locus resolves the identical actor.
+        return \Ngos\AdminCore\Support\ActorResolver::user();
     }
 
     protected function filterLoggedProperties(array $properties): array

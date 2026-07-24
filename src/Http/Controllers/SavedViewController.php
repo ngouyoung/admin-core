@@ -68,21 +68,12 @@ class SavedViewController extends Controller
      */
     private function actor(): array
     {
-        $guards = array_unique(array_merge(
-            [(string) config('auth.defaults.guard', 'web')],
-            array_keys((array) config('admin-core.permission.guards', [])),
-        ));
+        // Delegated to the single canonical resolver (AR-1) — was default-first, now the canonical portal-first.
+        // The 403 (personal state is never guest-shared) stays HERE: the resolver is business-agnostic and makes
+        // no HTTP decision.
+        [$id, $guard] = \Ngos\AdminCore\Support\ActorResolver::actor();
+        abort_if($guard === null, 403);
 
-        foreach ($guards as $guard) {
-            try {
-                if (auth()->guard($guard)->check()) {
-                    return [auth()->guard($guard)->id(), (string) $guard];
-                }
-            } catch (\Throwable) {
-                continue; // a guard named in admin-core config but not defined in auth.php — skip
-            }
-        }
-
-        abort(403);
+        return [$id, $guard];
     }
 }
