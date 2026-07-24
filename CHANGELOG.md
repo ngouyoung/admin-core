@@ -127,11 +127,15 @@ existing databases are UNTOUCHED**; the change affects migrations generated *aft
   An app that generated FK columns before this release keeps them un-indexed until it regenerates the resource's
   migration (or hand-adds the index): a no-op on MySQL, an additive `CREATE INDEX` elsewhere. Tracked as a follow-up.
 
-SemVer (Unreleased batch): **MINOR** — CG-2 adds a new `admin-core:doctor` check (feature) and governs the bump;
-DB-1 is an additive, non-breaking generator-output change (new resources gain FK indexes; existing DBs untouched);
-AR-1 (with its B13a catch-narrowing hardening) is a fix with one dual-session attribution change; TS-1/TS-2 are
-test/CI/docs-only; the guard-precedence (ADR-0008) and dashboard-authorization (ADR-0009) decisions are governance
-docs. No breaking change to any existing command or public API.
+SemVer (Unreleased batch): **MINOR** — two additive features govern the bump: **CG-2** adds a new
+`admin-core:doctor` check, and **WP-B11b** adds an optional `guard` prop to `<x-admin-core::dashboard>` /
+`Route::adminCoreDashboard(?string $guard)` (dashboard widget authorization can follow the panel guard; the
+no-prop default is unchanged). **DB-1** is an additive, non-breaking generator-output change (new resources gain FK
+indexes; existing DBs untouched); **AR-1** (with its **B13a** catch-narrowing and **B13b** SetLocale
+config-guard-only reconciliation) is a fix carrying one dual-session attribution change; **TS-1/TS-2** are
+test/CI/docs-only; the guard-precedence (**ADR-0008**) and dashboard-authorization (**ADR-0009**) decisions are
+governance docs. Every new parameter is optional with a behavior-preserving default — no breaking change to any
+existing command or public API.
 
 ## v3.0.3
 

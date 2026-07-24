@@ -4,7 +4,7 @@
 - **Date:** 2026-07-24
 - **Deciders:** Framework maintainer (ratified)
 - **Supersedes:** none · **Superseded by:** none
-- **Related:** ADR-0007 (hybrid identity mechanism, sibling identity concern) · AR-1 (`docs/wp/milestone-a/AR-1.md`) · ADR-0009 (dashboard authorization — consumes this decision)
+- **Related:** ADR-0007 (hybrid identity mechanism, sibling identity concern) · AR-1 — the Milestone-A actor/guard-resolver WP, shipped as `src/Support/ActorResolver.php` · ADR-0009 (dashboard authorization — consumes this decision)
 
 > **On numbering.** This is the first record under `docs/adr/`. ADR-0007 is referenced across the docs as the
 > hybrid-identity decision but was never given a physical file; 0008 is the next-free index. admin-core's primary
@@ -76,7 +76,6 @@ dashboard's per-widget visibility gate). Whether such gates should authorize by 
 
 ## References
 
-- `src/Support/ActorResolver.php` — the single resolver (`guards()`, `resolve()`, portal-first order).
-- `docs/wp/milestone-a/AR-1.md` — the WP that unified the six loci and named this decision K1.
+- `src/Support/ActorResolver.php` — the single resolver (`guards()`, `resolve()`, portal-first order); AR-1 unified the six loci through it and named this decision K1. (The AR-1 WP spec is an internal planning draft, not shipped with the package.)
 - CHANGELOG — the AR-1 Unreleased entry (dual-session A3 behavior change).
 - ADR-0009 — dashboard authorization (consumes this precedence; records the panel-guard vs resolved-actor call).
