@@ -1,6 +1,6 @@
 # ADR-0009 — Dashboard authorization vs. attribution
 
-- **Status:** Accepted — implementation pending WP-B11b (the code still resolves the widget gate portal-first)
+- **Status:** Accepted — **implemented in WP-B11b** (shipped in this release: the dashboard widget gate now resolves via the panel guard when one is declared, with the portal-first resolver as the null-default fallback)
 - **Date:** 2026-07-24
 - **Deciders:** Framework maintainer — recorded per the approved Milestone B specification (WP-B11a). The
   panel-guard direction is not a new policy: it aligns the dashboard with admin-core's existing sibling-guard
@@ -47,8 +47,9 @@ remains the one owner of *attribution*; it is not the authority for a surface's 
 
 ## Consequences
 
-- **WP-B11b** implements this split (dashboard authorization resolves by the panel/route guard; attribution stays on
-  `ActorResolver`). No change ships in this ADR — it is the ratified decision B11b builds to.
+- **WP-B11b** implemented this split and **shipped it in this release** (dashboard authorization resolves by the
+  panel/route guard when a guard is declared; attribution stays on `ActorResolver`, portal-first). The ADR itself
+  authors no code — it is the ratified decision B11b was built to.
 - **Single active session** is unchanged (the panel guard and the resolved actor are the same user).
 - **Dual active session:** the web dashboard authorizes its widgets as the **web** (panel) user — matching the
   sidebar on the same page — while its saved layout stays attributed to the resolved actor. The sidebar/dashboard

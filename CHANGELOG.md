@@ -325,19 +325,25 @@ silently rendered/searched the wrong column.
 
 ## v2.86.1
 
+> **Editor's note (added 2026-07-24, TS-1 F-1):** This is an **archival release note**, preserved for the historical
+> record. **SQL Server is no longer an officially supported or tested engine** — the claim was withdrawn (it was never
+> exercised by any test or CI job). The `SQL Server` mentions below are **struck through** to show they no longer
+> represent a support claim; the text is otherwise unchanged. See the Unreleased **TS-1** entry, which mirrors the
+> matching note in `docs/releases/v2.86.1.md`.
+
 **Fix: `Support\Search` now generates portable SQL on every supported database (was SQLite-only).**
 `Support\Search` hand-rolled raw LIKE SQL with MySQL/SQLite-only constructs, so search worked **only on
 SQLite — the sole database the CI suite exercised.** It broke everywhere else: MySQL backtick identifier
-quoting and `json_extract()` are invalid on PostgreSQL (`SQLSTATE[42601]` / `[42883]`) and SQL Server, while
+quoting and `json_extract()` are invalid on PostgreSQL (`SQLSTATE[42601]` / `[42883]`) ~~and SQL Server~~, while
 the `ESCAPE '\'` clause is a malformed string literal on MySQL/MariaDB under default `sql_mode`
 (`ERROR 1064`). Every search surface shared this SQL, so all of them 500'd off SQLite: the DataTable
 relation/list-filter search, the Select2 foreign-key dropdown, the media-library search, the global-search
 omnibox, and the API list search.
 
 - **Identifiers are now quoted by the connection's query grammar** (`grammar->wrap()`), never a hardcoded
-  backtick — correct on SQLite, MySQL, MariaDB, PostgreSQL and SQL Server.
+  backtick — correct on SQLite, MySQL, MariaDB, PostgreSQL ~~and SQL Server~~.
 - **JSON (translatable) search renders the driver's own accessor** — `json_extract`/`json_unquote` on
-  MySQL/SQLite, `->>` on PostgreSQL, `json_value` on SQL Server — instead of a hardcoded `json_extract()`.
+  MySQL/SQLite, `->>` on PostgreSQL~~, `json_value` on SQL Server~~ — instead of a hardcoded `json_extract()`.
 - **The LIKE escape sentinel changed from `\` to `!`** (centralised in one constant, applied by both
   `likePattern()` and the `ESCAPE` clause), so the clause is a valid string literal on every engine.
 - **Matching is now consistently case-insensitive** via `LOWER()` on both sides — identical to the DataTable's

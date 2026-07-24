@@ -67,6 +67,7 @@ with a single canonical order: **configured portal guards first, then the defaul
 |---|---|
 | Single guard (no portal guards), or one session at a time | **No change** — the resolved user/guard is identical to before. |
 | A request authenticated on the default guard AND a portal guard **at the same time** | The acting user is now the **portal** user for all six concerns (previously five of them used the default-guard user). This matches what the audit trail already recorded, so it *removes* a split-identity inconsistency. |
+| A host that authenticates its admin surface **only** via a request-level user-resolver (`Request::setUserResolver` / a stateless token guard, with **no** configured guard) | **SetLocale** no longer reads that user's stored `locale` or writes a `?setlang` back to it — locale resolution is by configured guard only (WP-B13b, Decision D1=b). Rare; a deliberate, documented bound. Every other concern already resolves via a configured guard. |
 
 No config, schema, or data migration. Storage keys `(user_id, guard)` are unchanged.
 
