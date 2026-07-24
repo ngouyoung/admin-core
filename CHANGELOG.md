@@ -73,8 +73,8 @@ hardening (skip a guard named in admin-core config but absent from `auth.php`) i
 
 **Generator: index generated foreign-key columns on every engine (DB-1).** `admin-core:make` now emits `->index()`
 on every generated foreign-key column — belongsTo, `:auth`, self-referential, and both pivot columns — so a newly
-scaffolded migration is index-complete on **PostgreSQL, SQLite and SQL Server**, not only MySQL/InnoDB (which
-auto-indexes a constrained key). Deduplicated: no extra index where a leftmost-covering one already exists (a `^`
+scaffolded migration is index-complete on **PostgreSQL and SQLite** (the CI-tested engines), not only MySQL/InnoDB
+(which auto-indexes a constrained key). Deduplicated: no extra index where a leftmost-covering one already exists (a `^`
 unique one-to-one FK, or the `--sortable=<fk>` leftmost composite). On MySQL the explicit index is adopted by the
 existing constraint (a functional no-op). **On by default** (no flag/config key). **Generator-output only —
 existing databases are UNTOUCHED**; the change affects migrations generated *after* upgrading.
@@ -5126,7 +5126,7 @@ If you're already on v1.28.7 and don't reference the removed aliases, upgrading 
   often. It's a no-op when the column is already `^` unique (a unique constraint indexes itself) or a
   `foreign` (constrained keys self-index), so you never get a double index. Works in both `admin-core:make`
   (create migration) and `admin-core:field` (add migration). *(Editor's note — "constrained keys self-index"
-  holds only on MySQL/InnoDB; on PostgreSQL, SQLite and SQL Server a foreign-key column is NOT auto-indexed, which
+  holds only on MySQL/InnoDB; on other engines (PostgreSQL, SQLite) a foreign-key column is NOT auto-indexed, which
   is why the generator now indexes every generated FK column itself — see the DB-1 entry under Unreleased. The `#`
   modifier stays a no-op on a generated FK, since the generator already indexes it.)*
 

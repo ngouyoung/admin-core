@@ -52,8 +52,8 @@ No config, schema, or data migration. Storage keys `(user_id, guard)` are unchan
 ## → Unreleased — generated foreign-key columns are now indexed on every engine
 
 `admin-core:make` now emits `->index()` on every generated foreign-key column (belongsTo, `:auth`, self-referential,
-both pivot columns). MySQL/InnoDB already auto-indexes a constrained key; **PostgreSQL, SQLite and SQL Server do
-not**, so an unindexed FK column there meant sequential scans on joins, filters, and cascade deletes.
+both pivot columns). MySQL/InnoDB already auto-indexes a constrained key; **PostgreSQL and SQLite do not**, so an
+unindexed FK column there meant sequential scans on joins, filters, and cascade deletes.
 
 **Do you need to do anything?** No — it is **generator-output only** and **existing databases are untouched**.
 
@@ -270,9 +270,10 @@ php artisan admin-core:field Order "tracking_no:string#"
 ```
 
 No-op when the column is already `^` unique (a unique constraint indexes itself) or a generated `foreign` / `auth`
-FK column (the generator now indexes every generated FK column on **every** engine — see the DB-1 note below; only
-MySQL/InnoDB auto-indexes a constrained key). To index a **non-FK** column on a resource generated earlier, add
-`->index()` in a hand-written `Schema::table(...)` migration as usual.
+FK column (the generator now indexes every generated FK column on **every** engine — see the DB-1 note above; only
+MySQL/InnoDB auto-indexes a constrained key). To index a **non-FK** column on a resource generated earlier — or an
+FK column on a resource generated *before* that fix — add `->index()` in a hand-written `Schema::table(...)`
+migration as usual.
 
 ## → v1.26.0 — Add a channel without re-typing `--fields`
 

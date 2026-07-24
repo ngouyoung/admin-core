@@ -50,17 +50,20 @@ final class ActorResolver
     {
         foreach (self::guards() as $guard) {
             try {
-                if (($user = auth()->guard($guard)->user()) !== null) {
-                    return [$user, $guard];
-                }
+                $resolved = auth()->guard($guard);
             } catch (\InvalidArgumentException) {
                 // A guard named in admin-core config but not defined in auth.php is UNUSABLE — Laravel's
-                // AuthManager throws InvalidArgumentException ("Auth guard [x] is not defined" / driver not
-                // defined) at guard CONSTRUCTION. Skip only that. A real fault while resolving the guard's user
-                // (a DB/provider error from ->user()) is NOT swallowed: it propagates, so an infrastructure fault
-                // fails loudly instead of being silently mis-resolved to a later guard (which, if the faulting
-                // guard is the portal guard consulted first, would attribute the request to the wrong identity).
+                // AuthManager throws InvalidArgumentException ("Auth guard [x] is not defined" / driver / provider
+                // not defined) while CONSTRUCTING the guard. The catch wraps ONLY construction, so skip is confined
+                // to that one case. A fault during the actual user lookup below (a DB/provider error, or any
+                // exception a custom guard raises from ->user()) is NOT swallowed: it propagates and fails loudly,
+                // never silently mis-resolving to a later guard (which, if the faulting guard is the portal guard
+                // consulted first, would attribute the request to the wrong identity).
                 continue;
+            }
+
+            if (($user = $resolved->user()) !== null) {
+                return [$user, $guard];
             }
         }
 

@@ -1,9 +1,11 @@
 # ADR-0009 — Dashboard authorization vs. attribution
 
-- **Status:** Accepted
+- **Status:** Accepted — implementation pending WP-B11b (the code still resolves the widget gate portal-first)
 - **Date:** 2026-07-24
-- **Deciders:** Framework maintainer (ratified)
-- **Related:** ADR-0008 (guard precedence — this ADR resolves its linked follow-up) · AR-1 (`docs/wp/milestone-a/AR-1.md`) · WP-B11b (the implementation of this decision) · `src/Dashboard/Dashboard.php` · `src/Support/Sidebar.php`
+- **Deciders:** Framework maintainer — recorded per the approved Milestone B specification (WP-B11a). The
+  panel-guard direction is not a new policy: it aligns the dashboard with admin-core's existing sibling-guard
+  authorization pattern (Sidebar, WebController, ApprovalController).
+- **Related:** ADR-0008 (guard precedence — this ADR resolves its linked follow-up) · WP-B11b (the implementation of this decision) · `src/Dashboard/Dashboard.php` · `src/Support/Sidebar.php`
 
 ## Context
 
@@ -17,8 +19,8 @@ identity for **two different purposes**:
 2. **Authorization** — `Dashboard::visible()` gates each widget with `actingUser()->can($permission)` (→
    `ActorResolver::user()`, post-AR-1); it answers *"may this operator see this widget?"*.
 
-Post-AR-1, **both** use the portal-first resolver. AR-1's adversarial review (finding F-08) flagged the second use:
-in a dual active session (default + portal), the widget-visibility gate authorizes as the **portal** user, while
+Post-AR-1, **both** use the portal-first resolver. AR-1's adversarial review flagged the second use: in a dual
+active session (default + portal), the widget-visibility gate authorizes as the **portal** user, while
 every *other* authorization gate in the kernel authorizes by the guard its surface runs under — `Sidebar::visible()`
 uses the explicit panel `$guard` (`Sidebar.php:110`), `WebController` uses `$this->guard`, `ApprovalController` uses
 `routeGuard($request)`. So on one rendered page the sidebar authorizes user A (web) while the dashboard authorizes
@@ -60,4 +62,4 @@ remains the one owner of *attribution*; it is not the authority for a surface's 
 - `src/Dashboard/Dashboard.php` — `visible()`/`actingUser()` (authorization) and `currentUser()` (attribution).
 - `src/Support/Sidebar.php:110`, `src/Http/Controllers/WebController.php`, `src/Http/Controllers/ApprovalController.php` — the panel-guard authorization pattern this aligns the dashboard with.
 - ADR-0008 — the attribution precedence this ADR consumes and complements.
-- `docs/wp/milestone-a/AR-1.md` — review finding F-08 (the divergence this decision resolves).
+- AR-1's adversarial review — the dashboard/sidebar authorization divergence this decision resolves (recorded in the Milestone-A close-out review, not in the AR-1 WP spec).

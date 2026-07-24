@@ -145,3 +145,31 @@ it('still skips an undefined guard (InvalidArgumentException) after the catch is
         ->and(ActorResolver::guard())->toBe('web')               // ghost skipped, falls through to web
         ->and(ActorResolver::user()?->getAuthIdentifier())->toBe($web->getAuthIdentifier());
 });
+
+it('propagates an InvalidArgumentException raised DURING user resolution — the catch guards construction, not the lookup (WP-B13a)', function () {
+    // A DEFINED guard (construction succeeds) whose user() throws InvalidArgumentException — e.g. a custom guard
+    // validating a malformed token/claims. This is NOT the "guard absent from auth.php" skip case; because the
+    // catch wraps only guard CONSTRUCTION, the fault from ->user() must PROPAGATE, not be swallowed by exception
+    // TYPE. (A phase-blind `catch (InvalidArgumentException)` around the lookup would have hidden this.)
+    config(['admin-core.permission.guards.iae' => ['super_role' => 'iae-admin']]);
+    config(['auth.guards.iae' => ['driver' => 'iae-driver', 'provider' => 'users']]);
+    Auth::extend('iae-driver', fn () => new class implements \Illuminate\Contracts\Auth\Guard
+    {
+        public function check(): bool { throw new \InvalidArgumentException('bad token'); }
+
+        public function guest(): bool { return true; }
+
+        public function user() { throw new \InvalidArgumentException('bad token'); }
+
+        public function id() { throw new \InvalidArgumentException('bad token'); }
+
+        public function validate(array $credentials = []): bool { return false; }
+
+        public function hasUser(): bool { return false; }
+
+        public function setUser(\Illuminate\Contracts\Auth\Authenticatable $user) {}
+    });
+
+    expect(ActorResolver::guards()[0])->toBe('iae')
+        ->and(fn () => ActorResolver::resolve())->toThrow(InvalidArgumentException::class, 'bad token');
+});
