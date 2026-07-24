@@ -12,6 +12,29 @@ npm install && npm run build
 
 ---
 
+## → Unreleased — dashboard widget authorization can follow the panel guard (optional)
+
+The `<x-admin-core::dashboard />` component gains an **optional `guard` prop**, and `Route::adminCoreDashboard()`
+gains an **optional `?string $guard` argument** — both defaulting to `null`. They implement **ADR-0009**
+(*authorization = the panel guard; attribution/persistence = the resolved actor, portal-first*), aligning the
+dashboard's per-widget permission gate with `Sidebar`/`Search`/`WebController` on the same page.
+
+**Do you need to do anything?** For the common single-panel install, **no** — with no prop and no macro argument,
+widget authorization resolves exactly as before (portal-first), and saved layouts / widget caches are unchanged.
+
+| Your setup | Do this |
+|---|---|
+| A **multi-panel host** where a separate-guard portal renders the dashboard, and admins may hold a default-guard session **at the same time** | Pass the portal's guard in **both** places so widget authorization matches the sidebar on that render: `<x-admin-core::dashboard guard="merchant" />` **and** `Route::adminCoreDashboard('merchant')`. |
+| Single guard / single-panel | Nothing — behavior is byte-for-byte unchanged (portal-first). |
+
+The change is additive and opt-in: no method signature breaks (the new parameters are optional with a
+behavior-preserving default, matching `WebController`'s `?string $guard`), and **attribution/persistence stays
+portal-first** — no host's saved layouts or widget cache keys shift. The prior default-first→portal-first
+authorization on the dashboard (from the AR-1 note above) is now something you resolve per panel with the `guard`
+prop. See ADR-0009 (`docs/adr/ADR-0009-dashboard-authorization.md`).
+
+---
+
 ## → Unreleased — `admin-core:doctor` may newly flag stale generated files
 
 `admin-core:doctor` now idiom-lints the per-resource files `admin-core:make` generated (controllers, trash views)

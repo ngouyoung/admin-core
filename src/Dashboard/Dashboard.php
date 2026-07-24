@@ -9,7 +9,9 @@ use Ngos\AdminCore\Models\DashboardLayout;
 /**
  * Resolves the configured widgets (class-strings or inline config arrays) into Widget instances, filters
  * them by the viewer's permission, and is the single entry point the dashboard component + lazy/data
- * endpoints share. Bound as a singleton so the resolved set is computed once per request.
+ * endpoints share. Resolved FRESH per app() call (it is NOT container-bound), so the per-request
+ * authorization guard set via {@see forGuard()} is scoped to the single instance the component or endpoint
+ * holds and never leaks across renders — do not bind it as a singleton without revisiting that guard state.
  */
 class Dashboard
 {
@@ -20,6 +22,28 @@ class Dashboard
      * app per test), accumulating duplicate registrations from every prior boot.
      */
     private const REGISTERED_KEY = 'admin-core.dashboard.registered';
+
+    /**
+     * The host-declared panel guard the widget-AUTHORIZATION gate resolves against, or null for the default
+     * portal-first resolution. Set per request by the dashboard component (the `guard` prop) and, for the
+     * lazy/save endpoints, from the server-side route default stamped by Route::adminCoreDashboard($guard).
+     * See {@see forGuard()}; ADR-0008 (guard precedence) + ADR-0009 (dashboard authorization).
+     */
+    private ?string $guard = null;
+
+    /**
+     * Declare the panel guard the dashboard's widget-AUTHORIZATION gate resolves against — ADR-0009:
+     * authorization = the panel guard (exactly as `Sidebar`, `Search`, and `WebController` already do on the
+     * same page), while attribution/persistence stays on the portal-first resolved actor (currentUser(),
+     * unchanged). Null (the default) preserves the pre-B11b portal-first authorization, so a single-panel host
+     * is byte-for-byte unchanged. Behavior-preserving and fluent, mirroring WebController's optional `?string $guard`.
+     */
+    public function forGuard(?string $guard): static
+    {
+        $this->guard = $guard;
+
+        return $this;
+    }
 
     /**
      * Register dashboard widget(s) at runtime (class-string, Widget instance, or inline config array). Call
@@ -165,10 +189,20 @@ class Dashboard
         return \Ngos\AdminCore\Support\ActorResolver::actor();
     }
 
-    /** The signed-in user on the first guard that has one (portal-aware) — for the widget permission gate. */
+    /**
+     * The acting user for the widget-AUTHORIZATION gate. Per ADR-0009 (dashboard authorization), when the host
+     * declares its panel guard (via {@see forGuard()}), the acting user resolves on THAT guard — the same
+     * primitive `Sidebar::visible()`/`Search` use (`auth()->guard($guard)->user()`) — so every authorization
+     * element on one render agrees on a single identity under the panel's guard precedence (ADR-0008). With NO
+     * declared guard (the default), it falls back to the portal-first canonical resolver (AR-1), keeping every
+     * existing single-panel install byte-for-byte unchanged. AUTHORIZATION only — attribution/persistence stays
+     * portal-first via currentUser() (ADR-0009), never touched by the declared guard.
+     */
     private function actingUser()
     {
-        return \Ngos\AdminCore\Support\ActorResolver::user(); // AR-1: single canonical resolution
+        return $this->guard !== null
+            ? auth()->guard($this->guard)->user()
+            : \Ngos\AdminCore\Support\ActorResolver::user(); // AR-1: single canonical resolution (default path)
     }
 
     private function make($widget): ?Widget
@@ -192,9 +226,10 @@ class Dashboard
         if (! $permission) {
             return true;
         }
-        // Resolve the user on the SAME portal-aware guard as currentUser() — auth()->user() reads only the
-        // default guard, so on a portal dashboard it is null and every permissioned widget silently vanishes
-        // (or, with a stray default-guard session in the same browser, is judged against the wrong identity).
+        // AUTHORIZATION gate (ADR-0009). actingUser() resolves against the host-declared panel guard when set
+        // (ADR-0008 guard precedence) — the same identity Sidebar/Search authorize on the same render — else
+        // the portal-first canonical resolver (the unchanged default). Fail-closed: a null user (no session on
+        // that guard) HIDES a permissioned widget, never reveals it — matching Search's fail-safe.
         $user = $this->actingUser();
 
         return $user !== null && $user->can($permission);

@@ -4,6 +4,30 @@ All notable changes to `ngos/admin-core` are documented here.
 
 ## Unreleased
 
+**Feature: dashboard widget authorization can follow the panel guard (WP-B11b, implements ADR-0009).** AR-1
+unified six guard-walk loci on the portal-first `Support\ActorResolver`. Five are attribution/persistence (where
+portal-first is correct); the sixth, `Dashboard::visible()`, is an **authorization** gate — and it rode the same
+portal-first resolver, while every *other* authorization element on the page (`Sidebar`, global `Search`,
+`WebController` actions) resolves against the panel's own guard. Under a dual active session (a default `web` user
+**and** a portal user in one browser) the dashboard could authorize widgets as one identity while the sidebar on the
+same render authorized as another. This is **not** a data breach (widgets show only own-account data; storage
+fails closed on a null actor), but a model-consistency defect. Per **ADR-0009** — *authorization = the panel guard;
+attribution/persistence = the resolved actor (portal-first)* — the dashboard now authorizes against a host-declared
+panel guard when one is given:
+
+- `<x-admin-core::dashboard>` gains an **optional `guard` prop** (default `null`), mirroring
+  `x-admin-core::sidebar-menu`. With it, the per-widget permission gate resolves the acting user on that guard
+  (`auth()->guard($guard)->user()?->can()`) — the same primitive the siblings use — so one identity governs the
+  whole render. Fail-closed: no session on that guard hides permissioned widgets.
+- `Route::adminCoreDashboard(?string $guard = null)` stamps the guard as a **server-side route default** on the
+  `dashboard.widget` and `dashboard.layout` endpoints (never a client param), so the lazy/save endpoints authorize
+  against the same host-declared guard the rendered page did.
+- **Attribution/persistence is unchanged (portal-first):** saved layouts and the per-user widget cache key still key
+  on `ActorResolver::actor()`, regardless of the authorization guard — as ADR-0009 ratifies.
+- **Backward compatible / opt-in:** with no prop and no macro argument, widget authorization resolves exactly as
+  before (portal-first via `ActorResolver::user()`); no existing single-panel install changes. Cites ADR-0008
+  (guard precedence) and ADR-0009 in code. Closes the AR-1 A3 dashboard/sidebar divergence note.
+
 **Test infrastructure: multi-engine CI matrix (TS-1).** The full test suite now runs against real **PostgreSQL**
 and **MySQL** in CI, not only SQLite — closing the portability blind spot where SQLite tolerates SQL/DDL the server
 engines reject. Coverage is **inclusion-by-default**: every test runs cross-engine unless tagged into a

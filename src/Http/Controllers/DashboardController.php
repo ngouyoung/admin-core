@@ -18,7 +18,12 @@ class DashboardController extends Controller
 {
     public function widget(string $key, Request $request, Dashboard $dashboard): View
     {
-        $widget = $dashboard->find($key); // resolves + permission-filters; null = unknown/forbidden
+        // Authorize against the host-declared panel guard (the SERVER-SIDE route default stamped by
+        // Route::adminCoreDashboard($guard)); null = the default portal-first resolution. ADR-0009. Read from
+        // the route default, never a client param, so no caller can render a widget the dashboard would hide.
+        $guard = $request->route()?->defaults['acDashboardGuard'] ?? null;
+
+        $widget = $dashboard->forGuard($guard)->find($key); // resolves + permission-filters; null = unknown/forbidden
         abort_if($widget === null, 404);
 
         return view($widget->partial(), [
@@ -37,7 +42,12 @@ class DashboardController extends Controller
             'hidden.*' => ['string', 'max:191'],
         ]);
 
-        $dashboard->saveLayout($data['order'] ?? [], $data['hidden'] ?? []);
+        // Same panel guard as widget(): saveLayout() persists only keys of widgets this guard authorizes (its
+        // $valid set walks the authorization-visible widgets), while the storage KEY stays portal-first via
+        // currentUser() — attribution unchanged (ADR-0009). Route default, never a client param.
+        $guard = $request->route()?->defaults['acDashboardGuard'] ?? null;
+
+        $dashboard->forGuard($guard)->saveLayout($data['order'] ?? [], $data['hidden'] ?? []);
 
         return response()->json(['ok' => true]);
     }

@@ -302,9 +302,13 @@ class AdminCoreServiceProvider extends ServiceProvider
      */
     protected function registerDashboardMacro(): void
     {
-        Route::macro('adminCoreDashboard', function () {
-            Route::get('dashboard/widget/{key}', [DashboardController::class, 'widget'])->name('dashboard.widget');
-            Route::post('dashboard/layout', [DashboardController::class, 'saveLayout'])->name('dashboard.layout');
+        // $guard: a portal passes its auth guard (Route::adminCoreDashboard('merchant')) so the lazy/save
+        // endpoints authorize widgets against THAT portal's user — the SAME guard the rendered dashboard uses
+        // (ADR-0009: authorization = the panel guard). Stashed as a SERVER-SIDE route default the controller
+        // reads; never a client param, so a caller can't escalate it. Mirrors adminCoreSearch's acSearchGuard.
+        Route::macro('adminCoreDashboard', function (?string $guard = null) {
+            Route::get('dashboard/widget/{key}', [DashboardController::class, 'widget'])->name('dashboard.widget')->defaults('acDashboardGuard', $guard);
+            Route::post('dashboard/layout', [DashboardController::class, 'saveLayout'])->name('dashboard.layout')->defaults('acDashboardGuard', $guard);
         });
     }
 

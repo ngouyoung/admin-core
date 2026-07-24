@@ -2,9 +2,17 @@
      user's saved arrangement, with a date-range toolbar every widget respects and an optional Customize mode
      (drag to reorder + hide widgets, saved per user). Drop it into your dashboard view:
        @section('contents') <x-admin-core::dashboard /> @endsection
-     Widgets and their data are entirely your app's — this only lays them out. --}}
+     Widgets and their data are entirely your app's — this only lays them out.
+
+     For a separate-guard portal, pass the portal's `guard` so the per-widget permission gate authorizes
+     against the right user (ADR-0009: authorization = the panel guard), exactly like x-admin-core::sidebar-menu:
+       <x-admin-core::dashboard guard="merchant" />
+     Omit it on a single-panel install (the default): widget authorization stays portal-first, unchanged. --}}
+@props(['guard' => null])
 @php
-    $acDashboard = app(\Ngos\AdminCore\Dashboard\Dashboard::class);
+    // forGuard() sets the AUTHORIZATION guard only; attribution/persistence (layout, cache key) stays
+    // portal-first via currentUser() — ADR-0009. Null (no prop) preserves the pre-B11b behavior exactly.
+    $acDashboard = app(\Ngos\AdminCore\Dashboard\Dashboard::class)->forGuard($guard);
     $acContext = \Ngos\AdminCore\Dashboard\DashboardContext::fromRequest(request());
     $acWidgets = $acDashboard->arranged();
     $acPresets = \Ngos\AdminCore\Dashboard\DashboardContext::presets();
