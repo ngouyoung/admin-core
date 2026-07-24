@@ -87,11 +87,14 @@ class SetLocale
      */
     protected function authenticatedUser(Request $request): ?\Illuminate\Contracts\Auth\Authenticatable
     {
-        // Delegated to the single canonical resolver (AR-1). This used to consult the default guard FIRST (via
-        // $request->user()) then portals; it is now portal-first, identical to every other locus. ($request is
-        // retained for the signature. In a normal request the resolver's guard read equals $request->user(); a
-        // non-session guard promoted to the runtime default, or a custom request user-resolver, is not consulted
-        // here — an accepted edge of routing every locus through one guard-based resolver.)
+        // Delegated to the single canonical resolver (AR-1) — config-guard-based, portal-first, identical to
+        // every other locus. RATIFIED SCOPE (WP-B13b, Decision D1=b): the locale user is resolved by CONFIGURED
+        // GUARD ONLY. A user present solely via Laravel's per-request user-resolver ($request->setUserResolver /
+        // a token guard) with NO configured guard authenticated is deliberately NOT consulted here — their
+        // stored locale is not read and a ?setlang is not written back to them. This is the accepted, pinned
+        // drop (see the "request-resolver-only user is NOT consulted" test); the former default-guard
+        // request-resolver path is intentionally gone and no fallback lives in any locus. $request is retained
+        // for the signature and hasSession()/session() reads above.
         return \Ngos\AdminCore\Support\ActorResolver::user();
     }
 

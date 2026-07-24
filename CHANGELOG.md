@@ -4,6 +4,25 @@ All notable changes to `ngos/admin-core` are documented here.
 
 ## Unreleased
 
+**AR-1 finish-work: SetLocale locale resolution is config-guard-only (WP-B13b, Decision D1=b).** AR-1 routed
+`SetLocale::authenticatedUser()` through the canonical `ActorResolver::user()`, which resolves the acting user by
+**configured guard** (portal-first). That dropped the middleware's former fallback to Laravel's per-request
+user-resolver (`$request`'s resolver), but AR-1's own AC-8/R2 docs still claimed the override was "preserved" and
+the AC-8 test had been rewritten to a real guard login, so it no longer exercised that path. This WP reconciles
+that gap on the **ratified branch (D1=b — accept the drop):** locale resolution is **by configured guard only**.
+
+- A user present **solely** via a per-request user-resolver (a token guard, `setUserResolver`) with **no**
+  configured guard authenticated is **not consulted** — their stored `locale` is not read, and a `?setlang` is
+  not written back to them. This matches what the code already did since AR-1; it is now **pinned by a
+  `setUserResolver` test** and documented rather than silently divergent.
+- **No behavior change from v3.0.3:** a user authenticated on a configured guard (default or portal) is resolved
+  exactly as before — the durable default-guard and portal locale tests are unchanged. **No `ActorResolver`
+  change; no schema/data migration.** Only `SetLocale`'s docblock was reworded to state the ratified scope; the
+  delegation itself is untouched.
+- **Impact:** a host that authenticates its admins *only* via a request-level user-resolver (no configured guard)
+  loses `?setlang` writeback on that surface — a deliberate, documented bound. AR-1's AC-8/R2 and the §3.1 caveat
+  are re-baselined accordingly; AR-1's residual-2 is closed.
+
 **Feature: dashboard widget authorization can follow the panel guard (WP-B11b, implements ADR-0009).** AR-1
 unified six guard-walk loci on the portal-first `Support\ActorResolver`. Five are attribution/persistence (where
 portal-first is correct); the sixth, `Dashboard::visible()`, is an **authorization** gate — and it rode the same

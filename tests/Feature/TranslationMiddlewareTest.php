@@ -205,6 +205,65 @@ it('persists + reads the locale for a PORTAL (non-default-guard) user, not just 
     Schema::dropIfExists('loc_users');
 });
 
+it('does NOT consult a request-resolver-only user (no configured guard) — config-guard-only drop, ratified (WP-B13b, D1=b)', function () {
+    Schema::create('loc_users', function ($t) {
+        $t->id();
+        $t->string('locale')->nullable();
+    });
+    $userModel = new class extends \Illuminate\Foundation\Auth\User
+    {
+        protected $table = 'loc_users';
+
+        public $timestamps = false;
+
+        protected $guarded = [];
+    };
+    // This user PREFERS km, but is present ONLY via Laravel's per-request user-resolver (e.g. a token guard) —
+    // NO configured admin-core/default guard is authenticated. SetLocale delegates to ActorResolver::user()
+    // (guard-based), which reads configured guards, not $request's resolver — so this user is NOT consulted.
+    $user = $userModel::create(['locale' => 'km']);
+
+    // (1) RESOLVE: the user's stored 'km' is IGNORED — resolution falls through to the default ('en').
+    $req = Request::create('/admin', 'GET');
+    $req->setLaravelSession(app('session.store'));
+    $req->setUserResolver(fn () => $user); // request-resolver-only — bypasses every configured guard
+    (new SetLocale)->handle($req, fn ($r) => response('ok'));
+    expect(app()->getLocale())->toBe('en'); // NOT 'km' — the request-resolver user was not consulted
+
+    // (2) WRITEBACK: a ?setlang applies to the session but is NOT written back to the request-resolver-only
+    // user. Seed the column to 'en' first, so a stray writeback of 'km' would be observable.
+    $user->forceFill(['locale' => 'en'])->save();
+    $req2 = Request::create('/admin?setlang=km', 'GET');
+    $req2->setLaravelSession(app('session.store'));
+    $req2->setUserResolver(fn () => $user);
+    (new SetLocale)->handle($req2, fn ($r) => response('ok'));
+    expect(app()->getLocale())->toBe('km')          // session-level switch applied …
+        ->and($user->fresh()->locale)->toBe('en');  // … but the user column is UNTOUCHED (drop honored)
+
+    Schema::dropIfExists('loc_users');
+});
+
+it('AR-1.md AC-8/R2/§3.1 are re-baselined to the config-guard-only behavior (WP-B13b-AC3 doc-consistency)', function () {
+    $path = dirname(__DIR__, 2) . '/docs/wp/milestone-a/AR-1.md';
+    if (! file_exists($path)) {
+        // AR-1.md is an untracked WP-spec draft (repo policy); the re-baseline is enforced locally, not in CI.
+        test()->markTestSkipped('AR-1.md WP draft not present (untracked) — doc-consistency enforced locally.');
+    }
+    $ar = file_get_contents($path);
+
+    // The stale "request-user override preserved" claims must be GONE — across §3.1, §3.2/PR-3, AC-8, AND R2.
+    // The last two guard the whole class: the file is fully re-baselined to config-guard-only, so no lingering
+    // "$request->user() … preservation" claim may survive anywhere (the §3.2 PR-3 miss the B13b review caught).
+    expect($ar)->not->toContain('override preserved')
+        ->not->toContain('still resolves that user')
+        ->not->toContain('Preserve request-resolver semantics')
+        ->not->toContain('short-circuit')
+        ->not->toContain('preservation of R2')
+        ->not->toContain('$request->user()');
+    // … and re-baselined to the ratified config-guard-only behavior.
+    expect($ar)->toContain('D1=b')->toContain('configured guard only')->toContain('not consulted');
+});
+
 it('caps outbound translate() calls per request at the rate_limit budget', function () {
     config()->set('admin-core.translation.locales', ['en' => 'EN', 'km' => 'KM', 'fr' => 'FR', 'th' => 'TH']);
     config()->set('admin-core.translation.rate_limit', 2);
