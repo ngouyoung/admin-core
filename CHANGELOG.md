@@ -65,6 +65,11 @@ hardening (skip a guard named in admin-core config but absent from `auth.php`) i
   visibility gate, which now reflects the portal user's permissions (a presentation consequence — the operator
   still only ever sees data their own portal account is authorized for; no cross-user access). A **single-session**
   request (only one guard authenticated) is **unchanged**. An arch test fails CI on any new hand-rolled guard walk.
+- **Hardening (AR-1 follow-up):** `ActorResolver::resolve()` now catches only `InvalidArgumentException` — the one
+  documented skip reason (a guard named in admin-core config but absent from `auth.php`) — not `\Throwable`. A real
+  fault while resolving a guard's user (a DB/provider error) now PROPAGATES instead of being silently swallowed and
+  mis-resolved to a later guard; healthy requests are unchanged. The portal-first precedence is recorded in
+  `docs/adr/ADR-0008-guard-precedence.md`; the dashboard authorization-vs-attribution decision in `docs/adr/ADR-0009`.
 
 SemVer (Unreleased batch): **MINOR** — CG-2 adds a new `admin-core:doctor` check (feature); AR-1 is a fix with one
 dual-session attribution change; TS-1/TS-2 are test/CI/docs-only. The feature governs the batch bump. No breaking

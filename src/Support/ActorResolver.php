@@ -53,8 +53,14 @@ final class ActorResolver
                 if (($user = auth()->guard($guard)->user()) !== null) {
                     return [$user, $guard];
                 }
-            } catch (\Throwable) {
-                continue; // a guard named in admin-core config but not defined in auth.php — skip, don't throw
+            } catch (\InvalidArgumentException) {
+                // A guard named in admin-core config but not defined in auth.php is UNUSABLE — Laravel's
+                // AuthManager throws InvalidArgumentException ("Auth guard [x] is not defined" / driver not
+                // defined) at guard CONSTRUCTION. Skip only that. A real fault while resolving the guard's user
+                // (a DB/provider error from ->user()) is NOT swallowed: it propagates, so an infrastructure fault
+                // fails loudly instead of being silently mis-resolved to a later guard (which, if the faulting
+                // guard is the portal guard consulted first, would attribute the request to the wrong identity).
+                continue;
             }
         }
 

@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 use Ngos\AdminCore\Support\ActorResolver;
@@ -26,6 +27,29 @@ function configurePortalGuard(string $name = 'merchant'): void
 {
     config(["admin-core.permission.guards.{$name}" => ['super_role' => "{$name}-admin"]]);
     config(["auth.guards.{$name}" => ['driver' => 'session', 'provider' => 'users']]);
+}
+
+/** A configured portal guard whose user() throws a REAL fault (a DB/provider error), consulted first (portal-first). */
+function configureFaultyGuard(string $name = 'faulty'): void
+{
+    config(["admin-core.permission.guards.{$name}" => ['super_role' => "{$name}-admin"]]);
+    config(["auth.guards.{$name}" => ['driver' => "{$name}-driver", 'provider' => 'users']]);
+    Auth::extend("{$name}-driver", fn () => new class implements \Illuminate\Contracts\Auth\Guard
+    {
+        public function check(): bool { throw new \RuntimeException('provider down'); }
+
+        public function guest(): bool { return true; }
+
+        public function user() { throw new \RuntimeException('provider down'); }
+
+        public function id() { throw new \RuntimeException('provider down'); }
+
+        public function validate(array $credentials = []): bool { return false; }
+
+        public function hasUser(): bool { return false; }
+
+        public function setUser(\Illuminate\Contracts\Auth\Authenticatable $user) {}
+    });
 }
 
 it('builds the canonical portal-first guard order, de-duplicated', function () {
@@ -86,4 +110,38 @@ it('returns a null pair when no configured guard is authenticated', function () 
         ->and(ActorResolver::guard())->toBeNull()
         ->and(ActorResolver::actor())->toBe([null, null])
         ->and(ActorResolver::check())->toBeFalse();
+});
+
+it('propagates a real fault during user resolution instead of swallowing it (WP-B13a)', function () {
+    // A guard whose user() throws a NON-InvalidArgumentException fault (a DB/provider error) — the narrowed catch
+    // must NOT swallow it. Every entry point funnels through resolve(), so all must surface the fault.
+    configureFaultyGuard('faulty');
+
+    expect(fn () => ActorResolver::resolve())->toThrow(RuntimeException::class, 'provider down');
+    expect(fn () => ActorResolver::user())->toThrow(RuntimeException::class);
+    expect(fn () => ActorResolver::check())->toThrow(RuntimeException::class);
+});
+
+it('does not mis-resolve to a later guard when an earlier guard faults (WP-B13a)', function () {
+    // The faulting portal guard is consulted FIRST (portal-first). The default guard is authenticated as $web.
+    // resolve() must THROW — it must NOT silently fall through and return ($web, 'web'), which would attribute the
+    // request to the WRONG identity (the audit-integrity failure AR-1 exists to prevent).
+    configureFaultyGuard('faulty');
+    $web = NotifiableUser::create(['name' => 'Web']);
+    $this->actingAs($web);
+
+    expect(ActorResolver::guards()[0])->toBe('faulty')                       // faulty is consulted before web…
+        ->and(fn () => ActorResolver::resolve())->toThrow(RuntimeException::class); // …so the fault surfaces, no (A, web)
+});
+
+it('still skips an undefined guard (InvalidArgumentException) after the catch is narrowed (WP-B13a regression)', function () {
+    // The one documented skip reason — a guard in admin-core config but absent from auth.php — throws
+    // InvalidArgumentException at construction and must STILL be skipped, not propagated.
+    config(['admin-core.permission.guards.ghost' => ['super_role' => 'ghost-admin']]); // no auth.guards.ghost
+    $web = NotifiableUser::create(['name' => 'Web']);
+    $this->actingAs($web);
+
+    expect(ActorResolver::guards()[0])->toBe('ghost')
+        ->and(ActorResolver::guard())->toBe('web')               // ghost skipped, falls through to web
+        ->and(ActorResolver::user()?->getAuthIdentifier())->toBe($web->getAuthIdentifier());
 });
