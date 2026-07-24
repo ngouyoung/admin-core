@@ -77,5 +77,5 @@ dashboard's per-widget visibility gate). Whether such gates should authorize by 
 ## References
 
 - `src/Support/ActorResolver.php` — the single resolver (`guards()`, `resolve()`, portal-first order); AR-1 unified the six loci through it and named this decision K1. (The AR-1 WP spec is an internal planning draft, not shipped with the package.)
-- CHANGELOG — the AR-1 Unreleased entry (dual-session A3 behavior change).
+- CHANGELOG — the AR-1 v3.1.0 entry (dual-session A3 behavior change).
 - ADR-0009 — dashboard authorization (consumes this precedence; records the panel-guard vs resolved-actor call).

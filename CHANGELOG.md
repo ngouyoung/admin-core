@@ -2,7 +2,7 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
-## Unreleased
+## v3.1.0
 
 **AR-1 finish-work: SetLocale locale resolution is config-guard-only (WP-B13b, Decision D1=b).** AR-1 routed
 `SetLocale::authenticatedUser()` through the canonical `ActorResolver::user()`, which resolves the acting user by
@@ -127,7 +127,7 @@ existing databases are UNTOUCHED**; the change affects migrations generated *aft
   An app that generated FK columns before this release keeps them un-indexed until it regenerates the resource's
   migration (or hand-adds the index): a no-op on MySQL, an additive `CREATE INDEX` elsewhere. Tracked as a follow-up.
 
-SemVer (Unreleased batch): **MINOR** — two additive features govern the bump: **CG-2** adds a new
+SemVer (v3.1.0): **MINOR** — two additive features govern the bump: **CG-2** adds a new
 `admin-core:doctor` check, and **WP-B11b** adds an optional `guard` prop to `<x-admin-core::dashboard>` /
 `Route::adminCoreDashboard(?string $guard)` (dashboard widget authorization can follow the panel guard; the
 no-prop default is unchanged). **DB-1** is an additive, non-breaking generator-output change (new resources gain FK
@@ -328,7 +328,7 @@ silently rendered/searched the wrong column.
 > **Editor's note (added 2026-07-24, TS-1 F-1):** This is an **archival release note**, preserved for the historical
 > record. **SQL Server is no longer an officially supported or tested engine** — the claim was withdrawn (it was never
 > exercised by any test or CI job). The `SQL Server` mentions below are **struck through** to show they no longer
-> represent a support claim; the text is otherwise unchanged. See the Unreleased **TS-1** entry, which mirrors the
+> represent a support claim; the text is otherwise unchanged. See the **v3.1.0 TS-1** entry, which mirrors the
 > matching note in `docs/releases/v2.86.1.md`.
 
 **Fix: `Support\Search` now generates portable SQL on every supported database (was SQLite-only).**
@@ -5180,7 +5180,7 @@ If you're already on v1.28.7 and don't reference the removed aliases, upgrading 
   `foreign` (constrained keys self-index), so you never get a double index. Works in both `admin-core:make`
   (create migration) and `admin-core:field` (add migration). *(Editor's note — "constrained keys self-index"
   holds only on MySQL/InnoDB; on other engines (PostgreSQL, SQLite) a foreign-key column is NOT auto-indexed, which
-  is why the generator now indexes every generated FK column itself — see the DB-1 entry under Unreleased. The `#`
+  is why the generator now indexes every generated FK column itself — see the DB-1 entry under v3.1.0. The `#`
   modifier stays a no-op on a generated FK, since the generator already indexes it.)*
 
 ## v1.27.0

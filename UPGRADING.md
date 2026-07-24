@@ -12,7 +12,7 @@ npm install && npm run build
 
 ---
 
-## → Unreleased — dashboard widget authorization can follow the panel guard (optional)
+## → v3.1.0 — dashboard widget authorization can follow the panel guard (optional)
 
 The `<x-admin-core::dashboard />` component gains an **optional `guard` prop**, and `Route::adminCoreDashboard()`
 gains an **optional `?string $guard` argument** — both defaulting to `null`. They implement **ADR-0009**
@@ -35,7 +35,7 @@ prop. See ADR-0009 (`docs/adr/ADR-0009-dashboard-authorization.md`).
 
 ---
 
-## → Unreleased — `admin-core:doctor` may newly flag stale generated files
+## → v3.1.0 — `admin-core:doctor` may newly flag stale generated files
 
 `admin-core:doctor` now idiom-lints the per-resource files `admin-core:make` generated (controllers, trash views)
 for **known superseded framework idioms** and, for a **security/correctness** one, **exits non-zero**. If your app
@@ -55,7 +55,7 @@ affect the exit code; a cosmetic idiom is advisory.
 
 ---
 
-## → Unreleased — guard/actor resolution is now portal-first everywhere
+## → v3.1.0 — guard/actor resolution is now portal-first everywhere
 
 admin-core resolves *(acting user, active guard)* for six internal concerns (audit causer, media attribution,
 saved-view scoping, dashboard-layout persistence, locale user, auto-translate gate). These now share one resolver
@@ -73,7 +73,7 @@ No config, schema, or data migration. Storage keys `(user_id, guard)` are unchan
 
 ---
 
-## → Unreleased — generated foreign-key columns are now indexed on every engine
+## → v3.1.0 — generated foreign-key columns are now indexed on every engine
 
 `admin-core:make` now emits `->index()` on every generated foreign-key column (belongsTo, `:auth`, self-referential,
 both pivot columns). MySQL/InnoDB already auto-indexes a constrained key; **PostgreSQL and SQLite do not**, so an
