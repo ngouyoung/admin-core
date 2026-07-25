@@ -4,14 +4,6 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    @auth
-        @if (config('admin-core.notifications.realtime'))
-            {{-- Reserved for realtime (DEFERRED): exposes the signed-in user's private channel name (FQCN with
-                 \ → . , then the key) that resources/js/realtime.js would listen on once the platform broadcast
-                 channel ships. No broadcasts occur yet — notifications are stored in-app only. --}}
-            <meta name="ac-user-channel" content="{{ str_replace('\\', '.', get_class(auth()->user())) . '.' . auth()->id() }}">
-        @endif
-    @endauth
     <title>{{ setting('app_name', config('app.name')) }} | @yield('title', 'Dashboard')</title>
 
     {{-- Apply saved Customize settings before paint (no flash). See resources/js/customize.js --}}

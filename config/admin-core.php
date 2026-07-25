@@ -271,13 +271,9 @@ return [
     | Notifications
     |--------------------------------------------------------------------------
     | In-app notifications are always on (the bell + /admin/notifications), backed by
-    | the Notification Platform store via the InApp channel. `realtime` is reserved for
-    | a platform broadcast channel (live bell + toast) that is not yet shipped — it has
-    | no effect until that channel lands, so notifications are stored in-app only for now.
+    | the Notification Platform store via the InApp channel.
     */
     'notifications' => [
-        'realtime' => env('ADMIN_CORE_REALTIME', false),
-
         // Notification Platform channel drivers: a `name => Driver::class` map the NotificationChannelManager
         // seeds from. A host or module also registers channels at runtime via ->extend() from a provider's boot().
         'channels' => [

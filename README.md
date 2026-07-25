@@ -1046,12 +1046,7 @@ existing Laravel `notifications` table into the platform store, preserving your 
 > send path: call `NotificationPlatform::send(new AdminNotification(...), $user)` instead. `AdminNotification` is no
 > longer a Laravel `Notification` (it has no `via()`/`toArray()`/`broadcast:`).
 
-### Realtime (live bell) — deferred
-
-The bell is **pull-based** (updates on page load). Live broadcast (badge bumps + a toast on arrival) is delivered by
-a **platform broadcast channel that has not shipped yet**, so notifications are stored **in-app only** for now. The
-`notifications.realtime` config key and the published `echo.js` / `realtime.js` stubs are reserved for that channel
-and have no effect until it lands.
+The bell is **pull-based** (updates on page load) — notifications are stored in-app via the InApp channel.
 
 ## Translation & multi-language
 

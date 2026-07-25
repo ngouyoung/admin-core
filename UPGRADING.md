@@ -21,21 +21,18 @@ Platform** store instead of Laravel database notifications. There is **one canon
 `NotificationPlatform::send() → InAppChannel → the notifications store`; admin-core no longer uses Laravel's
 notification runtime at all.
 
+This is a **breaking release**: it does **not** preserve runtime compatibility with the old Laravel notification
+implementation. There is no automatic data migration, no rollback archive, and no realtime broadcast.
+
 **BREAKING — `AdminNotification` is now a platform message, not a Laravel `Notification`.** It implements
 `NotificationMessage` and no longer has `via()` / `toArray()` / the `broadcast:` argument.
 
 | Your setup | Do this |
 |---|---|
 | You send with `$user->notify(new AdminNotification(...))` | Switch to `NotificationPlatform::send(new AdminNotification(..., message: '…'), $user)`. (`message` maps to the stored `body`.) |
-| You rely on **realtime / broadcast** (`ADMIN_CORE_REALTIME=true`) | Realtime is **deferred** — a platform broadcast channel has not shipped, so notifications are stored **in-app only** for now. The `realtime` config + `echo.js`/`realtime.js` stubs are retained, reserved for that channel. |
-| You just use the bell / notifications page | **Nothing.** On `php artisan migrate` the notifications migration transitions any existing Laravel `notifications` table into the platform store, **preserving your rows**. |
-| **Fresh install** | **Nothing.** The store is created by admin-core's own package migration (auto-loaded); the install no longer publishes a Laravel notifications table. |
-
-**After verifying the upgrade in production**, drop the transition's rollback archive (kept for safety, not auto-dropped):
-
-```sql
-DROP TABLE IF EXISTS notifications_legacy;
-```
+| You used **realtime / broadcast** (`ADMIN_CORE_REALTIME=true`) | **Removed.** The `realtime` config key and the `echo.js` / `realtime.js` broadcast stubs are gone (they consumed Laravel notification broadcasts, which the platform does not emit). Notifications are in-app only. Delete your published `resources/js/echo.js` + `resources/js/realtime.js` and the `laravel-echo`/`pusher-js` devDependencies. |
+| You have an existing Laravel `notifications` table (from ≤ the prior release) | **Drop it before upgrading:** `DROP TABLE notifications;` (back it up first if you want the old rows). The platform's package migration then creates the new hybrid store on `php artisan migrate`. This release does **not** migrate the old rows. |
+| **Fresh install** | **Nothing.** The store is created by admin-core's own package migration (auto-loaded). |
 
 Existing hosts keep the (now-vestigial) `Notifiable` trait on their `User` model — it is harmless and no longer used
 by admin-core; you may remove it if nothing in your own app relies on it.

@@ -88,10 +88,11 @@ it('excludes the frontend/access tree from purge targets on a minimal install (n
     // The framework-owned resources/js/app.js must NOT be a purge target; the minimal config IS ours.
     expect($owned)->not->toContain(resource_path('js/app.js'))
         ->and($owned)->toContain(config_path('admin-core.php'))
-        // The three fixed-name migrations install copies on every install belong to the base purge list
-        // (not the --access-only tree) — else --purge orphans them.
+        // The two fixed-name migrations install copies on every install belong to the base purge list
+        // (not the --access-only tree) — else --purge orphans them. The pre-platform 000021 notifications
+        // table is no longer installed OR claimed (breaking release — no legacy-notification compatibility).
         ->and($owned)->toContain(database_path('migrations/0001_01_01_000020_create_activity_logs_table.php'))
-        ->and($owned)->toContain(database_path('migrations/0001_01_01_000021_create_notifications_table.php'))
+        ->and($owned)->not->toContain(database_path('migrations/0001_01_01_000021_create_notifications_table.php'))
         ->and($owned)->toContain(database_path('migrations/0001_01_01_000022_create_error_logs_table.php'))
         // account.php is --access-only, so it must NOT be claimed on a minimal install.
         ->and($owned)->not->toContain(base_path('routes/Web/Backend/Modules/account.php'))

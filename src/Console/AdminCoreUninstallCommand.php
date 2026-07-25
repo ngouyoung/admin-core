@@ -170,11 +170,12 @@ class AdminCoreUninstallCommand extends Command
             resource_path('views/backend/dashboard.blade.php'),
             resource_path('views/backend/layouts/app.blade.php'),
             base_path('routes/Web/Backend/Modules/assessments.php'),
-            // The three fixed-name migrations install copies from the top-level stubs dir (NOT the access/
-            // tree, so the map walk below never sees them). The distinctive 000020–000022 names are ours,
-            // never the framework's own timestamped migrations.
+            // The two fixed-name migrations install copies from the top-level stubs dir (NOT the access/ tree,
+            // so the map walk below never sees them). The distinctive 000020/000022 names are ours, never the
+            // framework's own timestamped migrations. (Pre-platform installs also published a 000021 Laravel
+            // notifications table; the platform migration owns the store now, so it is neither installed nor
+            // cleaned up here — this is a breaking release with no legacy-notification compatibility.)
             database_path('migrations/0001_01_01_000020_create_activity_logs_table.php'),
-            database_path('migrations/0001_01_01_000021_create_notifications_table.php'),
             database_path('migrations/0001_01_01_000022_create_error_logs_table.php'),
         ];
 

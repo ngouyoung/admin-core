@@ -7,7 +7,7 @@ function fire(icon, title) {
             position: 'top-end',
             icon,
             // titleText (not title): render the message as INERT TEXT. `title` is an HTML sink, so a toast
-            // carrying untrusted data — e.g. a realtime broadcast with a "<img onerror=…>" name — would run
+            // carrying untrusted data — e.g. a server payload with a "<img onerror=…>" name — would run
             // script in the admin's session. titleText escapes it.
             titleText: title,
             showConfirmButton: false,

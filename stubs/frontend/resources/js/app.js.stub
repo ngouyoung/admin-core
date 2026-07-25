@@ -70,5 +70,3 @@ import './media';       // media library: drag-drop upload + delete + copy URL
 import './media-picker'; // HasMedia field: browse/upload modal + reorder/remove
 import './filter-tabs';
 import './notify';
-import './echo';      // Laravel Echo (guarded — only if a broadcaster key is configured)
-import './realtime';  // live notification bell (no-op unless Echo + the user channel are present)
