@@ -34,10 +34,9 @@ class AdminCoreInstallCommand extends Command
 
         if ($access) {
             $this->copyStub('dashboard.blade.php.stub', resource_path('views/backend/dashboard.blade.php'));
-            // Notifications table (skip if the app — or a previous run — already has one).
-            if (! glob(database_path('migrations/*_create_notifications_table.php'))) {
-                $this->copyStub('notifications_table.php.stub', database_path('migrations/0001_01_01_000021_create_notifications_table.php'));
-            }
+            // The notifications table is the Notification Platform's own package migration (auto-loaded); nothing to
+            // publish here. (Existing apps that published the pre-platform Laravel table are transitioned in place by
+            // that migration on `php artisan migrate`.)
             // Error log table — the reportable callback (registered by the provider) writes here.
             if (! glob(database_path('migrations/*_create_error_logs_table.php'))) {
                 $this->copyStub('error_logs_table.php.stub', database_path('migrations/0001_01_01_000022_create_error_logs_table.php'));
@@ -490,19 +489,21 @@ PHP;
             return;
         }
 
+        // Anchor the imports on the namespace declaration (always present) — never on Laravel's Notifiable
+        // (admin-core no longer depends on the Laravel notification system). Anchoring on a guaranteed landmark
+        // also keeps this atomic with the trait-line edit below: the imports are always added, so a trait can
+        // never be applied without its import.
         $contents = preg_replace(
-            '/(use Illuminate\\\\Notifications\\\\Notifiable;)/',
+            '/(namespace\s+[^;]+;)/',
             "$1\nuse Ngos\\AdminCore\\Concerns\\HasPublicUuid;\nuse Spatie\\Permission\\Traits\\HasRoles;",
             $contents,
             1,
         );
 
-        // Append to the in-class `use … Notifiable …;` trait line. Match it flexibly (indented use,
-        // short names → no backslash) so a User with extra traits (Sanctum/Passport/Jetstream) or a
-        // different order still works — the old exact `use HasFactory, Notifiable;` match silently
-        // skipped those, leaving the traits imported but never applied.
+        // Append to the class's first in-class trait `use … ;` line — matched flexibly (indented use, short
+        // names → no backslash, so top-level FQCN imports never match) so a User with any traits/order works.
         $contents = preg_replace(
-            '/(\n[ \t]+use\s+[A-Za-z0-9_,\s]*\bNotifiable\b[A-Za-z0-9_,\s]*?)(;)/',
+            '/(\n[ \t]+use\s+[A-Za-z0-9_,\s]*?)(;)/',
             '$1, HasRoles, HasPublicUuid$2',
             $contents,
             1,
@@ -535,15 +536,15 @@ PHP;
         }
 
         $contents = preg_replace(
-            '/(use Illuminate\\\\Notifications\\\\Notifiable;)/',
+            '/(namespace\s+[^;]+;)/',
             "$1\nuse Ngos\\AdminCore\\Concerns\\TwoFactorAuthenticatable;",
             (string) $contents,
             1,
         );
 
-        // Append to the in-class `use … Notifiable …;` trait line (same flexible match as addHasRolesTrait).
+        // Append to the class's first in-class trait `use … ;` line (same flexible match as addHasRolesTrait).
         $contents = preg_replace(
-            '/(\n[ \t]+use\s+[A-Za-z0-9_,\s]*\bNotifiable\b[A-Za-z0-9_,\s]*?)(;)/',
+            '/(\n[ \t]+use\s+[A-Za-z0-9_,\s]*?)(;)/',
             '$1, TwoFactorAuthenticatable$2',
             (string) $contents,
             1,

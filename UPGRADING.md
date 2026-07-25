@@ -12,6 +12,36 @@ npm install && npm run build
 
 ---
 
+## → (next release) — In-app notifications run on the Notification Platform (BREAKING for direct `AdminNotification` callers)
+
+<!-- Version pinned at release; this is the Notification Platform cutover (WP-N1…N5). -->
+
+admin-core's in-app notifications (the bell + `/admin/notifications`) now run on the first-party **Notification
+Platform** store instead of Laravel database notifications. There is **one canonical pipeline**:
+`NotificationPlatform::send() → InAppChannel → the notifications store`; admin-core no longer uses Laravel's
+notification runtime at all.
+
+**BREAKING — `AdminNotification` is now a platform message, not a Laravel `Notification`.** It implements
+`NotificationMessage` and no longer has `via()` / `toArray()` / the `broadcast:` argument.
+
+| Your setup | Do this |
+|---|---|
+| You send with `$user->notify(new AdminNotification(...))` | Switch to `NotificationPlatform::send(new AdminNotification(..., message: '…'), $user)`. (`message` maps to the stored `body`.) |
+| You rely on **realtime / broadcast** (`ADMIN_CORE_REALTIME=true`) | Realtime is **deferred** — a platform broadcast channel has not shipped, so notifications are stored **in-app only** for now. The `realtime` config + `echo.js`/`realtime.js` stubs are retained, reserved for that channel. |
+| You just use the bell / notifications page | **Nothing.** On `php artisan migrate` the notifications migration transitions any existing Laravel `notifications` table into the platform store, **preserving your rows**. |
+| **Fresh install** | **Nothing.** The store is created by admin-core's own package migration (auto-loaded); the install no longer publishes a Laravel notifications table. |
+
+**After verifying the upgrade in production**, drop the transition's rollback archive (kept for safety, not auto-dropped):
+
+```sql
+DROP TABLE IF EXISTS notifications_legacy;
+```
+
+Existing hosts keep the (now-vestigial) `Notifiable` trait on their `User` model — it is harmless and no longer used
+by admin-core; you may remove it if nothing in your own app relies on it.
+
+---
+
 ## → v3.1.0 — dashboard widget authorization can follow the panel guard (optional)
 
 The `<x-admin-core::dashboard />` component gains an **optional `guard` prop**, and `Route::adminCoreDashboard()`

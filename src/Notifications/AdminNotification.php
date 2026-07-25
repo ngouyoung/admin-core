@@ -22,8 +22,7 @@ use Ngos\AdminCore\Notifications\Platform\Contracts\NotificationMessage;
  * the Notification Center reads it).
  *
  * Realtime/broadcast (live bell + toast) is delivered by a platform broadcast channel, which is not yet shipped — so
- * this message is stored in-app only for now. (Before the platform cutover this class was a Laravel Notification sent
- * with `$user->notify(...)`; it is now a platform message sent with `NotificationPlatform::send(..., $user)`.)
+ * this message is stored in-app only for now.
  */
 class AdminNotification implements NotificationMessage
 {

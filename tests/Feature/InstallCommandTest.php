@@ -209,6 +209,45 @@ it('adds the HasRoles trait to a User model with extra/reordered traits (Sanctum
     $original === null ? File::delete($userPath) : File::put($userPath, $original);
 });
 
+it('adds the traits to a User model that has NO Laravel Notifiable (zero notification dependency)', function () {
+    File::ensureDirectoryExists(app_path('Models'));
+    $userPath = app_path('Models/User.php');
+    $original = File::exists($userPath) ? File::get($userPath) : null;
+
+    // A User with no Illuminate\Notifications\Notifiable at all — the install must still work (it anchors on the
+    // Authenticatable import + the first trait line, not on Laravel's Notifiable).
+    File::put($userPath, <<<'PHP'
+    <?php
+
+    namespace App\Models;
+
+    use Illuminate\Database\Eloquent\Factories\HasFactory;
+    use Illuminate\Foundation\Auth\User as Authenticatable;
+
+    class User extends Authenticatable
+    {
+        use HasFactory;
+    }
+    PHP);
+
+    $command = new \Ngos\AdminCore\Console\AdminCoreInstallCommand();
+    $command->setLaravel(app());
+    (fn ($o) => $this->output = $o)->call(
+        $command,
+        new \Illuminate\Console\OutputStyle(new \Symfony\Component\Console\Input\ArrayInput([]), new \Symfony\Component\Console\Output\BufferedOutput()),
+    );
+    $m = new ReflectionMethod($command, 'addHasRolesTrait');
+    $m->setAccessible(true);
+    $m->invoke($command);
+
+    expect(File::get($userPath))
+        ->toContain('use HasFactory, HasRoles, HasPublicUuid;')   // appended without a Notifiable anchor
+        ->toContain('use Spatie\Permission\Traits\HasRoles;')     // import added (anchored on Authenticatable)
+        ->not->toContain('Illuminate\Notifications');             // install introduced no Laravel-notification reference
+
+    $original === null ? File::delete($userPath) : File::put($userPath, $original);
+});
+
 it('adds the TwoFactorAuthenticatable trait to the User model (idempotent)', function () {
     File::ensureDirectoryExists(app_path('Models'));
     $userPath = app_path('Models/User.php');

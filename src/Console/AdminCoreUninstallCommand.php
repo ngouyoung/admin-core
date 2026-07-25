@@ -134,10 +134,10 @@ class AdminCoreUninstallCommand extends Command
         $contents = str_replace("\nuse Spatie\\Permission\\Traits\\HasRoles;", '', $contents);
         $contents = str_replace("\nuse Ngos\\AdminCore\\Concerns\\HasPublicUuid;", '', $contents);
         $contents = str_replace("\nuse Ngos\\AdminCore\\Concerns\\TwoFactorAuthenticatable;", '', $contents);
-        // …then strip the traits from the class `use …;` line, whatever order/other traits sit there.
-        // (install adds them with a leading comma: `…Notifiable, HasRoles, HasPublicUuid, TwoFactorAuthenticatable;`.)
-        // The old exact-match `…Notifiable, HasRoles;` never matched once more traits were added, leaving
-        // the model using a trait with no import — a fatal "Trait not found".
+        // …then strip the admin-core traits from the class `use …;` line, whatever order/other traits sit there.
+        // (install appends them to the User's existing trait line: `…HasFactory, HasRoles, HasPublicUuid, …;`.) The
+        // host's own traits (HasFactory, and Laravel's Notifiable if present) are left untouched — admin-core only
+        // reverts what it added. The comma-anchored strip below removes them wherever they landed in the line.
         $contents = preg_replace('/,\s*(HasRoles|HasPublicUuid|TwoFactorAuthenticatable)\b/', '', $contents);
 
         File::put($model, $contents);
