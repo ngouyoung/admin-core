@@ -2,37 +2,40 @@
 
 namespace Ngos\AdminCore\Notifications;
 
-use Illuminate\Notifications\Messages\BroadcastMessage;
-use Illuminate\Notifications\Notification;
+use Ngos\AdminCore\Notifications\Platform\Contracts\NotificationMessage;
 
 /**
- * A ready-made database notification for the admin bell, so you can fire an in-app alert
- * without writing a Notification class per message type:
+ * A ready-made in-app notification for the admin bell — a Notification Platform {@see NotificationMessage} you send
+ * without writing a message class per alert type:
  *
  *   use Ngos\AdminCore\Notifications\AdminNotification;
+ *   use Ngos\AdminCore\Notifications\Platform\NotificationPlatform;
  *
- *   $user->notify(new AdminNotification(
+ *   NotificationPlatform::send(new AdminNotification(
  *       title: 'Order shipped',
  *       message: 'Order #1024 is on its way',
  *       url: route('admin.orders.edit', 1024),
  *       icon: 'bi-truck',
- *   ));
+ *   ), $user);
  *
- * It surfaces in <x-admin-core::notifications-bell /> and the /admin/notifications page.
- * When config('admin-core.notifications.realtime') is on (or you pass broadcast: true) it
- * ALSO broadcasts, so the bell updates live + a toast pops on arrival (needs a broadcaster +
- * Echo + a queue worker — see the README). Need mail/SMS/etc.? Write your own Notification —
- * `toArray()` just has to return `title` / `message` / `url` / `icon`.
+ * It surfaces in <x-admin-core::notifications-bell /> and the /admin/notifications page (the InApp channel stores it;
+ * the Notification Center reads it).
+ *
+ * Realtime/broadcast (live bell + toast) is delivered by a platform broadcast channel, which is not yet shipped — so
+ * this message is stored in-app only for now. (Before the platform cutover this class was a Laravel Notification sent
+ * with `$user->notify(...)`; it is now a platform message sent with `NotificationPlatform::send(..., $user)`.)
  */
-class AdminNotification extends Notification
+class AdminNotification implements NotificationMessage
 {
+    /** The opaque, product-owned type key for admin-core's built-in alerts (the platform stores it, never parses it). */
+    public const TYPE = 'admin-core.notification';
+
     /**
      * @param  string       $title    headline shown in the bell and the list
      * @param  string|null  $message  optional supporting line
      * @param  string|null  $url      where the row links to when clicked (e.g. a route())
      * @param  string|null  $icon     a Bootstrap Icons class, e.g. 'bi-truck' (defaults in the view)
-     * @param  array<string, mixed>  $extra  extra keys merged into the stored payload (ids, etc.)
-     * @param  bool|null  $broadcast  also broadcast (live bell)? null = follow config('admin-core.notifications.realtime')
+     * @param  array<string, scalar|null>  $extra  extra presentation scalars merged into the stored payload (ids, etc.)
      */
     public function __construct(
         public string $title,
@@ -40,40 +43,47 @@ class AdminNotification extends Notification
         public ?string $url = null,
         public ?string $icon = null,
         public array $extra = [],
-        public ?bool $broadcast = null,
     ) {
     }
 
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function type(): string
     {
-        $channels = ['database'];
-
-        if ($this->broadcast ?? (bool) config('admin-core.notifications.realtime', false)) {
-            $channels[] = 'broadcast';
-        }
-
-        return $channels;
+        return self::TYPE;
     }
 
-    /** The live (broadcast) payload — same shape as the stored one, for the bell listener. */
-    public function toBroadcast(object $notifiable): BroadcastMessage
+    public function title(): ?string
     {
-        return new BroadcastMessage($this->toArray($notifiable));
+        return $this->title;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function toArray(object $notifiable): array
+    public function translationKey(): ?string
     {
-        return array_merge([
-            'title' => $this->title,
-            'message' => $this->message,
-            'url' => $this->url,
-            'icon' => $this->icon,
-        ], $this->extra);
+        return null;
+    }
+
+    public function translationParams(): array
+    {
+        return [];
+    }
+
+    public function body(): ?string
+    {
+        return $this->message;
+    }
+
+    public function url(): ?string
+    {
+        return $this->url;
+    }
+
+    public function icon(): ?string
+    {
+        return $this->icon;
+    }
+
+    /** @return array<string, scalar|null> */
+    public function data(): array
+    {
+        return $this->extra;
     }
 }

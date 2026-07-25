@@ -270,12 +270,10 @@ return [
     |--------------------------------------------------------------------------
     | Notifications
     |--------------------------------------------------------------------------
-    | In-app notifications are always on (the bell + /admin/notifications, Laravel
-    | database notifications). Set `realtime` to true to ALSO broadcast each
-    | AdminNotification so the bell updates live + a toast pops on arrival — this
-    | needs a broadcaster (Reverb/Pusher) + Laravel Echo + a running queue worker.
-    | See the "Realtime notifications" section in the README. Per-notification
-    | override: new AdminNotification(..., broadcast: true|false).
+    | In-app notifications are always on (the bell + /admin/notifications), backed by
+    | the Notification Platform store via the InApp channel. `realtime` is reserved for
+    | a platform broadcast channel (live bell + toast) that is not yet shipped — it has
+    | no effect until that channel lands, so notifications are stored in-app only for now.
     */
     'notifications' => [
         'realtime' => env('ADMIN_CORE_REALTIME', false),

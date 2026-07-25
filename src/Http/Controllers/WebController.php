@@ -2,6 +2,7 @@
 
 namespace Ngos\AdminCore\Http\Controllers;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,6 +13,7 @@ use Illuminate\Support\Facades\Validator;
 use Ngos\AdminCore\Actions\Action;
 use Ngos\AdminCore\Models\Approval;
 use Ngos\AdminCore\Notifications\AdminNotification;
+use Ngos\AdminCore\Notifications\Platform\NotificationPlatform;
 use Ngos\AdminCore\States\Transition;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Yajra\DataTables\DataTables;
@@ -1147,23 +1149,24 @@ abstract class WebController extends BaseController
             return; // host user model isn't Spatie-permissioned — the inbox still surfaces the request
         }
 
+        // Best-effort: resolving approvers OR a channel delivery must never fail the already-filed request, so the
+        // whole notify is wrapped — a broken notification channel can't 500 a successful approval filing.
         try {
             $approvers = $model::permission($this->approvePermission($action))->get();
-        } catch (\Throwable) {
-            return;
-        }
+            $url = $this->approvalsInboxUrl();
 
-        $url = $this->approvalsInboxUrl();
-
-        foreach ($approvers as $approver) {
-            if (method_exists($approver, 'notify')) {
-                $approver->notify(new AdminNotification(
-                    title: __('admin-core::admin-core.approvals.notify_request_title'),
-                    message: __('admin-core::admin-core.approvals.notify_request_message', ['label' => $approval->label()]),
-                    url: $url,
-                    icon: 'bi-check2-square',
-                ));
+            foreach ($approvers as $approver) {
+                if ($approver instanceof Model) {
+                    NotificationPlatform::send(new AdminNotification(
+                        title: __('admin-core::admin-core.approvals.notify_request_title'),
+                        message: __('admin-core::admin-core.approvals.notify_request_message', ['label' => $approval->label()]),
+                        url: $url,
+                        icon: 'bi-check2-square',
+                    ), $approver);
+                }
             }
+        } catch (\Throwable) {
+            // swallow — notifications are advisory; the request is already filed and visible in the inbox
         }
     }
 

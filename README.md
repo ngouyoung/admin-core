@@ -1014,68 +1014,44 @@ changing the name; single-guard apps never touch any of this.
 
 ## Notifications
 
-`--access` installs an in-app notification system on Laravel's database notifications: a **bell** in the top
+`--access` installs an in-app notification system on the **Notification Platform** store: a **bell** in the top
 bar (`<x-admin-core::notifications-bell />`) with an unread badge and a recent-list dropdown, a full
 **notifications page** at `/admin/notifications`, and mark-read / mark-all-read / delete.
 
-**Send one in a single line** — no notification class to write — with the bundled `AdminNotification`:
+**Send one in a single line** — no message class to write — with the bundled `AdminNotification`, through the
+platform facade:
 
 ```php
 use Ngos\AdminCore\Notifications\AdminNotification;
+use Ngos\AdminCore\Notifications\Platform\NotificationPlatform;
 
-$user->notify(new AdminNotification(
+NotificationPlatform::send(new AdminNotification(
     title:   'Order shipped',
     message: "Order #{$order->id} is on its way.",
     url:     route('admin.orders.show', $order), // followed when the row is clicked
     icon:    'bi-truck',                          // any Bootstrap icon (optional)
     extra:   ['order_id' => $order->id],          // optional extra payload keys
-));
+), $user);                                        // a user, an email/phone, or a collection of recipients
 ```
 
-Need mail/broadcast/queued, or richer logic? Write your own `Notification` instead — the UI only needs
-`toArray()` to return `title` / `message` / `url` / `icon`:
-
-```php
-public function via($notifiable): array { return ['database']; }
-
-public function toArray($notifiable): array
-{
-    return ['title' => 'Order shipped', 'message' => '…', 'url' => '…', 'icon' => 'bi-truck'];
-}
-```
+`AdminNotification` is a platform `NotificationMessage`; `message` maps to the stored `body`. Richer alerts?
+Implement `Ngos\AdminCore\Notifications\Platform\Contracts\NotificationMessage` yourself and send it the same way.
 
 The bell renders only where the routes exist (`Route::adminCoreNotifications()`, added to the admin group by
-`--access`) and the user is `Notifiable` — so it's safe everywhere. **Existing installs:** re-run
-`php artisan admin-core:install --access` to add the table, route and bell, then `php artisan migrate`.
+`--access`) and a user is authenticated — so it's safe everywhere. **Existing installs:** re-run
+`php artisan admin-core:install --access`, then `php artisan migrate` (the notifications migration transitions any
+existing Laravel `notifications` table into the platform store, preserving your rows).
 
-### Realtime (live bell)
+> **Migrating from `$user->notify(new AdminNotification(...))`?** The platform cutover replaced the Laravel-notification
+> send path: call `NotificationPlatform::send(new AdminNotification(...), $user)` instead. `AdminNotification` is no
+> longer a Laravel `Notification` (it has no `via()`/`toArray()`/`broadcast:`).
 
-By default the bell is **pull-based** (updates on page load). Turn on **realtime** and each `AdminNotification`
-also **broadcasts**, so the bell's badge bumps live and a toast pops on arrival — no refresh. It's **opt-in**
-because it needs a broadcaster + Laravel Echo + a queue worker:
+### Realtime (live bell) — deferred
 
-1. **Enable it:** `ADMIN_CORE_REALTIME=true` (or `config('admin-core.notifications.realtime')`). Per-notification
-   override: `new AdminNotification(..., broadcast: true)`.
-2. **A broadcaster** — [Reverb](https://laravel.com/docs/reverb) (first-party, self-hosted) is easiest:
-   `composer require laravel/reverb && php artisan reverb:install`, then run `php artisan reverb:start`. (Pusher
-   works too — the kit's `echo.js` supports both.)
-3. **Front-end env** (read at build time, then `npm run build`):
-   ```dotenv
-   VITE_REVERB_APP_KEY="${REVERB_APP_KEY}"
-   VITE_REVERB_HOST="${REVERB_HOST}"
-   VITE_REVERB_PORT="${REVERB_PORT}"
-   VITE_REVERB_SCHEME="${REVERB_SCHEME}"
-   ```
-   Echo + pusher-js are **lazy-loaded only when a key is set** — with realtime off they're not in the bundle.
-4. **Channel auth** — notifications broadcast on the private channel `App.Models.User.{id}`. Fresh Laravel apps
-   already authorize this in `routes/channels.php`; if yours doesn't:
-   ```php
-   Broadcast::channel('App.Models.User.{id}', fn ($user, $id) => (int) $user->id === (int) $id);
-   ```
-5. **Run a queue worker** (`php artisan queue:work`) — broadcasts are queued.
-
-That's it: `$user->notify(new AdminNotification(...))` now lands live. The kit listens on the user's channel
-(`resources/js/realtime.js`) and updates the bell; the dropdown list itself refreshes on the next open/load.
+The bell is **pull-based** (updates on page load). Live broadcast (badge bumps + a toast on arrival) is delivered by
+a **platform broadcast channel that has not shipped yet**, so notifications are stored **in-app only** for now. The
+`notifications.realtime` config key and the published `echo.js` / `realtime.js` stubs are reserved for that channel
+and have no effect until it lands.
 
 ## Translation & multi-language
 

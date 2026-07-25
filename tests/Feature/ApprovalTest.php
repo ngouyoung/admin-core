@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Ngos\AdminCore\Models\Approval;
@@ -39,9 +38,25 @@ beforeEach(function () {
         $t->timestamp('decided_at')->nullable();
         $t->timestamps();
     });
+    // The approval decision notifies the requester/approvers via the Notification Platform (InApp channel), which
+    // writes to the hybrid store — give it a table to land in.
+    Schema::dropIfExists('notifications');
+    Schema::create('notifications', function (Blueprint $t) {
+        $t->id();
+        $t->uuid('uuid')->unique();
+        $t->morphs('notifiable');
+        $t->string('guard')->nullable();
+        $t->string('type');
+        $t->json('data');
+        $t->timestamp('read_at')->nullable();
+        $t->timestamps();
+    });
 });
 
-afterEach(fn () => Schema::dropIfExists('approvals'));
+afterEach(function () {
+    Schema::dropIfExists('approvals');
+    Schema::dropIfExists('notifications');
+});
 
 it('still resolves the requester after that user is soft-deleted (approvals screen keeps the name)', function () {
     Schema::dropIfExists('req_users');
@@ -230,7 +245,6 @@ function pendingRefund(Widget $w): Approval
 }
 
 it('runs the original action and marks approved when an approver approves', function () {
-    Notification::fake();
     config()->set('admin-core.permission.enabled', true);
     Gate::define('approve-refund-action-widget', fn () => true);
     $this->actingAs(new NotifiableUser(['name' => 'Owner']));
@@ -245,7 +259,6 @@ it('runs the original action and marks approved when an approver approves', func
 });
 
 it('forbids the requester from approving their OWN request (maker != checker), even with the permission', function () {
-    Notification::fake();
     config()->set('admin-core.permission.enabled', true);
     Gate::define('approve-refund-action-widget', fn () => true); // Alice was later granted the approve permission
 
@@ -270,6 +283,13 @@ it('forbids the requester from approving their OWN request (maker != checker), e
     $this->actingAs($bob);
     $this->post('/admin/approvals/' . $approval->uuid . '/approve')->assertRedirect();
     expect($approval->fresh()->status)->toBe('approved');
+
+    // The decision notifies the REQUESTER (Alice) through the platform — correct recipient + the approved branch.
+    $n = \Ngos\AdminCore\Models\Notification::where('notifiable_id', $alice->getKey())
+        ->where('notifiable_type', $alice->getMorphClass())->sole();
+    expect($n->guard)->toBeNull()
+        ->and($n->data['title'])->toBe(__('admin-core::admin-core.approvals.notify_approved_title'))
+        ->and($n->data['icon'])->toBe('bi-check-circle');
 
     Schema::dropIfExists('mc_users');
 });
@@ -335,7 +355,6 @@ it('resolves the approver on the route\'s portal guard for maker-checker, not th
 });
 
 it('rolls the approval back to pending when the action handler throws (retryable, not stuck approved)', function () {
-    Notification::fake();
     config()->set('admin-core.permission.enabled', true);
     Gate::define('approve-boom-action-widget', fn () => true);
     $this->actingAs(new NotifiableUser(['name' => 'Owner']));
@@ -348,6 +367,11 @@ it('rolls the approval back to pending when the action handler throws (retryable
         'payload' => ['ids' => [$w->id], 'label' => 'Boom'],
         'status' => 'pending',
     ]);
+    // A persisted requester makes the "no notify on rollback" assertion falsifiable — notifyRequester runs only
+    // AFTER the transaction commits, so a rolled-back decision must leave the requester with zero notification rows.
+    Schema::dropIfExists('mc_users');
+    Schema::create('mc_users', fn (Blueprint $t) => tap($t)->id()->string('name'));
+    $approval->requester()->associate(\Ngos\AdminCore\Tests\Fixtures\McUser::create(['name' => 'Req']))->save();
 
     // The handler throws → the claim + action roll back together. Whether the test env re-throws or renders a
     // 500, the transaction is rolled back, so the approval must stay PENDING (retryable), not stuck 'approved'.
@@ -359,14 +383,14 @@ it('rolls the approval back to pending when the action handler throws (retryable
 
     expect($approval->fresh()->status)->toBe('pending')       // rolled back — not 'approved'
         ->and($approval->fresh()->decided_at)->toBeNull();
-    Notification::assertNothingSent();                        // never told the requester it was approved
+    expect(\Ngos\AdminCore\Models\Notification::count())->toBe(0); // rolled back → the requester got no notification
+    Schema::dropIfExists('mc_users');
 });
 
 it('warns (not a plain success) when an approved action affects zero of its captured records', function () {
     // The approved action re-runs through the APPROVER's service query() on a fresh controller, so in a
     // tenant/scope-bound app the requester's captured ids can resolve to 0 rows (also true if they were deleted
     // between request and decision). Surface it instead of a green "approved" that silently did nothing.
-    Notification::fake();
     config()->set('admin-core.permission.enabled', true);
     Gate::define('approve-refund-action-widget', fn () => true);
     $this->actingAs(new NotifiableUser(['name' => 'Owner']));
@@ -388,23 +412,30 @@ it('warns (not a plain success) when an approved action affects zero of its capt
     expect($approval->fresh()->status)->toBe('approved'); // the decision still stands (approver acted)
 });
 
-it('marks rejected WITHOUT running the action', function () {
-    Notification::fake();
+it('marks rejected WITHOUT running the action, and notifies the requester (rejected branch)', function () {
     config()->set('admin-core.permission.enabled', true);
     Gate::define('approve-refund-action-widget', fn () => true);
     $this->actingAs(new NotifiableUser(['name' => 'Owner']));
     $w = Widget::create(['name' => 'a']);
     $approval = pendingRefund($w);
+    Schema::dropIfExists('mc_users');
+    Schema::create('mc_users', fn (Blueprint $t) => tap($t)->id()->string('name'));
+    $requester = \Ngos\AdminCore\Tests\Fixtures\McUser::create(['name' => 'Req']);
+    $approval->requester()->associate($requester)->save();
 
     $this->post('/admin/approvals/' . $approval->uuid . '/reject', ['note' => 'nope'])->assertRedirect();
 
     expect($w->fresh()->status)->toBeNull()                     // never executed
         ->and($approval->fresh()->status)->toBe('rejected')
         ->and($approval->fresh()->decision_note)->toBe('nope');
+    // the requester is notified of the REJECTED decision (the bi-x-circle / rejected-title branch)
+    $n = \Ngos\AdminCore\Models\Notification::where('notifiable_id', $requester->getKey())->sole();
+    expect($n->data['title'])->toBe(__('admin-core::admin-core.approvals.notify_rejected_title'))
+        ->and($n->data['icon'])->toBe('bi-x-circle');
+    Schema::dropIfExists('mc_users');
 });
 
 it('treats an array note as absent instead of a TypeError 500', function () {
-    Notification::fake();
     config()->set('admin-core.permission.enabled', true);
     Gate::define('approve-refund-action-widget', fn () => true);
     $this->actingAs(new NotifiableUser(['name' => 'Owner']));
@@ -429,7 +460,6 @@ it('forbids deciding without the action approve permission', function () {
 });
 
 it('cannot be approved twice — the atomic claim wins once', function () {
-    Notification::fake();
     config()->set('admin-core.permission.enabled', true);
     Gate::define('approve-refund-action-widget', fn () => true);
     $this->actingAs(new NotifiableUser(['name' => 'Owner']));

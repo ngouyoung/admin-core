@@ -1,22 +1,31 @@
 {{--
-     In-app notification bell for the top bar. Reads the current user's Laravel database
-     notifications. Renders only when the routes are wired (Route::adminCoreNotifications())
-     and the user is Notifiable — so it's safe to drop in any layout.
+     In-app notification bell for the top bar. Reads the current user's notifications from the Notification Platform
+     store. Renders only when the routes are wired (Route::adminCoreNotifications()) and a user is authenticated — so
+     it's safe to drop in any layout.
 
        <x-admin-core::notifications-bell />
 
-     Send one in a line:  $user->notify(new Ngos\AdminCore\Notifications\AdminNotification(
-         title: 'Order shipped', message: '…', url: route(…), icon: 'bi-truck'));
+     Send one in a line:  Ngos\AdminCore\Notifications\Platform\NotificationPlatform::send(
+         new Ngos\AdminCore\Notifications\AdminNotification(title: 'Order shipped', message: '…', url: route(…), icon: 'bi-truck'), $user);
+
+     For a separate-guard portal, pass the portal's `guard` (mirrors <x-admin-core::sidebar-menu>) so the bell
+     resolves THAT portal's user — matching Route::adminCoreNotifications('merchant'):
+       <x-admin-core::notifications-bell guard="merchant" />
 --}}
-@php($acUser = auth()->user())
+@props(['guard' => null])
+@php($acUser = auth()->guard($guard)->user())
 @php($acNs = config('admin-core.route.name_prefix', 'admin.'))
-@if ($acUser
-    && \Illuminate\Support\Facades\Route::has($acNs . 'notifications.index')
-    && method_exists($acUser, 'unreadNotifications'))
-    {{-- A bounded COUNT + a 6-row preview — NOT $acUser->unreadNotifications (which loads EVERY unread row,
-         data payload included, on every page render, scaling with the user's backlog). --}}
-    @php($acUnreadCount = $acUser->unreadNotifications()->count())
-    @php($acPreview = $acUnreadCount ? $acUser->unreadNotifications()->latest()->take(6)->get() : collect())
+@if ($acUser instanceof \Illuminate\Database\Eloquent\Model
+    && \Illuminate\Support\Facades\Route::has($acNs . 'notifications.index'))
+    {{-- A bounded (cached) COUNT + a 6-row preview — NOT the full unread relation, which would load EVERY unread
+         row, data payload included, on every page render, scaling with the user's backlog. --}}
+    @php($acUnreadCount = \Ngos\AdminCore\Models\Notification::unreadCountFor($acUser->getMorphClass(), $acUser->getKey(), null))
+    @php($acPreview = $acUnreadCount
+        ? \Ngos\AdminCore\Models\Notification::query()
+            ->where('notifiable_type', $acUser->getMorphClass())
+            ->where('notifiable_id', $acUser->getKey())
+            ->whereNull('read_at')->latest()->take(6)->get()
+        : collect())
     <div class="dropdown" data-ac-bell>
         <a href="#" class="ac-icon-btn position-relative" data-bs-toggle="dropdown" role="button" title="{{ __('admin-core::admin-core.notifications.title') }}">
             <i class="bi bi-bell"></i>
@@ -38,13 +47,13 @@
             </div>
             <div style="max-height:360px; overflow-y:auto">
                 @forelse ($acPreview as $n)
-                    <form action="{{ route($acNs . 'notifications.read', $n->id) }}" method="POST" class="m-0">
+                    <form action="{{ route($acNs . 'notifications.read', $n->uuid) }}" method="POST" class="m-0">
                         @csrf
                         <button type="submit" class="dropdown-item d-flex gap-2 py-2 text-wrap border-bottom">
                             <i class="bi {{ $n->data['icon'] ?? 'bi-info-circle' }} mt-1 text-primary"></i>
                             <span>
                                 <span class="d-block fw-semibold small">{{ $n->data['title'] ?? 'Notification' }}</span>
-                                <span class="d-block text-muted small">{{ \Illuminate\Support\Str::limit($n->data['message'] ?? '', 80) }}</span>
+                                <span class="d-block text-muted small">{{ \Illuminate\Support\Str::limit($n->data['body'] ?? '', 80) }}</span>
                                 <span class="d-block text-muted" style="font-size:.7rem">{{ $n->created_at->diffForHumans() }}</span>
                             </span>
                         </button>

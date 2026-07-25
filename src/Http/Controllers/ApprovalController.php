@@ -3,12 +3,14 @@
 namespace Ngos\AdminCore\Http\Controllers;
 
 use Illuminate\Contracts\View\View;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\DB;
 use Ngos\AdminCore\Models\Approval;
 use Ngos\AdminCore\Notifications\AdminNotification;
+use Ngos\AdminCore\Notifications\Platform\NotificationPlatform;
 
 /**
  * The approvals inbox: list pending requests and approve / reject them. Reaching the inbox needs the
@@ -173,14 +175,14 @@ class ApprovalController extends Controller
     private function notifyRequester(Approval $approval, bool $approved): void
     {
         $requester = $approval->requester;
-        if ($requester && method_exists($requester, 'notify')) {
-            $requester->notify(new AdminNotification(
+        if ($requester instanceof Model) {
+            NotificationPlatform::send(new AdminNotification(
                 title: __($approved
                     ? 'admin-core::admin-core.approvals.notify_approved_title'
                     : 'admin-core::admin-core.approvals.notify_rejected_title'),
                 message: __('admin-core::admin-core.approvals.notify_decision_message', ['label' => $approval->label()]),
                 icon: $approved ? 'bi-check-circle' : 'bi-x-circle',
-            ));
+            ), $requester);
         }
     }
 }

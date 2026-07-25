@@ -22,19 +22,19 @@
                     <i class="bi {{ $n->data['icon'] ?? 'bi-info-circle' }} fs-5 text-primary mt-1"></i>
                     <div class="flex-fill">
                         <div class="fw-semibold">{{ $n->data['title'] ?? 'Notification' }}</div>
-                        @if (! empty($n->data['message']))
-                            <div class="text-muted">{{ $n->data['message'] }}</div>
+                        @if (! empty($n->data['body']))
+                            <div class="text-muted">{{ $n->data['body'] }}</div>
                         @endif
                         <div class="text-muted small">{{ $n->created_at->diffForHumans() }}</div>
                     </div>
                     <div class="d-flex gap-2">
                         @if (! $n->read_at)
-                            <form action="{{ route($acNs . 'notifications.read', $n->id) }}" method="POST">
+                            <form action="{{ route($acNs . 'notifications.read', $n->uuid) }}" method="POST">
                                 @csrf
                                 <x-admin-core::button type="submit" variant="secondary" outline size="sm" icon="bi bi-check2" title="Mark read / open" />
                             </form>
                         @endif
-                        <form action="{{ route($acNs . 'notifications.destroy', $n->id) }}" method="POST">
+                        <form action="{{ route($acNs . 'notifications.destroy', $n->uuid) }}" method="POST">
                             @csrf @method('DELETE')
                             <x-admin-core::button type="submit" variant="danger" outline size="sm" icon="bi bi-trash" title="Delete" />
                         </form>
