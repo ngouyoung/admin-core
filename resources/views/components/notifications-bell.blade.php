@@ -26,13 +26,21 @@
             ->where('notifiable_id', $acUser->getKey())
             ->whereNull('read_at')->latest()->take(6)->get()
         : collect())
-    <div class="dropdown" data-ac-bell>
+    {{-- When realtime broadcast is enabled, expose the SAME morph-identity channel the server publishes on
+         (never the guard, which the store cannot express) and the store re-sync endpoint, both read by realtime.js.
+         Absent → the bell is static, exactly as before. --}}
+    @php($acRealtime = (bool) config('admin-core.notifications.broadcast.enabled')
+        ? app(\Ngos\AdminCore\Notifications\Platform\Broadcast\ChannelNameResolver::class)->forUser($acUser)
+        : null)
+    <div class="dropdown" data-ac-bell
+         @if ($acRealtime) data-ac-channel="{{ $acRealtime }}" data-ac-event="{{ config('admin-core.notifications.broadcast.event', 'notification.created') }}" data-ac-unread-url="{{ route($acNs . 'notifications.unread') }}" @endif>
         <a href="#" class="ac-icon-btn position-relative" data-bs-toggle="dropdown" role="button" title="{{ __('admin-core::admin-core.notifications.title') }}">
             <i class="bi bi-bell"></i>
-            @if ($acUnreadCount)
-                <span class="badge rounded-pill text-bg-danger position-absolute top-0 start-100 translate-middle"
-                      style="font-size:.6rem" data-ac-bell-count data-count="{{ $acUnreadCount }}">{{ $acUnreadCount > 9 ? '9+' : $acUnreadCount }}</span>
-            @endif
+            {{-- Always rendered (hidden at zero) so realtime.js can reveal + bump it the moment a notification
+                 arrives, without needing a full page render. Server-rendered count is the initial sync. --}}
+            <span class="badge rounded-pill text-bg-danger position-absolute top-0 start-100 translate-middle"
+                  style="font-size:.6rem;{{ $acUnreadCount ? '' : 'display:none' }}"
+                  data-ac-bell-count data-count="{{ $acUnreadCount }}">{{ $acUnreadCount > 9 ? '9+' : $acUnreadCount }}</span>
         </a>
         <div class="dropdown-menu dropdown-menu-end shadow border-0 mt-2 p-0"
              style="border-radius:1rem; min-width:320px; max-width:360px">

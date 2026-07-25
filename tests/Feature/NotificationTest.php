@@ -63,9 +63,43 @@ function seedNotification(NotifiableUser $user, ?string $readAt = null, ?array $
 it('registers the notification routes via Route::adminCoreNotifications()', function () {
     Route::getRoutes()->refreshNameLookups();
     expect(Route::has('admin.notifications.index'))->toBeTrue()
+        ->and(Route::has('admin.notifications.unread'))->toBeTrue()
         ->and(Route::has('admin.notifications.read'))->toBeTrue()
         ->and(Route::has('admin.notifications.readAll'))->toBeTrue()
         ->and(Route::has('admin.notifications.destroy'))->toBeTrue();
+});
+
+// ---- unread-count JSON endpoint (realtime store re-sync; WP-N6A) -------------------------------------------------
+
+it('the unread endpoint returns the current user\'s authoritative unread count as JSON, scoped to the owner', function () {
+    $user = NotifiableUser::create(['name' => 'A']);
+    seedNotification($user);
+    seedNotification($user);
+    seedNotification($user, readAt: now()->toDateTimeString()); // already read — not counted
+    seedNotification(NotifiableUser::create(['name' => 'B']));   // another user's — never counted
+
+    $this->actingAs($user)->getJson(route('admin.notifications.unread'))
+        ->assertOk()
+        ->assertExactJson(['unread' => 2]);
+});
+
+it('the unread endpoint scopes to the route\'s portal guard, not the default guard', function () {
+    config()->set('auth.guards.merchant', ['driver' => 'session', 'provider' => 'users']);
+    Route::middleware('web')->prefix('merchant')->name('merchant.')
+        ->group(fn () => Route::adminCoreNotifications('merchant'));
+    Route::getRoutes()->refreshNameLookups();
+
+    $user = NotifiableUser::create(['name' => 'M']);
+    seedNotification($user);
+
+    // Authenticated ONLY on the merchant guard — the real portal shape (the default 'web' guard has no user).
+    $merchantUnread = Route::getRoutes()->getByName('merchant.notifications.unread');
+    $req = \Illuminate\Http\Request::create('/merchant/notifications/unread');
+    $req->setRouteResolver(fn () => $merchantUnread);
+    auth()->guard('merchant')->setUser($user);
+
+    $json = app()->call([app(\Ngos\AdminCore\Http\Controllers\NotificationController::class), 'unread'], ['request' => $req]);
+    expect($json->getData(true))->toBe(['unread' => 1]);
 });
 
 // ---- read / mark-read (authorization: own only) -----------------------------------------------------------------
@@ -301,6 +335,29 @@ it('renders the bell with a bounded (cached) count + 6-item preview, never loadi
     // Badge shows the capped label; exactly 6 preview forms render (each posts to a read route).
     expect($html)->toContain('data-count="20"')->toContain('9+')
         ->and(substr_count($html, '/read"'))->toBe(6); // read-all is `/read-all"`, so this counts only the previews
+});
+
+// ---- bell realtime wiring (WP-N6A) ------------------------------------------------------------------------------
+
+it('the bell exposes the morph-identity channel + sync url ONLY when broadcast is enabled', function () {
+    Route::getRoutes()->refreshNameLookups();
+    $user = NotifiableUser::create(['name' => 'A']);
+    $this->actingAs($user);
+
+    // broadcast OFF (default) → a static bell, no realtime attributes, no channel name leaked
+    config()->set('admin-core.notifications.broadcast.enabled', false);
+    $off = Blade::render('<x-admin-core::notifications-bell />');
+    expect($off)->not->toContain('data-ac-channel')->not->toContain('data-ac-unread-url');
+
+    // broadcast ON → the SAME channel the server publishes/authorizes, plus the store re-sync endpoint
+    config()->set('admin-core.notifications.broadcast.enabled', true);
+    $channel = app(\Ngos\AdminCore\Notifications\Platform\Broadcast\ChannelNameResolver::class)->forUser($user);
+    $on = Blade::render('<x-admin-core::notifications-bell />');
+    expect($on)->toContain('data-ac-channel="' . $channel . '"')
+        ->toContain('data-ac-unread-url="')
+        ->toContain('/admin/notifications/unread') // the store re-sync endpoint (route() renders it absolute)
+        // the badge is always present (hidden at zero) so realtime.js can reveal + bump it
+        ->toContain('data-ac-bell-count');
 });
 
 // ---- open-redirect guard on the stored url ----------------------------------------------------------------------

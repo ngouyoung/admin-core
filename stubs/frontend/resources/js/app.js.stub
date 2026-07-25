@@ -55,6 +55,10 @@ if (document.querySelector('#overview-chart, [data-apexchart]')) {
     });
 }
 
+// Realtime transport for the Notification Platform. echo.js opens a websocket ONLY when a broadcaster key is
+// configured at build time (broadcast off ⇒ no socket, no bundle cost at runtime); realtime.js subscribes the bell.
+import './echo';
+
 // App behaviour
 import './shell';
 import './checktree';
@@ -70,3 +74,4 @@ import './media';       // media library: drag-drop upload + delete + copy URL
 import './media-picker'; // HasMedia field: browse/upload modal + reorder/remove
 import './filter-tabs';
 import './notify';
+import './realtime';  // Notification Platform realtime bell (subscribe + optimistic bump + reconnect re-sync)

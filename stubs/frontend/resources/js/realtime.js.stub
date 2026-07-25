@@ -1,0 +1,83 @@
+// ---------------------------------------------------------------------------
+// Notification Platform — realtime bell.
+//
+// Subscribes to the signed-in user's PRIVATE notification channel — its name is
+// emitted by <x-admin-core::notifications-bell> onto [data-ac-bell], and is the
+// exact same morph-identity channel the server publishes on and authorizes. On
+// each broadcast it optimistically bumps the unread badge and pops a toast.
+//
+// The persisted store is the SOURCE OF TRUTH. A broadcast is a best-effort,
+// at-most-once nudge — so on first connect AND on every reconnect the bell
+// re-syncs the authoritative unread count from the server (data-ac-unread-url),
+// reconciling the optimistic +1 and recovering anything missed while the socket
+// was down. Nothing here is authoritative on its own.
+//
+// Fully inert unless echo.js opened a socket (window.Echo) AND the bell exposed a
+// channel (broadcast enabled). Safe to import on every page.
+// ---------------------------------------------------------------------------
+function bell() {
+    return document.querySelector('[data-ac-bell]');
+}
+
+function badge() {
+    return document.querySelector('[data-ac-bell-count]');
+}
+
+// Write an authoritative count into the badge (reveal/hide + text), the single place the DOM is mutated.
+function setUnread(count) {
+    const el = badge();
+    if (!el) return;
+    const n = Math.max(0, count | 0);
+    el.dataset.count = String(n);
+    el.textContent = n > 9 ? '9+' : String(n);
+    el.style.display = n > 0 ? '' : 'none';
+}
+
+function currentUnread() {
+    const el = badge();
+    return el ? (parseInt(el.dataset.count || '0', 10) || 0) : 0;
+}
+
+// Pull the true unread count from the store — the reconciliation step (initial + every reconnect).
+function syncFromStore() {
+    const url = bell() && bell().dataset.acUnreadUrl;
+    if (!url) return Promise.resolve();
+    return fetch(url, { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => {
+            if (data && typeof data.unread === 'number') setUnread(data.unread);
+        })
+        .catch(() => {}); // offline / transient — the next reconnect (or a page load) re-syncs
+}
+
+function startRealtime() {
+    const channel = bell() && bell().dataset.acChannel;
+    if (!window.Echo || !channel) return; // broadcast disabled → static bell, nothing to wire
+
+    // The event name is server-configured (notifications.broadcast.event) and bridged via data-ac-event, so the two
+    // sides can't silently disagree. Echo's leading '.' means a raw, un-namespaced event (matching what we broadcast).
+    const event = (bell() && bell().dataset.acEvent) || 'notification.created';
+    window.Echo.private(channel).listen('.' + event, (payload) => {
+        setUnread(currentUnread() + 1); // optimistic — syncFromStore reconciles the real number
+        if (window.toastr) {
+            window.toastr.info((payload && (payload.title || payload.body)) || 'New notification');
+        }
+        // Let host pages (e.g. an open Notification Center) react without depending on Echo directly.
+        window.dispatchEvent(new CustomEvent('ac:notification', { detail: payload }));
+    });
+
+    // Source of truth: reconcile now, and again on every (re)connect.
+    syncFromStore();
+    const pusher = window.Echo.connector && window.Echo.connector.pusher;
+    if (pusher && pusher.connection && typeof pusher.connection.bind === 'function') {
+        pusher.connection.bind('connected', syncFromStore);
+    }
+}
+
+// window.Echo may not exist yet (echo.js lazy-imports it) — start now if it does, else wait for the ready signal.
+function boot() {
+    if (window.Echo) startRealtime();
+    else window.addEventListener('ac:echo:ready', startRealtime, { once: true });
+}
+
+document.addEventListener('DOMContentLoaded', boot);

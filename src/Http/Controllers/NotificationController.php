@@ -4,6 +4,7 @@ namespace Ngos\AdminCore\Http\Controllers;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -30,6 +31,20 @@ class NotificationController extends Controller
         return view('admin-core::notifications.index', [
             'notifications' => $this->forUser($user)->latest()->paginate(20),
             'unreadCount' => Notification::unreadCountFor($user->getMorphClass(), $user->getKey(), null),
+        ]);
+    }
+
+    /**
+     * The current user's unread count as JSON — the store's authoritative number the realtime frontend re-syncs to on
+     * first connect and every reconnect, so optimistic +1 increments (and anything missed while offline) are
+     * reconciled against the source of truth. Read-only; same morph scoping as {@see index()}.
+     */
+    public function unread(Request $request): JsonResponse
+    {
+        $user = $this->user($request);
+
+        return response()->json([
+            'unread' => Notification::unreadCountFor($user->getMorphClass(), $user->getKey(), null),
         ]);
     }
 

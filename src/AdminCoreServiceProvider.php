@@ -60,6 +60,38 @@ class AdminCoreServiceProvider extends ServiceProvider
             \Ngos\AdminCore\Notifications\Platform\Contracts\NotificationDispatcher::class,
             \Ngos\AdminCore\Notifications\Platform\Dispatcher::class,
         );
+
+        // WP-N6A — the broadcast transport (a leaf; the kernel never references it). Chosen from config; the
+        // NullPublisher is the always-safe fallback (disabled OR unknown driver) so BroadcastChannel can never fail
+        // to resolve a publisher and never throws — a misconfigured transport can't abort InApp delivery.
+        $this->app->singleton(
+            \Ngos\AdminCore\Notifications\Platform\Broadcast\Contracts\BroadcastPublisher::class,
+            function ($app): \Ngos\AdminCore\Notifications\Platform\Broadcast\Contracts\BroadcastPublisher {
+                if (! config('admin-core.notifications.broadcast.enabled', false)) {
+                    return new \Ngos\AdminCore\Notifications\Platform\Broadcast\NullPublisher;
+                }
+
+                try {
+                    return match ((string) config('admin-core.notifications.broadcast.driver', 'null')) {
+                        'reverb', 'pusher', 'ably' => new \Ngos\AdminCore\Notifications\Platform\Broadcast\ReverbPublisher(
+                            $app->make(\Illuminate\Contracts\Broadcasting\Factory::class),
+                            config('admin-core.notifications.broadcast.connection') !== null
+                                ? (string) config('admin-core.notifications.broadcast.connection')
+                                : null,
+                        ),
+                        default => new \Ngos\AdminCore\Notifications\Platform\Broadcast\NullPublisher,
+                    };
+                } catch (\Throwable $e) {
+                    // A broken broadcasting subsystem (Factory unresolvable, misconfigured driver) must degrade to a
+                    // no-op, never a throw: make('broadcast') is called by the transport-agnostic Dispatcher, whose
+                    // loop has no per-channel guard, so a construction error here would abort delivery for every
+                    // remaining recipient (incl. their InApp persistence). Fall back so broadcast is merely inert.
+                    report($e);
+
+                    return new \Ngos\AdminCore\Notifications\Platform\Broadcast\NullPublisher;
+                }
+            },
+        );
     }
 
     public function boot(): void
@@ -72,6 +104,7 @@ class AdminCoreServiceProvider extends ServiceProvider
         $this->registerErrorLogging();
         $this->registerErrorLogPruning();
         $this->registerActivityLogPruning();
+        $this->registerBroadcastAuth();
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -277,6 +310,29 @@ class AdminCoreServiceProvider extends ServiceProvider
      * THAT portal's user — else it reads the default guard, which (mounted in a non-default-guard group) is the
      * wrong or a null user (a 403, or a cross-identity read). Stashed as a route default (mirrors adminCoreSearch).
      */
+    /**
+     * Register the realtime private-channel authorization when broadcast is enabled — owner-only, by morph identity,
+     * via the SAME {@see \Ngos\AdminCore\Notifications\Platform\Broadcast\ChannelNameResolver} the publisher uses, so
+     * the published name and the authorized name can never diverge. A no-op when broadcast is off. The connecting
+     * user is resolved by Laravel's broadcasting-auth guard; a multi-portal host points that guard at the portal
+     * (mirroring Route::adminCoreNotifications('merchant')).
+     */
+    protected function registerBroadcastAuth(): void
+    {
+        if (! config('admin-core.notifications.broadcast.enabled', false)) {
+            return;
+        }
+
+        $resolver = $this->app->make(\Ngos\AdminCore\Notifications\Platform\Broadcast\ChannelNameResolver::class);
+        $authorizer = new \Ngos\AdminCore\Notifications\Platform\Broadcast\ChannelAuthorizer($resolver);
+
+        \Illuminate\Support\Facades\Broadcast::channel(
+            $resolver->prefix() . '.{type}.{id}',
+            fn (\Illuminate\Contracts\Auth\Authenticatable $user, string $type, string $id): bool
+                => $authorizer->authorize($user, $type, $id),
+        );
+    }
+
     protected function registerNotificationsMacro(): void
     {
         Route::macro('adminCoreNotifications', function (?string $guard = null) {
@@ -285,6 +341,7 @@ class AdminCoreServiceProvider extends ServiceProvider
                 ->name('notifications.')
                 ->group(function () use ($guard) {
                     Route::get('/', 'index')->name('index')->defaults('acNotificationGuard', $guard);
+                    Route::get('unread', 'unread')->name('unread')->defaults('acNotificationGuard', $guard);
                     Route::post('{id}/read', 'read')->name('read')->defaults('acNotificationGuard', $guard);
                     Route::post('read-all', 'readAll')->name('readAll')->defaults('acNotificationGuard', $guard);
                     Route::delete('{id}', 'destroy')->name('destroy')->defaults('acNotificationGuard', $guard);

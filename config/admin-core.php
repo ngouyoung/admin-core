@@ -278,10 +278,26 @@ return [
         // seeds from. A host or module also registers channels at runtime via ->extend() from a provider's boot().
         'channels' => [
             'inapp' => \Ngos\AdminCore\Notifications\Platform\InAppChannel::class,
+            'broadcast' => \Ngos\AdminCore\Notifications\Platform\BroadcastChannel::class,
         ],
 
-        // The channel the ChannelRouter uses when a send does not constrain channels via PendingNotification::channel().
+        // The channels a send() fans out to when it doesn't constrain them via PendingNotification::channel().
+        // A plain list of names the router reads verbatim — add 'broadcast' to also push realtime by default. This
+        // is ROUTING only; whether broadcast actually publishes is governed separately by `broadcast.enabled` below.
+        'default_channels' => ['inapp'],
+
+        // Legacy single default (superseded by `default_channels`, kept for back-compat).
         'default_channel' => 'inapp',
+
+        // Optional realtime broadcast. `enabled=false` binds the NullPublisher, so the broadcast channel is a safe
+        // no-op even if it is routed — transport enablement and routing membership stay separate concerns.
+        'broadcast' => [
+            'enabled' => env('ADMIN_CORE_BROADCAST', false),
+            'driver' => env('ADMIN_CORE_BROADCAST_DRIVER', 'null'),   // reverb | null (pusher/ably via a bound publisher)
+            'connection' => env('ADMIN_CORE_BROADCAST_CONNECTION'),   // broadcasting connection ReverbPublisher uses (null = default)
+            'event' => 'notification.created',                        // the event name the frontend listens for
+            'channel_prefix' => 'admin-core.notifications',           // private channel = <prefix>.<morphType>.<morphId>
+        ],
     ],
 
     /*

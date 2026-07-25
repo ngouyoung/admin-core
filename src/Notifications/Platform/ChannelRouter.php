@@ -24,6 +24,14 @@ final class ChannelRouter
             return array_values(array_unique($requested));
         }
 
+        // The configured default channel SET, read verbatim as opaque names — the router stays transport-blind and
+        // names no specific channel driver in code; those live only in config. Falls back to the legacy single
+        // `default_channel`, then to `inapp`, so existing configs are unaffected.
+        $defaults = config('admin-core.notifications.default_channels');
+        if (is_array($defaults) && $defaults !== []) {
+            return array_values(array_unique(array_map('strval', $defaults)));
+        }
+
         return [(string) config('admin-core.notifications.default_channel', 'inapp')];
     }
 }
