@@ -32,6 +32,11 @@ PUBLIC/EXTENSION signatures are additive-only; a break is a MAJOR release.
 Tiers are encoded in code: `final` on PUBLIC-final/NEVER-EXTEND classes, `@internal` docblocks on INTERNAL classes,
 interfaces for the contracts — and asserted by a contract test.
 
+> **Update (v4.0.0).** The engine pieces this ADR assigned to INTERNAL have shipped and slot in exactly as stated:
+> the dispatcher collaborators, the Notification Center, `Models\Notification`, and the broadcast channel's internals
+> (`Broadcast/`) are all `@internal`. The PUBLIC-tier contracts remained frozen through the store, in-app, and
+> broadcast work.
+
 ## Consequences
 
 - Products have a stable, minimal surface; admin-core can evolve the engine (dispatcher, store, Center) freely.

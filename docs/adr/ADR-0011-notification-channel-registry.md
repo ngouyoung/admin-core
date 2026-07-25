@@ -29,6 +29,11 @@ Channels are drivers behind a minimal, frozen contract and are resolved through 
   First-party reserved names: `inapp`, `mail`, `broadcast`, `sms`, `telegram`, `push`, `slack`, `webhook`. A
   preference/route referencing a removed channel degrades gracefully (the router skips it, never throws at send).
 
+> **Update (v4.0.0).** Two first-party channels now ship, wired through this registry via
+> `config('admin-core.notifications.channels')`: `inapp` (`InAppChannel`) and the optional `broadcast`
+> (`BroadcastChannel`, off by default). Both are registered by name exactly as the contract describes; the manager
+> was unchanged. See [ADR-0014](ADR-0014-notification-broadcast-channel.md) for the broadcast channel.
+
 ## Consequences
 
 - Third-party modules install channels via `extend()` + config; the kernel is closed for modification, open for
@@ -40,4 +45,6 @@ Channels are drivers behind a minimal, frozen contract and are resolved through 
 
 - `src/Notifications/Platform/NotificationChannelManager.php`, `Contracts/NotificationChannel.php`,
   `OutboundNotification.php`, `DeliveryResult.php`.
+- `src/Notifications/Platform/InAppChannel.php`, `BroadcastChannel.php`, `Broadcast/` (the realtime channel + its
+  publisher seam) — the first-party channel realizations (v4.0.0).
 - `src/Translation/TranslationManager.php` — the driver-registry pattern reused.

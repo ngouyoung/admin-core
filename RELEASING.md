@@ -47,8 +47,12 @@ git commit -m "Bump admin-core to vX.Y.Z"
 
 - Tag-driven (SemVer). **Do not** add a `version` field to `composer.json` — Packagist reads tags.
 - Patch (`x.y.Z`): fixes, tooling. Minor (`x.Y.0`): new features, back-compatible.
-  Major (`X.0.0`): breaking changes — narrowing a signature, removing a config key, etc.
+  Major (`X.0.0`): breaking changes — narrowing a signature, removing a config key, **removing a composer
+  dependency**, **a public class dropping a base class / interface**, or a **destructive/transforming migration**.
 - Breaking changes need an `UPGRADING.md` note (e.g. "re-run `admin-core:install --access --force`").
+- A release whose migration **transforms or drops an existing table** (e.g. the v4.0.0 notifications hybrid-store
+  transition, which recreates the `notifications` table) is MAJOR: the `UPGRADING.md` note must state whether rows
+  are preserved and give the explicit pre-upgrade step (back up / drop) when they are not.
 
 ## Fresh clones
 

@@ -12,17 +12,19 @@ npm install && npm run build
 
 ---
 
-## → (next release) — In-app notifications run on the Notification Platform (BREAKING for direct `AdminNotification` callers)
+## → v4.0.0 — In-app notifications run on the Notification Platform (BREAKING)
 
-<!-- Version pinned at release; this is the Notification Platform cutover (WP-N1…N5). -->
+<!-- Notification Platform cutover + optional realtime broadcast (WP-N1…N6). -->
 
 admin-core's in-app notifications (the bell + `/admin/notifications`) now run on the first-party **Notification
 Platform** store instead of Laravel database notifications. There is **one canonical pipeline**:
-`NotificationPlatform::send() → InAppChannel → the notifications store`; admin-core no longer uses Laravel's
-notification runtime at all.
+`NotificationPlatform::send() → Dispatcher → channel driver(s) → the notifications store`; admin-core no longer uses
+Laravel's notification runtime at all.
 
 This is a **breaking release**: it does **not** preserve runtime compatibility with the old Laravel notification
-implementation. There is no automatic data migration, no rollback archive, and no realtime broadcast.
+implementation, and there is no automatic data migration or rollback archive. Realtime is available again — but as a
+**new, optional, opt-in broadcast channel** (off by default), a fresh implementation that publishes the platform's own
+notifications, **not** the old Laravel-broadcast path.
 
 **BREAKING — `AdminNotification` is now a platform message, not a Laravel `Notification`.** It implements
 `NotificationMessage` and no longer has `via()` / `toArray()` / the `broadcast:` argument.
@@ -30,8 +32,9 @@ implementation. There is no automatic data migration, no rollback archive, and n
 | Your setup | Do this |
 |---|---|
 | You send with `$user->notify(new AdminNotification(...))` | Switch to `NotificationPlatform::send(new AdminNotification(..., message: '…'), $user)`. (`message` maps to the stored `body`.) |
-| You used **realtime / broadcast** (`ADMIN_CORE_REALTIME=true`) | **Removed.** The `realtime` config key and the `echo.js` / `realtime.js` broadcast stubs are gone (they consumed Laravel notification broadcasts, which the platform does not emit). Notifications are in-app only. Delete your published `resources/js/echo.js` + `resources/js/realtime.js` and the `laravel-echo`/`pusher-js` devDependencies. |
-| You have an existing Laravel `notifications` table (from ≤ the prior release) | **Drop it before upgrading:** `DROP TABLE notifications;` (back it up first if you want the old rows). The platform's package migration then creates the new hybrid store on `php artisan migrate`. This release does **not** migrate the old rows. |
+| You used the **old** realtime path (`ADMIN_CORE_REALTIME=true`) | The old `realtime` config key and its Laravel-broadcast `echo.js`/`realtime.js` stubs are **removed**. To keep realtime, **opt into the new broadcast channel** (see below) and re-publish the fresh stubs with `admin-core:install --access --force`; otherwise delete your old published `resources/js/echo.js` + `resources/js/realtime.js`. |
+| You want realtime (optional) | Set `ADMIN_CORE_BROADCAST=true` + a driver (`ADMIN_CORE_BROADCAST_DRIVER=reverb`), add `'broadcast'` to `notifications.default_channels` (or `->channel('inapp','broadcast')` per send), configure a Laravel broadcasting connection, and publish the fresh `echo.js`/`realtime.js` (they re-sync from the store, so a dropped message self-heals). Off by default — **no action needed if you don't want realtime.** |
+| You have an existing Laravel `notifications` table (from ≤ v3.1.0) | **Drop it before upgrading:** `DROP TABLE notifications;` (back it up first if you want the old rows). The platform's package migration then creates the new hybrid store on `php artisan migrate`. This release does **not** migrate the old rows. |
 | **Fresh install** | **Nothing.** The store is created by admin-core's own package migration (auto-loaded). |
 
 Existing hosts keep the (now-vestigial) `Notifiable` trait on their `User` model — it is harmless and no longer used

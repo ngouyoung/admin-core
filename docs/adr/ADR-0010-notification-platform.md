@@ -35,6 +35,12 @@ a domain concept.
   the in-app channel + a thin dispatcher. Preferences, deliveries, templates, retry, localization, digest,
   attachments, multi-tenant, and public egress events are deferred behind reserved seams.
 
+> **Update (v4.0.0).** The full "Rule of Three" v1 has shipped: the admin-core-owned hybrid `notifications` store
+> (bigint `id` + public `uuid` + `guard` via `Models\Notification`), the `InAppChannel`, and the thin `Dispatcher`
+> are live, and `illuminate/notifications` was removed from `composer.json`. An **optional** `BroadcastChannel`
+> (off by default) also shipped for realtime — see [ADR-0014](ADR-0014-notification-broadcast-channel.md). The
+> deferred seams (preferences, deliveries, templates, retry, digest, …) remain deferred.
+
 ## Consequences
 
 - Products depend on `NotificationPlatform` (and the message/recipient/channel contracts), not Laravel

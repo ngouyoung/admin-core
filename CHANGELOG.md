@@ -2,6 +2,62 @@
 
 All notable changes to `ngos/admin-core` are documented here.
 
+## v4.0.0
+
+**Notification Platform V1 — first-party in-app notifications replace Laravel database notifications (BREAKING).**
+admin-core's in-app notifications (the top-bar bell and `/admin/notifications`) now run on a first-party
+**Notification Platform** instead of Laravel's notification runtime. There is **one canonical pipeline** —
+`NotificationPlatform::send() → Dispatcher → channel driver(s) → the notifications store` — and admin-core no longer
+depends on Laravel notifications at all. The platform is *mechanism, not policy*: the kernel orchestrates delivery
+and never learns what a notification *means* (ADR-0010 … ADR-0013).
+
+**BREAKING — `AdminNotification` is now a platform message, not a Laravel `Notification`.** It implements
+`Ngos\AdminCore\Notifications\Platform\Contracts\NotificationMessage` and no longer has `via()` / `toArray()` / the
+`broadcast:` argument. Producers send with `NotificationPlatform::send(new AdminNotification(...), $user)` instead of
+`$user->notify(new AdminNotification(...))` (the constructor's `message:` maps to the stored `body`). Both first-party
+producers (approval requests, generated-resource approver alerts) were re-pointed onto the platform.
+
+**BREAKING — the store schema changed to a hybrid identity.** The notifications table is now `bigint id` +
+public `uuid` + `guard` (via `HasPublicUuid`; `Models\Notification` is a first-party Eloquent model, not
+`DatabaseNotification`). A package migration performs a **create-or-transition** of the table on `php artisan migrate`.
+There is **no automatic migration of existing rows** — an existing Laravel `notifications` table must be dropped
+before upgrading (see UPGRADING). Reads scope by the recipient's morph identity (portal/guard-aware bell + center).
+
+### Added
+- The Notification Platform: `NotificationPlatform` facade → `PendingNotification` builder → transport-agnostic
+  `Dispatcher` → `NotificationChannelManager` (an **open channel registry**, config-seeded + `extend()`) →
+  `NotificationChannel` drivers → hybrid store. `RecipientResolver`, `ChannelRouter`, `NotificationTypeRegistry`
+  (opaque type seam). Frozen public contracts: `NotificationMessage`, `OutboundNotification`, `Recipient`,
+  `NotificationChannel`, `DeliveryResult` (ADR-0010 … ADR-0013).
+- `InAppChannel` — persists to the store; the default channel.
+- **Optional realtime Broadcast channel** (`broadcast`) — a peer `NotificationChannel`, **off by default**
+  (`NullPublisher`). Opt in via `notifications.broadcast.enabled` + a driver (Reverb/Pusher-compatible). Publishes
+  after the DB transaction commits, on the recipient's owner-only private channel (one injective morph-identity name
+  shared by publish and auth). The kernel names no transport in code; routing is config-driven via
+  `notifications.default_channels`.
+- Fresh, opt-in realtime frontend stubs (`echo.js`, `realtime.js`): subscribe → optimistic bell bump → toast →
+  reconnect re-sync, with the persisted store as the source of truth. An additive `notifications.unread` JSON
+  endpoint backs the re-sync.
+- New config block `notifications.{default_channels, broadcast.{enabled, driver, connection, event, channel_prefix}}`.
+
+### Changed
+- The Notification Center controller, `/admin/notifications` views, and `<x-admin-core::notifications-bell>` read the
+  platform store; `readAll`/`destroy` operate on model instances so cache-invalidation events fire. The bell exposes
+  its realtime channel only when broadcast is enabled.
+
+### Removed
+- The Laravel database-notification implementation and every legacy compatibility artifact (transition rollback
+  scaffolding, uninstall compat, legacy helpers).
+- The `illuminate/notifications` dependency (no runtime symbol depends on it).
+- The **old** `ADMIN_CORE_REALTIME` realtime path and its Laravel-broadcast `echo.js`/`realtime.js` stubs (superseded
+  by the platform's fresh, opt-in broadcast channel above — these are a new implementation, not the restored legacy).
+
+### Quality gates
+- **1,095 tests / 4,350 assertions passing; PHPStan (larastan) level 5 clean; 58 frontend (Vitest) tests.**
+  The broadcast channel adds unit + integration + architecture tests (the architecture test pins the kernel as
+  transport-agnostic). A four-dimension adversarial review with per-finding verification confirmed and fixed three
+  findings (deferred-publish guard, event-name bridge, injective channel names) before release.
+
 ## v3.1.0
 
 **AR-1 finish-work: SetLocale locale resolution is config-guard-only (WP-B13b, Decision D1=b).** AR-1 routed

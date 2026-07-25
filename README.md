@@ -1039,14 +1039,30 @@ Implement `Ngos\AdminCore\Notifications\Platform\Contracts\NotificationMessage` 
 
 The bell renders only where the routes exist (`Route::adminCoreNotifications()`, added to the admin group by
 `--access`) and a user is authenticated — so it's safe everywhere. **Existing installs:** re-run
-`php artisan admin-core:install --access`, then `php artisan migrate` (the notifications migration transitions any
-existing Laravel `notifications` table into the platform store, preserving your rows).
+`php artisan admin-core:install --access`, then `php artisan migrate` (admin-core's package migration creates the
+hybrid store). This release does **not** migrate old rows — if you have a pre-v4.0.0 Laravel `notifications` table,
+back it up and drop it first (the migration recreates the table); see [UPGRADING](UPGRADING.md).
 
 > **Migrating from `$user->notify(new AdminNotification(...))`?** The platform cutover replaced the Laravel-notification
 > send path: call `NotificationPlatform::send(new AdminNotification(...), $user)` instead. `AdminNotification` is no
 > longer a Laravel `Notification` (it has no `via()`/`toArray()`/`broadcast:`).
 
-The bell is **pull-based** (updates on page load) — notifications are stored in-app via the InApp channel.
+By default the bell is **pull-based** (updates on page load): every `send()` fans out to the **InApp** channel and
+lands in the platform's hybrid store, read back via `Ngos\AdminCore\Models\Notification`.
+
+**Optional realtime (broadcast).** A peer **`broadcast`** channel can push notifications live over Laravel Echo. It is
+**off by default** — the channel binds a `NullPublisher`, so routing to it is a safe no-op until you enable it under
+`config('admin-core.notifications')`:
+
+- `default_channels` — the channels a `send()` fans out to (default `['inapp']`); add `'broadcast'` to also push
+  realtime by default (routing only; or opt in per send with `->channel('inapp', 'broadcast')`).
+- `broadcast.enabled` (env `ADMIN_CORE_BROADCAST`) — swaps the `NullPublisher` for the real publisher
+  (`driver`: `reverb` | `null`, plus `connection`, `event`, `channel_prefix`; each user's private channel is
+  `<prefix>.<morphType>.<morphId>`, authorized owner-only).
+
+Broadcast publishes only **after** the DB transaction commits and is **best-effort** — the store stays the source of
+truth, and the fresh `resources/js/echo.js` + `resources/js/realtime.js` stubs (shipped by `--access`) re-sync the
+bell from the store on connect/reconnect, so a dropped message self-heals.
 
 ## Translation & multi-language
 
