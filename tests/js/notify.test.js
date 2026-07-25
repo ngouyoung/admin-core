@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NOTIFY_STUB, loadStub } from './helpers.js';
 
 // The toast helper must render the message as inert TEXT, never as HTML — a toast can carry untrusted data
-// (a realtime broadcast, a server error message), and SweetAlert2's `title` is an HTML sink.
+// (a server payload, an error message), and SweetAlert2's `title` is an HTML sink.
 describe('notify toast', () => {
     beforeEach(() => {
         delete window.toastr;
