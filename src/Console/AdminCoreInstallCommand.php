@@ -500,10 +500,11 @@ PHP;
             1,
         );
 
-        // Append to the class's first in-class trait `use … ;` line — matched flexibly (indented use, short
-        // names → no backslash, so top-level FQCN imports never match) so a User with any traits/order works.
+        // Append to the User class's first trait `use … ;` line — SCOPED to the `class User { … }` body (so a
+        // trait/class declared above User can't be hijacked) and matched flexibly (indented, short names → no
+        // backslash, so top-level FQCN imports never match) so a User with any traits/order works.
         $contents = preg_replace(
-            '/(\n[ \t]+use\s+[A-Za-z0-9_,\s]*?)(;)/',
+            '/(class\s+User\b[^{]*\{[^;{}]*?\n[ \t]+use\s+[A-Za-z0-9_,\s]*?)(;)/',
             '$1, HasRoles, HasPublicUuid$2',
             $contents,
             1,
@@ -542,9 +543,10 @@ PHP;
             1,
         );
 
-        // Append to the class's first in-class trait `use … ;` line (same flexible match as addHasRolesTrait).
+        // Append to the User class's first trait `use … ;` line — scoped to the `class User { … }` body (same
+        // scoped, flexible match as addHasRolesTrait).
         $contents = preg_replace(
-            '/(\n[ \t]+use\s+[A-Za-z0-9_,\s]*?)(;)/',
+            '/(class\s+User\b[^{]*\{[^;{}]*?\n[ \t]+use\s+[A-Za-z0-9_,\s]*?)(;)/',
             '$1, TwoFactorAuthenticatable$2',
             (string) $contents,
             1,

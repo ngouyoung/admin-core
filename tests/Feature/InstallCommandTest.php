@@ -248,6 +248,49 @@ it('adds the traits to a User model that has NO Laravel Notifiable (zero notific
     $original === null ? File::delete($userPath) : File::put($userPath, $original);
 });
 
+it('scopes trait injection to the User class — a trait declared above User is not hijacked', function () {
+    File::ensureDirectoryExists(app_path('Models'));
+    $userPath = app_path('Models/User.php');
+    $original = File::exists($userPath) ? File::get($userPath) : null;
+
+    // A helper trait declared ABOVE the User class: its `use` is the file's first indented trait use, but the
+    // injection must land on the User class, never on the helper.
+    File::put($userPath, <<<'PHP'
+    <?php
+
+    namespace App\Models;
+
+    use Illuminate\Foundation\Auth\User as Authenticatable;
+
+    trait AuditsChanges
+    {
+        use SomeHelperTrait;
+    }
+
+    class User extends Authenticatable
+    {
+        use HasFactory;
+    }
+    PHP);
+
+    $command = new \Ngos\AdminCore\Console\AdminCoreInstallCommand();
+    $command->setLaravel(app());
+    (fn ($o) => $this->output = $o)->call(
+        $command,
+        new \Illuminate\Console\OutputStyle(new \Symfony\Component\Console\Input\ArrayInput([]), new \Symfony\Component\Console\Output\BufferedOutput()),
+    );
+    $m = new ReflectionMethod($command, 'addHasRolesTrait');
+    $m->setAccessible(true);
+    $m->invoke($command);
+
+    expect(File::get($userPath))
+        ->toContain('use HasFactory, HasRoles, HasPublicUuid;')  // landed on the User class
+        ->toContain('use SomeHelperTrait;')                      // the helper trait above is untouched…
+        ->not->toContain('SomeHelperTrait, HasRoles');           // …not hijacked
+
+    $original === null ? File::delete($userPath) : File::put($userPath, $original);
+});
+
 it('adds the TwoFactorAuthenticatable trait to the User model (idempotent)', function () {
     File::ensureDirectoryExists(app_path('Models'));
     $userPath = app_path('Models/User.php');
